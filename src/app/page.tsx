@@ -1,3 +1,140 @@
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Image from 'next/image';
+import Link from 'next/link';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { ArrowRight, BookOpen, Mic, BrainCircuit, FileQuestion } from 'lucide-react';
+import LandingHeader from '@/components/layout/LandingHeader';
+import LandingFooter from '@/components/layout/LandingFooter';
+
 export default function Home() {
-  return <></>;
+  const heroImage = PlaceHolderImages.find(p => p.id === 'hero');
+  const featureImage1 = PlaceHolderImages.find(p => p.id === 'feature1');
+  const featureImage2 = PlaceHolderImages.find(p => p.id === 'feature2');
+  const featureImage3 = PlaceHolderImages.find(p => p.id === 'feature3');
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <LandingHeader />
+
+      <main className="flex-grow">
+        {/* Hero Section */}
+        <section className="relative w-full py-20 md:py-32 lg:py-40 bg-primary/10">
+          <div className="container mx-auto px-4 md:px-6 text-center">
+            <h1 className="font-headline text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight text-primary-foreground mix-blend-difference filter invert">
+              Unlock Your Academic Potential
+            </h1>
+            <p className="mt-4 max-w-3xl mx-auto text-lg md:text-xl text-primary-foreground/80 mix-blend-difference filter invert">
+              Learn with Temi is your AI-powered partner for educational research and exam preparation, tailored for students in Ghana.
+            </p>
+            <div className="mt-8 flex justify-center gap-4">
+              <Button asChild size="lg" className="font-bold">
+                <Link href="/auth/signup">Get Started for Free <ArrowRight className="ml-2" /></Link>
+              </Button>
+              <Button asChild size="lg" variant="secondary">
+                <Link href="#features">Learn More</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="py-16 md:py-24 bg-background">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">A Smarter Way to Study</h2>
+              <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster and test smarter.</p>
+            </div>
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+              <FeatureCard
+                icon={<BookOpen className="w-10 h-10 text-primary" />}
+                title="AI-Powered StudySpaces"
+                description="Upload PDFs, audio, web links, and YouTube videos to create a unified knowledge base you can chat with."
+              />
+              <FeatureCard
+                icon={<Mic className="w-10 h-10 text-primary" />}
+                title="Podcast Overviews"
+                description="Turn your study materials into an engaging podcast-style conversation between our AI hosts, Temi & Jay."
+              />
+              <FeatureCard
+                icon={<BrainCircuit className="w-10 h-10 text-primary" />}
+                title="Dynamic Note Generation"
+                description="Instantly generate comprehensive study notes on any topic, tailored to your academic level."
+              />
+              <FeatureCard
+                icon={<FileQuestion className="w-10 h-10 text-primary" />}
+                title="Ghana Past Questions Hub"
+                description="Access a vast library of past questions from BECE to University and take timed mock exams."
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="py-16 md:py-24 bg-secondary">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Trusted by Students Across Ghana</h2>
+            </div>
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              <TestimonialCard
+                quote="Learn with Temi changed the game for my WASSCE prep. The AI chat helped me understand concepts I was stuck on for weeks."
+                name="Ama Serwaa"
+                title="WASSCE Candidate"
+              />
+              <TestimonialCard
+                quote="The podcast generator is pure genius! I listen to my notes on the go. It's like having a personal study group in my pocket."
+                name="Kofi Mensah"
+                title="University of Ghana Student"
+              />
+              <TestimonialCard
+                quote="As a BECE student, the past questions hub was invaluable. The AI roadmap showed me exactly where to focus my revision."
+                name="Adwoa Agyapong"
+                title="BECE Candidate"
+              />
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <LandingFooter />
+    </div>
+  );
+}
+
+function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+  return (
+    <Card className="text-center shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardHeader>
+        <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
+          {icon}
+        </div>
+        <CardTitle className="font-headline mt-4 text-xl">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TestimonialCard({ quote, name, title }: { quote: string, name: string, title: string }) {
+  return (
+    <Card className="flex flex-col justify-between shadow-lg">
+      <CardContent className="pt-6">
+        <p className="text-muted-foreground italic">"{quote}"</p>
+      </CardContent>
+      <CardHeader className="flex-row items-center gap-4">
+        <Avatar>
+          <AvatarImage src={`https://i.pravatar.cc/150?u=${name}`} />
+          <AvatarFallback>{name.substring(0, 2)}</AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-bold text-foreground">{name}</p>
+          <p className="text-sm text-muted-foreground">{title}</p>
+        </div>
+      </CardHeader>
+    </Card>
+  );
 }

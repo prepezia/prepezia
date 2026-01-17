@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "A diverse group of students studying together in a modern library.",
+      "imageUrl": "https://images.unsplash.com/photo-1531545514256-b1400bc00f31?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxzdHVkZW50cyUyMHN0dWR5aW5nfGVufDB8fHx8MTc2ODYzOTEzMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "students studying"
+    },
+    {
+      "id": "feature1",
+      "description": "A digital collage of documents, audio waves, and video thumbnails.",
+      "imageUrl": "https://images.unsplash.com/photo-1603993097397-89c963e325c7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxkaWdpdGFsJTIwY29udGVudHxlbnwwfHx8fDE3Njg2NTUwMDl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "digital content"
+    },
+    {
+      "id": "feature2",
+      "description": "A pair of headphones next to a smartphone displaying a podcast app.",
+      "imageUrl": "https://images.unsplash.com/photo-1620322068252-e6f8ee316ecb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwb2RjYXN0JTIwaGVhZHBob25lc3xlbnwwfHx8fDE3Njg2NTUwMDl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "podcast headphones"
+    },
+    {
+      "id": "feature3",
+      "description": "An illustration of a brain with interconnected nodes and ideas.",
+      "imageUrl": "https://images.unsplash.com/photo-1674027444454-97b822a997b6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxicmFpbiUyMG5ldHdvcmt8ZW58MHx8fHwxNzY4NjI5MzUyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "brain network"
+    }
+  ]
 }
