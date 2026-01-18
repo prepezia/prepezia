@@ -7,43 +7,106 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowRight, BookOpen, Mic, BrainCircuit, FileQuestion } from 'lucide-react';
 import LandingHeader from '@/components/layout/LandingHeader';
 import LandingFooter from '@/components/layout/LandingFooter';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 export default function Home() {
-  const heroImage = PlaceHolderImages.find(p => p.id === 'hero');
-  const featureImage1 = PlaceHolderImages.find(p => p.id === 'feature1');
-  const featureImage2 = PlaceHolderImages.find(p => p.id === 'feature2');
-  const featureImage3 = PlaceHolderImages.find(p => p.id === 'feature3');
+  const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
+  const carouselImage2 = PlaceHolderImages.find(p => p.id === 'carousel2')!;
+  const carouselImage3 = PlaceHolderImages.find(p => p.id === 'carousel3')!;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <LandingHeader />
 
       <main className="flex-grow">
-        {/* Hero Section */}
-        <section className="relative w-full py-20 md:py-32 lg:py-40 bg-primary/10">
-          <div className="container mx-auto px-4 md:px-6 text-center">
-            <h1 className="font-headline text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight text-primary-foreground mix-blend-difference filter invert">
-              Unlock Your Academic Potential
-            </h1>
-            <p className="mt-4 max-w-3xl mx-auto text-lg md:text-xl text-primary-foreground/80 mix-blend-difference filter invert">
-              Learn with Temi is your AI-powered partner for educational research and exam preparation, tailored for students in Ghana.
-            </p>
-            <div className="mt-8 flex justify-center gap-4">
-              <Button asChild size="lg" className="font-bold">
-                <Link href="/auth/signup">Get Started for Free <ArrowRight className="ml-2" /></Link>
-              </Button>
-              <Button asChild size="lg" variant="secondary">
-                <Link href="#features">Learn More</Link>
-              </Button>
-            </div>
-          </div>
+        {/* Carousel Section */}
+        <section className="w-full">
+            <Carousel className="w-full" opts={{ loop: true }}>
+                <CarouselContent>
+                    <CarouselItem>
+                        <div className="relative h-[500px] md:h-[600px] w-full">
+                        <Image
+                            src={carouselImage1.imageUrl}
+                            alt={carouselImage1.description}
+                            fill
+                            className="object-cover"
+                            data-ai-hint={carouselImage1.imageHint}
+                            priority
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <div className="container mx-auto px-4 md:px-6 text-center text-white">
+                            <h1 className="font-headline text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight">
+                                AI-Powered StudySpaces
+                            </h1>
+                            <p className="mt-4 max-w-3xl mx-auto text-lg md:text-xl">
+                                Upload your notes, PDFs, and even YouTube links to create a unified knowledge base.
+                            </p>
+                            <Button asChild size="lg" className="mt-8 font-bold">
+                                <Link href="/auth/signup">Create a StudySpace <ArrowRight className="ml-2" /></Link>
+                            </Button>
+                            </div>
+                        </div>
+                        </div>
+                    </CarouselItem>
+                    <CarouselItem>
+                        <div className="relative h-[500px] md:h-[600px] w-full">
+                        <Image
+                            src={carouselImage2.imageUrl}
+                            alt={carouselImage2.description}
+                            fill
+                            className="object-cover"
+                            data-ai-hint={carouselImage2.imageHint}
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <div className="container mx-auto px-4 md:px-6 text-center text-white">
+                            <h1 className="font-headline text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight">
+                                Ghana Past Questions Hub
+                            </h1>
+                            <p className="mt-4 max-w-3xl mx-auto text-lg md:text-xl">
+                                Practice with BECE, WASSCE, and university past questions. Get AI-driven feedback.
+                            </p>
+                            <Button asChild size="lg" className="mt-8 font-bold">
+                                <Link href="/home/past-questions">Start Practicing <ArrowRight className="ml-2" /></Link>
+                            </Button>
+                            </div>
+                        </div>
+                        </div>
+                    </CarouselItem>
+                    <CarouselItem>
+                        <div className="relative h-[500px] md:h-[600px] w-full">
+                        <Image
+                            src={carouselImage3.imageUrl}
+                            alt={carouselImage3.description}
+                            fill
+                            className="object-cover"
+                            data-ai-hint={carouselImage3.imageHint}
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <div className="container mx-auto px-4 md:px-6 text-center text-white">
+                            <h1 className="font-headline text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight">
+                                Generate Notes & Podcasts
+                            </h1>
+                            <p className="mt-4 max-w-3xl mx-auto text-lg md:text-xl">
+                                Instantly create study notes and audio summaries from your materials.
+                            </p>
+                            <Button asChild size="lg" className="mt-8 font-bold">
+                                <Link href="/home/note-generator">Generate Now <ArrowRight className="ml-2" /></Link>
+                            </Button>
+                            </div>
+                        </div>
+                        </div>
+                    </CarouselItem>
+                </CarouselContent>
+                <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 hidden md:flex bg-white/50 hover:bg-white text-primary" />
+                <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 hidden md:flex bg-white/50 hover:bg-white text-primary" />
+            </Carousel>
         </section>
 
         {/* Features Section */}
         <section id="features" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-12">
-              <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">A Smarter Way to Study</h2>
+              <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Amazing Services & Features For You</h2>
               <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster and test smarter.</p>
             </div>
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
