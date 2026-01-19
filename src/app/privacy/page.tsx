@@ -1,11 +1,22 @@
 import LandingFooter from "@/components/layout/LandingFooter";
 import LandingHeader from "@/components/layout/LandingHeader";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <LandingHeader />
       <main className="flex-grow container mx-auto px-4 md:px-6 py-12">
+        <div className="mb-8">
+          <Button asChild variant="outline">
+            <Link href="/">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Link>
+          </Button>
+        </div>
         <div className="prose dark:prose-invert max-w-4xl mx-auto">
           <h1 className="font-headline">Privacy Policy for Learn with Temi</h1>
           <p><strong>Last Updated:</strong> {new Date().toLocaleDateString()}</p>
@@ -72,8 +83,15 @@ export default function PrivacyPolicyPage() {
 
           <h2>7. Contact Us</h2>
           <p>
-            If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:privacy@learnwithtemi.com">privacy@learnwithtemi.com</a>
+            If you have questions or comments about this Privacy Policy, please contact us:
           </p>
+          <address className="not-italic space-y-2">
+            <strong>Next Innovation Africa Ltd</strong><br />
+            K209, Nii Amasa Nikoi, CL, New Adenta, GD - 091 – 8790<br />
+            <a href="tel:0277777155" className="text-primary hover:underline">Phone: 0277777155</a><br />
+            <a href="mailto:support@learnwithTemi.com" className="text-primary hover:underline">Email: support@learnwithTemi.com</a><br />
+            <a href="https://www.learnwithTemi.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Website: www.learnwithTemi.com</a>
+          </address>
         </div>
       </main>
       <LandingFooter />
