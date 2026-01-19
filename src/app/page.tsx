@@ -25,6 +25,10 @@ export default function Home() {
   const [current, setCurrent] = React.useState(0)
   const [count, setCount] = React.useState(0)
 
+  const mainCarouselPlugin = React.useRef(
+    Autoplay({ delay: 4000, stopOnInteraction: true })
+  );
+
   React.useEffect(() => {
     if (!api) {
       return
@@ -68,7 +72,14 @@ export default function Home() {
         {/* Carousel Section */}
         <section className="w-full py-12 md:py-20 bg-card">
             <div className="container mx-auto px-4 md:px-6">
-                <Carousel setApi={setApi} className="relative" opts={{ loop: true }}>
+                <Carousel 
+                    setApi={setApi} 
+                    className="relative" 
+                    opts={{ loop: true }}
+                    plugins={[mainCarouselPlugin.current]}
+                    onMouseEnter={mainCarouselPlugin.current.stop}
+                    onMouseLeave={mainCarouselPlugin.current.reset}
+                >
                     <CarouselContent>
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -416,3 +427,5 @@ function TestimonialCard({ quote, name, title }: { quote: string, name: string, 
     </Card>
   );
 }
+
+    
