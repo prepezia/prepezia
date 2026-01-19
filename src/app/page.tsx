@@ -13,30 +13,6 @@ import LandingFooter from '@/components/layout/LandingFooter';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { Logo } from "@/components/icons/Logo";
 
-const AppStoreIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg
-        fill="currentColor"
-        viewBox="0 0 24 24"
-        {...props}
-    >
-        <path d="M17.8 20.2c-1.5 0-2.3-1.1-3.8-1.1-1.5 0-2.5 1-3.8 1-1.8 0-3-2.1-4.1-5.2 1.8-1.1 3.2-1.9 4.9-1.9 1.4 0 2.3 1.1 3.8 1.1 1.4 0 2.4-1.1 3.8-1.1 1.6 0 2.9 1 4.3 1.9-1.3 3.3-2.9 5.2-4.1 5.2zM13.5 9c.1-2 1.6-3.3 3.3-3.4-.1 2-1.6 3.3-3.3 3.4z"/>
-    </svg>
-);
-
-const PlayStoreIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg
-        fill="currentColor"
-        viewBox="0 0 26 29"
-        {...props}
-    >
-        <path d="m2.6 2.4c-.4.2-.6.6-.7 1l-1.7 8.5.1.2 11.2 6.5 2.8-2.8-11.7-7.2V2.4z"/>
-        <path d="m21.8 12.1-2.9-1.6-2.7-2.7-11.2-6.5c-.2-.1-.5-.2-.7-.2L21.8 11c.1.1.2.2.3.3l.8 4.7-1-1z"/>
-        <path d="m.2 21.8 11.2 6.5 2.8-2.8-11.1-6.5-.2-.1-.1.2-.6 2.7z"/>
-        <path d="m14.5 21.5 11.1-6.4c.1-.1.2-.2.3-.3l-3-2.9-8.4 4.8v4.6z"/>
-    </svg>
-);
-
-
 export default function Home() {
   const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
   const carouselImage2 = PlaceHolderImages.find(p => p.id === 'carousel2')!;
@@ -304,14 +280,26 @@ export default function Home() {
                 </p>
                 <div className="flex justify-center md:justify-start space-x-4 mt-6">
                   <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-foreground text-background px-4 py-3 text-sm font-medium transition-colors hover:bg-foreground/90">
-                    <AppStoreIcon className="w-6 h-6 mr-2 fill-current" />
+                    <Image
+                        src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fapple_546072.png?alt=media&token=aa36ac4c-401b-4d98-acd1-5c24889205fe"
+                        alt="Download on the App Store"
+                        width={24}
+                        height={24}
+                        className="mr-2"
+                    />
                     <span>
                       <span className="block text-xs">Download on the</span>
                       <span className="block font-semibold">App Store</span>
                     </span>
                   </Link>
                   <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-foreground text-background px-4 py-3 text-sm font-medium transition-colors hover:bg-foreground/90">
-                    <PlayStoreIcon className="w-6 h-6 mr-2 fill-current" />
+                    <Image
+                        src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fandroid-character-symbol_25374.png?alt=media&token=1584821d-8f37-44e3-a387-b96b454a6a87"
+                        alt="Get it on Google Play"
+                        width={24}
+                        height={24}
+                        className="mr-2"
+                    />
                     <span>
                       <span className="block text-xs">GET IT ON</span>
                       <span className="block font-semibold">Google Play</span>
