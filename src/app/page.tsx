@@ -12,6 +12,7 @@ import LandingHeader from '@/components/layout/LandingHeader';
 import LandingFooter from '@/components/layout/LandingFooter';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { Logo } from "@/components/icons/Logo";
+import Autoplay from "embla-carousel-autoplay";
 
 export default function Home() {
   const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
@@ -36,6 +37,28 @@ export default function Home() {
       setCurrent(api.selectedScrollSnap())
     })
   }, [api])
+
+  const testimonialsPlugin = React.useRef(
+    Autoplay({ delay: 5000, stopOnInteraction: true })
+  );
+
+  const testimonials = [
+    {
+      quote: "Learn with Temi changed the game for my WASSCE prep. The AI chat helped me understand concepts I was stuck on for weeks.",
+      name: "Ama Serwaa",
+      title: "WASSCE Candidate",
+    },
+    {
+      quote: "The podcast generator is pure genius! I listen to my notes on the go. It's like having a personal study group in my pocket.",
+      name: "Kofi Mensah",
+      title: "University of Ghana Student",
+    },
+    {
+      quote: "As a BECE student, the past questions hub was invaluable. The AI roadmap showed me exactly where to focus my revision.",
+      name: "Adwoa Agyapong",
+      title: "BECE Candidate",
+    },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -326,23 +349,31 @@ export default function Home() {
             <div className="text-center mb-12">
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Trusted by Students Across Ghana</h2>
             </div>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              <TestimonialCard
-                quote="Learn with Temi changed the game for my WASSCE prep. The AI chat helped me understand concepts I was stuck on for weeks."
-                name="Ama Serwaa"
-                title="WASSCE Candidate"
-              />
-              <TestimonialCard
-                quote="The podcast generator is pure genius! I listen to my notes on the go. It's like having a personal study group in my pocket."
-                name="Kofi Mensah"
-                title="University of Ghana Student"
-              />
-              <TestimonialCard
-                quote="As a BECE student, the past questions hub was invaluable. The AI roadmap showed me exactly where to focus my revision."
-                name="Adwoa Agyapong"
-                title="BECE Candidate"
-              />
-            </div>
+            <Carousel
+              plugins={[testimonialsPlugin.current]}
+              className="w-full max-w-2xl mx-auto"
+              onMouseEnter={testimonialsPlugin.current.stop}
+              onMouseLeave={testimonialsPlugin.current.reset}
+              opts={{
+                loop: true,
+              }}
+            >
+              <CarouselContent>
+                {testimonials.map((testimonial, index) => (
+                  <CarouselItem key={index}>
+                    <div className="p-1">
+                      <TestimonialCard
+                        quote={testimonial.quote}
+                        name={testimonial.name}
+                        title={testimonial.title}
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex" />
+              <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex" />
+            </Carousel>
           </div>
         </section>
       </main>
@@ -387,5 +418,3 @@ function TestimonialCard({ quote, name, title }: { quote: string, name: string, 
     </Card>
   );
 }
-
-    
