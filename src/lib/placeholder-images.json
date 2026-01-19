@@ -26,21 +26,33 @@
     },
     {
       "id": "carousel1",
-      "description": "A student using a laptop with charts and graphs on the screen.",
-      "imageUrl": "https://images.unsplash.com/photo-1584697964328-b1e7f63dca95?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzdHVkZW50JTIwbGVhcm5pbmd8ZW58MHx8fHwxNzY4NzE0NzY0fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "student learning"
+      "description": "AI-Powered StudySpaces feature of Learn with Temi.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2FTemi%20study%20spaces.png?alt=media&token=a3428c20-d3b9-4fac-aa0e-9206eb774b4e",
+      "imageHint": "AI study"
     },
     {
       "id": "carousel2",
-      "description": "An AI robot tutor helping a student with their homework.",
-      "imageUrl": "https://picsum.photos/seed/c2/1200/600",
-      "imageHint": "AI tutor"
+      "description": "General notes creation feature of Learn with Temi.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2FTemi%20notes.png?alt=media&token=61018064-74ba-4a08-a987-0f2ae27ed6e6",
+      "imageHint": "note generation"
     },
     {
       "id": "carousel3",
-      "description": "A collection of books, a laptop, and a smartphone on a desk.",
-      "imageUrl": "https://images.unsplash.com/photo-1761319115499-872737b89e44?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzdHVkeSUyMG1hdGVyaWFsc3xlbnwwfHx8fDE3Njg3MTQ3NjV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "study materials"
+      "description": "Ghana Past Questions hub feature of Learn with Temi.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2FTemi%20past%20questions.png?alt=media&token=e9e997d9-b805-443e-99b9-d08be97c19f6",
+      "imageHint": "past questions"
+    },
+    {
+      "id": "carousel4",
+      "description": "Podcast Generation feature of Learn with Temi.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2FTemi%20podcast%201.png?alt=media&token=981cf0da-2a5e-40e7-b554-4c2f1a2a6fa4",
+      "imageHint": "podcast generation"
+    },
+    {
+      "id": "carousel5",
+      "description": "AI Deep Dive Research feature of Learn with Temi.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2FTemi%20AI%20research.png?alt=media&token=09d37203-b371-4537-938b-2e3442176dcd",
+      "imageHint": "AI research"
     }
   ]
 }

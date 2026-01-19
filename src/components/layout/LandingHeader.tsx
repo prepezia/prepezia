@@ -14,12 +14,12 @@ export default function LandingHeader() {
           <Link href="/#features" className="text-muted-foreground hover:text-foreground">Features</Link>
           <Link href="/auth/login" className="text-muted-foreground hover:text-foreground">Login</Link>
           <Button asChild>
-            <Link href="/auth/signup">Sign Up</Link>
+            <Link href="/auth/signup">Launch App</Link>
           </Button>
         </nav>
         <div className="md:hidden">
             <Button asChild>
-                <Link href="/auth/login">Login</Link>
+                <Link href="/auth/signup">Launch App</Link>
             </Button>
         </div>
       </div>
