@@ -279,7 +279,7 @@ export default function Home() {
                   Download the Learn with Temi app to access all your study materials, chats, and notes anytime, anywhere.
                 </p>
                 <div className="flex justify-center md:justify-start space-x-4 mt-6">
-                  <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-foreground text-background px-4 py-3 text-sm font-medium transition-colors hover:bg-foreground/90">
+                  <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-card text-card-foreground px-4 py-3 text-sm font-medium transition-colors hover:bg-card/90 dark:bg-primary-foreground dark:text-sidebar-primary-foreground dark:hover:bg-primary-foreground/90">
                     <Image
                         src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fapple_546072.png?alt=media&token=aa36ac4c-401b-4d98-acd1-5c24889205fe"
                         alt="Download on the App Store"
@@ -292,7 +292,7 @@ export default function Home() {
                       <span className="block font-semibold">App Store</span>
                     </span>
                   </Link>
-                  <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-foreground text-background px-4 py-3 text-sm font-medium transition-colors hover:bg-foreground/90">
+                  <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-card text-card-foreground px-4 py-3 text-sm font-medium transition-colors hover:bg-card/90 dark:bg-primary-foreground dark:text-sidebar-primary-foreground dark:hover:bg-primary-foreground/90">
                     <Image
                         src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fandroid-character-symbol_25374.png?alt=media&token=1584821d-8f37-44e3-a387-b96b454a6a87"
                         alt="Get it on Google Play"
