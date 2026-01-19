@@ -410,22 +410,24 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode, titl
 
 function TestimonialCard({ quote, name, title }: { quote: string, name: string, title: string }) {
   return (
-    <Card className="flex flex-col justify-between shadow-lg">
+    <Card className="shadow-lg text-center">
       <CardContent className="pt-6">
         <p className="text-muted-foreground italic">"{quote}"</p>
       </CardContent>
-      <CardHeader className="flex-row items-center gap-4">
+      <CardHeader className="items-center pt-0">
         <Avatar>
           <AvatarImage src={`https://i.pravatar.cc/150?u=${name}`} />
           <AvatarFallback>{name.substring(0, 2)}</AvatarFallback>
         </Avatar>
         <div>
-          <p className="font-bold text-foreground">{name}</p>
+          <p className="font-bold text-foreground mt-2">{name}</p>
           <p className="text-sm text-muted-foreground">{title}</p>
         </div>
       </CardHeader>
     </Card>
   );
 }
+
+    
 
     
