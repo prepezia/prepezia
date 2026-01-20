@@ -338,7 +338,7 @@ export default function Home() {
         {/* Download App Section */}
         <section id="download-app" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="relative z-10 bg-primary text-primary-foreground rounded-2xl shadow-2xl p-8 md:p-12 lg:p-16 mb-[-96px]">
+            <div className="relative z-10 bg-primary text-primary-foreground rounded-2xl shadow-2xl p-8 md:p-12 lg:p-16 mb-[-20px]">
               <div className="grid md:grid-cols-2 gap-12 items-center">
                 <div className="space-y-4 text-center md:text-left">
                   <h2 className="font-headline text-3xl md:text-4xl font-bold">Learn On The Go</h2>
