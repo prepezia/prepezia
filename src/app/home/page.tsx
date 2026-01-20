@@ -38,11 +38,11 @@ export default function DashboardPage() {
         <div className="text-center space-y-4 pt-10">
             <h1 className="text-4xl md:text-5xl font-headline font-bold tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
             <div className="relative max-w-xl mx-auto">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
                     type="search"
-                    placeholder="Search for topics like 'Ghanaian Independence' or 'Cell Mitosis'..."
-                    className="pl-11 h-12 rounded-full text-base bg-secondary/50 border-0 focus-visible:ring-2 focus-visible:ring-primary"
+                    placeholder="Search any topic"
+                    className="h-12 rounded-full border-0 bg-secondary/50 pl-12 pr-5 text-base focus-visible:ring-2 focus-visible:ring-primary"
                 />
             </div>
         </div>
