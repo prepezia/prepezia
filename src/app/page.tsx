@@ -303,57 +303,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Download App Section */}
-        <section id="download-app" className="py-16 md:py-24 bg-secondary">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div className="space-y-4 text-center md:text-left">
-                <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Learn On The Go</h2>
-                <p className="text-muted-foreground text-lg max-w-md mx-auto md:mx-0">
-                  Download the Learn with Temi app to access all your study materials, chats, and notes anytime, anywhere.
-                </p>
-                <div className="flex justify-center md:justify-start space-x-4 mt-6">
-                  <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-card text-card-foreground px-4 py-3 text-sm font-medium transition-colors hover:bg-card/90 dark:bg-primary-foreground dark:text-sidebar-primary-foreground dark:hover:bg-primary-foreground/90">
-                    <Image
-                        src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fapple_546072.png?alt=media&token=aa36ac4c-401b-4d98-acd1-5c24889205fe"
-                        alt="Download on the App Store"
-                        width={24}
-                        height={24}
-                        className="mr-2"
-                    />
-                    <span>
-                      <span className="block text-xs">Download on the</span>
-                      <span className="block font-semibold">App Store</span>
-                    </span>
-                  </Link>
-                  <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-card text-card-foreground px-4 py-3 text-sm font-medium transition-colors hover:bg-card/90 dark:bg-primary-foreground dark:text-sidebar-primary-foreground dark:hover:bg-primary-foreground/90">
-                    <Image
-                        src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fandroid-character-symbol_25374.png?alt=media&token=1584821d-8f37-44e3-a387-b96b454a6a87"
-                        alt="Get it on Google Play"
-                        width={24}
-                        height={24}
-                        className="mr-2"
-                    />
-                    <span>
-                      <span className="block text-xs">GET IT ON</span>
-                      <span className="block font-semibold">Google Play</span>
-                    </span>
-                  </Link>
-                </div>
-              </div>
-              <div className="relative h-80 md:h-96 w-full">
-                <Image
-                    src="https://picsum.photos/seed/app-mockup/800/800"
-                    alt="Learn with Temi mobile app mockup"
-                    fill
-                    className="object-contain"
-                    data-ai-hint="app mockup"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Testimonials Section */}
         <section className="py-16 md:py-24 bg-card">
           <div className="container mx-auto px-4 md:px-6">
@@ -383,6 +332,59 @@ export default function Home() {
                 ))}
               </CarouselContent>
             </Carousel>
+          </div>
+        </section>
+
+        {/* Download App Section */}
+        <section id="download-app" className="py-16 md:py-24 bg-background">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="relative z-10 bg-primary text-primary-foreground rounded-2xl shadow-2xl p-8 md:p-12 lg:p-16 mb-[-96px]">
+              <div className="grid md:grid-cols-2 gap-12 items-center">
+                <div className="space-y-4 text-center md:text-left">
+                  <h2 className="font-headline text-3xl md:text-4xl font-bold">Learn On The Go</h2>
+                  <p className="text-lg max-w-md mx-auto md:mx-0 opacity-90">
+                    Download the Learn with Temi app to access all your study materials, chats, and notes anytime, anywhere.
+                  </p>
+                  <div className="flex flex-col sm:flex-row justify-center md:justify-start space-x-0 sm:space-x-4 space-y-4 sm:space-y-0 mt-6">
+                    <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-primary-foreground text-primary px-4 py-3 text-sm font-medium transition-colors hover:bg-primary-foreground/90">
+                      <Image
+                          src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fapple_546072.png?alt=media&token=aa36ac4c-401b-4d98-acd1-5c24889205fe"
+                          alt="Download on the App Store"
+                          width={24}
+                          height={24}
+                          className="mr-2"
+                      />
+                      <span>
+                        <span className="block text-xs">Download on the</span>
+                        <span className="block font-semibold">App Store</span>
+                      </span>
+                    </Link>
+                    <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-primary-foreground text-primary px-4 py-3 text-sm font-medium transition-colors hover:bg-primary-foreground/90">
+                      <Image
+                          src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fandroid-character-symbol_25374.png?alt=media&token=1584821d-8f37-44e3-a387-b96b454a6a87"
+                          alt="Get it on Google Play"
+                          width={24}
+                          height={24}
+                          className="mr-2"
+                      />
+                      <span>
+                        <span className="block text-xs">GET IT ON</span>
+                        <span className="block font-semibold">Google Play</span>
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+                <div className="relative h-80 md:h-96 w-full hidden md:block">
+                  <Image
+                      src="https://picsum.photos/seed/app-mockup/800/800"
+                      alt="Learn with Temi mobile app mockup"
+                      fill
+                      className="object-contain"
+                      data-ai-hint="app mockup"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -427,7 +429,3 @@ function TestimonialCard({ quote, name, title }: { quote: string, name: string, 
     </Card>
   );
 }
-
-    
-
-    

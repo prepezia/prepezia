@@ -26,8 +26,8 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function LandingFooter() {
   return (
-    <footer className="bg-background border-t">
-      <div className="container mx-auto px-4 md:px-6 py-8">
+    <footer className="bg-sidebar text-sidebar-foreground">
+      <div className="container mx-auto px-4 md:px-6 pt-32 pb-8">
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center gap-2 mb-4 md:mb-0">
             <Logo className="w-8 h-8 text-primary" />
@@ -57,7 +57,7 @@ export default function LandingFooter() {
             </a>
           </div>
         </div>
-        <div className="text-center text-muted-foreground text-sm mt-8 border-t pt-8">
+        <div className="text-center text-muted-foreground text-sm mt-8 border-t border-sidebar-border/50 pt-8">
           © {new Date().getFullYear()} Learn with Temi. All rights reserved.
         </div>
       </div>
