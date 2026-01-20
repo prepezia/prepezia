@@ -92,6 +92,24 @@ export default function Home() {
       tags: ['BECE', 'WASSCE', 'University', 'Mock Exams'],
       color: 'bg-sky-50 dark:bg-sky-900/50',
       tagColor: 'bg-sky-200 dark:bg-sky-800/60',
+    },
+    {
+      category: 'For Audio Learners',
+      title: 'Podcast Generation',
+      imageUrl: carouselImage4.imageUrl,
+      imageHint: carouselImage4.imageHint,
+      tags: ['Audio Overview', 'On The Go', 'Temi & Jay', 'Conversational'],
+      color: 'bg-purple-50 dark:bg-purple-900/50',
+      tagColor: 'bg-purple-200 dark:bg-purple-800/60',
+    },
+    {
+      category: 'For Researchers',
+      title: 'AI Deep Dive Research',
+      imageUrl: carouselImage5.imageUrl,
+      imageHint: carouselImage5.imageHint,
+      tags: ['In-depth Analysis', 'Complex Topics', 'Research Assistant', 'Go Beyond'],
+      color: 'bg-red-50 dark:bg-red-900/50',
+      tagColor: 'bg-red-200 dark:bg-red-800/60',
     }
   ];
 
