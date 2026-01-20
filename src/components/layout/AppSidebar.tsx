@@ -21,7 +21,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "../icons/Logo";
-import { UserNav } from "./UserNav";
 
 const menuItems = [
   { href: "/home", label: "Dashboard", icon: Home },
@@ -60,7 +59,7 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        <UserNav />
+        {/* UserNav is now in HomeHeader */}
       </SidebarFooter>
     </Sidebar>
   );

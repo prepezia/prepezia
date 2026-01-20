@@ -1,69 +1,82 @@
-import AdBanner from "@/components/ads/AdBanner";
+"use client";
+
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BookOpen, BrainCircuit, FileQuestion } from "lucide-react";
+import { ArrowRight, BookOpen, BrainCircuit, FileQuestion, Search } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+const features = [
+    {
+      title: "Create a Study Space",
+      description: "Combine notes, docs & videos into a unified knowledge base.",
+      href: "/home/study-spaces",
+      icon: <BookOpen className="w-8 h-8 text-blue-500" />,
+      color: "bg-blue-50 dark:bg-blue-900/50",
+    },
+    {
+      title: "Generate Notes",
+      description: "Instantly create detailed study notes on any topic and level.",
+      href: "/home/note-generator",
+      icon: <BrainCircuit className="w-8 h-8 text-green-500" />,
+      color: "bg-green-50 dark:bg-green-900/50",
+    },
+    {
+      title: "Practice Past Questions",
+      description: "Test your knowledge and get an AI-powered revision plan.",
+      href: "/home/past-questions",
+      icon: <FileQuestion className="w-8 h-8 text-yellow-500" />,
+      color: "bg-yellow-50 dark:bg-yellow-900/50",
+    },
+];
+
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-headline font-bold">Welcome back!</h1>
-        <p className="text-muted-foreground">What would you like to do today?</p>
-      </div>
+    <div className="space-y-12">
+        <div className="text-center space-y-4 pt-10">
+            <h1 className="text-4xl md:text-5xl font-headline font-bold tracking-tight">What are we learning today?</h1>
+            <div className="relative max-w-xl mx-auto">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input 
+                    type="search"
+                    placeholder="Search for topics like 'Ghanaian Independence' or 'Cell Mitosis'..."
+                    className="pl-11 h-12 rounded-full text-base bg-secondary/50 border-0 focus-visible:ring-2 focus-visible:ring-primary"
+                />
+            </div>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <FeatureCard
-          title="Create a Study Space"
-          description="Combine your notes, documents, and videos into one place and start a conversation with your AI tutor."
-          href="/home/study-spaces"
-          icon={<BookOpen className="w-8 h-8 text-primary" />}
-        />
-        <FeatureCard
-          title="Generate Notes"
-          description="Instantly create detailed study notes on any topic, at any academic level."
-          href="/home/note-generator"
-          icon={<BrainCircuit className="w-8 h-8 text-primary" />}
-        />
-        <FeatureCard
-          title="Practice Past Questions"
-          description="Test your knowledge with official past questions and get an AI-powered revision plan."
-          href="/home/past-questions"
-          icon={<FileQuestion className="w-8 h-8 text-primary" />}
-        />
+      <div className="space-y-6">
+        <h2 className="text-2xl font-headline font-bold">Get Started</h2>
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map(feature => (
+              <HomeFeatureCard
+                key={feature.title}
+                title={feature.title}
+                description={feature.description}
+                href={feature.href}
+                icon={feature.icon}
+                color={feature.color}
+              />
+          ))}
+        </div>
       </div>
-
-      <div className="space-y-4">
-        <h2 className="text-2xl font-headline font-bold">Your Recent Activity</h2>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground">You don&apos;t have any recent activity. Start a new study session to see it here.</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <AdBanner />
     </div>
   );
 }
 
-function FeatureCard({ title, description, href, icon }: { title: string, description: string, href: string, icon: React.ReactNode }) {
+function HomeFeatureCard({ title, description, href, icon, color }: { title: string, description: string, href: string, icon: React.ReactNode, color: string }) {
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="flex-row items-start gap-4 space-y-0">
-        <div className="bg-primary/10 p-3 rounded-lg">{icon}</div>
-        <div className="flex-1">
-          <CardTitle className="font-headline text-xl">{title}</CardTitle>
-          <CardDescription className="mt-1">{description}</CardDescription>
+    <Link href={href} className={cn("block rounded-2xl p-6 flex flex-col group transition-transform hover:scale-[1.02]", color)}>
+        <div className="w-12 h-12 rounded-lg bg-card flex items-center justify-center mb-4">
+            {icon}
         </div>
-      </CardHeader>
-      <CardContent className="mt-auto">
-        <Button asChild className="w-full">
-          <Link href={href}>
+        <h3 className="font-headline text-xl font-bold text-foreground">{title}</h3>
+        <p className="text-muted-foreground mt-1 mb-4 flex-grow">{description}</p>
+        <div className="flex items-center text-sm font-semibold text-primary group-hover:translate-x-1 transition-transform">
             Start Now <ArrowRight className="ml-2 w-4 h-4" />
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
+        </div>
+    </Link>
   );
 }
