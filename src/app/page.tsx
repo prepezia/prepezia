@@ -144,10 +144,10 @@ export default function Home() {
                                         Upload your notes, PDFs, and even YouTube links to create a unified knowledge base.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
-                                        <Button asChild size="lg" className="font-bold">
+                                        <Button asChild size="lg" className="font-bold w-full sm:w-auto">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
-                                        <Button asChild size="lg" variant="outline" className="font-bold">
+                                        <Button asChild size="lg" variant="outline" className="font-bold w-full sm:w-auto">
                                             <Link href="/#download-app">Download App</Link>
                                         </Button>
                                     </div>
@@ -178,10 +178,10 @@ export default function Home() {
                                         Instantly create detailed study notes on any topic, at any academic level.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
-                                        <Button asChild size="lg" className="font-bold">
+                                        <Button asChild size="lg" className="font-bold w-full sm:w-auto">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
-                                        <Button asChild size="lg" variant="outline" className="font-bold">
+                                        <Button asChild size="lg" variant="outline" className="font-bold w-full sm:w-auto">
                                             <Link href="/#download-app">Download App</Link>
                                         </Button>
                                     </div>
@@ -211,10 +211,10 @@ export default function Home() {
                                         Practice with BECE, WASSCE, and university past questions. Get AI-driven feedback.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
-                                        <Button asChild size="lg" className="font-bold">
+                                        <Button asChild size="lg" className="font-bold w-full sm:w-auto">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
-                                        <Button asChild size="lg" variant="outline" className="font-bold">
+                                        <Button asChild size="lg" variant="outline" className="font-bold w-full sm:w-auto">
                                             <Link href="/#download-app">Download App</Link>
                                         </Button>
                                     </div>
@@ -244,10 +244,10 @@ export default function Home() {
                                         Instantly create study notes and audio summaries from your materials.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
-                                        <Button asChild size="lg" className="font-bold">
+                                        <Button asChild size="lg" className="font-bold w-full sm:w-auto">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
-                                        <Button asChild size="lg" variant="outline" className="font-bold">
+                                        <Button asChild size="lg" variant="outline" className="font-bold w-full sm:w-auto">
                                             <Link href="/#download-app">Download App</Link>
                                         </Button>
                                     </div>
@@ -277,10 +277,10 @@ export default function Home() {
                                         Go beyond surface-level answers. Let our AI conduct in-depth research on any topic.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
-                                        <Button asChild size="lg" className="font-bold">
+                                        <Button asChild size="lg" className="font-bold w-full sm:w-auto">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
-                                        <Button asChild size="lg" variant="outline" className="font-bold">
+                                        <Button asChild size="lg" variant="outline" className="font-bold w-full sm:w-auto">
                                             <Link href="/#download-app">Download App</Link>
                                         </Button>
                                     </div>
@@ -322,7 +322,7 @@ export default function Home() {
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Amazing Services & Features For You</h2>
               <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster and test smarter.</p>
             </div>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mx-auto grid max-w-md grid-cols-1 gap-8 md:mx-0 md:max-w-none md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
                 <FeatureCard key={index} {...feature} />
               ))}
