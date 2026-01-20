@@ -7,10 +7,10 @@ import { Menu } from "lucide-react";
 export function HomeHeader() {
     return (
         <header className="flex items-center justify-between p-4">
-            <UserNav />
             <SidebarTrigger className="md:hidden">
                 <Menu />
             </SidebarTrigger>
+            <UserNav />
         </header>
     )
 }
