@@ -143,7 +143,7 @@ export default function Home() {
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
                                         Upload your notes, PDFs, and even YouTube links to create a unified knowledge base.
                                     </p>
-                                    <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
+                                    <div className="flex flex-col sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold w-full sm:w-auto">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
@@ -322,7 +322,7 @@ export default function Home() {
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Amazing Services & Features For You</h2>
               <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster and test smarter.</p>
             </div>
-            <div className="mx-auto grid max-w-md grid-cols-1 gap-8 md:mx-0 md:max-w-none md:grid-cols-2 lg:grid-cols-3">
+            <div className="mx-auto grid max-w-sm grid-cols-1 gap-8 md:mx-0 md:max-w-none md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
                 <FeatureCard key={index} {...feature} />
               ))}
