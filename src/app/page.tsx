@@ -7,12 +7,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowRight, BookOpen, Mic, BrainCircuit, FileQuestion, Layers, Search } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import LandingHeader from '@/components/layout/LandingHeader';
 import LandingFooter from '@/components/layout/LandingFooter';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { Logo } from "@/components/icons/Logo";
 import Autoplay from "embla-carousel-autoplay";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
   const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
@@ -62,6 +63,36 @@ export default function Home() {
       name: "Adwoa Agyapong",
       title: "BECE Candidate",
     },
+  ];
+
+  const features = [
+    {
+      category: 'For Students',
+      title: 'AI-Powered StudySpaces',
+      imageUrl: carouselImage1.imageUrl,
+      imageHint: carouselImage1.imageHint,
+      tags: ['PDFs', 'Audio', 'Web Links', 'YouTube'],
+      color: 'bg-yellow-50 dark:bg-yellow-900/50',
+      tagColor: 'bg-yellow-200 dark:bg-yellow-800/60',
+    },
+    {
+      category: 'For Everyone',
+      title: 'Dynamic Note Generation',
+      imageUrl: carouselImage2.imageUrl,
+      imageHint: carouselImage2.imageHint,
+      tags: ['Any Topic', 'Any Level', 'Comprehensive', 'Instant'],
+      color: 'bg-green-50 dark:bg-green-900/50',
+      tagColor: 'bg-green-200 dark:bg-green-800/60',
+    },
+    {
+      category: 'For Exam Prep',
+      title: 'Ghana Past Questions Hub',
+      imageUrl: carouselImage3.imageUrl,
+      imageHint: carouselImage3.imageHint,
+      tags: ['BECE', 'WASSCE', 'University', 'Mock Exams'],
+      color: 'bg-sky-50 dark:bg-sky-900/50',
+      tagColor: 'bg-sky-200 dark:bg-sky-800/60',
+    }
   ];
 
   return (
@@ -273,32 +304,10 @@ export default function Home() {
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Amazing Services & Features For You</h2>
               <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster and test smarter.</p>
             </div>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <FeatureCard
-                icon={<BookOpen className="w-10 h-10 text-primary" />}
-                title="AI-Powered StudySpaces"
-                description="Upload PDFs, audio, web links, and YouTube videos to create a unified knowledge base you can chat with."
-              />
-              <FeatureCard
-                icon={<Mic className="w-10 h-10 text-primary" />}
-                title="Podcast Overviews"
-                description="Turn your study materials into an engaging podcast-style conversation between our AI hosts, Temi & Jay."
-              />
-              <FeatureCard
-                icon={<BrainCircuit className="w-10 h-10 text-primary" />}
-                title="Dynamic Note Generation"
-                description="Instantly generate comprehensive study notes on any topic, tailored to your academic level."
-              />
-              <FeatureCard
-                icon={<FileQuestion className="w-10 h-10 text-primary" />}
-                title="Ghana Past Questions Hub"
-                description="Access a vast library of past questions from BECE to University and take timed mock exams."
-              />
-              <FeatureCard
-                icon={<Search className="w-10 h-10 text-primary" />}
-                title="AI Deep Dive Research"
-                description="Go beyond simple answers. Our AI performs in-depth research on any topic for comprehensive understanding."
-              />
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {features.map((feature, index) => (
+                <FeatureCard key={index} {...feature} />
+              ))}
             </div>
           </div>
         </section>
@@ -394,20 +403,25 @@ export default function Home() {
   );
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+function FeatureCard({ category, title, imageUrl, imageHint, tags, color, tagColor }: { category: string, title: string, imageUrl: string, imageHint: string, tags: string[], color: string, tagColor: string }) {
   return (
-    <Card className="text-center shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader>
-        <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
-          {icon}
-        </div>
-        <CardTitle className="font-headline mt-4 text-xl">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  );
+    <div className={cn("rounded-3xl p-6 md:p-8 flex flex-col shadow-md hover:shadow-lg transition-shadow", color)}>
+      <div className="text-center">
+        <p className="font-semibold text-zinc-700 dark:text-zinc-400">{category}</p>
+        <h3 className={cn("font-headline text-zinc-900 dark:text-zinc-100 text-2xl md:text-3xl font-bold mt-2")}>{title}</h3>
+      </div>
+      <div className="relative w-full h-48 my-6">
+        <Image src={imageUrl} alt={title} fill className="object-contain" data-ai-hint={imageHint} />
+      </div>
+      <div className="flex flex-wrap justify-center gap-2 mt-auto">
+        {tags.map((tag) => (
+          <span key={tag} className={cn("text-sm font-medium text-zinc-800 dark:text-zinc-200 px-4 py-2 rounded-lg", tagColor)}>
+            {tag}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function TestimonialCard({ quote, name, title }: { quote: string, name: string, title: string }) {
