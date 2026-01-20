@@ -120,7 +120,7 @@ export default function Home() {
       <main className="flex-grow">
         {/* Carousel Section */}
         <section className="w-full py-12 md:py-20 bg-card">
-            <div className="container mx-auto px-4 md:px-6">
+            <div className="container mx-auto px-5 md:px-6">
                 <Carousel 
                     setApi={setApi} 
                     className="relative" 
@@ -317,7 +317,7 @@ export default function Home() {
 
         {/* Features Section */}
         <section id="features" className="py-16 md:py-24 bg-background">
-          <div className="container mx-auto px-4 md:px-6">
+          <div className="container mx-auto px-5 md:px-6">
             <div className="text-center mb-12">
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Amazing Services & Features For You</h2>
               <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster and test smarter.</p>
@@ -332,7 +332,7 @@ export default function Home() {
 
         {/* Testimonials Section */}
         <section className="py-16 md:py-24 bg-card">
-          <div className="container mx-auto px-4 md:px-6">
+          <div className="container mx-auto px-5 md:px-6">
             <div className="text-center mb-12">
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Trusted by Students Across Ghana</h2>
             </div>
@@ -364,7 +364,7 @@ export default function Home() {
 
         {/* Download App Section */}
         <section id="download-app" className="py-16 md:py-24 bg-background">
-          <div className="container mx-auto px-4 md:px-6">
+          <div className="container mx-auto px-5 md:px-6">
             <div className="relative z-10 bg-primary text-primary-foreground rounded-2xl shadow-2xl p-8 md:p-12 lg:p-16 mb-[-138px]">
               <div className="grid md:grid-cols-2 gap-12 items-center">
                 <div className="space-y-4 text-center md:text-left">
