@@ -36,7 +36,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-12">
         <div className="text-center space-y-4 pt-10">
-            <h1 className="text-4xl md:text-5xl font-headline font-bold tracking-tight">What are we learning today?</h1>
+            <h1 className="text-4xl md:text-5xl font-headline font-bold tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
             <div className="relative max-w-xl mx-auto">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
