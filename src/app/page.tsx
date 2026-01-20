@@ -143,7 +143,7 @@ export default function Home() {
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
                                         Upload your notes, PDFs, and even YouTube links to create a unified knowledge base.
                                     </p>
-                                    <div className="flex flex-col sm:flex-row gap-4 mt-6 justify-center md:justify-start">
+                                    <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
@@ -177,7 +177,7 @@ export default function Home() {
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
                                         Instantly create detailed study notes on any topic, at any academic level.
                                     </p>
-                                    <div className="flex flex-col sm:flex-row gap-4 mt-6 justify-center md:justify-start">
+                                    <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
@@ -210,7 +210,7 @@ export default function Home() {
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
                                         Practice with BECE, WASSCE, and university past questions. Get AI-driven feedback.
                                     </p>
-                                    <div className="flex flex-col sm:flex-row gap-4 mt-6 justify-center md:justify-start">
+                                    <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
@@ -243,7 +243,7 @@ export default function Home() {
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
                                         Instantly create study notes and audio summaries from your materials.
                                     </p>
-                                    <div className="flex flex-col sm:flex-row gap-4 mt-6 justify-center md:justify-start">
+                                    <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
@@ -276,7 +276,7 @@ export default function Home() {
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
                                         Go beyond surface-level answers. Let our AI conduct in-depth research on any topic.
                                     </p>
-                                    <div className="flex flex-col sm:flex-row gap-4 mt-6 justify-center md:justify-start">
+                                    <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold">
                                             <Link href="/auth/signup">Get Started <ArrowRight className="ml-2" /></Link>
                                         </Button>
