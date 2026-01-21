@@ -116,7 +116,7 @@ export default function StudySpacesPage() {
   };
 
 
-  function addSource(values: z.infer<typeof sourceSchema>) {
+  function addSource(values: z.infer<typeof sourceSchema>>) {
     if (values.file && values.file[0]) {
         const file = values.file[0];
         const typeMap: {[key: string]: Source['type']} = { 
@@ -390,50 +390,47 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     });
 
     const [sources, setSources] = useState<Source[]>([]);
-    const [youtubeUrl, setYoutubeUrl] = useState("");
-    const [websiteUrl, setWebsiteUrl] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [fileAccept, setFileAccept] = useState("");
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [copiedText, setCopiedText] = useState("");
+    const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
+    const [urlModalConfig, setUrlModalConfig] = useState<{type: 'youtube' | 'website', name: string, icon: React.ElementType} | null>(null);
+    const [currentUrl, setCurrentUrl] = useState("");
+
 
     const handleFileButtonClick = (accept: string) => {
         setFileAccept(accept);
         fileInputRef.current?.click();
     };
 
-    const handleAddYouTubeUrl = () => {
-        if (!youtubeUrl.trim()) return;
-        const newSource: Source = { type: 'youtube', name: youtubeUrl, url: youtubeUrl };
-        setSources(prev => [...prev, newSource]);
-        setYoutubeUrl("");
-    };
-
-    const handleAddWebsiteUrl = () => {
-        if (!websiteUrl.trim()) return;
-        const newSource: Source = { type: 'website', name: websiteUrl, url: websiteUrl };
-        setSources(prev => [...prev, newSource]);
-        setWebsiteUrl("");
+    const handleOpenUrlModal = (type: 'youtube' | 'website', name: string, icon: React.ElementType) => {
+        setUrlModalConfig({ type, name, icon });
+        setCurrentUrl("");
+        setIsUrlModalOpen(true);
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        const typeMap: { [key: string]: Source['type'] } = {
-            'application/pdf': 'pdf',
-            'text/plain': 'text',
-            'audio/mpeg': 'audio',
-            'audio/wav': 'audio',
-            'image/jpeg': 'image',
-            'image/png': 'image',
-            'image/gif': 'image',
-        };
-        const fileType = typeMap[file.type] || 'text';
+        let fileType: Source['type'] = 'text';
+
+        if (file.type.startsWith('image/')) {
+            fileType = 'image';
+        } else if (file.type.startsWith('audio/')) {
+            fileType = 'audio';
+        } else if (file.type === 'application/pdf') {
+            fileType = 'pdf';
+        }
 
         // TODO: Read file and store as data URI in source.data
         const newSource: Source = { type: fileType, name: file.name };
         setSources(prev => [...prev, newSource]);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
     };
     
     const handleAddCopiedText = () => {
@@ -444,10 +441,20 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         setIsTextModalOpen(false);
     };
 
+    const handleAddUrl = () => {
+        if (!currentUrl.trim() || !urlModalConfig) return;
+        const newSource: Source = { type: urlModalConfig.type, name: currentUrl, url: currentUrl };
+        setSources(prev => [...prev, newSource]);
+        setCurrentUrl("");
+        setIsUrlModalOpen(false);
+    };
+
     const sourceButtons = [
-        { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf")},
+        { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
-        { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/*") },
+        { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") },
+        { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
+        { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
     ];
 
@@ -509,26 +516,13 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                             <div className="space-y-4">
                                 <h3 className="font-semibold text-lg text-center">Add Sources</h3>
                                 
-                                <div className="space-y-4">
-                                    <div className="relative flex items-center">
-                                        <Youtube className="absolute left-3 w-5 h-5 text-muted-foreground" />
-                                        <Input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="Paste a YouTube link..." className="pl-10 pr-10"/>
-                                        <Button size="icon" variant="ghost" className="absolute right-1 h-8 w-8" onClick={handleAddYouTubeUrl}><Send className="h-4 w-4" /></Button>
-                                    </div>
-                                    <div className="relative flex items-center">
-                                        <Globe className="absolute left-3 w-5 h-5 text-muted-foreground" />
-                                        <Input value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="Paste a website link..." className="pl-10 pr-10"/>
-                                        <Button size="icon" variant="ghost" className="absolute right-1 h-8 w-8" onClick={handleAddWebsiteUrl}><Send className="h-4 w-4" /></Button>
-                                    </div>
-                                </div>
-
                                 <div className="relative text-center my-4">
-                                    <span className="bg-card px-2 text-sm text-muted-foreground">Or upload your files</span>
+                                    <span className="bg-card px-2 text-sm text-muted-foreground">Add links or upload your files</span>
                                 </div>
                                 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {sourceButtons.map(btn => (
-                                        <Button key={btn.name} variant="outline" className="h-14 text-base" onClick={btn.action}><btn.icon className="mr-2"/>{btn.name}</Button>
+                                        <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mr-2 mb-2 h-6 w-6"/>{btn.name}</Button>
                                     ))}
                                 </div>
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
@@ -572,6 +566,28 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+             <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />}
+                             Add {urlModalConfig?.name} Link
+                        </DialogTitle>
+                    </DialogHeader>
+                    <Input 
+                        value={currentUrl} 
+                        onChange={e => setCurrentUrl(e.target.value)} 
+                        placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleAddUrl}>Add Link</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+
+    
