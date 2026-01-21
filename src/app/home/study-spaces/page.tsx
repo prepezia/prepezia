@@ -399,7 +399,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
 
     const [sources, setSources] = useState<Source[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [fileAccept, setFileAccept] = useState("");
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [copiedText, setCopiedText] = useState("");
     const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
@@ -414,8 +413,10 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
 
 
     const handleFileButtonClick = (accept: string) => {
-        setFileAccept(accept);
-        fileInputRef.current?.click();
+        if (fileInputRef.current) {
+            fileInputRef.current.accept = accept;
+            fileInputRef.current.click();
+        }
     };
 
     const handleOpenUrlModal = (type: 'youtube' | 'website', name: string, icon: React.ElementType) => {
@@ -618,7 +619,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                         <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
                                     ))}
                                 </div>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
+                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                             </div>
 
                             {sources.length > 0 && (
