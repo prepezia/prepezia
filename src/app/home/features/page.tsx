@@ -46,7 +46,7 @@ const features = [
 export default function FeaturesPage() {
   return (
     <div className="flex flex-col">
-        <div className="mb-10">
+        <div className="mb-[72px]">
             <h1 className="text-3xl font-headline font-bold">Get Started</h1>
             <p className="text-muted-foreground">
                 Explore all the powerful tools Learn with Temi has to offer.
