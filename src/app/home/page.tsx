@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
 function HomeFeatureCard({ title, description, href, color, iconUrl }: { title: string, description: string, href: string, color: string, iconUrl: string }) {
   return (
-    <div className={cn("relative rounded-2xl p-6 flex flex-col pt-12 text-center", color)}>
+    <Link href={href} className={cn("relative rounded-2xl p-6 flex flex-col pt-12 text-center group", color)}>
       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white rounded-full p-3 shadow-md border-4 border-background">
         <Image src={iconUrl} alt={`${title} icon`} width={40} height={40} className="w-10 h-10 object-contain" />
       </div>
@@ -88,13 +88,11 @@ function HomeFeatureCard({ title, description, href, color, iconUrl }: { title: 
       <p className="text-sm text-muted-foreground mt-2 mb-4">{description}</p>
 
       <div className="mt-auto pt-4">
-        <Button asChild variant="link" className="group text-primary font-bold">
-            <Link href={href}>
-                Start Now
-                <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-        </Button>
+        <div className="text-primary font-bold inline-flex items-center justify-center">
+            Start Now
+            <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }
