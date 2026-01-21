@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -217,7 +216,7 @@ export function UserNav() {
                         <FormItem>
                             <FormLabel>Title *</FormLabel>
                             <FormControl>
-                            <Input placeholder="e.g., 'Bug in heatmap filter'" {...field} />
+                            <Input placeholder="e.g., 'Bug in Note Generator'" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -273,5 +272,3 @@ export function UserNav() {
     </>
   );
 }
-
-    
