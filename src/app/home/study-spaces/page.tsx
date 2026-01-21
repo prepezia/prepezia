@@ -117,7 +117,7 @@ export default function StudySpacesPage() {
   };
 
 
-  function addSource(values: z.infer<typeof sourceSchema>>) {
+  function addSource(values: z.infer<typeof sourceSchema>) {
     if (values.file && values.file[0]) {
         const file = values.file[0];
         const typeMap: {[key: string]: Source['type']} = { 
