@@ -113,7 +113,7 @@ export default function StudySpacesPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
-        <p className="text-muted-foreground">Upload sources, chat with TEMI, and generate audio overviews.</p>
+        <p className="text-muted-foreground">Create your personal knowledge hub. Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
