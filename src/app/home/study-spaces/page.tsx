@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, Plus, ArrowLeft, BookOpen } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen } from "lucide-react";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 
@@ -287,8 +287,7 @@ export default function StudySpacesPage() {
       <div>
         <div className="text-right">
             <Button className="group" onClick={handleCreateNewSpace}>
-                <Plus className="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
-                Create New Study Space
+                + Create New
             </Button>
         </div>
         <h1 className="text-3xl font-headline font-bold mt-4">Study Spaces</h1>
