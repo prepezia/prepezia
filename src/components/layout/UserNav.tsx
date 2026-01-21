@@ -5,6 +5,8 @@ import {
   SheetContent,
   SheetHeader,
   SheetTrigger,
+  SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import {
   User,
@@ -25,7 +27,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogDescription as DialogDescriptionComponent,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -68,6 +70,8 @@ export function UserNav() {
         </SheetTrigger>
         <SheetContent className="p-0 flex flex-col" side="right" style={{ width: '320px' }}>
           <SheetHeader className="flex flex-col items-center text-center p-6 border-b">
+            <SheetTitle className="sr-only">User Settings</SheetTitle>
+            <SheetDescription className="sr-only">Manage your profile, settings, and more.</SheetDescription>
             <Avatar className="h-24 w-24 mb-3 border-2 border-primary">
               <AvatarImage src="https://i.pravatar.cc/150?u=username" alt="@user" />
               <AvatarFallback>U</AvatarFallback>
@@ -119,9 +123,9 @@ export function UserNav() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit Profile & Settings</DialogTitle>
-            <DialogDescription>
+            <DialogDescriptionComponent>
               Manage your account and API settings.
-            </DialogDescription>
+            </DialogDescriptionComponent>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -151,9 +155,9 @@ export function UserNav() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
-            <DialogDescription>
+            <DialogDescriptionComponent>
               This action cannot be undone. This will permanently delete your account and remove your data from our servers.
-            </DialogDescription>
+            </DialogDescriptionComponent>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
