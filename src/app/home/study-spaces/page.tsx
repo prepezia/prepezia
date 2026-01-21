@@ -21,7 +21,7 @@ import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft,
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const sourceSchema = z.object({
@@ -117,7 +117,7 @@ export default function StudySpacesPage() {
   };
 
 
-  function addSource(values: z.infer<typeof sourceSchema>) {
+  function addSource(values: z.infer<typeof sourceSchema>>) {
     if (values.file && values.file[0]) {
         const file = values.file[0];
         const typeMap: {[key: string]: Source['type']} = { 
@@ -252,7 +252,7 @@ export default function StudySpacesPage() {
                                         {s.type === 'website' && <Globe className="w-4 h-4"/>}
                                         {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
                                         {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
-                                        <span className="truncate flex-1">{s.name}</span>
+                                        <span className="truncate flex-1 min-w-0">{s.name}</span>
                                     </li>
                                 ))}
                                 </ul>
@@ -342,15 +342,16 @@ export default function StudySpacesPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="text-right">
-            <Button className="group" onClick={handleShowCreateView}>
-                + Create New
-            </Button>
+      <div className="flex justify-between items-center">
+        <div>
+            <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
+            <p className="text-muted-foreground mt-1">Create your personal knowledge hub.</p>
         </div>
-        <h1 className="text-3xl font-headline font-bold mt-4">Study Spaces</h1>
-        <p className="text-muted-foreground mt-4 bg-secondary p-4 rounded-lg">Create your personal knowledge hub. Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
+        <Button className="group" onClick={handleShowCreateView}>
+            + Create New
+        </Button>
       </div>
+      <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
       
       <div className="pt-8">
         <h2 className="text-2xl font-headline font-bold mb-4">Your Spaces</h2>
@@ -410,6 +411,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     type SourceSearchResult = { title: string; url: string; snippet: string; };
     const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
 
     const handleDeleteSource = (indexToDelete: number) => {
@@ -470,6 +472,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         if (!searchQuery.trim()) return;
         setIsSearching(true);
         setSearchResults([]);
+        setIsSearchModalOpen(true);
         try {
             const response = await searchWebForSources({ query: searchQuery });
             setSearchResults(response.results);
@@ -564,46 +567,18 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                             <div className="space-y-6">
                                 <h3 className="font-semibold text-lg text-center">Add Sources</h3>
                                 
-                                {/* Search Section */}
-                                <div className="space-y-4">
-                                    <div className="flex w-full items-center space-x-2">
-                                        <Input
-                                            placeholder="Search the web for articles, videos..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
-                                        />
-                                        <Button onClick={handleSearch} disabled={isSearching} size="icon">
-                                            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
-                                    
-                                    {isSearching && <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-2">Searching for resources...</p></div>}
-                                    
-                                    {searchResults.length > 0 && (
-                                        <div className="space-y-2 max-h-60 overflow-y-auto border p-3 rounded-lg">
-                                            <h4 className="font-semibold text-sm mb-2">Web Results</h4>
-                                            {searchResults.map((result, index) => (
-                                                <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
-                                                    <Checkbox 
-                                                        id={`search-result-${index}`}
-                                                        onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)}
-                                                        checked={sources.some(s => s.url === result.url)}
-                                                    />
-                                                    <div className="grid gap-1.5 leading-none">
-                                                        <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">
-                                                            {result.title}
-                                                        </label>
-                                                        <p className="text-xs text-muted-foreground">{result.snippet}</p>
-                                                        <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                <div className="flex w-full items-center space-x-2">
+                                    <Input
+                                        placeholder="Search the web for articles, videos..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
+                                    />
+                                    <Button onClick={handleSearch} disabled={isSearching} size="icon">
+                                        <Search className="h-4 w-4" />
+                                    </Button>
                                 </div>
 
-                                {/* Separator */}
                                 <div className="relative py-2">
                                     <div className="absolute inset-0 flex items-center" aria-hidden="true">
                                         <div className="w-full border-t" />
@@ -615,7 +590,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                     </div>
                                 </div>
 
-                                {/* Manual Upload/Link Section */}
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {sourceButtons.map(btn => (
                                         <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
@@ -637,7 +611,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                                 {s.type === 'website' && <Globe className="w-4 h-4"/>}
                                                 {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
                                                 {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
-                                                <span className="truncate flex-1">{s.name}</span>
+                                                <span className="truncate flex-1 min-w-0">{s.name}</span>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                                     <Trash2 className="w-4 h-4 text-destructive" />
                                                 </Button>
@@ -682,6 +656,44 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button>
                         <Button onClick={handleAddUrl}>Add Link</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Web Search Results</DialogTitle>
+                        <DialogDescription>Select the resources you want to add to your study space.</DialogDescription>
+                    </DialogHeader>
+                    {isSearching ? (
+                        <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>
+                    ) : searchResults.length > 0 ? (
+                        <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y">
+                            <div className="py-4 space-y-2">
+                            {searchResults.map((result, index) => (
+                                <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
+                                    <Checkbox 
+                                        id={`search-result-${index}`}
+                                        onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)}
+                                        checked={sources.some(s => s.url === result.url)}
+                                    />
+                                    <div className="grid gap-1.5 leading-none flex-1 min-w-0">
+                                        <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">
+                                            {result.title}
+                                        </label>
+                                        <p className="text-xs text-muted-foreground">{result.snippet}</p>
+                                        <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
+                                    </div>
+                                </div>
+                            ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
+                    )}
+                    <DialogFooter>
+                        <Button onClick={() => setIsSearchModalOpen(false)}>Done</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
