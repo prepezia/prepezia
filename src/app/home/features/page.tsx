@@ -52,7 +52,7 @@ export default function FeaturesPage() {
                 Explore all the powerful tools Learn with Temi has to offer.
             </p>
         </div>
-        <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3 mt-8">
+        <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3 mt-10">
           {features.map(feature => (
               <HomeFeatureCard
                 key={feature.title}
