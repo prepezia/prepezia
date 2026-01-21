@@ -1,17 +1,13 @@
 import React from 'react';
+import Image from 'next/image';
 
 export const Logo = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M5.52 19c.64-2.2 1.84-3 3.22-3h6.52c1.38 0 2.58.8 3.22 3" />
-    <circle cx="12" cy="10" r="3" />
-    <circle cx="12" cy="12" r="10" />
-  </svg>
+  <div className={`relative ${className}`}>
+    <Image
+      src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028"
+      alt="Learn with Temi Logo"
+      fill
+      className="object-contain"
+    />
+  </div>
 );
