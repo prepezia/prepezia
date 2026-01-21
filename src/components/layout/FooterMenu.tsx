@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/home/note-generator', label: 'Features', icon: Sparkles },
+  { href: '/home/features', label: 'Features', icon: Sparkles },
   { href: '/home/past-questions', label: 'Activities', icon: History },
 ];
 
@@ -25,7 +25,7 @@ export function FooterMenu() {
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 md:hidden">
       <div className="flex justify-around items-center h-16">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href === '/home/features' && pathname.startsWith('/home/')) && pathname !== '/home' && pathname !== '/home/past-questions';
           return (
             <Link
               key={item.href}
