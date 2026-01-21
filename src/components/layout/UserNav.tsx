@@ -19,9 +19,13 @@ import {
   Menu,
   Mail,
   Globe,
+  Home,
+  BookOpen,
+  BrainCircuit,
+  FileQuestion,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -67,9 +71,16 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24" {...props}><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
 );
 
+const menuItems = [
+    { href: "/home", label: "Dashboard", icon: Home },
+    { href: "/home/study-spaces", label: "Study Spaces", icon: BookOpen },
+    { href: "/home/note-generator", label: "Note Generator", icon: BrainCircuit },
+    { href: "/home/past-questions", label: "Past Questions", icon: FileQuestion },
+];
 
 export function UserNav() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -158,7 +169,7 @@ export function UserNav() {
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent className="p-0 flex flex-col w-4/5" side="right">
+        <SheetContent className="p-0 flex flex-col w-[80%]" side="right">
           <SheetHeader className="p-0">
             <SheetTitle className="sr-only">User Settings</SheetTitle>
             <SheetDescription className="sr-only">Manage your profile, settings, and more.</SheetDescription>
@@ -171,6 +182,24 @@ export function UserNav() {
             </div>
           </SheetHeader>
           <div className="flex-grow overflow-y-auto p-4 space-y-3">
+            <div className="space-y-3">
+                {menuItems.map((item) => (
+                    <Button 
+                        asChild
+                        key={item.href} 
+                        variant={pathname === item.href ? "secondary" : "outline"}
+                        className="w-full justify-start text-base p-4 rounded-lg bg-background shadow-sm border h-auto"
+                    >
+                        <Link href={item.href}>
+                            <item.icon className="mr-3 h-5 w-5" />
+                            {item.label}
+                        </Link>
+                    </Button>
+                ))}
+            </div>
+            
+            <Separator />
+
             <Button variant="outline" className="w-full justify-start text-base p-4 rounded-lg bg-background shadow-sm border h-auto" onClick={() => setIsSettingsOpen(true)}>
                 <User className="mr-3 h-5 w-5" /> Edit Profile
             </Button>
