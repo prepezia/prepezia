@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -159,7 +158,7 @@ export function UserNav() {
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent className="p-0 flex flex-col" side="right" style={{ width: '320px' }}>
+        <SheetContent className="p-0 flex flex-col w-4/5" side="right">
           <SheetHeader className="p-0">
             <SheetTitle className="sr-only">User Settings</SheetTitle>
             <SheetDescription className="sr-only">Manage your profile, settings, and more.</SheetDescription>
@@ -382,6 +381,3 @@ export function UserNav() {
     </>
   );
 }
-
-
-    
