@@ -390,7 +390,8 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     });
 
     const [sources, setSources] = useState<Source[]>([]);
-    const [url, setUrl] = useState("");
+    const [youtubeUrl, setYoutubeUrl] = useState("");
+    const [websiteUrl, setWebsiteUrl] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [fileAccept, setFileAccept] = useState("");
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
@@ -401,12 +402,18 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         fileInputRef.current?.click();
     };
 
-    const handleAddUrl = () => {
-        if (!url.trim()) return;
-        const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
-        const newSource: Source = { type: isYoutube ? 'youtube' : 'website', name: url, url: url };
+    const handleAddYouTubeUrl = () => {
+        if (!youtubeUrl.trim()) return;
+        const newSource: Source = { type: 'youtube', name: youtubeUrl, url: youtubeUrl };
         setSources(prev => [...prev, newSource]);
-        setUrl("");
+        setYoutubeUrl("");
+    };
+
+    const handleAddWebsiteUrl = () => {
+        if (!websiteUrl.trim()) return;
+        const newSource: Source = { type: 'website', name: websiteUrl, url: websiteUrl };
+        setSources(prev => [...prev, newSource]);
+        setWebsiteUrl("");
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -441,8 +448,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf")},
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/*") },
-        { name: "YouTube", icon: Youtube, action: handleAddUrl, requiresUrl: true },
-        { name: "Website", icon: Globe, action: handleAddUrl, requiresUrl: true },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
     ];
 
@@ -503,17 +508,26 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                         <div className="space-y-8">
                             <div className="space-y-4">
                                 <h3 className="font-semibold text-lg text-center">Add Sources</h3>
-                                <div className="relative">
-                                    <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="Find sources from the web (YouTube, websites)" className="pr-12"/>
-                                    <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleAddUrl}><Send className="h-4 w-4" /></Button>
+                                
+                                <div className="space-y-4">
+                                    <div className="relative flex items-center">
+                                        <Youtube className="absolute left-3 w-5 h-5 text-muted-foreground" />
+                                        <Input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="Paste a YouTube link..." className="pl-10 pr-10"/>
+                                        <Button size="icon" variant="ghost" className="absolute right-1 h-8 w-8" onClick={handleAddYouTubeUrl}><Send className="h-4 w-4" /></Button>
+                                    </div>
+                                    <div className="relative flex items-center">
+                                        <Globe className="absolute left-3 w-5 h-5 text-muted-foreground" />
+                                        <Input value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="Paste a website link..." className="pl-10 pr-10"/>
+                                        <Button size="icon" variant="ghost" className="absolute right-1 h-8 w-8" onClick={handleAddWebsiteUrl}><Send className="h-4 w-4" /></Button>
+                                    </div>
                                 </div>
 
                                 <div className="relative text-center my-4">
                                     <span className="bg-card px-2 text-sm text-muted-foreground">Or upload your files</span>
                                 </div>
                                 
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    {sourceButtons.filter(b => !b.requiresUrl).map(btn => (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {sourceButtons.map(btn => (
                                         <Button key={btn.name} variant="outline" className="h-14 text-base" onClick={btn.action}><btn.icon className="mr-2"/>{btn.name}</Button>
                                     ))}
                                 </div>
