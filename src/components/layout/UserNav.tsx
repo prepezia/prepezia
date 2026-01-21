@@ -165,7 +165,7 @@ export function UserNav() {
     <>
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" id="account-sheet-trigger">
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
