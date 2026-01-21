@@ -1,11 +1,19 @@
+"use client";
 
 import LandingFooter from "@/components/layout/LandingFooter";
 import LandingHeader from "@/components/layout/LandingHeader";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 export default function TermsOfUsePage() {
+  const [date, setDate] = useState("");
+
+  useEffect(() => {
+    setDate(new Date().toLocaleDateString());
+  }, []);
+  
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <LandingHeader />
@@ -21,7 +29,7 @@ export default function TermsOfUsePage() {
         <div className="max-w-4xl mx-auto space-y-8">
           <div className="space-y-2">
             <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Terms of Use for Learn with Temi</h1>
-            <p className="text-sm text-muted-foreground"><strong>Last Updated:</strong> {new Date().toLocaleDateString()}</p>
+            <p className="text-sm text-muted-foreground"><strong>Last Updated:</strong> {date}</p>
           </div>
 
           <div className="space-y-4">
