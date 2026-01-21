@@ -381,10 +381,14 @@ export default function StudySpacesPage() {
 
 
 function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, description: string, sources: Source[]) => void; onBack: () => void; }) {
-    const form = useForm<z.infer<typeof createSpaceSchema>>({
+    const [stage, setStage] = useState<'details' | 'sources'>('details');
+    const [spaceDetails, setSpaceDetails] = useState({ name: "", description: "" });
+
+    const detailsForm = useForm<z.infer<typeof createSpaceSchema>>({
         resolver: zodResolver(createSpaceSchema),
         defaultValues: { name: "", description: "" },
     });
+
     const [sources, setSources] = useState<Source[]>([]);
     const [url, setUrl] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -433,10 +437,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         setIsTextModalOpen(false);
     };
 
-    const handleSubmit = (values: z.infer<typeof createSpaceSchema>) => {
-        onCreate(values.name, values.description || "No description.", sources);
-    };
-    
     const sourceButtons = [
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf")},
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
@@ -446,78 +446,98 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
     ];
 
+    const handleNext = (values: z.infer<typeof createSpaceSchema>) => {
+        setSpaceDetails({ name: values.name, description: values.description || "No description." });
+        setStage('sources');
+    };
+
+    const handleCreate = () => {
+        onCreate(spaceDetails.name, spaceDetails.description, sources);
+    };
 
     return (
         <div className="space-y-8">
-            <Button variant="outline" onClick={onBack}>
+            <Button variant="outline" onClick={stage === 'details' ? onBack : () => setStage('details')}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to All Spaces
+                {stage === 'details' ? "Back to All Spaces" : "Back"}
             </Button>
              <Card className="max-w-3xl mx-auto">
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl font-headline">Create a New Study Space</CardTitle>
-                    <CardDescription>Give your new space a name and start adding sources.</CardDescription>
+                    <CardDescription>
+                        {stage === 'details' 
+                            ? "Step 1 of 2: Give your new space a name and a short description."
+                            : "Step 2 of 2: Now, add sources to your study space."
+                        }
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                    <Form {...form}>
-                        <form id="create-space-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-                            <FormField control={form.control} name="name" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Study Space Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Photosynthesis" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <FormField control={form.control} name="description" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Description (optional)</FormLabel>
-                                    <FormControl><Textarea placeholder="A short description of what this space is about." {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                        </form>
-                    </Form>
+                    {stage === 'details' && (
+                         <Form {...detailsForm}>
+                            <form onSubmit={detailsForm.handleSubmit(handleNext)} className="space-y-6">
+                                <FormField control={detailsForm.control} name="name" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Study Space Name</FormLabel>
+                                        <FormControl><Input placeholder="e.g., Photosynthesis" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={detailsForm.control} name="description" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Description (optional)</FormLabel>
+                                        <FormControl><Textarea placeholder="A short description of what this space is about." {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <Button type="submit" size="lg" className="w-full">Next</Button>
+                            </form>
+                        </Form>
+                    )}
 
-                    <div className="space-y-4">
-                        <h3 className="font-semibold text-lg text-center">Add Sources</h3>
-                        <div className="relative">
-                            <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="Find sources from the web (YouTube, websites)" className="pr-12"/>
-                            <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleAddUrl}><Send className="h-4 w-4" /></Button>
-                        </div>
+                    {stage === 'sources' && (
+                        <div className="space-y-8">
+                            <div className="space-y-4">
+                                <h3 className="font-semibold text-lg text-center">Add Sources</h3>
+                                <div className="relative">
+                                    <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="Find sources from the web (YouTube, websites)" className="pr-12"/>
+                                    <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleAddUrl}><Send className="h-4 w-4" /></Button>
+                                </div>
 
-                        <div className="relative text-center my-4">
-                            <span className="bg-card px-2 text-sm text-muted-foreground">Or upload your files</span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {sourceButtons.filter(b => !b.requiresUrl).map(btn => (
-                                <Button key={btn.name} variant="outline" className="h-14 text-base" onClick={btn.action}><btn.icon className="mr-2"/>{btn.name}</Button>
-                            ))}
-                        </div>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
-                    </div>
+                                <div className="relative text-center my-4">
+                                    <span className="bg-card px-2 text-sm text-muted-foreground">Or upload your files</span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {sourceButtons.filter(b => !b.requiresUrl).map(btn => (
+                                        <Button key={btn.name} variant="outline" className="h-14 text-base" onClick={btn.action}><btn.icon className="mr-2"/>{btn.name}</Button>
+                                    ))}
+                                </div>
+                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
+                            </div>
 
-                    {sources.length > 0 && (
-                        <div className="space-y-2">
-                           <h4 className="font-semibold">Added Sources ({sources.length})</h4>
-                           <ul className="space-y-2 max-h-40 overflow-y-auto rounded-md border p-2">
-                                {sources.map((s, i) => (
-                                    <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
-                                        {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
-                                        {s.type === 'text' && <FileText className="w-4 h-4"/>}
-                                        {s.type === 'audio' && <Mic className="w-4 h-4"/>}
-                                        {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
-                                        {s.type === 'website' && <LinkIcon className="w-4 h-4"/>}
-                                        {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
-                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
-                                        <span className="truncate flex-1">{s.name}</span>
-                                    </li>
-                                ))}
-                           </ul>
+                            {sources.length > 0 && (
+                                <div className="space-y-2">
+                                <h4 className="font-semibold">Added Sources ({sources.length})</h4>
+                                <ul className="space-y-2 max-h-40 overflow-y-auto rounded-md border p-2">
+                                        {sources.map((s, i) => (
+                                            <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
+                                                {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
+                                                {s.type === 'text' && <FileText className="w-4 h-4"/>}
+                                                {s.type === 'audio' && <Mic className="w-4 h-4"/>}
+                                                {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
+                                                {s.type === 'website' && <LinkIcon className="w-4 h-4"/>}
+                                                {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
+                                                {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
+                                                <span className="truncate flex-1">{s.name}</span>
+                                            </li>
+                                        ))}
+                                </ul>
+                                </div>
+                            )}
+                            
+                            <Button onClick={handleCreate} size="lg" className="w-full">Create Study Space</Button>
                         </div>
                     )}
-                    
-                    <Button type="submit" form="create-space-form" size="lg" className="w-full">Create Study Space</Button>
                 </CardContent>
             </Card>
             
