@@ -2,10 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Search, ChevronDown } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Image from "next/image";
 
 const features = [
@@ -86,16 +85,7 @@ function HomeFeatureCard({ title, description, href, color, iconUrl }: { title: 
 
       <h3 className="font-headline text-xl font-bold text-foreground mb-2">{title}</h3>
       
-      <Collapsible>
-          <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-muted-foreground">
-                  Details <ChevronDown className="ml-1 h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
-              </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="overflow-hidden mt-2 text-sm text-muted-foreground data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-              <p className="pb-2">{description}</p>
-          </CollapsibleContent>
-      </Collapsible>
+      <p className="text-sm text-muted-foreground mt-2 mb-4">{description}</p>
 
       <div className="mt-auto pt-4">
         <Button asChild variant="link" className="group text-primary font-bold">
