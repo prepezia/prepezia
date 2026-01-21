@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2 } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -412,9 +412,14 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [isSearching, setIsSearching] = useState(false);
 
 
+    const handleDeleteSource = (indexToDelete: number) => {
+        setSources(prev => prev.filter((_, index) => index !== indexToDelete));
+    };
+
     const handleFileButtonClick = (accept: string) => {
         if (fileInputRef.current) {
             fileInputRef.current.accept = accept;
+            fileInputRef.current.value = ""; // Reset to allow same file selection
             fileInputRef.current.click();
         }
     };
@@ -443,9 +448,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         const newSource: Source = { type: fileType, name: file.name };
         setSources(prev => [...prev, newSource]);
 
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
     };
     
     const handleAddCopiedText = () => {
@@ -636,6 +638,9 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                                 {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
                                                 {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
                                                 <span className="truncate flex-1">{s.name}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
+                                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                                </Button>
                                             </li>
                                         ))}
                                 </ul>
