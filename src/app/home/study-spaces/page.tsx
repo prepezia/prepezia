@@ -285,13 +285,13 @@ export default function StudySpacesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
+        <div className="text-right">
             <Button className="group" onClick={handleCreateNewSpace}>
                 <Plus className="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
                 Create New Study Space
             </Button>
         </div>
+        <h1 className="text-3xl font-headline font-bold mt-4">Study Spaces</h1>
         <p className="text-muted-foreground mt-4 bg-secondary p-4 rounded-lg">Create your personal knowledge hub. Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
       </div>
       
