@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, Plus } from "lucide-react";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 
@@ -114,6 +114,10 @@ export default function StudySpacesPage() {
       <div>
         <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
         <p className="text-muted-foreground mt-4 bg-secondary p-4 rounded-lg">Create your personal knowledge hub. Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
+        <Button className="mt-4 group">
+            <Plus className="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+            Create New Study Space
+        </Button>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
