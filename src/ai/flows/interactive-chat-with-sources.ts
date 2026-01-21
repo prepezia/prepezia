@@ -14,7 +14,7 @@ import {z} from 'genkit';
 const InteractiveChatWithSourcesInputSchema = z.object({
   sources: z.array(
     z.object({
-      type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube']),
+      type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image']),
       url: z.string().optional(),
       dataUri: z.string().optional(),
     })

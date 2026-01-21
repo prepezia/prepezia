@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,19 +17,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste } from "lucide-react";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const sourceSchema = z.object({
   file: z.any().optional(),
   url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal("")),
 });
 
+const createSpaceSchema = z.object({
+    name: z.string().min(1, { message: "Space name is required." }),
+    description: z.string().optional(),
+});
+
 type Source = {
-    type: 'pdf' | 'text' | 'audio' | 'website' | 'youtube';
+    type: 'pdf' | 'text' | 'audio' | 'website' | 'youtube' | 'image' | 'clipboard';
     name: string;
     url?: string;
+    data?: string; // For file content or copied text
 };
 
 type ChatMessage = {
@@ -39,21 +46,22 @@ type ChatMessage = {
 
 type StudySpace = {
     id: number;
-    name: string;
+    name:string;
     description: string;
     sourceCount: number;
 };
+
+type ViewState = 'list' | 'create' | 'edit';
 
 const mockStudySpaces: StudySpace[] = [
     { id: 1, name: "WASSCE Core Maths Prep", description: "All topics for the WASSCE core mathematics exam.", sourceCount: 12 },
     { id: 2, name: "Ghanaian History 1800-1957", description: "From the Ashanti Empire to Independence.", sourceCount: 7 },
     { id: 3, name: "Final Year Project - AI Tutors", description: "Research and resources for my final project on AI in education.", sourceCount: 23 },
     { id: 4, name: "Quantum Physics Basics", description: "Introductory concepts in quantum mechanics.", sourceCount: 5 },
-    { id: 5, name: "Creative Writing Ideas", description: "Collection of prompts, articles, and short stories for inspiration.", sourceCount: 15 },
-    { id: 6, name: "BECE Integrated Science", description: "Revision notes and past questions for the BECE science paper.", sourceCount: 18 },
 ];
 
 export default function StudySpacesPage() {
+  const [viewState, setViewState] = useState<ViewState>('list');
   const [sources, setSources] = useState<Source[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -69,22 +77,53 @@ export default function StudySpacesPage() {
     resolver: zodResolver(sourceSchema),
     defaultValues: { url: "" },
   });
+
+  const handleShowCreateView = () => {
+    setSources([]);
+    setViewState('create');
+  };
   
-  const handleCreateNewSpace = () => {
+  const handleSelectStudySpace = (space: StudySpace) => {
+    setSelectedStudySpace(space);
+    // In a real app, you would fetch the sources for this space
+    setSources([]);
+    setChatHistory([]);
+    setPodcast(null);
+    setViewState('edit');
+  };
+
+  const handleBackToList = () => {
+    setSelectedStudySpace(null);
+    setViewState('list');
+  };
+  
+  const handleCreateStudySpace = (name: string, description: string, createdSources: Source[]) => {
     const newSpace: StudySpace = {
         id: Date.now(),
-        name: "New Untitled Space",
-        description: "Add a description for your new space.",
-        sourceCount: 0
+        name,
+        description,
+        sourceCount: createdSources.length
     };
     setStudySpaces(prev => [newSpace, ...prev]);
     setSelectedStudySpace(newSpace);
+    setSources(createdSources);
+    setChatHistory([]);
+    setPodcast(null);
+    setViewState('edit');
   };
+
 
   function addSource(values: z.infer<typeof sourceSchema>) {
     if (values.file && values.file[0]) {
         const file = values.file[0];
-        const typeMap: {[key: string]: Source['type']} = { 'application/pdf': 'pdf', 'text/plain': 'text', 'audio/mpeg': 'audio' };
+        const typeMap: {[key: string]: Source['type']} = { 
+            'application/pdf': 'pdf', 
+            'text/plain': 'text', 
+            'audio/mpeg': 'audio',
+            'image/jpeg': 'image',
+            'image/png': 'image',
+            'image/gif': 'image',
+        };
         const fileType = typeMap[file.type] || 'text';
         setSources(prev => [...prev, { type: fileType, name: file.name }]);
         // TODO: Upload file to Firebase Storage and get URL
@@ -111,7 +150,7 @@ export default function StudySpacesPage() {
         }));
 
         const response = await interactiveChatWithSources({
-            sources: sourceInputs,
+            sources: sourceInputs.filter(s => s.type !== 'clipboard'),
             question: chatInput
         });
 
@@ -139,11 +178,15 @@ export default function StudySpacesPage() {
         setIsPodcastLoading(false);
     }
   }
+  
+  if (viewState === 'create') {
+    return <CreateStudySpaceView onCreate={handleCreateStudySpace} onBack={handleBackToList} />
+  }
 
-  if (selectedStudySpace) {
+  if (viewState === 'edit' && selectedStudySpace) {
     return (
         <div className="space-y-8">
-            <Button variant="outline" onClick={() => setSelectedStudySpace(null)}>
+            <Button variant="outline" onClick={handleBackToList}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to All Spaces
             </Button>
@@ -165,7 +208,7 @@ export default function StudySpacesPage() {
                                         <FormItem>
                                             <FormLabel>Upload File</FormLabel>
                                             <FormControl>
-                                                <Input type="file" onChange={(e) => field.onChange(e.target.files)} accept=".pdf,.txt,.mp3"/>
+                                                <Input type="file" onChange={(e) => field.onChange(e.target.files)} accept=".pdf,.txt,.mp3,.jpg,.png"/>
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -183,7 +226,7 @@ export default function StudySpacesPage() {
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle>Your Sources</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Your Sources ({sources.length})</CardTitle></CardHeader>
                         <CardContent>
                             {sources.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No sources added yet.</p>
@@ -191,11 +234,13 @@ export default function StudySpacesPage() {
                                 <ul className="space-y-2">
                                 {sources.map((s, i) => (
                                     <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
-                                        {s.type === 'pdf' && <Upload className="w-4 h-4"/>}
-                                        {s.type === 'text' && <Upload className="w-4 h-4"/>}
-                                        {s.type === 'audio' && <Upload className="w-4 h-4"/>}
+                                        {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
+                                        {s.type === 'text' && <FileText className="w-4 h-4"/>}
+                                        {s.type === 'audio' && <Mic className="w-4 h-4"/>}
+                                        {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
                                         {s.type === 'website' && <LinkIcon className="w-4 h-4"/>}
                                         {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
+                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
                                         <span className="truncate flex-1">{s.name}</span>
                                     </li>
                                 ))}
@@ -215,6 +260,7 @@ export default function StudySpacesPage() {
                             <Card className="h-[600px] flex flex-col">
                                 <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
                                 <CardContent className="flex-grow overflow-y-auto space-y-4">
+                                    {chatHistory.length === 0 && <div className="text-center text-muted-foreground pt-10">Ask a question to get started.</div>}
                                     {chatHistory.map((msg, i) => (
                                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
@@ -232,8 +278,9 @@ export default function StudySpacesPage() {
                                             placeholder="Ask a question about your sources..."
                                             className="pr-12"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); }}}
+                                            disabled={sources.length === 0 || isChatLoading}
                                         />
-                                        <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={isChatLoading}>
+                                        <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={sources.length === 0 || isChatLoading}>
                                             <Send className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -286,7 +333,7 @@ export default function StudySpacesPage() {
     <div className="space-y-8">
       <div>
         <div className="text-right">
-            <Button className="group" onClick={handleCreateNewSpace}>
+            <Button className="group" onClick={handleShowCreateView}>
                 + Create New
             </Button>
         </div>
@@ -306,7 +353,7 @@ export default function StudySpacesPage() {
             <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {studySpaces.slice(0, visibleCount).map(space => (
-                        <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedStudySpace(space)}>
+                        <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleSelectStudySpace(space)}>
                             <CardHeader>
                                 <CardTitle>{space.name}</CardTitle>
                                 <CardDescription>{space.description}</CardDescription>
@@ -327,4 +374,162 @@ export default function StudySpacesPage() {
       </div>
     </div>
   );
+}
+
+
+function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, description: string, sources: Source[]) => void; onBack: () => void; }) {
+    const form = useForm<z.infer<typeof createSpaceSchema>>({
+        resolver: zodResolver(createSpaceSchema),
+        defaultValues: { name: "", description: "" },
+    });
+    const [sources, setSources] = useState<Source[]>([]);
+    const [url, setUrl] = useState("");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [fileAccept, setFileAccept] = useState("");
+    const [isTextModalOpen, setIsTextModalOpen] = useState(false);
+    const [copiedText, setCopiedText] = useState("");
+
+    const handleFileButtonClick = (accept: string) => {
+        setFileAccept(accept);
+        fileInputRef.current?.click();
+    };
+
+    const handleAddUrl = () => {
+        if (!url.trim()) return;
+        const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+        const newSource: Source = { type: isYoutube ? 'youtube' : 'website', name: url, url: url };
+        setSources(prev => [...prev, newSource]);
+        setUrl("");
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const typeMap: { [key: string]: Source['type'] } = {
+            'application/pdf': 'pdf',
+            'text/plain': 'text',
+            'audio/mpeg': 'audio',
+            'audio/wav': 'audio',
+            'image/jpeg': 'image',
+            'image/png': 'image',
+            'image/gif': 'image',
+        };
+        const fileType = typeMap[file.type] || 'text';
+
+        // TODO: Read file and store as data URI in source.data
+        const newSource: Source = { type: fileType, name: file.name };
+        setSources(prev => [...prev, newSource]);
+    };
+    
+    const handleAddCopiedText = () => {
+        if (!copiedText.trim()) return;
+        const newSource: Source = { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText };
+        setSources(prev => [...prev, newSource]);
+        setCopiedText("");
+        setIsTextModalOpen(false);
+    };
+
+    const handleSubmit = (values: z.infer<typeof createSpaceSchema>) => {
+        onCreate(values.name, values.description || "No description.", sources);
+    };
+    
+    const sourceButtons = [
+        { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf")},
+        { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
+        { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/*") },
+        { name: "YouTube", icon: Youtube, action: handleAddUrl, requiresUrl: true },
+        { name: "Website", icon: Globe, action: handleAddUrl, requiresUrl: true },
+        { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
+    ];
+
+
+    return (
+        <div className="space-y-8">
+            <Button variant="outline" onClick={onBack}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to All Spaces
+            </Button>
+             <Card className="max-w-3xl mx-auto">
+                <CardHeader className="text-center">
+                    <CardTitle className="text-2xl font-headline">Create a New Study Space</CardTitle>
+                    <CardDescription>Give your new space a name and start adding sources.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    <Form {...form}>
+                        <form id="create-space-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                            <FormField control={form.control} name="name" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Study Space Name</FormLabel>
+                                    <FormControl><Input placeholder="e.g., WASSCE Core Maths Prep" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                            <FormField control={form.control} name="description" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Description (optional)</FormLabel>
+                                    <FormControl><Textarea placeholder="A short description of what this space is about." {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </form>
+                    </Form>
+
+                    <div className="space-y-4">
+                        <h3 className="font-semibold text-lg text-center">Add Sources</h3>
+                        <div className="relative">
+                            <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="Find sources from the web (YouTube, websites)" className="pr-12"/>
+                            <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleAddUrl}><Send className="h-4 w-4" /></Button>
+                        </div>
+
+                        <div className="relative text-center my-4">
+                            <span className="bg-card px-2 text-sm text-muted-foreground">Or upload your files</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {sourceButtons.filter(b => !b.requiresUrl).map(btn => (
+                                <Button key={btn.name} variant="outline" className="h-14 text-base" onClick={btn.action}><btn.icon className="mr-2"/>{btn.name}</Button>
+                            ))}
+                        </div>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
+                    </div>
+
+                    {sources.length > 0 && (
+                        <div className="space-y-2">
+                           <h4 className="font-semibold">Added Sources ({sources.length})</h4>
+                           <ul className="space-y-2 max-h-40 overflow-y-auto rounded-md border p-2">
+                                {sources.map((s, i) => (
+                                    <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
+                                        {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
+                                        {s.type === 'text' && <FileText className="w-4 h-4"/>}
+                                        {s.type === 'audio' && <Mic className="w-4 h-4"/>}
+                                        {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
+                                        {s.type === 'website' && <LinkIcon className="w-4 h-4"/>}
+                                        {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
+                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
+                                        <span className="truncate flex-1">{s.name}</span>
+                                    </li>
+                                ))}
+                           </ul>
+                        </div>
+                    )}
+                    
+                    <Button type="submit" form="create-space-form" size="lg" className="w-full">Create Study Space</Button>
+                </CardContent>
+            </Card>
+            
+             <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add Copied Text</DialogTitle>
+                    </DialogHeader>
+                    <Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleAddCopiedText}>Add Text</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
 }
