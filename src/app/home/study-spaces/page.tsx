@@ -464,7 +464,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                             <FormField control={form.control} name="name" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Study Space Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., WASSCE Core Maths Prep" {...field} /></FormControl>
+                                    <FormControl><Input placeholder="e.g., Photosynthesis" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}/>
