@@ -47,12 +47,12 @@ export default function FeaturesPage() {
   return (
     <div className="space-y-8">
         <div>
-            <h1 className="text-3xl font-headline font-bold">Features</h1>
+            <h1 className="text-3xl font-headline font-bold">Get Started</h1>
             <p className="text-muted-foreground">
                 Explore all the powerful tools Learn with Temi has to offer.
             </p>
         </div>
-        <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3 mt-8">
           {features.map(feature => (
               <HomeFeatureCard
                 key={feature.title}
