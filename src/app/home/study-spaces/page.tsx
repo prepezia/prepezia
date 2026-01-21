@@ -148,7 +148,7 @@ export default function StudySpacesPage() {
     setChatInput("");
 
     try {
-        const sourceInputs = sources.map(s => {
+        const sourceInputs: InteractiveChatWithSourcesInput['sources'] = sources.map(s => {
             let type: InteractiveChatWithSourcesInput['sources'][0]['type'] = 'website';
             if (s.type === 'pdf' || s.type === 'text' || s.type === 'audio' || s.type === 'youtube' || s.type === 'image') {
                 type = s.type;
@@ -558,66 +558,67 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
 
                     {stage === 'sources' && (
                         <div className="space-y-8">
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <h3 className="font-semibold text-lg text-center">Add Sources</h3>
                                 
-                                <Tabs defaultValue="upload" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2">
-                                        <TabsTrigger value="upload">Upload & Link</TabsTrigger>
-                                        <TabsTrigger value="search">Search the Web</TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="upload">
-                                        <div className="relative text-center my-6">
-                                            <span className="bg-card px-2 text-sm text-muted-foreground">Add links or upload your files</span>
-                                        </div>
-                                        
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                            {sourceButtons.map(btn => (
-                                                <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
+                                {/* Search Section */}
+                                <div className="space-y-4">
+                                    <div className="flex w-full items-center space-x-2">
+                                        <Input
+                                            placeholder="Search the web for articles, videos..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
+                                        />
+                                        <Button onClick={handleSearch} disabled={isSearching} size="icon">
+                                            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
+                                    
+                                    {isSearching && <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-2">Searching for resources...</p></div>}
+                                    
+                                    {searchResults.length > 0 && (
+                                        <div className="space-y-2 max-h-60 overflow-y-auto border p-3 rounded-lg">
+                                            <h4 className="font-semibold text-sm mb-2">Web Results</h4>
+                                            {searchResults.map((result, index) => (
+                                                <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
+                                                    <Checkbox 
+                                                        id={`search-result-${index}`}
+                                                        onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)}
+                                                        checked={sources.some(s => s.url === result.url)}
+                                                    />
+                                                    <div className="grid gap-1.5 leading-none">
+                                                        <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">
+                                                            {result.title}
+                                                        </label>
+                                                        <p className="text-xs text-muted-foreground">{result.snippet}</p>
+                                                        <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
-                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
-                                    </TabsContent>
-                                    <TabsContent value="search">
-                                        <div className="p-1">
-                                            <div className="flex w-full items-center space-x-2 pt-4 pb-6">
-                                                <Input
-                                                    placeholder="Search the web for resources..."
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
-                                                />
-                                                <Button onClick={handleSearch} disabled={isSearching} size="icon">
-                                                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                                                </Button>
-                                            </div>
+                                    )}
+                                </div>
 
-                                            {isSearching && <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-2">Searching for resources...</p></div>}
-                                            
-                                            {searchResults.length > 0 && (
-                                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                                    <h4 className="font-semibold">Search Results</h4>
-                                                    {searchResults.map((result, index) => (
-                                                        <div key={index} className="flex items-start space-x-3 p-3 border rounded-md">
-                                                            <Checkbox 
-                                                                id={`search-result-${index}`}
-                                                                onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)}
-                                                                checked={sources.some(s => s.url === result.url)}
-                                                            />
-                                                            <div className="grid gap-1.5 leading-none">
-                                                                <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-                                                                    {result.title}
-                                                                </label>
-                                                                <p className="text-xs text-muted-foreground">{result.snippet}</p>
-                                                                <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </TabsContent>
-                                </Tabs>
+                                {/* Separator */}
+                                <div className="relative py-2">
+                                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                        <div className="w-full border-t" />
+                                    </div>
+                                    <div className="relative flex justify-center">
+                                        <span className="bg-card px-2 text-sm text-muted-foreground">
+                                            Or Add Manually
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Manual Upload/Link Section */}
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {sourceButtons.map(btn => (
+                                        <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
+                                    ))}
+                                </div>
+                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
                             </div>
 
                             {sources.length > 0 && (
