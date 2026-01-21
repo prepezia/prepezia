@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
       <div className="space-y-16">
         <h2 className="text-2xl font-headline font-bold">Get Started</h2>
-        <div className="grid gap-x-6 gap-y-16 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-x-6 gap-y-16 grid-cols-1 md:grid-cols-2">
           {features.map(feature => (
               <HomeFeatureCard
                 key={feature.title}
