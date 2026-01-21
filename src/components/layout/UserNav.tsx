@@ -17,6 +17,8 @@ import {
   Phone,
   Trash2,
   Menu,
+  Mail,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -39,6 +41,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "../ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 export function UserNav() {
   const router = useRouter();
@@ -46,6 +49,7 @@ export function UserNav() {
   const [apiKey, setApiKey] = useState("");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const { toast } = useToast();
 
   const feedbackSchema = z.object({
     title: z.string().min(1, "Title is required."),
@@ -67,7 +71,10 @@ export function UserNav() {
       // In a real app, this would send the data to a backend.
       feedbackForm.reset();
       setIsFeedbackOpen(false);
-      // TODO: show toast message
+      toast({
+        title: "Feedback Submitted",
+        description: "Thank you for your feedback!",
+      })
   }
 
 
@@ -87,6 +94,36 @@ export function UserNav() {
     setIsDeleteOpen(false);
     handleLogout();
   }
+
+  async function handleShare() {
+    const shareData = {
+        title: 'Learn with Temi',
+        text: 'Supercharge your studies with Learn with Temi, an AI-powered learning app for Ghanaian students!',
+        url: "https://www.learnwithtemi.com",
+    };
+    if (navigator.share && navigator.canShare(shareData)) {
+        try {
+            await navigator.share(shareData);
+        } catch (error) {
+            console.error('Error sharing:', error);
+        }
+    } else {
+        navigator.clipboard.writeText(shareData.url).then(() => {
+            toast({
+                title: "Link Copied!",
+                description: "The link to our website has been copied to your clipboard.",
+            });
+        }, (err) => {
+          console.error("Failed to copy link:", err);
+          toast({
+            variant: "destructive",
+            title: "Copy Failed",
+            description: "Could not copy link to clipboard.",
+          })
+        });
+    }
+  }
+
 
   return (
     <>
@@ -111,9 +148,24 @@ export function UserNav() {
           <div className="flex-grow overflow-y-auto p-2">
             <Button variant="ghost" className="w-full justify-start text-base mb-1" onClick={() => setIsSettingsOpen(true)}><User className="mr-2 h-4 w-4" /> Edit Profile</Button>
             <Button variant="ghost" className="w-full justify-start text-base mb-1" onClick={() => setIsFeedbackOpen(true)}><MessageSquareWarning className="mr-2 h-4 w-4" /> Feedback and Report</Button>
-            <Button variant="ghost" className="w-full justify-start text-base mb-1"><Share2 className="mr-2 h-4 w-4" /> Invite Friends</Button>
             
             <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="invite" className="border-none">
+                <AccordionTrigger className="hover:no-underline p-2 hover:bg-accent rounded-md text-base font-normal justify-start"><Share2 className="mr-2 h-4 w-4" /> Invite Friends</AccordionTrigger>
+                <AccordionContent className="pb-2 pl-4 pr-2 pt-1">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">Share the joy of learning. Invite your friends and family to join Learn with Temi.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" asChild><a href="https://wa.me/?text=Check%20out%20Learn%20with%20Temi%2C%20an%20AI-powered%20learning%20app%20for%20Ghanaian%20students!%20https%3A%2F%2Fwww.learnwithtemi.com" target="_blank" rel="noopener noreferrer">WhatsApp</a></Button>
+                      <Button variant="outline" asChild><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.learnwithtemi.com" target="_blank" rel="noopener noreferrer">Facebook</a></Button>
+                      <Button variant="outline" asChild><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fwww.learnwithtemi.com&text=Check%20out%20Learn%20with%20Temi%2C%20an%20AI-powered%20learning%20app!" target="_blank" rel="noopener noreferrer">X</a></Button>
+                      <Button variant="outline" asChild><a href="mailto:?subject=Invitation%20to%20Learn%20with%20Temi&body=Check%20out%20Learn%20with%20Temi%2C%20an%20AI-powered%20learning%20app%20for%20Ghanaian%20students!%20https%3A%2F%2Fwww.learnwithtemi.com">Email</a></Button>
+                    </div>
+                    <Button className="w-full" onClick={handleShare}>More ways to share...</Button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
               <AccordionItem value="legal" className="border-none">
                 <AccordionTrigger className="hover:no-underline p-2 hover:bg-accent rounded-md text-base font-normal justify-start"><Gavel className="mr-2 h-4 w-4" /> Legal</AccordionTrigger>
                 <AccordionContent className="pb-0 pl-10 pr-2">
@@ -125,9 +177,16 @@ export function UserNav() {
               </AccordionItem>
               <AccordionItem value="contact" className="border-none">
                  <AccordionTrigger className="hover:no-underline p-2 hover:bg-accent rounded-md text-base font-normal justify-start"><Phone className="mr-2 h-4 w-4" /> Contact Us</AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground space-y-2 pb-2 pl-10 pr-2 pt-1">
-                    <p><strong>Email:</strong><br/> support@learnwithTemi.com</p>
-                    <p><strong>Phone:</strong><br/> 0277777155</p>
+                 <AccordionContent className="text-sm text-muted-foreground space-y-2 pb-2 pl-4 pr-2 pt-1">
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                        <a href="mailto:support@learnwithTemi.com"><Mail className="mr-2"/> Email Us</a>
+                    </Button>
+                     <Button variant="outline" className="w-full justify-start" asChild>
+                        <a href="tel:0277777155"><Phone className="mr-2"/> Call Us</a>
+                    </Button>
+                     <Button variant="outline" className="w-full justify-start" asChild>
+                        <a href="https://www.learnwithtemi.com" target="_blank" rel="noopener noreferrer"><Globe className="mr-2"/> Visit Website</a>
+                    </Button>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
