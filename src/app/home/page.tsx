@@ -3,9 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BookOpen, BrainCircuit, FileQuestion, Search } from "lucide-react";
+import { ArrowRight, BookOpen, BrainCircuit, FileQuestion, Search, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const features = [
     {
@@ -49,14 +50,13 @@ export default function DashboardPage() {
 
       <div className="space-y-6">
         <h2 className="text-2xl font-headline font-bold">Get Started</h2>
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 grid-cols-2 lg:grid-cols-3">
           {features.map(feature => (
               <HomeFeatureCard
                 key={feature.title}
                 title={feature.title}
                 description={feature.description}
                 href={feature.href}
-                icon={feature.icon}
                 color={feature.color}
               />
           ))}
@@ -66,17 +66,32 @@ export default function DashboardPage() {
   );
 }
 
-function HomeFeatureCard({ title, description, href, icon, color }: { title: string, description: string, href: string, icon: React.ReactNode, color: string }) {
+function HomeFeatureCard({ title, description, href, color }: { title: string, description: string, href: string, color: string }) {
   return (
-    <Link href={href} className={cn("block rounded-2xl p-6 flex flex-col group transition-transform hover:scale-[1.02]", color)}>
-        <div className="w-12 h-12 rounded-lg bg-card flex items-center justify-center mb-4">
-            {icon}
-        </div>
-        <h3 className="font-headline text-xl font-bold text-foreground">{title}</h3>
-        <p className="text-muted-foreground mt-1 mb-4 flex-grow">{description}</p>
-        <div className="flex items-center text-sm font-semibold text-primary group-hover:translate-x-1 transition-transform">
-            Start Now <ArrowRight className="ml-2 w-4 h-4" />
-        </div>
-    </Link>
+    <div className={cn("rounded-2xl p-6 flex flex-col", color)}>
+        <Collapsible>
+            <div className="flex justify-between items-center">
+                <h3 className="font-headline text-xl font-bold text-foreground">{title}</h3>
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="icon" className="-mr-2">
+                        <ChevronDown className="h-5 w-5 transition-transform [&[data-state=open]]:rotate-180" />
+                        <span className="sr-only">Toggle details</span>
+                    </Button>
+                </CollapsibleTrigger>
+            </div>
+            
+            <CollapsibleContent className="overflow-hidden mt-2 text-sm text-muted-foreground data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                <p className="pt-2">{description}</p>
+            </CollapsibleContent>
+        </Collapsible>
+
+      <div className="mt-auto pt-4">
+        <Button asChild className="w-full">
+            <Link href={href}>
+                Start Now <ArrowRight className="ml-2 w-4 h-4" />
+            </Link>
+        </Button>
+      </div>
+    </div>
   );
 }
