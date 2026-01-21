@@ -16,6 +16,7 @@ import {
   Gavel,
   Phone,
   Trash2,
+  Menu,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -61,22 +62,21 @@ export function UserNav() {
     <>
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="@user" />
-              <AvatarFallback>U</AvatarFallback>
-            </Avatar>
+          <Button variant="ghost" size="icon">
+            <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
         <SheetContent className="p-0 flex flex-col" side="right" style={{ width: '320px' }}>
-          <SheetHeader className="flex flex-col items-center text-center p-6 border-b">
+          <SheetHeader className="p-0">
             <SheetTitle className="sr-only">User Settings</SheetTitle>
             <SheetDescription className="sr-only">Manage your profile, settings, and more.</SheetDescription>
-            <Avatar className="h-24 w-24 mb-3 border-2 border-primary">
-              <AvatarImage src="https://i.pravatar.cc/150?u=username" alt="@user" />
-              <AvatarFallback>U</AvatarFallback>
-            </Avatar>
-            <h3 className="font-semibold text-xl">Hello, Username!</h3>
+            <div className="flex flex-col items-center text-center p-6 border-b">
+                <Avatar className="h-24 w-24 mb-3 border-2 border-primary">
+                <AvatarImage src="https://i.pravatar.cc/150?u=username" alt="@user" />
+                <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+                <h3 className="font-semibold text-xl">Hello, Username!</h3>
+            </div>
           </SheetHeader>
           <div className="flex-grow overflow-y-auto p-2">
             <Button variant="ghost" className="w-full justify-start text-base mb-1" onClick={() => setIsSettingsOpen(true)}><User className="mr-2 h-4 w-4" /> Edit Profile</Button>
