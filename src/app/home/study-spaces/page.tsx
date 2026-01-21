@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -58,6 +59,8 @@ const mockStudySpaces: StudySpace[] = [
     { id: 2, name: "Ghanaian History 1800-1957", description: "From the Ashanti Empire to Independence.", sourceCount: 7 },
     { id: 3, name: "Final Year Project - AI Tutors", description: "Research and resources for my final project on AI in education.", sourceCount: 23 },
     { id: 4, name: "Quantum Physics Basics", description: "Introductory concepts in quantum mechanics.", sourceCount: 5 },
+    { id: 5, name: "BECE Social Studies", description: "Revision notes for all BECE social studies topics.", sourceCount: 15 },
+    { id: 6, name: "Intro to Python Programming", description: "Basics of Python for beginners.", sourceCount: 10 },
 ];
 
 export default function StudySpacesPage() {
@@ -144,7 +147,7 @@ export default function StudySpacesPage() {
 
     try {
         const sourceInputs = sources.map(s => ({
-            type: s.type,
+            type: s.type as 'pdf' | 'text' | 'audio' | 'website' | 'youtube' | 'image',
             url: s.url,
             // In a real app, dataUri would be populated for file uploads
         }));
