@@ -17,10 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight } from "lucide-react";
-import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search } from "lucide-react";
+import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
+import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const sourceSchema = z.object({
   file: z.any().optional(),
@@ -125,6 +127,7 @@ export default function StudySpacesPage() {
             'image/jpeg': 'image',
             'image/png': 'image',
             'image/gif': 'image',
+            'image/webp': 'image',
         };
         const fileType = typeMap[file.type] || 'text';
         setSources(prev => [...prev, { type: fileType, name: file.name }]);
@@ -145,14 +148,20 @@ export default function StudySpacesPage() {
     setChatInput("");
 
     try {
-        const sourceInputs = sources.map(s => ({
-            type: s.type as 'pdf' | 'text' | 'audio' | 'website' | 'youtube' | 'image',
-            url: s.url,
-            // In a real app, dataUri would be populated for file uploads
-        }));
+        const sourceInputs = sources.map(s => {
+            let type: InteractiveChatWithSourcesInput['sources'][0]['type'] = 'website';
+            if (s.type === 'pdf' || s.type === 'text' || s.type === 'audio' || s.type === 'youtube' || s.type === 'image') {
+                type = s.type;
+            }
+            return {
+                type,
+                url: s.url,
+                dataUri: s.data,
+            };
+        });
 
         const response = await interactiveChatWithSources({
-            sources: sourceInputs.filter(s => s.type !== 'clipboard'),
+            sources: sourceInputs,
             question: chatInput
         });
 
@@ -210,7 +219,7 @@ export default function StudySpacesPage() {
                                         <FormItem>
                                             <FormLabel>Upload File</FormLabel>
                                             <FormControl>
-                                                <Input type="file" onChange={(e) => field.onChange(e.target.files)} accept=".pdf,.txt,.mp3,.jpg,.png"/>
+                                                <Input type="file" onChange={(e) => field.onChange(e.target.files)} accept=".pdf,.txt,.mp3,.jpg,.jpeg,.png,.gif,.webp"/>
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -240,7 +249,7 @@ export default function StudySpacesPage() {
                                         {s.type === 'text' && <FileText className="w-4 h-4"/>}
                                         {s.type === 'audio' && <Mic className="w-4 h-4"/>}
                                         {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
-                                        {s.type === 'website' && <LinkIcon className="w-4 h-4"/>}
+                                        {s.type === 'website' && <Globe className="w-4 h-4"/>}
                                         {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
                                         {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
                                         <span className="truncate flex-1">{s.name}</span>
@@ -396,6 +405,12 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
     const [urlModalConfig, setUrlModalConfig] = useState<{type: 'youtube' | 'website', name: string, icon: React.ElementType} | null>(null);
     const [currentUrl, setCurrentUrl] = useState("");
+    
+    // Web search state
+    const [searchQuery, setSearchQuery] = useState("");
+    type SourceSearchResult = { title: string; url: string; snippet: string; };
+    const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
 
 
     const handleFileButtonClick = (accept: string) => {
@@ -447,6 +462,37 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         setCurrentUrl("");
         setIsUrlModalOpen(false);
     };
+
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) return;
+        setIsSearching(true);
+        setSearchResults([]);
+        try {
+            const response = await searchWebForSources({ query: searchQuery });
+            setSearchResults(response.results);
+        } catch (e) {
+            console.error("Web search failed", e);
+            // TODO: show a toast
+        } finally {
+            setIsSearching(false);
+        }
+    }
+
+    const handleSelectSearchResult = (result: SourceSearchResult, isSelected: boolean) => {
+        if (isSelected) {
+            if (!sources.some(s => s.url === result.url)) {
+                const isYoutube = result.url.includes('youtube.com') || result.url.includes('youtu.be');
+                const newSource: Source = {
+                    type: isYoutube ? 'youtube' : 'website',
+                    name: result.title,
+                    url: result.url
+                };
+                setSources(prev => [...prev, newSource]);
+            }
+        } else {
+            setSources(prev => prev.filter(s => s.url !== result.url));
+        }
+    }
 
     const sourceButtons = [
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
@@ -515,16 +561,63 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                             <div className="space-y-4">
                                 <h3 className="font-semibold text-lg text-center">Add Sources</h3>
                                 
-                                <div className="relative text-center my-4">
-                                    <span className="bg-card px-2 text-sm text-muted-foreground">Add links or upload your files</span>
-                                </div>
-                                
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    {sourceButtons.map(btn => (
-                                        <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mr-2 mb-2 h-6 w-6"/>{btn.name}</Button>
-                                    ))}
-                                </div>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
+                                <Tabs defaultValue="upload" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="upload">Upload & Link</TabsTrigger>
+                                        <TabsTrigger value="search">Search the Web</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="upload">
+                                        <div className="relative text-center my-6">
+                                            <span className="bg-card px-2 text-sm text-muted-foreground">Add links or upload your files</span>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {sourceButtons.map(btn => (
+                                                <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
+                                            ))}
+                                        </div>
+                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={fileAccept} className="hidden" />
+                                    </TabsContent>
+                                    <TabsContent value="search">
+                                        <div className="p-1">
+                                            <div className="flex w-full items-center space-x-2 pt-4 pb-6">
+                                                <Input
+                                                    placeholder="Search the web for resources..."
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
+                                                />
+                                                <Button onClick={handleSearch} disabled={isSearching} size="icon">
+                                                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                                </Button>
+                                            </div>
+
+                                            {isSearching && <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-2">Searching for resources...</p></div>}
+                                            
+                                            {searchResults.length > 0 && (
+                                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                    <h4 className="font-semibold">Search Results</h4>
+                                                    {searchResults.map((result, index) => (
+                                                        <div key={index} className="flex items-start space-x-3 p-3 border rounded-md">
+                                                            <Checkbox 
+                                                                id={`search-result-${index}`}
+                                                                onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)}
+                                                                checked={sources.some(s => s.url === result.url)}
+                                                            />
+                                                            <div className="grid gap-1.5 leading-none">
+                                                                <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                                                                    {result.title}
+                                                                </label>
+                                                                <p className="text-xs text-muted-foreground">{result.snippet}</p>
+                                                                <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
                             </div>
 
                             {sources.length > 0 && (
@@ -537,7 +630,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                                 {s.type === 'text' && <FileText className="w-4 h-4"/>}
                                                 {s.type === 'audio' && <Mic className="w-4 h-4"/>}
                                                 {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
-                                                {s.type === 'website' && <LinkIcon className="w-4 h-4"/>}
+                                                {s.type === 'website' && <Globe className="w-4 h-4"/>}
                                                 {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
                                                 {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
                                                 <span className="truncate flex-1">{s.name}</span>
