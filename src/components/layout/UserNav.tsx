@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -34,12 +35,42 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "../ui/textarea";
 
 export function UserNav() {
   const router = useRouter();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+
+  const feedbackSchema = z.object({
+    title: z.string().min(1, "Title is required."),
+    description: z.string().min(1, "Description is required."),
+    file: z.instanceof(File).optional(),
+  });
+
+  const feedbackForm = useForm<z.infer<typeof feedbackSchema>>({
+      resolver: zodResolver(feedbackSchema),
+      defaultValues: {
+          title: "",
+          description: "",
+          file: undefined,
+      },
+  });
+
+  function onFeedbackSubmit(values: z.infer<typeof feedbackSchema>) {
+      console.log("Feedback submitted:", values);
+      // In a real app, this would send the data to a backend.
+      feedbackForm.reset();
+      setIsFeedbackOpen(false);
+      // TODO: show toast message
+  }
+
 
   const handleLogout = () => {
     // TODO: Implement Firebase logout
@@ -80,7 +111,7 @@ export function UserNav() {
           </SheetHeader>
           <div className="flex-grow overflow-y-auto p-2">
             <Button variant="ghost" className="w-full justify-start text-base mb-1" onClick={() => setIsSettingsOpen(true)}><User className="mr-2 h-4 w-4" /> Edit Profile</Button>
-            <Button variant="ghost" className="w-full justify-start text-base mb-1"><MessageSquareWarning className="mr-2 h-4 w-4" /> Feedback and Report</Button>
+            <Button variant="ghost" className="w-full justify-start text-base mb-1" onClick={() => setIsFeedbackOpen(true)}><MessageSquareWarning className="mr-2 h-4 w-4" /> Feedback and Report</Button>
             <Button variant="ghost" className="w-full justify-start text-base mb-1"><Share2 className="mr-2 h-4 w-4" /> Invite Friends</Button>
             
             <Accordion type="single" collapsible className="w-full">
@@ -165,6 +196,82 @@ export function UserNav() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isFeedbackOpen} onOpenChange={setIsFeedbackOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    <MessageSquareWarning className="h-5 w-5" />
+                    Feedback and Report
+                </DialogTitle>
+                <DialogDescriptionComponent>
+                  Spotted a bug or have a suggestion? We'd love to hear from you.
+                </DialogDescriptionComponent>
+            </DialogHeader>
+            <Form {...feedbackForm}>
+                <form onSubmit={feedbackForm.handleSubmit(onFeedbackSubmit)} className="space-y-4 pt-4">
+                    <FormField
+                        control={feedbackForm.control}
+                        name="title"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Title *</FormLabel>
+                            <FormControl>
+                            <Input placeholder="e.g., 'Bug in heatmap filter'" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={feedbackForm.control}
+                        name="description"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Description *</FormLabel>
+                            <FormControl>
+                            <Textarea
+                                placeholder="Please describe the issue or your feedback in detail."
+                                rows={4}
+                                {...field}
+                            />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={feedbackForm.control}
+                        name="file"
+                        render={({ field: { onChange, onBlur, name, ref } }) => (
+                            <FormItem>
+                                <FormLabel>Attach File (optional)</FormLabel>
+                                <FormControl>
+                                <Input 
+                                    type="file" 
+                                    onChange={(e) => onChange(e.target.files ? e.target.files[0] : undefined)} 
+                                    onBlur={onBlur}
+                                    name={name}
+                                    ref={ref}
+                                    accept="image/*,.pdf"
+                                />
+                                </FormControl>
+                                <FormDescription className="text-xs">
+                                    Supported: Images, PDF (Max 5MB)
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <Button type="submit">Submit Feedback</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }
+
+    
