@@ -59,7 +59,6 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        {/* UserNav is now in HomeHeader */}
       </SidebarFooter>
     </Sidebar>
   );
