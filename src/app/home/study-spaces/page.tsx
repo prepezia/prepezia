@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -205,9 +206,9 @@ export default function StudySpacesPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to All Spaces
             </Button>
-            <div>
+            <div className="p-6 bg-card border rounded-lg shadow-sm">
                 <h1 className="text-3xl font-headline font-bold">{selectedStudySpace.name}</h1>
-                <p className="text-muted-foreground">{selectedStudySpace.description}</p>
+                <p className="text-muted-foreground mt-1">{selectedStudySpace.description}</p>
             </div>
 
             <Tabs defaultValue="chat" className="w-full">
@@ -557,7 +558,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                 <FormField control={detailsForm.control} name="name" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Study Space Name</FormLabel>
-                                        <FormControl><Input placeholder="e.g., Photosynthesis" {...field} /></FormControl>
+                                        <FormControl><Input placeholder="e.g., The Process of Photosynthesis" {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
@@ -716,3 +717,5 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         </div>
     );
 }
+
+    
