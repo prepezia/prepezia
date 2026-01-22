@@ -89,6 +89,7 @@ export default function StudySpacesPage() {
   const { toast } = useToast();
 
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  const [notes, setNotes] = useState("");
 
 
   const form = useForm<CreateSpaceFormSchema>({
@@ -210,44 +211,47 @@ export default function StudySpacesPage() {
 
   if (viewState === 'edit' && selectedStudySpace) {
     return (
-        <div className="space-y-6">
-            <Button variant="outline" onClick={handleBackToList}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to All Spaces
-            </Button>
-            <Card>
-              <CardHeader>
-                  <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Separator className="mb-4" />
-                <h3 className="text-xl font-headline font-bold flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    AI Summary
-                </h3>
-                <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
-                    {summaryText}
-                </p>
-                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
-                    {isSummaryExpanded ? "Read Less" : "Read More"}
+        <div className="flex flex-col h-full">
+            <div>
+                <Button variant="outline" onClick={handleBackToList}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to All Spaces
                 </Button>
-              </CardContent>
-            </Card>
+                <Card className="mt-4">
+                  <CardHeader>
+                      <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Separator className="mb-4" />
+                    <h3 className="text-xl font-headline font-bold flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                        AI Summary
+                    </h3>
+                    <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
+                        {summaryText}
+                    </p>
+                    <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+                        {isSummaryExpanded ? "Read Less" : "Read More"}
+                    </Button>
+                  </CardContent>
+                </Card>
+            </div>
 
-            <Tabs defaultValue="chat" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-secondary">
+            <Tabs defaultValue="chat" className="w-full mt-4 flex-1 flex flex-col">
+                <TabsList className="grid w-full grid-cols-4 bg-secondary">
                     <TabsTrigger value="sources">Sources</TabsTrigger>
                     <TabsTrigger value="chat">Chat</TabsTrigger>
                     <TabsTrigger value="generate">Generate</TabsTrigger>
+                    <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="sources">
-                    <Card>
+                <TabsContent value="sources" className="flex-1 flex flex-col mt-0">
+                    <Card className="flex-1 flex flex-col">
                         <CardHeader className="flex-row items-center justify-between">
                             <CardTitle>Your Sources ({sources.length})</CardTitle>
                             <Button onClick={() => setIsAddSourcesOpen(true)}>Add More Sources</Button>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex-1 overflow-y-auto">
                             {sources.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No sources added yet. Click &quot;Add More Sources&quot; to begin.</p>
                             ) : (
@@ -276,8 +280,8 @@ export default function StudySpacesPage() {
                     </Card>
                 </TabsContent>
                 
-                <TabsContent value="chat">
-                    <Card className="h-[600px] flex flex-col mt-6">
+                <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
+                    <Card className="flex-1 flex flex-col">
                         <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
                         <CardContent className="flex-grow overflow-y-auto space-y-4">
                             {chatHistory.length === 0 && (
@@ -319,8 +323,8 @@ export default function StudySpacesPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="generate">
-                   <Card className="h-[600px] flex flex-col items-center justify-center text-center mt-6">
+                <TabsContent value="generate" className="flex-1 flex flex-col mt-0">
+                   <Card className="flex-1 flex flex-col items-center justify-center text-center">
                         <CardContent>
                             {isPodcastLoading ? (
                                 <>
@@ -354,6 +358,24 @@ export default function StudySpacesPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                
+                <TabsContent value="notes" className="flex-1 flex flex-col mt-0">
+                    <Card className="flex-1 flex flex-col">
+                        <CardHeader>
+                            <CardTitle>Personal Notes</CardTitle>
+                            <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <Textarea 
+                                placeholder="Start typing your notes..." 
+                                className="h-full w-full resize-none border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                            />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
             </Tabs>
             <AddSourcesDialog open={isAddSourcesOpen} onOpenChange={setIsAddSourcesOpen} onAddSources={handleAddMoreSources} />
         </div>
@@ -1078,6 +1100,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
