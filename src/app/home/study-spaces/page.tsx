@@ -212,38 +212,57 @@ export default function StudySpacesPage() {
   if (viewState === 'edit' && selectedStudySpace) {
     return (
         <div className="flex flex-col h-full">
-            <div>
+            <div className="p-4">
                 <Button variant="outline" onClick={handleBackToList}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to All Spaces
                 </Button>
-                <Card className="mt-4">
-                  <CardHeader>
-                      <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Separator className="mb-4" />
-                    <h3 className="text-xl font-headline font-bold flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-primary" />
-                        AI Summary
-                    </h3>
-                    <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
-                        {summaryText}
-                    </p>
-                    <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
-                        {isSummaryExpanded ? "Read Less" : "Read More"}
-                    </Button>
-                  </CardContent>
-                </Card>
             </div>
 
-            <Tabs defaultValue="chat" className="w-full mt-4 flex-1 flex flex-col">
+            <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col px-4 pb-4">
                 <TabsList className="grid w-full grid-cols-4 bg-secondary">
+                    <TabsTrigger value="intro">Intro</TabsTrigger>
                     <TabsTrigger value="sources">Sources</TabsTrigger>
                     <TabsTrigger value="chat">Chat</TabsTrigger>
                     <TabsTrigger value="generate">Generate</TabsTrigger>
-                    <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="intro" className="flex-1 mt-0 overflow-y-auto">
+                    <div className="space-y-4 py-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Separator className="mb-4" />
+                                <h3 className="text-xl font-headline font-bold flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-primary" />
+                                    AI Summary
+                                </h3>
+                                <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
+                                    {summaryText}
+                                </p>
+                                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+                                    {isSummaryExpanded ? "Read Less" : "Read More"}
+                                </Button>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Personal Notes</CardTitle>
+                                <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Textarea 
+                                    placeholder="Start typing your notes..." 
+                                    className="h-96 w-full resize-none"
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
 
                 <TabsContent value="sources" className="flex-1 flex flex-col mt-0">
                     <Card className="flex-1 flex flex-col">
@@ -358,24 +377,6 @@ export default function StudySpacesPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                
-                <TabsContent value="notes" className="flex-1 flex flex-col mt-0">
-                    <Card className="flex-1 flex flex-col">
-                        <CardHeader>
-                            <CardTitle>Personal Notes</CardTitle>
-                            <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex-1">
-                            <Textarea 
-                                placeholder="Start typing your notes..." 
-                                className="h-full w-full resize-none border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                            />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
             </Tabs>
             <AddSourcesDialog open={isAddSourcesOpen} onOpenChange={setIsAddSourcesOpen} onAddSources={handleAddMoreSources} />
         </div>
@@ -464,27 +465,29 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
-        if (isCameraModalOpen && hasCameraPermission === null) {
+        if (isCameraModalOpen) {
             const getCameraPermission = async () => {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    setHasCameraPermission(true);
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                    }
-                } catch (error) {
-                    console.error('Error accessing camera:', error);
-                    setHasCameraPermission(false);
-                    toast({
-                        variant: 'destructive',
-                        title: 'Camera Access Denied',
-                        description: 'Please enable camera permissions in your browser settings to use this feature.',
-                    });
+              try {
+                const stream = await navigator.mediaDevices.getUserMedia({video: true});
+                setHasCameraPermission(true);
+        
+                if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
                 }
+              } catch (error) {
+                console.error('Error accessing camera:', error);
+                setHasCameraPermission(false);
+                toast({
+                  variant: 'destructive',
+                  title: 'Camera Access Denied',
+                  description: 'Please enable camera permissions in your browser settings to use this app.',
+                });
+              }
             };
+        
             getCameraPermission();
         }
-    }, [isCameraModalOpen, hasCameraPermission, toast]);
+    }, [isCameraModalOpen, toast]);
 
     const handleCapture = () => {
         if (videoRef.current) {
@@ -630,7 +633,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/*") },
-        { name: "Camera", icon: Camera, action: () => setIsCameraModalOpen(true) },
+        { name: "Camera", icon: Camera, action: () => handleFileButtonClick("image/*", true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
@@ -783,7 +786,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay muted />
+                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay muted playsInline />
                             {hasCameraPermission === false && (
                                 <Alert variant="destructive">
                                     <AlertTitle>Camera Access Required</AlertTitle>
@@ -1100,6 +1103,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
