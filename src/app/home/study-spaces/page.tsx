@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,11 +32,14 @@ const sourceSchema = z.object({
   file: z.any().optional(),
   url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal("")),
 });
+type SourceFormSchema = z.infer<typeof sourceSchema>;
+
 
 const createSpaceSchema = z.object({
     name: z.string().min(1, { message: "Space name is required." }),
     description: z.string().optional(),
 });
+type CreateSpaceFormSchema = z.infer<typeof createSpaceSchema>;
 
 type Source = {
     type: 'pdf' | 'text' | 'audio' | 'website' | 'youtube' | 'image' | 'clipboard';
@@ -84,7 +87,7 @@ export default function StudySpacesPage() {
   const [isAddSourcesOpen, setIsAddSourcesOpen] = useState(false);
 
 
-  const form = useForm<z.infer<typeof sourceSchema>>({
+  const form = useForm<SourceFormSchema>({
     resolver: zodResolver(sourceSchema),
     defaultValues: { url: "" },
   });
@@ -130,29 +133,6 @@ export default function StudySpacesPage() {
   const handleAddMoreSources = (newSources: Source[]) => {
     setSources(prev => [...prev, ...newSources]);
   };
-
-
-  function addSource(values: z.infer<typeof sourceSchema>>) {
-    if (values.file && values.file[0]) {
-        const file = values.file[0];
-        const typeMap: {[key: string]: Source['type']} = { 
-            'application/pdf': 'pdf', 
-            'text/plain': 'text', 
-            'audio/mpeg': 'audio',
-            'image/jpeg': 'image',
-            'image/png': 'image',
-            'image/gif': 'image',
-            'image/webp': 'image',
-        };
-        const fileType = typeMap[file.type] || 'text';
-        setSources(prev => [...prev, { type: fileType, name: file.name }]);
-        // TODO: Upload file to Firebase Storage and get URL
-    } else if (values.url) {
-        const isYoutube = values.url.includes('youtube.com') || values.url.includes('youtu.be');
-        setSources(prev => [...prev, { type: isYoutube ? 'youtube' : 'website', name: values.url, url: values.url }]);
-    }
-    form.reset();
-  }
 
   async function handleChatSubmit() {
     if (!chatInput.trim()) return;
@@ -389,7 +369,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [stage, setStage] = useState<'details' | 'sources'>('details');
     const [spaceDetails, setSpaceDetails] = useState({ name: "", description: "" });
 
-    const detailsForm = useForm<z.infer<typeof createSpaceSchema>>({
+    const detailsForm = useForm<CreateSpaceFormSchema>({
         resolver: zodResolver(createSpaceSchema),
         defaultValues: { name: "", description: "" },
     });
@@ -507,7 +487,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
     ];
 
-    const handleNext = (values: z.infer<typeof createSpaceSchema>) => {
+    const handleNext = (values: CreateSpaceFormSchema) => {
         setSpaceDetails({ name: values.name, description: values.description || "No description." });
         setStage('sources');
     };
@@ -1022,4 +1002,5 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     )
 }
     
+
 
