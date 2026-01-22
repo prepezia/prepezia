@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Briefcase } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const features = [
     {
@@ -49,20 +50,38 @@ export default function FeaturesPage() {
     <>
       <HomeHeader />
       <div className="p-4 sm:p-6 lg:p-8">
-        <div className="mb-[72px]">
-            <h1 className="text-3xl font-headline font-bold">Get Started</h1>
+        <div className="mb-8">
+            <h1 className="text-3xl font-headline font-bold">Features</h1>
             <p className="text-muted-foreground">
-                Do more with our powerful tools...
+                Explore powerful tools for your academic and professional growth.
             </p>
         </div>
-        <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
-          {features.map(feature => (
-              <HomeFeatureCard
-                key={feature.title}
-                {...feature}
-              />
-          ))}
-        </div>
+        
+        <Tabs defaultValue="study" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="study">Study</TabsTrigger>
+                <TabsTrigger value="career">Career</TabsTrigger>
+            </TabsList>
+            <TabsContent value="study" className="pt-16">
+                <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
+                  {features.map(feature => (
+                      <HomeFeatureCard
+                        key={feature.title}
+                        {...feature}
+                      />
+                  ))}
+                </div>
+            </TabsContent>
+            <TabsContent value="career" className="mt-8">
+                <div className="flex flex-col items-center justify-center text-center py-20 text-muted-foreground border-2 border-dashed rounded-lg">
+                    <Briefcase className="w-12 h-12 mb-4" />
+                    <h3 className="text-lg font-semibold text-foreground">Coming Soon!</h3>
+                    <p className="mt-2 text-sm">
+                        Career-focused features are under development.
+                    </p>
+                </div>
+            </TabsContent>
+        </Tabs>
     </div>
     </>
   );
