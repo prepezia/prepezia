@@ -218,7 +218,6 @@ export default function StudySpacesPage() {
             <Card>
               <CardHeader>
                   <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
-                  <CardDescription className="text-muted-foreground pt-1">{selectedStudySpace.description}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Separator className="mb-4" />
@@ -1079,6 +1078,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
