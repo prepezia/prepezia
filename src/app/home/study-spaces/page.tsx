@@ -236,10 +236,10 @@ export default function StudySpacesPage() {
             </Card>
 
             <Tabs defaultValue="chat" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-3 bg-secondary">
                     <TabsTrigger value="sources">Sources</TabsTrigger>
                     <TabsTrigger value="chat">Chat</TabsTrigger>
-                    <TabsTrigger value="podcast">Generate</TabsTrigger>
+                    <TabsTrigger value="generate">Generate</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="sources">
@@ -320,7 +320,7 @@ export default function StudySpacesPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="podcast">
+                <TabsContent value="generate">
                    <Card className="h-[600px] flex flex-col items-center justify-center text-center mt-6">
                         <CardContent>
                             {isPodcastLoading ? (
@@ -1079,6 +1079,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
