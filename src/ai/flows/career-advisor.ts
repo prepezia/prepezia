@@ -10,13 +10,13 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const CareerAdviceInputSchema = z.object({
+const CareerAdviceInputSchema = z.object({
   background: z.string().describe("The user's current CV or background information."),
   careerObjectives: z.string().describe("The user's stated career objectives."),
 });
 export type CareerAdviceInput = z.infer<typeof CareerAdviceInputSchema>;
 
-export const CareerAdviceOutputSchema = z.object({
+const CareerAdviceOutputSchema = z.object({
   targetRoleAnalysis: z.string().describe("Summary of what recruiters in their target field are looking for vs. what the user currently has."),
   academicRoadmap: z.array(z.object({ recommendation: z.string(), reason: z.string() })).describe("A list of 2-3 specific courses or degrees that would maximize their ROI, with reasons."),
   careerSteppingStones: z.array(z.string()).describe("A list of 2 suggested intermediate roles to reach the user's objective."),

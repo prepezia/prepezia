@@ -11,14 +11,14 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const ImproveCvInputSchema = z.object({
+const ImproveCvInputSchema = z.object({
   currentCv: z.string().describe("The user's current CV content."),
   careerGoals: z.string().optional().describe("The user's stated career goals."),
   jobDescription: z.string().optional().describe("A specific job description to tailor the CV to."),
 });
 export type ImproveCvInput = z.infer<typeof ImproveCvInputSchema>;
 
-export const ImproveCvOutputSchema = z.object({
+const ImproveCvOutputSchema = z.object({
   critique: z.string().describe("Analysis of the current CV for layout, clarity, and impact."),
   rewrittenExperience: z.string().describe("The rewritten version of the 'Professional Experience' section."),
   skillGapAnalysis: z.array(z.string()).describe("A list of 3-5 skills or certifications the user is missing."),

@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const GenerateCvTemplateInputSchema = z.object({
+const GenerateCvTemplateInputSchema = z.object({
   fullName: z.string().describe("User's full name."),
   email: z.string().email().describe("User's email address."),
   phone: z.string().describe("User's phone number."),
@@ -20,7 +20,7 @@ export const GenerateCvTemplateInputSchema = z.object({
 });
 export type GenerateCvTemplateInput = z.infer<typeof GenerateCvTemplateInputSchema>;
 
-export const GenerateCvTemplateOutputSchema = z.object({
+const GenerateCvTemplateOutputSchema = z.object({
   cvTemplate: z.string().describe("A markdown-formatted CV template for the user to edit."),
 });
 export type GenerateCvTemplateOutput = z.infer<typeof GenerateCvTemplateOutputSchema>;

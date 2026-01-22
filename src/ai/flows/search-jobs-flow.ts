@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const SearchForJobsInputSchema = z.object({
+const SearchForJobsInputSchema = z.object({
   cv: z.string().describe("The user's CV content."),
   careerGoals: z.string().optional().describe("User's career goals."),
   location: z.string().optional().describe("Preferred job location (e.g., Accra, Ghana)."),
@@ -26,7 +26,7 @@ const JobSearchResultSchema = z.object({
     snippet: z.string().describe('A brief snippet or description of the job.'),
 });
 
-export const SearchForJobsOutputSchema = z.object({
+const SearchForJobsOutputSchema = z.object({
   results: z.array(JobSearchResultSchema).describe('A list of job search results.'),
 });
 export type SearchForJobsOutput = z.infer<typeof SearchForJobsOutputSchema>;
