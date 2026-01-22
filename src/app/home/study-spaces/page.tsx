@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2 } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
@@ -116,6 +116,10 @@ export default function StudySpacesPage() {
     setViewState('edit');
   };
 
+  const handleDeleteSource = (indexToDelete: number) => {
+    setSources(prev => prev.filter((_, index) => index !== indexToDelete));
+  };
+
 
   function addSource(values: z.infer<typeof sourceSchema>) {
     if (values.file && values.file[0]) {
@@ -205,137 +209,149 @@ export default function StudySpacesPage() {
                 <h1 className="text-3xl font-headline font-bold">{selectedStudySpace.name}</h1>
                 <p className="text-muted-foreground">{selectedStudySpace.description}</p>
             </div>
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Add Sources</CardTitle>
-                            <CardDescription>Upload files or add links to build your knowledge base.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(addSource)} className="space-y-4">
-                                    <FormField control={form.control} name="file" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Upload File</FormLabel>
-                                            <FormControl>
-                                                <Input type="file" onChange={(e) => field.onChange(e.target.files)} accept=".pdf,.txt,.mp3,.jpg,.jpeg,.png,.gif,.webp"/>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="url" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Website or YouTube URL</FormLabel>
-                                            <FormControl><Input placeholder="https://example.com" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                    <Button type="submit" className="w-full">Add Source</Button>
-                                </form>
-                            </Form>
+
+            <Tabs defaultValue="chat" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="sources">Sources</TabsTrigger>
+                    <TabsTrigger value="chat">Chat</TabsTrigger>
+                    <TabsTrigger value="podcast">Podcast Generator</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="sources">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
+                        <div className="lg:col-span-1 space-y-6">
+                           <Card>
+                                <CardHeader>
+                                    <CardTitle>Add Sources</CardTitle>
+                                    <CardDescription>Upload files or add links to build your knowledge base.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Form {...form}>
+                                        <form onSubmit={form.handleSubmit(addSource)} className="space-y-4">
+                                            <FormField control={form.control} name="file" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Upload File</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="file" onChange={(e) => field.onChange(e.target.files)} accept=".pdf,.txt,.mp3,.jpg,.jpeg,.png,.gif,.webp"/>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name="url" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Website or YouTube URL</FormLabel>
+                                                    <FormControl><Input placeholder="https://example.com" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}/>
+                                            <Button type="submit" className="w-full">Add Source</Button>
+                                        </form>
+                                    </Form>
+                                </CardContent>
+                            </Card>
+                        </div>
+                        <div className="lg:col-span-2">
+                             <Card>
+                                <CardHeader><CardTitle>Your Sources ({sources.length})</CardTitle></CardHeader>
+                                <CardContent>
+                                    {sources.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No sources added yet.</p>
+                                    ) : (
+                                        <ul className="space-y-2">
+                                        {sources.map((s, i) => (
+                                            <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
+                                                {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
+                                                {s.type === 'text' && <FileText className="w-4 h-4"/>}
+                                                {s.type === 'audio' && <Mic className="w-4 h-4"/>}
+                                                {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
+                                                {s.type === 'website' && <Globe className="w-4 h-4"/>}
+                                                {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
+                                                {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
+                                                <span className="truncate flex-1 min-w-0">{s.name}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
+                                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                                </Button>
+                                            </li>
+                                        ))}
+                                        </ul>
+                                    )}
+                                </CardContent>
+                                <CardFooter>
+                                    <Button disabled>Update Study Space</Button>
+                                </CardFooter>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+                
+                <TabsContent value="chat">
+                    <Card className="h-[600px] flex flex-col mt-6">
+                        <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
+                        <CardContent className="flex-grow overflow-y-auto space-y-4">
+                            {chatHistory.length === 0 && <div className="text-center text-muted-foreground pt-10">Ask a question to get started.</div>}
+                            {chatHistory.map((msg, i) => (
+                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                        <p className="text-sm" dangerouslySetInnerHTML={{__html: msg.content.replace(/\n/g, '<br />')}}/>
+                                    </div>
+                                </div>
+                            ))}
+                            {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
                         </CardContent>
+                        <div className="p-4 border-t">
+                            <div className="relative">
+                                <Textarea
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    placeholder="Ask a question about your sources..."
+                                    className="pr-12"
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); }}}
+                                    disabled={sources.length === 0 || isChatLoading}
+                                />
+                                <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={sources.length === 0 || isChatLoading}>
+                                    <Send className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
                     </Card>
-                    <Card>
-                        <CardHeader><CardTitle>Your Sources ({sources.length})</CardTitle></CardHeader>
+                </TabsContent>
+
+                <TabsContent value="podcast">
+                   <Card className="h-[600px] flex flex-col items-center justify-center text-center mt-6">
                         <CardContent>
-                            {sources.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No sources added yet.</p>
+                            {isPodcastLoading ? (
+                                <>
+                                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                                    <p className="mt-4 text-muted-foreground">Generating your audio overview...</p>
+                                </>
+                            ) : podcast ? (
+                                <div className="space-y-4">
+                                    <h3 className="text-xl font-headline">Podcast Ready!</h3>
+                                    <audio controls src={podcast.audio} className="w-full"></audio>
+                                    <Card className="text-left max-h-80 overflow-y-auto">
+                                        <CardHeader><CardTitle>Script</CardTitle></CardHeader>
+                                        <CardContent>
+                                            <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
+                                        </CardContent>
+                                    </Card>
+                                    <Button onClick={() => setPodcast(null)}>Generate New Podcast</Button>
+                                </div>
                             ) : (
-                                <ul className="space-y-2">
-                                {sources.map((s, i) => (
-                                    <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
-                                        {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
-                                        {s.type === 'text' && <FileText className="w-4 h-4"/>}
-                                        {s.type === 'audio' && <Mic className="w-4 h-4"/>}
-                                        {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
-                                        {s.type === 'website' && <Globe className="w-4 h-4"/>}
-                                        {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
-                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
-                                        <span className="truncate flex-1 min-w-0">{s.name}</span>
-                                    </li>
-                                ))}
-                                </ul>
+                                <>
+                                    <Mic className="h-12 w-12 text-primary mx-auto" />
+                                    <h3 className="text-xl font-headline mt-4">Generate Audio Overview</h3>
+                                    <p className="text-muted-foreground mt-2 max-w-sm mx-auto">Turn your sources into an engaging podcast-style conversation between our AI hosts, Temi & Jay.</p>
+                                    <Button size="lg" className="mt-6" onClick={handleGeneratePodcast} disabled={sources.length === 0}>
+                                        <Play className="mr-2 h-4 w-4" />
+                                        Generate Podcast
+                                    </Button>
+                                    {sources.length === 0 && <p className="text-xs text-destructive mt-2">Please add at least one source with a URL to generate a podcast.</p>}
+                                </>
                             )}
                         </CardContent>
                     </Card>
-                </div>
-
-                <div className="lg:col-span-2">
-                    <Tabs defaultValue="chat">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="chat">Interactive Chat (TEMI)</TabsTrigger>
-                            <TabsTrigger value="podcast">Podcast Generator</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="chat">
-                            <Card className="h-[600px] flex flex-col">
-                                <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
-                                <CardContent className="flex-grow overflow-y-auto space-y-4">
-                                    {chatHistory.length === 0 && <div className="text-center text-muted-foreground pt-10">Ask a question to get started.</div>}
-                                    {chatHistory.map((msg, i) => (
-                                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                                <p className="text-sm" dangerouslySetInnerHTML={{__html: msg.content.replace(/\n/g, '<br />')}}/>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
-                                </CardContent>
-                                <div className="p-4 border-t">
-                                    <div className="relative">
-                                        <Textarea
-                                            value={chatInput}
-                                            onChange={(e) => setChatInput(e.target.value)}
-                                            placeholder="Ask a question about your sources..."
-                                            className="pr-12"
-                                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); }}}
-                                            disabled={sources.length === 0 || isChatLoading}
-                                        />
-                                        <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={sources.length === 0 || isChatLoading}>
-                                            <Send className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </Card>
-                        </TabsContent>
-                        <TabsContent value="podcast">
-                            <Card className="h-[600px] flex flex-col items-center justify-center text-center">
-                                <CardContent>
-                                    {isPodcastLoading ? (
-                                        <>
-                                            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-                                            <p className="mt-4 text-muted-foreground">Generating your audio overview...</p>
-                                        </>
-                                    ) : podcast ? (
-                                        <div className="space-y-4">
-                                            <h3 className="text-xl font-headline">Podcast Ready!</h3>
-                                            <audio controls src={podcast.audio} className="w-full"></audio>
-                                            <Card className="text-left max-h-80 overflow-y-auto">
-                                                <CardHeader><CardTitle>Script</CardTitle></CardHeader>
-                                                <CardContent>
-                                                    <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
-                                                </CardContent>
-                                            </Card>
-                                            <Button onClick={() => setPodcast(null)}>Generate New Podcast</Button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <Mic className="h-12 w-12 text-primary mx-auto" />
-                                            <h3 className="text-xl font-headline mt-4">Generate Audio Overview</h3>
-                                            <p className="text-muted-foreground mt-2 max-w-sm mx-auto">Turn your sources into an engaging podcast-style conversation between our AI hosts, Temi & Jay.</p>
-                                            <Button size="lg" className="mt-6" onClick={handleGeneratePodcast} disabled={sources.length === 0}>
-                                                <Play className="mr-2 h-4 w-4" />
-                                                Generate Podcast
-                                            </Button>
-                                            {sources.length === 0 && <p className="text-xs text-destructive mt-2">Please add at least one source with a URL to generate a podcast.</p>}
-                                        </>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-                </div>
-            </div>
+                </TabsContent>
+            </Tabs>
         </div>
     )
   }
