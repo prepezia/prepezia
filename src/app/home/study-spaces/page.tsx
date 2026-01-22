@@ -102,6 +102,7 @@ export default function StudySpacesPage() {
   ]);
 
   const generationOptions = [
+    { name: "Study Notes", icon: BookOpen, type: "notes", action: () => alert("Study Notes generation coming soon!") },
     { name: "Podcast", icon: Mic, type: "podcast", action: () => handleGeneratePodcast() },
     { name: "Mind Map", icon: GitFork, type: "mindmap", action: () => alert("Mind Map generation coming soon!") },
     { name: "Report", icon: FileText, type: "report", action: () => alert("Report generation coming soon!") },
@@ -306,7 +307,7 @@ export default function StudySpacesPage() {
     );
 
     return (
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col">
             {header}
             <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
                 <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
@@ -1317,3 +1318,5 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         </Dialog>
     )
 }
+
+    
