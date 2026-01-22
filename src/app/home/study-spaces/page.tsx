@@ -220,27 +220,8 @@ export default function StudySpacesPage() {
     return (
         <>
             {header}
-            <div className="p-4 sm:p-6 lg:p-8">
-                <Tabs defaultValue="intro" className="w-full">
-                    <Card className="mb-4">
-                        <CardHeader>
-                            <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Separator className="mb-4" />
-                            <h3 className="text-xl font-headline font-bold flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-primary" />
-                                AI Summary
-                            </h3>
-                            <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
-                                {summaryText}
-                            </p>
-                            <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
-                                {isSummaryExpanded ? "Read Less" : "Read More"}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
+            <div className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col">
+                <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
                     <TabsList className="grid w-full grid-cols-4 bg-secondary">
                         <TabsTrigger value="intro">Intro</TabsTrigger>
                         <TabsTrigger value="sources">Sources</TabsTrigger>
@@ -248,23 +229,47 @@ export default function StudySpacesPage() {
                         <TabsTrigger value="generate">Generate</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="intro" className="mt-4">
-                        <div className="space-y-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Personal Notes</CardTitle>
-                                    <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Textarea 
-                                        placeholder="Start typing your notes..." 
-                                        className="h-96 w-full resize-none"
-                                        value={notes}
-                                        onChange={(e) => setNotes(e.target.value)}
-                                    />
-                                </CardContent>
-                            </Card>
-                        </div>
+                    <TabsContent value="intro" className="mt-4 flex-1">
+                        <Tabs defaultValue="ai-summary" className="w-full h-full flex flex-col">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="ai-summary">AI Summary</TabsTrigger>
+                                <TabsTrigger value="personal-notes">Personal Notes</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="ai-summary" className="mt-4 flex-1">
+                                <Card className="h-full">
+                                    <CardHeader>
+                                        <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
+                                        <Separator className="my-4" />
+                                        <h3 className="text-xl font-headline font-bold flex items-center gap-2 pt-2">
+                                            <Sparkles className="w-5 h-5 text-primary" />
+                                            AI Summary
+                                        </h3>
+                                        <p className={cn("text-sm text-muted-foreground pt-2", !isSummaryExpanded && "line-clamp-3")}>
+                                            {summaryText}
+                                        </p>
+                                        <Button variant="link" className="px-0 h-auto" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+                                            {isSummaryExpanded ? "Read Less" : "Read More"}
+                                        </Button>
+                                    </CardHeader>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="personal-notes" className="mt-4 flex-1">
+                                <Card className="h-full flex flex-col">
+                                    <CardHeader>
+                                        <CardTitle>Personal Notes</CardTitle>
+                                        <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-1 flex">
+                                        <Textarea 
+                                            placeholder="Start typing your notes..." 
+                                            className="h-full w-full resize-none"
+                                            value={notes}
+                                            onChange={(e) => setNotes(e.target.value)}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
                     </TabsContent>
 
                     <TabsContent value="sources" className="mt-4">
