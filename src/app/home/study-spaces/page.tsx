@@ -210,7 +210,7 @@ export default function StudySpacesPage() {
 
   if (viewState === 'edit' && selectedStudySpace) {
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             <Button variant="outline" onClick={handleBackToList}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to All Spaces
@@ -1078,6 +1078,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
