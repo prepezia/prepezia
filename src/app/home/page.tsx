@@ -50,6 +50,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-12">
         <div className="text-center space-y-4 pt-10">
+            <p className="text-xl text-muted-foreground">Hi, Firstname!</p>
             <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
             <div className="relative max-w-xl mx-auto">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
