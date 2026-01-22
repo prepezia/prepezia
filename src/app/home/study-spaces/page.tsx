@@ -29,6 +29,7 @@ import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 
 const createSpaceSchema = z.object({
@@ -214,25 +215,23 @@ export default function StudySpacesPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to All Spaces
             </Button>
-            <div className="p-6 bg-secondary border rounded-lg shadow-sm">
-                <h1 className="text-3xl font-headline font-bold">{selectedStudySpace.name}</h1>
-                <p className="text-muted-foreground mt-1">{selectedStudySpace.description}</p>
-            </div>
-            
             <Card>
               <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-primary" />
-                      AI Summary
-                  </CardTitle>
+                  <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
+                  <CardDescription className="text-muted-foreground pt-1">{selectedStudySpace.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                  <p className={cn("text-sm text-muted-foreground", !isSummaryExpanded && "line-clamp-3")}>
-                      {summaryText}
-                  </p>
-                  <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
-                      {isSummaryExpanded ? "Read Less" : "Read More"}
-                  </Button>
+                <Separator className="mb-4" />
+                <h3 className="text-xl font-headline font-bold flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    AI Summary
+                </h3>
+                <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
+                    {summaryText}
+                </p>
+                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+                    {isSummaryExpanded ? "Read Less" : "Read More"}
+                </Button>
               </CardContent>
             </Card>
 
@@ -1080,5 +1079,6 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
