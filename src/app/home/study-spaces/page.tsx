@@ -220,15 +220,15 @@ export default function StudySpacesPage() {
                             ) : (
                                 <ul className="space-y-2">
                                 {sources.map((s, i) => (
-                                    <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
-                                        {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
-                                        {s.type === 'text' && <FileText className="w-4 h-4"/>}
-                                        {s.type === 'audio' && <Mic className="w-4 h-4"/>}
-                                        {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
-                                        {s.type === 'website' && <Globe className="w-4 h-4"/>}
-                                        {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
-                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
-                                        <span className="truncate flex-1 min-w-0">{s.name}</span>
+                                    <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
+                                        {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                        {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                        {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}
+                                        {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}
+                                        {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
+                                        {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
+                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
+                                        <span className="flex-1 min-w-0 break-all">{s.name}</span>
                                         <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                             <Trash2 className="w-4 h-4 text-destructive" />
                                         </Button>
@@ -388,16 +388,21 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-    const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+    const [selectedWebSources, setSelectedWebSources] = useState<SourceSearchResult[]>([]);
 
 
     const handleDeleteSource = (indexToDelete: number) => {
         setSources(prev => prev.filter((_, index) => index !== indexToDelete));
     };
 
-    const handleFileButtonClick = (accept: string) => {
+    const handleFileButtonClick = (accept: string, capture = false) => {
         if (fileInputRef.current) {
             fileInputRef.current.accept = accept;
+            if (capture) {
+                fileInputRef.current.setAttribute('capture', 'environment');
+            } else {
+                fileInputRef.current.removeAttribute('capture');
+            }
             fileInputRef.current.value = ""; // Reset to allow same file selection
             fileInputRef.current.click();
         }
@@ -413,20 +418,24 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         const file = event.target.files?.[0];
         if (!file) return;
 
-        let fileType: Source['type'] = 'text';
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUri = e.target?.result as string;
 
-        if (file.type.startsWith('image/')) {
-            fileType = 'image';
-        } else if (file.type.startsWith('audio/')) {
-            fileType = 'audio';
-        } else if (file.type === 'application/pdf') {
-            fileType = 'pdf';
-        }
+            let fileType: Source['type'] = 'text';
 
-        // TODO: Read file and store as data URI in source.data
-        const newSource: Source = { type: fileType, name: file.name };
-        setSources(prev => [...prev, newSource]);
+            if (file.type.startsWith('image/')) {
+                fileType = 'image';
+            } else if (file.type.startsWith('audio/')) {
+                fileType = 'audio';
+            } else if (file.type === 'application/pdf') {
+                fileType = 'pdf';
+            }
 
+            const newSource: Source = { type: fileType, name: file.name, data: dataUri };
+            setSources(prev => [...prev, newSource]);
+        };
+        reader.readAsDataURL(file);
     };
     
     const handleAddCopiedText = () => {
@@ -449,6 +458,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         if (!searchQuery.trim()) return;
         setIsSearching(true);
         setSearchResults([]);
+        setSelectedWebSources([]);
         setIsSearchModalOpen(true);
         try {
             const response = await searchWebForSources({ query: searchQuery });
@@ -460,28 +470,31 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
             setIsSearching(false);
         }
     }
+    
+    const handleAddSelectedSources = () => {
+        const newSources: Source[] = selectedWebSources.map(result => {
+            const isYoutube = result.url.includes('youtube.com') || result.url.includes('youtu.be');
+            return {
+                type: isYoutube ? 'youtube' : 'website',
+                name: result.title,
+                url: result.url
+            };
+        });
 
-    const handleSelectSearchResult = (result: SourceSearchResult, isSelected: boolean) => {
-        if (isSelected) {
-            if (!sources.some(s => s.url === result.url)) {
-                const isYoutube = result.url.includes('youtube.com') || result.url.includes('youtu.be');
-                const newSource: Source = {
-                    type: isYoutube ? 'youtube' : 'website',
-                    name: result.title,
-                    url: result.url
-                };
-                setSources(prev => [...prev, newSource]);
-            }
-        } else {
-            setSources(prev => prev.filter(s => s.url !== result.url));
+        if (newSources.length > 0) {
+            const sourcesToAdd = newSources.filter(ns => 
+                !sources.some(s => s.url === ns.url)
+            );
+            setSources(prev => [...prev, ...sourcesToAdd]);
         }
-    }
+        setIsSearchModalOpen(false);
+    };
 
     const sourceButtons = [
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") },
-        { name: "Camera", icon: Camera, action: () => setIsCameraModalOpen(true) },
+        { name: "Camera", icon: Camera, action: () => handleFileButtonClick("image/*", true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
@@ -581,15 +594,15 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                 <h4 className="font-semibold">Added Sources ({sources.length})</h4>
                                 <ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">
                                         {sources.map((s, i) => (
-                                            <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
-                                                {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
-                                                {s.type === 'text' && <FileText className="w-4 h-4"/>}
-                                                {s.type === 'audio' && <Mic className="w-4 h-4"/>}
-                                                {s.type === 'image' && <ImageIcon className="w-4 h-4"/>}
-                                                {s.type === 'website' && <Globe className="w-4 h-4"/>}
-                                                {s.type === 'youtube' && <Youtube className="w-4 h-4"/>}
-                                                {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
-                                                <span className="truncate flex-1 min-w-0">{s.name}</span>
+                                            <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
+                                                {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                                {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                                {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}
+                                                {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}
+                                                {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
+                                                {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
+                                                {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
+                                                <span className="flex-1 min-w-0 break-all">{s.name}</span>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                                     <Trash2 className="w-4 h-4 text-destructive" />
                                                 </Button>
@@ -653,8 +666,14 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                 <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
                                     <Checkbox 
                                         id={`search-result-${index}`}
-                                        onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)}
-                                        checked={sources.some(s => s.url === result.url)}
+                                        onCheckedChange={(checked) => {
+                                            if (checked) {
+                                                setSelectedWebSources(prev => [...prev, result]);
+                                            } else {
+                                                setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));
+                                            }
+                                        }}
+                                        checked={selectedWebSources.some(s => s.url === result.url)}
                                     />
                                     <div className="grid gap-1.5 leading-none flex-1 min-w-0">
                                         <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">
@@ -671,150 +690,14 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                         <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
                     )}
                     <DialogFooter>
-                        <Button onClick={() => setIsSearchModalOpen(false)}>Done</Button>
+                        <Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleAddSelectedSources}>Add Selected</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <CameraSourceModal 
-                open={isCameraModalOpen} 
-                onOpenChange={setIsCameraModalOpen}
-                onAddSource={(source) => setSources(prev => [...prev, source])}
-            />
         </div>
     );
 }
-
-function CameraSourceModal({ open, onOpenChange, onAddSource }: { open: boolean, onOpenChange: (open: boolean) => void, onAddSource: (source: Source) => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    let mediaStream: MediaStream | null = null;
-    
-    if (open && !capturedImage) {
-        const getCameraPermission = async () => {
-          try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            setStream(mediaStream);
-            setHasCameraPermission(true);
-            if (videoRef.current) {
-              videoRef.current.srcObject = mediaStream;
-            }
-          } catch (error) {
-            console.error('Error accessing camera:', error);
-            setHasCameraPermission(false);
-            toast({
-              variant: 'destructive',
-              title: 'Camera Access Denied',
-              description: 'Please enable camera permissions in your browser settings.',
-            });
-            onOpenChange(false); // Close dialog if no permission
-          }
-        };
-        getCameraPermission();
-    }
-    
-    return () => {
-        if(mediaStream){
-            mediaStream.getTracks().forEach(track => track.stop());
-        }
-    };
-  }, [open, capturedImage, onOpenChange, toast]);
-
-  const handleClose = () => {
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-    }
-    setCapturedImage(null);
-    onOpenChange(false);
-  }
-
-  const handleCapture = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    const context = canvas.getContext('2d');
-    if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUri = canvas.toDataURL('image/jpeg');
-        setCapturedImage(dataUri);
-        
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            setStream(null);
-        }
-    }
-  };
-
-  const handleRetake = () => {
-    setCapturedImage(null);
-  };
-  
-  const handleUsePhoto = () => {
-    if (!capturedImage) return;
-    onAddSource({
-      type: 'image',
-      name: `Captured Image - ${new Date().toLocaleString()}.jpg`,
-      data: capturedImage
-    });
-    handleClose();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Camera className="w-5 h-5" /> Camera Source</DialogTitle>
-          <DialogDescription>
-            {capturedImage ? "Use this photo or retake it." : "Position your document and capture the image."}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="my-4">
-          {capturedImage ? (
-            <div className="relative w-full aspect-video">
-                <Image src={capturedImage} alt="Captured" fill style={{objectFit: 'contain'}} className="rounded-md" />
-            </div>
-          ) : (
-            <div className="relative">
-              <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay playsInline muted />
-              {hasCameraPermission === false && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                      <p className="text-white">Camera access denied.</p>
-                  </div>
-              )}
-            </div>
-          )}
-          <canvas ref={canvasRef} className="hidden"></canvas>
-        </div>
-
-        <DialogFooter>
-          {capturedImage ? (
-            <>
-              <Button variant="outline" onClick={handleRetake}>Retake</Button>
-              <Button onClick={handleUsePhoto}>Use Photo</Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button onClick={handleCapture} disabled={hasCameraPermission === false}>Capture</Button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 
 function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean; onOpenChange: (open: boolean) => void; onAddSources: (sources: Source[]) => void; }) {
     const [sources, setSources] = useState<Source[]>([]);
@@ -824,7 +707,6 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
     const [urlModalConfig, setUrlModalConfig] = useState<{type: 'youtube' | 'website', name: string, icon: React.ElementType} | null>(null);
     const [currentUrl, setCurrentUrl] = useState("");
-    const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
     
     // Web search state
     const [searchQuery, setSearchQuery] = useState("");
@@ -832,15 +714,21 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+    const [selectedWebSources, setSelectedWebSources] = useState<SourceSearchResult[]>([]);
 
 
     const handleDeleteSource = (indexToDelete: number) => {
         setSources(prev => prev.filter((_, index) => index !== indexToDelete));
     };
 
-    const handleFileButtonClick = (accept: string) => {
+    const handleFileButtonClick = (accept: string, capture = false) => {
         if (fileInputRef.current) {
             fileInputRef.current.accept = accept;
+            if (capture) {
+                fileInputRef.current.setAttribute('capture', 'environment');
+            } else {
+                fileInputRef.current.removeAttribute('capture');
+            }
             fileInputRef.current.value = ""; // Reset to allow same file selection
             fileInputRef.current.click();
         }
@@ -856,19 +744,24 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         const file = event.target.files?.[0];
         if (!file) return;
 
-        let fileType: Source['type'] = 'text';
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUri = e.target?.result as string;
 
-        if (file.type.startsWith('image/')) {
-            fileType = 'image';
-        } else if (file.type.startsWith('audio/')) {
-            fileType = 'audio';
-        } else if (file.type === 'application/pdf') {
-            fileType = 'pdf';
-        }
+            let fileType: Source['type'] = 'text';
 
-        // TODO: Read file and store as data URI in source.data
-        const newSource: Source = { type: fileType, name: file.name };
-        setSources(prev => [...prev, newSource]);
+            if (file.type.startsWith('image/')) {
+                fileType = 'image';
+            } else if (file.type.startsWith('audio/')) {
+                fileType = 'audio';
+            } else if (file.type === 'application/pdf') {
+                fileType = 'pdf';
+            }
+
+            const newSource: Source = { type: fileType, name: file.name, data: dataUri };
+            setSources(prev => [...prev, newSource]);
+        };
+        reader.readAsDataURL(file);
     };
     
     const handleAddCopiedText = () => {
@@ -891,6 +784,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         if (!searchQuery.trim()) return;
         setIsSearching(true);
         setSearchResults([]);
+        setSelectedWebSources([]);
         setIsSearchModalOpen(true);
         try {
             const response = await searchWebForSources({ query: searchQuery });
@@ -903,27 +797,30 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         }
     }
 
-    const handleSelectSearchResult = (result: SourceSearchResult, isSelected: boolean) => {
-        if (isSelected) {
-            if (!sources.some(s => s.url === result.url)) {
-                const isYoutube = result.url.includes('youtube.com') || result.url.includes('youtu.be');
-                const newSource: Source = {
-                    type: isYoutube ? 'youtube' : 'website',
-                    name: result.title,
-                    url: result.url
-                };
-                setSources(prev => [...prev, newSource]);
-            }
-        } else {
-            setSources(prev => prev.filter(s => s.url !== result.url));
+    const handleAddSelectedSources = () => {
+        const newSources: Source[] = selectedWebSources.map(result => {
+            const isYoutube = result.url.includes('youtube.com') || result.url.includes('youtu.be');
+            return {
+                type: isYoutube ? 'youtube' : 'website',
+                name: result.title,
+                url: result.url
+            };
+        });
+
+        if (newSources.length > 0) {
+            const sourcesToAdd = newSources.filter(ns => 
+                !sources.some(s => s.url === ns.url)
+            );
+            setSources(prev => [...prev, ...sourcesToAdd]);
         }
-    }
+        setIsSearchModalOpen(false);
+    };
 
     const sourceButtons = [
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") },
-        { name: "Camera", icon: Camera, action: () => setIsCameraModalOpen(true) },
+        { name: "Camera", icon: Camera, action: () => handleFileButtonClick("image/*", true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
@@ -973,9 +870,15 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
                             <h4 className="font-semibold">Sources to Add ({sources.length})</h4>
                             <ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">
                                 {sources.map((s, i) => (
-                                    <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
-                                        {s.type === 'pdf' && <FileText className="w-4 h-4"/>} {s.type === 'text' && <FileText className="w-4 h-4"/>} {s.type === 'audio' && <Mic className="w-4 h-4"/>} {s.type === 'image' && <ImageIcon className="w-4 h-4"/>} {s.type === 'website' && <Globe className="w-4 h-4"/>} {s.type === 'youtube' && <Youtube className="w-4 h-4"/>} {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4"/>}
-                                        <span className="truncate flex-1 min-w-0">{s.name}</span>
+                                    <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
+                                        {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>} 
+                                        {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>} 
+                                        {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>} 
+                                        {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>} 
+                                        {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>} 
+                                        {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>} 
+                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
+                                        <span className="flex-1 min-w-0 break-all">{s.name}</span>
                                         <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                                     </li>
                                 ))}
@@ -991,16 +894,53 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
                 {/* Dialogs for manual adding */}
                 <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
                 <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader><Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/><DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter></DialogContent></Dialog>
-                <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add to your study space.</DialogDescription></DialogHeader>{isSearching ? (<div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>) : searchResults.length > 0 ? (<div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)} checked={sources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}<DialogFooter><Button onClick={() => setIsSearchModalOpen(false)}>Done</Button></DialogFooter></DialogContent></Dialog>
-                <CameraSourceModal
-                    open={isCameraModalOpen}
-                    onOpenChange={setIsCameraModalOpen}
-                    onAddSource={(source) => setSources(prev => [...prev, source])}
-                />
+                <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Web Search Results</DialogTitle>
+                            <DialogDescription>Select the resources you want to add to your study space.</DialogDescription>
+                        </DialogHeader>
+                        {isSearching ? (
+                            <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>
+                        ) : searchResults.length > 0 ? (
+                            <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y">
+                                <div className="py-4 space-y-2">
+                                    {searchResults.map((result, index) => (
+                                        <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
+                                            <Checkbox 
+                                                id={`add-search-result-${index}`} 
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) {
+                                                        setSelectedWebSources(prev => [...prev, result]);
+                                                    } else {
+                                                        setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));
+                                                    }
+                                                }}
+                                                checked={selectedWebSources.some(s => s.url === result.url)}
+                                            />
+                                            <div className="grid gap-1.5 leading-none flex-1 min-w-0">
+                                                <label htmlFor={`add-search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label>
+                                                <p className="text-xs text-muted-foreground">{result.snippet}</p>
+                                                <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
+                        )}
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button>
+                            <Button onClick={handleAddSelectedSources}>Add Selected</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </DialogContent>
         </Dialog>
     )
 }
     
+
 
 
