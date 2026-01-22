@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowRight, Briefcase } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 const features = [
     {
@@ -73,12 +74,21 @@ export default function FeaturesPage() {
                 </div>
             </TabsContent>
             <TabsContent value="career" className="mt-8">
-                <div className="flex flex-col items-center justify-center text-center py-20 text-muted-foreground border-2 border-dashed rounded-lg">
-                    <Briefcase className="w-12 h-12 mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground">Coming Soon!</h3>
-                    <p className="mt-2 text-sm">
-                        Career-focused features are under development.
-                    </p>
+                <div className="text-center p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed">
+                    <div className="max-w-md mx-auto">
+                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
+                            <Briefcase className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
+                        <p className="mt-4 text-muted-foreground">
+                            Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
+                        </p>
+                        <Button asChild size="lg" className="mt-8 font-bold">
+                            <Link href="/home/career">
+                                Go to Career Hub <ArrowRight className="ml-2 w-5 h-5" />
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
             </TabsContent>
         </Tabs>
