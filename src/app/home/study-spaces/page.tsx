@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -109,29 +109,50 @@ export default function StudySpacesPage() {
       setIsNotesDirty(true);
   }
 
-  const applyMarkdownFormatting = (type: 'bold' | 'italic' | 'strikethrough') => {
+  const applyMarkdownFormatting = (type: 'bold' | 'italic' | 'strikethrough' | 'bullet') => {
       const textarea = notesTextareaRef.current;
       if (!textarea) return;
 
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      if (start === end) return; // No selection
+      
+      // For non-bullet formats, require a selection
+      if (start === end && type !== 'bullet') return;
 
       const selectedText = notes.substring(start, end);
-      let marker = '';
-      switch (type) {
-          case 'bold': marker = '**'; break;
-          case 'italic': marker = '*'; break;
-          case 'strikethrough': marker = '~~'; break;
-      }
+      let newText = '';
+      let newSelectionStart = start;
+      let newSelectionEnd = end;
 
-      const newText = `${notes.substring(0, start)}${marker}${selectedText}${marker}${notes.substring(end)}`;
+      if (type === 'bullet') {
+          const lines = selectedText.split('\n');
+          // If there's no selection, it will be `['']`, so we get a single bullet.
+          // If there is a selection, we bullet each line.
+          const bulletedLines = lines.map(line => `- ${line}`);
+          const replacement = bulletedLines.join('\n');
+
+          newText = `${notes.substring(0, start)}${replacement}${notes.substring(end)}`;
+          newSelectionStart = start;
+          newSelectionEnd = start + replacement.length;
+      } else {
+          let marker = '';
+          switch (type) {
+              case 'bold': marker = '**'; break;
+              case 'italic': marker = '*'; break;
+              case 'strikethrough': marker = '~~'; break;
+          }
+
+          newText = `${notes.substring(0, start)}${marker}${selectedText}${marker}${notes.substring(end)}`;
+          newSelectionStart = start + marker.length;
+          newSelectionEnd = end + marker.length;
+      }
+      
       setNotes(newText);
       setIsNotesDirty(true);
 
       setTimeout(() => {
           textarea.focus();
-          textarea.setSelectionRange(start + marker.length, end + marker.length);
+          textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
       }, 0);
   };
 
@@ -290,10 +311,12 @@ export default function StudySpacesPage() {
                                             <Sparkles className="w-5 h-5 text-primary" />
                                             AI Summary
                                         </h3>
-                                        <p className="text-sm text-muted-foreground pt-2">
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">
                                             {summaryText}
                                         </p>
-                                    </CardHeader>
+                                    </CardContent>
                                 </Card>
                             </TabsContent>
                             <TabsContent value="personal-notes" className="mt-4 flex-1 flex flex-col">
@@ -318,6 +341,7 @@ export default function StudySpacesPage() {
                                                     <Button variant="ghost" size="sm" onClick={() => applyMarkdownFormatting('bold')}><Bold className="h-4 w-4" /></Button>
                                                     <Button variant="ghost" size="sm" onClick={() => applyMarkdownFormatting('italic')}><Italic className="h-4 w-4" /></Button>
                                                     <Button variant="ghost" size="sm" onClick={() => applyMarkdownFormatting('strikethrough')}><Strikethrough className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="sm" onClick={() => applyMarkdownFormatting('bullet')}><List className="h-4 w-4" /></Button>
                                                 </div>
                                                 <Textarea 
                                                     ref={notesTextareaRef}
