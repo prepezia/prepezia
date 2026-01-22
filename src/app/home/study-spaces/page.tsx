@@ -258,7 +258,18 @@ export default function StudySpacesPage() {
                     <Card className="h-[600px] flex flex-col mt-6">
                         <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
                         <CardContent className="flex-grow overflow-y-auto space-y-4">
-                            {chatHistory.length === 0 && <div className="text-center text-muted-foreground pt-10">Ask a question to get started.</div>}
+                            {chatHistory.length === 0 && (
+                                <div className="text-center text-muted-foreground pt-10 px-6">
+                                    <BookOpen className="w-12 h-12 mx-auto text-primary/80 mb-4" />
+                                    <h3 className="font-semibold text-foreground text-lg">Chat with Your Sources</h3>
+                                    <p className="mt-2 text-sm">
+                                        Ask me a question and I will answer based solely on the materials you've provided.
+                                    </p>
+                                    <p className="mt-1 text-xs">
+                                        You can even ask for specific citations, like a page from a PDF or a timestamp in a video.
+                                    </p>
+                                </div>
+                            )}
                             {chatHistory.map((msg, i) => (
                                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
@@ -1042,3 +1053,6 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
 
+
+
+    
