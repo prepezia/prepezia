@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -31,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
 const createSpaceSchema = z.object({
@@ -92,6 +93,26 @@ export default function StudySpacesPage() {
   const [notes, setNotes] = useState("");
   const [isNotesDirty, setIsNotesDirty] = useState(false);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [isGenerateOptionsOpen, setIsGenerateOptionsOpen] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState([
+    { id: 1, type: 'podcast', title: 'Intro to Macroeconomics', date: 'July 16, 2024' },
+    { id: 2, type: 'quiz', title: 'Keynesian Theory Quiz', date: 'July 15, 2024' },
+    { id: 3, type: 'deck', title: 'IS-LM Model Presentation', date: 'July 14, 2024' },
+  ]);
+
+  const generationOptions = [
+    { name: "Podcast", icon: Mic, type: "podcast", action: () => handleGeneratePodcast() },
+    { name: "Mind Map", icon: GitFork, type: "mindmap", action: () => alert("Mind Map generation coming soon!") },
+    { name: "Report", icon: FileText, type: "report", action: () => alert("Report generation coming soon!") },
+    { name: "Quiz", icon: HelpCircle, type: "quiz", action: () => alert("Quiz generation coming soon!") },
+    { name: "Slide Deck", icon: Presentation, type: "deck", action: () => alert("Slide Deck generation coming soon!") },
+    { name: "Data Table", icon: Table, type: "table", action: () => alert("Data Table generation coming soon!") },
+    { name: "Infographic", icon: AreaChart, type: "infographic", action: () => alert("Infographic generation coming soon!") },
+    { name: "Flashcards", icon: SquareStack, type: "flashcards", action: () => alert("Flashcard generation coming soon!") },
+    { name: "Video", icon: Video, type: "video", action: () => alert("Video generation coming soon!") },
+    { name: "Audio Overview", icon: Music, type: "audio", action: () => alert("Audio Overview generation coming soon!") },
+  ];
 
 
   const handleSaveNotes = () => {
@@ -256,6 +277,7 @@ export default function StudySpacesPage() {
   }
 
   async function handleGeneratePodcast() {
+    setIsGenerateOptionsOpen(false);
     setIsPodcastLoading(true);
     setPodcast(null);
     try {
@@ -284,9 +306,9 @@ export default function StudySpacesPage() {
     );
 
     return (
-        <>
+        <div className="flex flex-col h-screen">
             {header}
-            <div className="px-4 sm:px-6 lg:px-8 pb-8 flex-1 flex flex-col">
+            <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
                 <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
                     <TabsList className="grid w-full grid-cols-4 bg-secondary">
                         <TabsTrigger value="intro">Intro</TabsTrigger>
@@ -305,7 +327,7 @@ export default function StudySpacesPage() {
                                 <Card className="h-full">
                                     <CardHeader>
                                         <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
-                                        <CardDescription className="text-muted-foreground pt-2">{selectedStudySpace.description}</CardDescription>
+                                        <CardDescription className="text-muted-foreground pt-1">{selectedStudySpace.description}</CardDescription>
                                         <Separator className="my-4" />
                                         <h3 className="text-xl font-headline font-bold flex items-center gap-2 pt-2">
                                             <Sparkles className="w-5 h-5 text-primary" />
@@ -442,44 +464,84 @@ export default function StudySpacesPage() {
                     </TabsContent>
 
                     <TabsContent value="generate" className="mt-4">
-                       <Card className="flex flex-col items-center justify-center text-center min-h-[60vh]">
-                            <CardContent>
-                                {isPodcastLoading ? (
-                                    <>
-                                        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-                                        <p className="mt-4 text-muted-foreground">Generating your audio overview...</p>
-                                    </>
-                                ) : podcast ? (
-                                    <div className="space-y-4">
-                                        <h3 className="text-xl font-headline">Podcast Ready!</h3>
-                                        <audio controls src={podcast.audio} className="w-full"></audio>
-                                        <Card className="text-left max-h-80 overflow-y-auto">
-                                            <CardHeader><CardTitle>Script</CardTitle></CardHeader>
-                                            <CardContent>
-                                                <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
-                                            </CardContent>
-                                        </Card>
-                                        <Button onClick={() => setPodcast(null)}>Generate New Podcast</Button>
+                        {isPodcastLoading ? (
+                            <Card className="flex flex-col items-center justify-center text-center min-h-[60vh]">
+                                <CardContent>
+                                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                                    <p className="mt-4 text-muted-foreground">Generating your podcast...</p>
+                                </CardContent>
+                            </Card>
+                        ) : podcast ? (
+                            <Card>
+                                <CardHeader>
+                                    <Button onClick={() => setPodcast(null)}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Generated Content</Button>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <h3 className="text-xl font-headline">Podcast Ready!</h3>
+                                    <audio controls src={podcast.audio} className="w-full"></audio>
+                                    <Card className="text-left max-h-80 overflow-y-auto">
+                                        <CardHeader><CardTitle>Script</CardTitle></CardHeader>
+                                        <CardContent>
+                                            <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
+                                        </CardContent>
+                                    </Card>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card>
+                                <CardHeader className="flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle>Generated Content</CardTitle>
+                                        <CardDescription>AI-generated materials based on your sources.</CardDescription>
                                     </div>
-                                ) : (
-                                    <>
-                                        <Mic className="h-12 w-12 text-primary mx-auto" />
-                                        <h3 className="text-xl font-headline mt-4">Generate Audio Overview</h3>
-                                        <p className="text-muted-foreground mt-2 max-w-sm mx-auto">Turn your sources into an engaging podcast-style conversation between our AI hosts, Temi & Jay.</p>
-                                        <Button size="lg" className="mt-6" onClick={handleGeneratePodcast} disabled={sources.length === 0}>
-                                            <Play className="mr-2 h-4 w-4" />
-                                            Generate Podcast
-                                        </Button>
-                                        {sources.length === 0 && <p className="text-xs text-destructive mt-2">Please add at least one source with a URL to generate a podcast.</p>}
-                                    </>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    <Button onClick={() => setIsGenerateOptionsOpen(true)}>
+                                        <Plus className="mr-2 h-4 w-4" /> Generate
+                                    </Button>
+                                </CardHeader>
+                                <CardContent>
+                                    {generatedContent.length > 0 ? (
+                                        <ul className="space-y-3">
+                                            {generatedContent.map((item) => (
+                                                <GeneratedContentItem key={item.id} item={item} />
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                                            <Sparkles className="mx-auto h-10 w-10 mb-4" />
+                                            <h3 className="font-semibold text-lg text-foreground">Nothing generated yet</h3>
+                                            <p className="text-sm">Click "+ Generate" to create your first asset.</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
                 </Tabs>
                 <AddSourcesDialog open={isAddSourcesOpen} onOpenChange={setIsAddSourcesOpen} onAddSources={handleAddMoreSources} />
+                <Dialog open={isGenerateOptionsOpen} onOpenChange={setIsGenerateOptionsOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>What would you like to generate?</DialogTitle>
+                            <DialogDescription>Select a content type to generate from your sources.</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4">
+                            {generationOptions.map((option) => (
+                                <Button
+                                    key={option.name}
+                                    variant="outline"
+                                    className="h-24 flex-col gap-2 text-center"
+                                    onClick={option.action}
+                                    disabled={option.type === 'podcast' && sources.length === 0}
+                                >
+                                    <option.icon className="w-6 h-6 text-primary" />
+                                    <span className="text-sm font-medium">{option.name}</span>
+                                </Button>
+                            ))}
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
-        </>
+        </div>
     )
   }
 
@@ -761,9 +823,9 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     );
 
     return (
-        <>
+        <div className="flex flex-col min-h-screen">
             {header}
-            <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1">
                  <Card className="max-w-3xl mx-auto">
                     <CardHeader className="text-center">
                         <CardTitle className="text-2xl font-headline">Create a New Study Space</CardTitle>
@@ -956,9 +1018,58 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                     </DialogContent>
                 </Dialog>
             </div>
-        </>
+        </div>
     );
 }
+
+function GeneratedContentItem({ item }: { item: { id: number; type: string; title: string; date: string; } }) {
+    const icons: { [key: string]: React.ElementType } = {
+        podcast: Mic,
+        quiz: HelpCircle,
+        deck: Presentation,
+        report: FileText,
+        mindmap: GitFork,
+        table: Table,
+        infographic: AreaChart,
+        flashcards: SquareStack,
+        video: Video,
+        audio: Music,
+    };
+
+    const Icon = icons[item.type] || BookOpen;
+
+    return (
+        <li className="flex items-center gap-4 rounded-lg border bg-background p-3 shadow-sm hover:bg-accent/50 transition-colors">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+                <p className="font-semibold">{item.title}</p>
+                <p className="text-sm text-muted-foreground">Generated on {item.date}</p>
+            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                        <Eye className="mr-2 h-4 w-4" /> View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <Download className="mr-2 h-4 w-4" /> Download
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </li>
+    );
+}
+
 
 function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean; onOpenChange: (open: boolean) => void; onAddSources: (sources: Source[]) => void; }) {
     const [sources, setSources] = useState<Source[]>([]);
