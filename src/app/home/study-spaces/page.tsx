@@ -452,7 +452,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                     if (videoRef.current) {
                         videoRef.current.srcObject = stream;
                     }
-                } catch (error) => {
+                } catch (error) {
                     console.error('Error accessing camera:', error);
                     setHasCameraPermission(false);
                     toast({
@@ -610,7 +610,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/*") },
-        { name: "Camera", icon: Camera, action: () => handleFileButtonClick("image/*", true) },
+        { name: "Camera", icon: Camera, action: () => setIsCameraModalOpen(true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
@@ -1080,4 +1080,5 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
