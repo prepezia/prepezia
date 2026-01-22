@@ -86,7 +86,6 @@ export default function StudySpacesPage() {
   const [isDirty, setIsDirty] = useState(false);
   const { toast } = useToast();
 
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [notes, setNotes] = useState("");
 
 
@@ -221,7 +220,7 @@ export default function StudySpacesPage() {
         <>
             {header}
             <div className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col">
-                <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
+                <Tabs defaultValue="intro" className="w-full">
                     <TabsList className="grid w-full grid-cols-4 bg-secondary">
                         <TabsTrigger value="intro">Intro</TabsTrigger>
                         <TabsTrigger value="sources">Sources</TabsTrigger>
@@ -239,17 +238,15 @@ export default function StudySpacesPage() {
                                 <Card className="h-full">
                                     <CardHeader>
                                         <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
+                                        <CardDescription className="text-muted-foreground pt-1">{selectedStudySpace.description}</CardDescription>
                                         <Separator className="my-4" />
                                         <h3 className="text-xl font-headline font-bold flex items-center gap-2 pt-2">
                                             <Sparkles className="w-5 h-5 text-primary" />
                                             AI Summary
                                         </h3>
-                                        <p className={cn("text-sm text-muted-foreground pt-2", !isSummaryExpanded && "line-clamp-3")}>
+                                        <p className="text-sm text-muted-foreground pt-2">
                                             {summaryText}
                                         </p>
-                                        <Button variant="link" className="px-0 h-auto" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
-                                            {isSummaryExpanded ? "Read Less" : "Read More"}
-                                        </Button>
                                     </CardHeader>
                                 </Card>
                             </TabsContent>
