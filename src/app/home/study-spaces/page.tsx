@@ -26,13 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
-
-
-const sourceSchema = z.object({
-  file: z.any().optional(),
-  url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal("")),
-});
-type SourceFormSchema = z.infer<typeof sourceSchema>;
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 const createSpaceSchema = z.object({
@@ -85,11 +79,13 @@ export default function StudySpacesPage() {
   const [visibleCount, setVisibleCount] = useState(5);
 
   const [isAddSourcesOpen, setIsAddSourcesOpen] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const { toast } = useToast();
 
 
-  const form = useForm<SourceFormSchema>({
-    resolver: zodResolver(sourceSchema),
-    defaultValues: { url: "" },
+  const form = useForm<CreateSpaceFormSchema>({
+    resolver: zodResolver(createSpaceSchema),
+    defaultValues: { name: "", description: "" },
   });
 
   const handleShowCreateView = () => {
@@ -104,6 +100,7 @@ export default function StudySpacesPage() {
     setChatHistory([]);
     setPodcast(null);
     setViewState('edit');
+    setIsDirty(false);
   };
 
   const handleBackToList = () => {
@@ -128,10 +125,24 @@ export default function StudySpacesPage() {
 
   const handleDeleteSource = (indexToDelete: number) => {
     setSources(prev => prev.filter((_, index) => index !== indexToDelete));
+    setIsDirty(true);
   };
 
   const handleAddMoreSources = (newSources: Source[]) => {
-    setSources(prev => [...prev, ...newSources]);
+    if (newSources.length > 0) {
+      setSources(prev => [...prev, ...newSources]);
+      setIsDirty(true);
+    }
+  };
+
+  const handleUpdateStudySpace = () => {
+    // In a real app, this would save the changes to the backend.
+    console.log("Updating study space with new sources:", sources);
+    setIsDirty(false);
+    toast({
+        title: "Study Space Updated",
+        description: `${selectedStudySpace?.name} has been updated.`,
+    });
   };
 
   async function handleChatSubmit() {
@@ -228,7 +239,7 @@ export default function StudySpacesPage() {
                                         {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                         {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                         {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                        <span className="flex-1 min-w-0 break-all">{s.name}</span>
+                                        <span className="flex-1 min-w-0 break-words">{s.name}</span>
                                         <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                             <Trash2 className="w-4 h-4 text-destructive" />
                                         </Button>
@@ -238,7 +249,7 @@ export default function StudySpacesPage() {
                             )}
                         </CardContent>
                         <CardFooter>
-                            <Button disabled>Update Study Space</Button>
+                            <Button disabled={!isDirty} onClick={handleUpdateStudySpace}>Update Study Space</Button>
                         </CardFooter>
                     </Card>
                 </TabsContent>
@@ -368,6 +379,7 @@ export default function StudySpacesPage() {
 function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, description: string, sources: Source[]) => void; onBack: () => void; }) {
     const [stage, setStage] = useState<'details' | 'sources'>('details');
     const [spaceDetails, setSpaceDetails] = useState({ name: "", description: "" });
+    const { toast } = useToast();
 
     const detailsForm = useForm<CreateSpaceFormSchema>({
         resolver: zodResolver(createSpaceSchema),
@@ -389,6 +401,71 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [isSearching, setIsSearching] = useState(false);
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [selectedWebSources, setSelectedWebSources] = useState<SourceSearchResult[]>([]);
+
+    // Camera state
+    const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const [capturedImage, setCapturedImage] = useState<string | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        if (isCameraModalOpen && hasCameraPermission === null) {
+            const getCameraPermission = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    setHasCameraPermission(true);
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    setHasCameraPermission(false);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Camera Access Denied',
+                        description: 'Please enable camera permissions in your browser settings to use this feature.',
+                    });
+                }
+            };
+            getCameraPermission();
+        }
+    }, [isCameraModalOpen, hasCameraPermission, toast]);
+
+    const handleCapture = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                setCapturedImage(canvas.toDataURL('image/jpeg'));
+            }
+        }
+    };
+
+    const handleUsePhoto = () => {
+        if (capturedImage) {
+            const newSource: Source = {
+                type: 'image',
+                name: `Captured Image ${new Date().toLocaleString()}.jpg`,
+                data: capturedImage
+            };
+            setSources(prev => [...prev, newSource]);
+            handleCloseCameraModal();
+        }
+    };
+    
+    const handleCloseCameraModal = () => {
+        setCapturedImage(null);
+        setIsCameraModalOpen(false);
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+        setHasCameraPermission(null);
+    };
 
 
     const handleDeleteSource = (indexToDelete: number) => {
@@ -465,7 +542,11 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
             setSearchResults(response.results);
         } catch (e) {
             console.error("Web search failed", e);
-            // TODO: show a toast
+            toast({
+                variant: 'destructive',
+                title: 'Search Failed',
+                description: 'Could not fetch web results. Please try again.',
+            });
         } finally {
             setIsSearching(false);
         }
@@ -493,7 +574,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const sourceButtons = [
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
-        { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") },
+        { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/*") },
         { name: "Camera", icon: Camera, action: () => handleFileButtonClick("image/*", true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
@@ -602,7 +683,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                                 {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                                 {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                                 {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                                <span className="flex-1 min-w-0 break-all">{s.name}</span>
+                                                <span className="flex-1 min-w-0 break-words">{s.name}</span>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                                     <Trash2 className="w-4 h-4 text-destructive" />
                                                 </Button>
@@ -618,36 +699,47 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                 </CardContent>
             </Card>
             
-             <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
+            <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add Copied Text</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader>
                     <Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button>
-                        <Button onClick={handleAddCopiedText}>Add Text</Button>
-                    </DialogFooter>
+                    <DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
-             <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}>
+            <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            {urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />}
-                             Add {urlModalConfig?.name} Link
-                        </DialogTitle>
-                    </DialogHeader>
-                    <Input 
-                        value={currentUrl} 
-                        onChange={e => setCurrentUrl(e.target.value)} 
-                        placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}
-                    />
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button>
-                        <Button onClick={handleAddUrl}>Add Link</Button>
-                    </DialogFooter>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader>
+                    <Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/>
+                    <DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            <Dialog open={isCameraModalOpen} onOpenChange={handleCloseCameraModal}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader><DialogTitle>Capture from Camera</DialogTitle></DialogHeader>
+                    {capturedImage ? (
+                        <div className="space-y-4">
+                            <Image src={capturedImage} alt="Captured" width={1280} height={720} className="rounded-md" />
+                            <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => setCapturedImage(null)}>Retake</Button>
+                                <Button onClick={handleUsePhoto}>Use Photo</Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay muted />
+                            {hasCameraPermission === false && (
+                                <Alert variant="destructive">
+                                    <AlertTitle>Camera Access Required</AlertTitle>
+                                    <AlertDescription>Please allow camera access to use this feature.</AlertDescription>
+                                </Alert>
+                            )}
+                            <div className="flex justify-end">
+                                <Button onClick={handleCapture} disabled={!hasCameraPermission}>Capture</Button>
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
 
@@ -707,6 +799,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
     const [urlModalConfig, setUrlModalConfig] = useState<{type: 'youtube' | 'website', name: string, icon: React.ElementType} | null>(null);
     const [currentUrl, setCurrentUrl] = useState("");
+    const { toast } = useToast();
     
     // Web search state
     const [searchQuery, setSearchQuery] = useState("");
@@ -791,7 +884,11 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
             setSearchResults(response.results);
         } catch (e) {
             console.error("Web search failed", e);
-            // TODO: show a toast
+            toast({
+                variant: 'destructive',
+                title: 'Search Failed',
+                description: 'Could not fetch web results. Please try again.',
+            });
         } finally {
             setIsSearching(false);
         }
@@ -878,7 +975,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
                                         {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>} 
                                         {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>} 
                                         {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                        <span className="flex-1 min-w-0 break-all">{s.name}</span>
+                                        <span className="flex-1 min-w-0 break-words">{s.name}</span>
                                         <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                                     </li>
                                 ))}
@@ -941,6 +1038,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     )
 }
     
+
 
 
 
