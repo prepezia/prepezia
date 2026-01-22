@@ -216,7 +216,7 @@ export default function StudySpacesPage() {
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="sources">Sources</TabsTrigger>
                     <TabsTrigger value="chat">Chat</TabsTrigger>
-                    <TabsTrigger value="podcast">Podcast Generator</TabsTrigger>
+                    <TabsTrigger value="podcast">Generate</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="sources">
