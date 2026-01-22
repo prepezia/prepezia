@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -29,6 +29,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { HomeHeader } from "@/components/layout/HomeHeader";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 
 const createSpaceSchema = z.object({
     name: z.string().min(1, { message: "Space name is required." }),
@@ -87,7 +90,50 @@ export default function StudySpacesPage() {
   const { toast } = useToast();
 
   const [notes, setNotes] = useState("");
+  const [isNotesDirty, setIsNotesDirty] = useState(false);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
+
+  const handleSaveNotes = () => {
+    // In a real app, this would save to a backend.
+    console.log("Saving notes:", notes);
+    setIsNotesDirty(false);
+    toast({
+      title: "Notes Saved",
+      description: "Your personal notes have been saved.",
+    });
+  };
+
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setNotes(e.target.value);
+      setIsNotesDirty(true);
+  }
+
+  const applyMarkdownFormatting = (type: 'bold' | 'italic' | 'strikethrough') => {
+      const textarea = notesTextareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      if (start === end) return; // No selection
+
+      const selectedText = notes.substring(start, end);
+      let marker = '';
+      switch (type) {
+          case 'bold': marker = '**'; break;
+          case 'italic': marker = '*'; break;
+          case 'strikethrough': marker = '~~'; break;
+      }
+
+      const newText = `${notes.substring(0, start)}${marker}${selectedText}${marker}${notes.substring(end)}`;
+      setNotes(newText);
+      setIsNotesDirty(true);
+
+      setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + marker.length, end + marker.length);
+      }, 0);
+  };
 
   const form = useForm<CreateSpaceFormSchema>({
     resolver: zodResolver(createSpaceSchema),
@@ -219,8 +265,8 @@ export default function StudySpacesPage() {
     return (
         <>
             {header}
-            <div className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col">
-                <Tabs defaultValue="intro" className="w-full">
+            <div className="px-4 sm:px-6 lg:px-8 pb-8 flex-1 flex flex-col">
+                <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
                     <TabsList className="grid w-full grid-cols-4 bg-secondary">
                         <TabsTrigger value="intro">Intro</TabsTrigger>
                         <TabsTrigger value="sources">Sources</TabsTrigger>
@@ -238,7 +284,7 @@ export default function StudySpacesPage() {
                                 <Card className="h-full">
                                     <CardHeader>
                                         <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
-                                        <CardDescription className="text-muted-foreground pt-1">{selectedStudySpace.description}</CardDescription>
+                                        <CardDescription className="text-muted-foreground pt-2">{selectedStudySpace.description}</CardDescription>
                                         <Separator className="my-4" />
                                         <h3 className="text-xl font-headline font-bold flex items-center gap-2 pt-2">
                                             <Sparkles className="w-5 h-5 text-primary" />
@@ -250,19 +296,43 @@ export default function StudySpacesPage() {
                                     </CardHeader>
                                 </Card>
                             </TabsContent>
-                            <TabsContent value="personal-notes" className="mt-4 flex-1">
-                                <Card className="h-full flex flex-col">
-                                    <CardHeader>
-                                        <CardTitle>Personal Notes</CardTitle>
-                                        <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
+                            <TabsContent value="personal-notes" className="mt-4 flex-1 flex flex-col">
+                                <Card className="flex-1 flex flex-col">
+                                    <CardHeader className="flex-row items-center justify-between">
+                                        <div>
+                                            <CardTitle>Personal Notes</CardTitle>
+                                            <CardDescription>Jot down your thoughts and ideas here. Use markdown for formatting.</CardDescription>
+                                        </div>
+                                        <Button onClick={handleSaveNotes} disabled={!isNotesDirty}>
+                                            Save Notes
+                                        </Button>
                                     </CardHeader>
-                                    <CardContent className="flex-1 flex">
-                                        <Textarea 
-                                            placeholder="Start typing your notes..." 
-                                            className="h-full w-full resize-none"
-                                            value={notes}
-                                            onChange={(e) => setNotes(e.target.value)}
-                                        />
+                                    <CardContent className="flex-1 flex flex-col p-0">
+                                        <Tabs defaultValue="write" className="w-full h-full flex flex-col">
+                                            <TabsList className="mx-6">
+                                                <TabsTrigger value="write">Write</TabsTrigger>
+                                                <TabsTrigger value="preview">Preview</TabsTrigger>
+                                            </TabsList>
+                                            <TabsContent value="write" className="flex-1 flex flex-col p-6 pt-2">
+                                                <div className="border border-b-0 rounded-t-md p-1 flex items-center gap-1">
+                                                    <Button variant="ghost" size="sm" onClick={() => applyMarkdownFormatting('bold')}><Bold className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="sm" onClick={() => applyMarkdownFormatting('italic')}><Italic className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="sm" onClick={() => applyMarkdownFormatting('strikethrough')}><Strikethrough className="h-4 w-4" /></Button>
+                                                </div>
+                                                <Textarea 
+                                                    ref={notesTextareaRef}
+                                                    placeholder="Start typing your notes..." 
+                                                    className="flex-1 w-full resize-none border rounded-b-md rounded-t-none focus-visible:ring-1 focus-visible:ring-offset-0"
+                                                    value={notes}
+                                                    onChange={handleNotesChange}
+                                                />
+                                            </TabsContent>
+                                            <TabsContent value="preview" className="flex-1 p-6">
+                                                <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4">
+                                                    {notes ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown> : <p className="text-muted-foreground">Nothing to preview yet.</p>}
+                                                </div>
+                                            </TabsContent>
+                                        </Tabs>
                                     </CardContent>
                                 </Card>
                             </TabsContent>
