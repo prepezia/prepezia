@@ -347,7 +347,7 @@ export default function StudySpacesPage() {
             <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
             <p className="text-muted-foreground mt-1">Create your personal knowledge hub.</p>
         </div>
-        <Button className="group" onClick={handleShowCreateView}>
+        <Button onClick={handleShowCreateView}>
             + Create New
         </Button>
       </div>
@@ -601,7 +601,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                             {sources.length > 0 && (
                                 <div className="space-y-2">
                                 <h4 className="font-semibold">Added Sources ({sources.length})</h4>
-                                <ul className="space-y-2 max-h-40 overflow-y-auto rounded-md border p-2">
+                                <ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">
                                         {sources.map((s, i) => (
                                             <li key={i} className="flex items-center text-sm gap-2 p-2 bg-secondary rounded-md">
                                                 {s.type === 'pdf' && <FileText className="w-4 h-4"/>}
