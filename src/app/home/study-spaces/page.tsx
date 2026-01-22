@@ -212,14 +212,14 @@ export default function StudySpacesPage() {
   if (viewState === 'edit' && selectedStudySpace) {
     return (
         <div className="flex flex-col h-full">
-            <div className="p-4">
+            <div className="mb-4">
                 <Button variant="outline" onClick={handleBackToList}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to All Spaces
                 </Button>
             </div>
 
-            <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col px-4 pb-4">
+            <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
                 <TabsList className="grid w-full grid-cols-4 bg-secondary">
                     <TabsTrigger value="intro">Intro</TabsTrigger>
                     <TabsTrigger value="sources">Sources</TabsTrigger>
@@ -1103,6 +1103,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
