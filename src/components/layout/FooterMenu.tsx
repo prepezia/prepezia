@@ -22,8 +22,8 @@ export function FooterMenu() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 md:hidden">
-      <div className="flex justify-around items-center h-16">
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:bottom-4">
+      <div className="flex justify-around items-center h-16 bg-card border-t border-border md:max-w-md md:mx-auto md:rounded-full md:border md:shadow-lg">
         {menuItems.map((item) => {
           const isActive = pathname === item.href || (item.href === '/home/features' && pathname.startsWith('/home/')) && pathname !== '/home' && pathname !== '/home/past-questions';
           return (
@@ -31,7 +31,7 @@ export function FooterMenu() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center justify-center text-muted-foreground w-full h-full',
+                'flex flex-col items-center justify-center text-muted-foreground w-full h-full md:w-auto md:px-6',
                 isActive && 'text-primary'
               )}
             >
@@ -42,7 +42,7 @@ export function FooterMenu() {
         })}
         <button
           onClick={handleAccountClick}
-          className="flex flex-col items-center justify-center text-muted-foreground w-full h-full"
+          className="flex flex-col items-center justify-center text-muted-foreground w-full h-full md:w-auto md:px-6"
         >
           <User className="h-6 w-6 mb-1" />
           <span className="text-xs font-medium">Account</span>

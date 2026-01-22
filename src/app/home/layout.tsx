@@ -8,7 +8,7 @@ export default function HomeLayout({
   return (
     <div className="flex min-h-screen bg-card text-foreground">
         <div className="flex-1 flex flex-col">
-            <main className="flex-1 pb-24 md:pb-6 flex flex-col">
+            <main className="flex-1 pb-24 flex flex-col">
                 {children}
             </main>
             <FooterMenu />
