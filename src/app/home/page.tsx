@@ -6,6 +6,7 @@ import { ArrowRight, Search } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { HomeHeader } from "@/components/layout/HomeHeader";
 
 const features = [
     {
@@ -48,32 +49,35 @@ const features = [
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-12">
-        <div className="text-center space-y-4 pt-10">
-            <p className="text-xl text-muted-foreground">Hi, Firstname!</p>
-            <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
-            <div className="relative max-w-xl mx-auto">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input 
-                    type="search"
-                    placeholder="Search any topic"
-                    className="h-12 rounded-full border-0 bg-secondary/50 pl-12 pr-5 text-base focus-visible:ring-2 focus-visible:ring-primary"
-                />
-            </div>
-        </div>
+    <>
+      <HomeHeader />
+      <div className="p-4 sm:p-6 lg:p-8 space-y-12">
+          <div className="text-center space-y-4 pt-10">
+              <p className="text-xl text-muted-foreground">Hi, Firstname!</p>
+              <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
+              <div className="relative max-w-xl mx-auto">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input 
+                      type="search"
+                      placeholder="Search any topic"
+                      className="h-12 rounded-full border-0 bg-secondary/50 pl-12 pr-5 text-base focus-visible:ring-2 focus-visible:ring-primary"
+                  />
+              </div>
+          </div>
 
-      <div className="space-y-16">
-        <h2 className="text-2xl font-headline font-bold">Get Started</h2>
-        <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
-          {features.map(feature => (
-              <HomeFeatureCard
-                key={feature.title}
-                {...feature}
-              />
-          ))}
+        <div className="space-y-16">
+          <h2 className="text-2xl font-headline font-bold">Get Started</h2>
+          <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
+            {features.map(feature => (
+                <HomeFeatureCard
+                  key={feature.title}
+                  {...feature}
+                />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

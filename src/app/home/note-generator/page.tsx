@@ -24,6 +24,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { generateStudyNotes, GenerateStudyNotesOutput } from "@/ai/flows/generate-study-notes";
 import { Loader2 } from "lucide-react";
+import { HomeHeader } from "@/components/layout/HomeHeader";
 
 const formSchema = z.object({
   topic: z.string().min(3, { message: "Topic must be at least 3 characters." }),
@@ -57,82 +58,85 @@ export default function NoteGeneratorPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-headline font-bold">Note Generator</h1>
-        <p className="text-muted-foreground">
-          Enter a topic and select an academic level to generate detailed study notes.
-        </p>
-      </div>
-
-      <Card>
-        <CardContent className="pt-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="topic"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Topic</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Photosynthesis, Ghanaian Independence" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="academicLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Academic Level</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a level" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Beginner">Beginner</SelectItem>
-                        <SelectItem value="Intermediate">Intermediate</SelectItem>
-                        <SelectItem value="Expert">Expert</SelectItem>
-                        <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                        <SelectItem value="Masters">Masters</SelectItem>
-                        <SelectItem value="PhD">PhD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Generate Notes
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-      
-      {isLoading && (
-        <div className="flex justify-center items-center py-10">
-            <Loader2 className="h-8 w-8 animate-spin text-primary"/>
-            <p className="ml-4 text-muted-foreground">Generating your notes, please wait...</p>
+    <>
+      <HomeHeader />
+      <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+        <div>
+          <h1 className="text-3xl font-headline font-bold">Note Generator</h1>
+          <p className="text-muted-foreground">
+            Enter a topic and select an academic level to generate detailed study notes.
+          </p>
         </div>
-      )}
 
-      {generatedNotes && (
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-2xl font-headline font-bold mb-4">Generated Notes</h2>
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: generatedNotes.notes.replace(/\n/g, '<br />') }} />
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="topic"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Topic</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Photosynthesis, Ghanaian Independence" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="academicLevel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Academic Level</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a level" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Beginner">Beginner</SelectItem>
+                          <SelectItem value="Intermediate">Intermediate</SelectItem>
+                          <SelectItem value="Expert">Expert</SelectItem>
+                          <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                          <SelectItem value="Masters">Masters</SelectItem>
+                          <SelectItem value="PhD">PhD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Generate Notes
+                </Button>
+              </form>
+            </Form>
           </CardContent>
         </Card>
-      )}
-    </div>
+        
+        {isLoading && (
+          <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-8 w-8 animate-spin text-primary"/>
+              <p className="ml-4 text-muted-foreground">Generating your notes, please wait...</p>
+          </div>
+        )}
+
+        {generatedNotes && (
+          <Card>
+            <CardContent className="pt-6">
+              <h2 className="text-2xl font-headline font-bold mb-4">Generated Notes</h2>
+              <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: generatedNotes.notes.replace(/\n/g, '<br />') }} />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </>
   );
 }

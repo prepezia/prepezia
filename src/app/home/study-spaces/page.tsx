@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -30,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-
+import { HomeHeader } from "@/components/layout/HomeHeader";
 
 const createSpaceSchema = z.object({
     name: z.string().min(1, { message: "Space name is required." }),
@@ -210,224 +208,233 @@ export default function StudySpacesPage() {
   }
 
   if (viewState === 'edit' && selectedStudySpace) {
+    const header = (
+        <HomeHeader left={
+            <Button variant="outline" onClick={handleBackToList}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to All Spaces
+            </Button>
+        }/>
+    );
+
     return (
-        <div className="flex flex-col h-full">
-            <div className="mb-4">
-                <Button variant="outline" onClick={handleBackToList}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to All Spaces
-                </Button>
-            </div>
-
-            <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-4 bg-secondary">
-                    <TabsTrigger value="intro">Intro</TabsTrigger>
-                    <TabsTrigger value="sources">Sources</TabsTrigger>
-                    <TabsTrigger value="chat">Chat</TabsTrigger>
-                    <TabsTrigger value="generate">Generate</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="intro" className="flex-1 mt-0 overflow-y-auto">
-                    <div className="space-y-4 py-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <Separator className="mb-4" />
-                                <h3 className="text-xl font-headline font-bold flex items-center gap-2">
-                                    <Sparkles className="w-5 h-5 text-primary" />
-                                    AI Summary
-                                </h3>
-                                <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
-                                    {summaryText}
-                                </p>
-                                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
-                                    {isSummaryExpanded ? "Read Less" : "Read More"}
-                                </Button>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Personal Notes</CardTitle>
-                                <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Textarea 
-                                    placeholder="Start typing your notes..." 
-                                    className="h-96 w-full resize-none"
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                />
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="sources" className="flex-1 flex flex-col mt-0">
-                    <Card className="flex-1 flex flex-col">
-                        <CardHeader className="flex-row items-center justify-between">
-                            <CardTitle>Your Sources ({sources.length})</CardTitle>
-                            <Button onClick={() => setIsAddSourcesOpen(true)}>Add More Sources</Button>
+        <>
+            {header}
+            <div className="p-4 sm:p-6 lg:p-8">
+                <Tabs defaultValue="intro" className="w-full">
+                    <Card className="mb-4">
+                        <CardHeader>
+                            <CardTitle className="text-3xl font-headline font-bold">{selectedStudySpace.name}</CardTitle>
                         </CardHeader>
-                        <CardContent className="flex-1 overflow-y-auto">
-                            {sources.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No sources added yet. Click &quot;Add More Sources&quot; to begin.</p>
-                            ) : (
-                                <ul className="space-y-2">
-                                {sources.map((s, i) => (
-                                    <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
-                                        {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>}
-                                        {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>}
-                                        {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}
-                                        {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}
-                                        {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
-                                        {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
-                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                        <span className="flex-1 min-w-0 break-words">{s.name}</span>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
-                                            <Trash2 className="w-4 h-4 text-destructive" />
-                                        </Button>
-                                    </li>
-                                ))}
-                                </ul>
-                            )}
-                        </CardContent>
-                        <CardFooter>
-                            <Button disabled={!isDirty} onClick={handleUpdateStudySpace}>Update Study Space</Button>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
-                
-                <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
-                    <Card className="flex-1 flex flex-col">
-                        <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
-                        <CardContent className="flex-grow overflow-y-auto space-y-4">
-                            {chatHistory.length === 0 && (
-                                <div className="text-center text-muted-foreground pt-10 px-6">
-                                    <BookOpen className="w-12 h-12 mx-auto text-primary/80 mb-4" />
-                                    <h3 className="font-semibold text-foreground text-lg">Chat with Your Sources</h3>
-                                    <p className="mt-2 text-sm">
-                                        Ask me a question and I will answer based solely on the materials you've provided.
-                                    </p>
-                                    <p className="mt-1 text-xs">
-                                        You can even ask for specific citations, like a page from a PDF or a timestamp in a video.
-                                    </p>
-                                </div>
-                            )}
-                            {chatHistory.map((msg, i) => (
-                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                        <p className="text-sm" dangerouslySetInnerHTML={{__html: msg.content.replace(/\n/g, '<br />')}}/>
-                                    </div>
-                                </div>
-                            ))}
-                            {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
-                        </CardContent>
-                        <div className="p-4 border-t">
-                            <div className="relative">
-                                <Textarea
-                                    value={chatInput}
-                                    onChange={(e) => setChatInput(e.target.value)}
-                                    placeholder="Ask a question about your sources..."
-                                    className="pr-12"
-                                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); }}}
-                                    disabled={sources.length === 0 || isChatLoading}
-                                />
-                                <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={sources.length === 0 || isChatLoading}>
-                                    <Send className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="generate" className="flex-1 flex flex-col mt-0">
-                   <Card className="flex-1 flex flex-col items-center justify-center text-center">
                         <CardContent>
-                            {isPodcastLoading ? (
-                                <>
-                                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-                                    <p className="mt-4 text-muted-foreground">Generating your audio overview...</p>
-                                </>
-                            ) : podcast ? (
-                                <div className="space-y-4">
-                                    <h3 className="text-xl font-headline">Podcast Ready!</h3>
-                                    <audio controls src={podcast.audio} className="w-full"></audio>
-                                    <Card className="text-left max-h-80 overflow-y-auto">
-                                        <CardHeader><CardTitle>Script</CardTitle></CardHeader>
-                                        <CardContent>
-                                            <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
-                                        </CardContent>
-                                    </Card>
-                                    <Button onClick={() => setPodcast(null)}>Generate New Podcast</Button>
-                                </div>
-                            ) : (
-                                <>
-                                    <Mic className="h-12 w-12 text-primary mx-auto" />
-                                    <h3 className="text-xl font-headline mt-4">Generate Audio Overview</h3>
-                                    <p className="text-muted-foreground mt-2 max-w-sm mx-auto">Turn your sources into an engaging podcast-style conversation between our AI hosts, Temi & Jay.</p>
-                                    <Button size="lg" className="mt-6" onClick={handleGeneratePodcast} disabled={sources.length === 0}>
-                                        <Play className="mr-2 h-4 w-4" />
-                                        Generate Podcast
-                                    </Button>
-                                    {sources.length === 0 && <p className="text-xs text-destructive mt-2">Please add at least one source with a URL to generate a podcast.</p>}
-                                </>
-                            )}
+                            <Separator className="mb-4" />
+                            <h3 className="text-xl font-headline font-bold flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-primary" />
+                                AI Summary
+                            </h3>
+                            <p className={cn("text-sm text-muted-foreground mt-2", !isSummaryExpanded && "line-clamp-3")}>
+                                {summaryText}
+                            </p>
+                            <Button variant="link" className="px-0 h-auto mt-2" onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+                                {isSummaryExpanded ? "Read Less" : "Read More"}
+                            </Button>
                         </CardContent>
                     </Card>
-                </TabsContent>
-            </Tabs>
-            <AddSourcesDialog open={isAddSourcesOpen} onOpenChange={setIsAddSourcesOpen} onAddSources={handleAddMoreSources} />
-        </div>
+
+                    <TabsList className="grid w-full grid-cols-4 bg-secondary">
+                        <TabsTrigger value="intro">Intro</TabsTrigger>
+                        <TabsTrigger value="sources">Sources</TabsTrigger>
+                        <TabsTrigger value="chat">Chat</TabsTrigger>
+                        <TabsTrigger value="generate">Generate</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="intro" className="mt-4">
+                        <div className="space-y-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Personal Notes</CardTitle>
+                                    <CardDescription>Jot down your thoughts and ideas here.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Textarea 
+                                        placeholder="Start typing your notes..." 
+                                        className="h-96 w-full resize-none"
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                    />
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="sources" className="mt-4">
+                        <Card>
+                            <CardHeader className="flex-row items-center justify-between">
+                                <CardTitle>Your Sources ({sources.length})</CardTitle>
+                                <Button onClick={() => setIsAddSourcesOpen(true)}>Add More Sources</Button>
+                            </CardHeader>
+                            <CardContent>
+                                {sources.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No sources added yet. Click &quot;Add More Sources&quot; to begin.</p>
+                                ) : (
+                                    <ul className="space-y-2">
+                                    {sources.map((s, i) => (
+                                        <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
+                                            {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                            {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                            {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}
+                                            {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}
+                                            {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
+                                            {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
+                                            {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
+                                            <span className="flex-1 min-w-0 break-words">{s.name}</span>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
+                                                <Trash2 className="w-4 h-4 text-destructive" />
+                                            </Button>
+                                        </li>
+                                    ))}
+                                    </ul>
+                                )}
+                            </CardContent>
+                            <CardFooter>
+                                <Button disabled={!isDirty} onClick={handleUpdateStudySpace}>Update Study Space</Button>
+                            </CardFooter>
+                        </Card>
+                    </TabsContent>
+                    
+                    <TabsContent value="chat" className="mt-4">
+                        <Card className="flex flex-col">
+                            <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
+                            <CardContent className="flex-grow space-y-4 min-h-[50vh]">
+                                {chatHistory.length === 0 && (
+                                    <div className="text-center text-muted-foreground pt-10 px-6">
+                                        <BookOpen className="w-12 h-12 mx-auto text-primary/80 mb-4" />
+                                        <h3 className="font-semibold text-foreground text-lg">Chat with Your Sources</h3>
+                                        <p className="mt-2 text-sm">
+                                            Ask me a question and I will answer based solely on the materials you've provided.
+                                        </p>
+                                        <p className="mt-1 text-xs">
+                                            You can even ask for specific citations, like a page from a PDF or a timestamp in a video.
+                                        </p>
+                                    </div>
+                                )}
+                                {chatHistory.map((msg, i) => (
+                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                            <p className="text-sm" dangerouslySetInnerHTML={{__html: msg.content.replace(/\n/g, '<br />')}}/>
+                                        </div>
+                                    </div>
+                                ))}
+                                {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
+                            </CardContent>
+                            <div className="p-4 border-t">
+                                <div className="relative">
+                                    <Textarea
+                                        value={chatInput}
+                                        onChange={(e) => setChatInput(e.target.value)}
+                                        placeholder="Ask a question about your sources..."
+                                        className="pr-12"
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); }}}
+                                        disabled={sources.length === 0 || isChatLoading}
+                                    />
+                                    <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={sources.length === 0 || isChatLoading}>
+                                        <Send className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="generate" className="mt-4">
+                       <Card className="flex flex-col items-center justify-center text-center min-h-[60vh]">
+                            <CardContent>
+                                {isPodcastLoading ? (
+                                    <>
+                                        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                                        <p className="mt-4 text-muted-foreground">Generating your audio overview...</p>
+                                    </>
+                                ) : podcast ? (
+                                    <div className="space-y-4">
+                                        <h3 className="text-xl font-headline">Podcast Ready!</h3>
+                                        <audio controls src={podcast.audio} className="w-full"></audio>
+                                        <Card className="text-left max-h-80 overflow-y-auto">
+                                            <CardHeader><CardTitle>Script</CardTitle></CardHeader>
+                                            <CardContent>
+                                                <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
+                                            </CardContent>
+                                        </Card>
+                                        <Button onClick={() => setPodcast(null)}>Generate New Podcast</Button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <Mic className="h-12 w-12 text-primary mx-auto" />
+                                        <h3 className="text-xl font-headline mt-4">Generate Audio Overview</h3>
+                                        <p className="text-muted-foreground mt-2 max-w-sm mx-auto">Turn your sources into an engaging podcast-style conversation between our AI hosts, Temi & Jay.</p>
+                                        <Button size="lg" className="mt-6" onClick={handleGeneratePodcast} disabled={sources.length === 0}>
+                                            <Play className="mr-2 h-4 w-4" />
+                                            Generate Podcast
+                                        </Button>
+                                        {sources.length === 0 && <p className="text-xs text-destructive mt-2">Please add at least one source with a URL to generate a podcast.</p>}
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+                <AddSourcesDialog open={isAddSourcesOpen} onOpenChange={setIsAddSourcesOpen} onAddSources={handleAddMoreSources} />
+            </div>
+        </>
     )
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-            <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
-            <p className="text-muted-foreground mt-1">Create your personal knowledge hub.</p>
+    <>
+      <HomeHeader />
+      <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+        <div className="flex justify-between items-center">
+          <div>
+              <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
+              <p className="text-muted-foreground mt-1">Create your personal knowledge hub.</p>
+          </div>
+          <Button onClick={handleShowCreateView}>
+              + Create New
+          </Button>
         </div>
-        <Button onClick={handleShowCreateView}>
-            + Create New
-        </Button>
+        <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
+        
+        <div className="pt-8">
+          <h2 className="text-2xl font-headline font-bold mb-4">Your Spaces</h2>
+           {studySpaces.length === 0 ? (
+              <Card className="flex flex-col items-center justify-center p-12 border-dashed">
+                  <BookOpen className="w-12 h-12 text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold text-muted-foreground">No study spaces yet.</h3>
+                  <p className="text-muted-foreground mb-4">Click the button above to create your first one!</p>
+              </Card>
+           ) : (
+              <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {studySpaces.slice(0, visibleCount).map(space => (
+                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleSelectStudySpace(space)}>
+                              <CardHeader>
+                                  <CardTitle>{space.name}</CardTitle>
+                                  <CardDescription>{space.description}</CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                  <p className="text-sm font-bold text-primary">{space.sourceCount} sources</p>
+                              </CardContent>
+                          </Card>
+                      ))}
+                  </div>
+                  {visibleCount < studySpaces.length && (
+                      <div className="text-center mt-8">
+                          <Button variant="outline" onClick={() => setVisibleCount(prev => prev + 5)}>Load More</Button>
+                      </div>
+                  )}
+              </>
+           )}
+        </div>
       </div>
-      <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
-      
-      <div className="pt-8">
-        <h2 className="text-2xl font-headline font-bold mb-4">Your Spaces</h2>
-         {studySpaces.length === 0 ? (
-            <Card className="flex flex-col items-center justify-center p-12 border-dashed">
-                <BookOpen className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold text-muted-foreground">No study spaces yet.</h3>
-                <p className="text-muted-foreground mb-4">Click the button above to create your first one!</p>
-            </Card>
-         ) : (
-            <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {studySpaces.slice(0, visibleCount).map(space => (
-                        <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleSelectStudySpace(space)}>
-                            <CardHeader>
-                                <CardTitle>{space.name}</CardTitle>
-                                <CardDescription>{space.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm font-bold text-primary">{space.sourceCount} sources</p>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-                {visibleCount < studySpaces.length && (
-                    <div className="text-center mt-8">
-                        <Button variant="outline" onClick={() => setVisibleCount(prev => prev + 5)}>Load More</Button>
-                    </div>
-                )}
-            </>
-         )}
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -647,205 +654,213 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const handleCreate = () => {
         onCreate(spaceDetails.name, spaceDetails.description, sources);
     };
-
-    return (
-        <div className="space-y-8">
-            <Button variant="outline" onClick={stage === 'details' ? onBack : () => setStage('details')}>
+    
+    const header = (
+        <HomeHeader left={
+             <Button variant="outline" onClick={stage === 'details' ? onBack : () => setStage('details')}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {stage === 'details' ? "Back to All Spaces" : "Back"}
             </Button>
-             <Card className="max-w-3xl mx-auto">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-headline">Create a New Study Space</CardTitle>
-                    <CardDescription>
-                        {stage === 'details' 
-                            ? "Step 1 of 2: Give your new space a name and a short description."
-                            : "Step 2 of 2: Now, add sources to your study space."
-                        }
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    {stage === 'details' && (
-                         <Form {...detailsForm}>
-                            <form onSubmit={detailsForm.handleSubmit(handleNext)} className="space-y-6">
-                                <FormField control={detailsForm.control} name="name" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Study Space Name</FormLabel>
-                                        <FormControl><Input placeholder="e.g., The Process of Photosynthesis" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                <FormField control={detailsForm.control} name="description" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Description (optional)</FormLabel>
-                                        <FormControl><Textarea placeholder="A short description of what this space is about." {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                <div className="flex justify-end">
-                                    <Button type="submit" variant="ghost" className="group">
-                                        Next
-                                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                                    </Button>
-                                </div>
-                            </form>
-                        </Form>
-                    )}
+        } />
+    );
 
-                    {stage === 'sources' && (
-                        <div className="space-y-8">
-                            <div className="space-y-6">
-                                <h3 className="font-semibold text-lg text-center">Add Sources</h3>
-                                
-                                <div className="flex w-full items-center space-x-2">
-                                    <Input
-                                        placeholder="Search the web for articles, videos..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
-                                    />
-                                    <Button onClick={handleSearch} disabled={isSearching} size="icon">
-                                        <Search className="h-4 w-4" />
-                                    </Button>
-                                </div>
-
-                                <div className="relative py-2">
-                                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                        <div className="w-full border-t" />
+    return (
+        <>
+            {header}
+            <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+                 <Card className="max-w-3xl mx-auto">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-2xl font-headline">Create a New Study Space</CardTitle>
+                        <CardDescription>
+                            {stage === 'details' 
+                                ? "Step 1 of 2: Give your new space a name and a short description."
+                                : "Step 2 of 2: Now, add sources to your study space."
+                            }
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                        {stage === 'details' && (
+                             <Form {...detailsForm}>
+                                <form onSubmit={detailsForm.handleSubmit(handleNext)} className="space-y-6">
+                                    <FormField control={detailsForm.control} name="name" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Study Space Name</FormLabel>
+                                            <FormControl><Input placeholder="e.g., The Process of Photosynthesis" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    <FormField control={detailsForm.control} name="description" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Description (optional)</FormLabel>
+                                            <FormControl><Textarea placeholder="A short description of what this space is about." {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    <div className="flex justify-end">
+                                        <Button type="submit" variant="ghost" className="group">
+                                            Next
+                                            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                        </Button>
                                     </div>
-                                    <div className="relative flex justify-center">
-                                        <span className="bg-card px-2 text-sm text-muted-foreground">
-                                            Or Add Manually
-                                        </span>
+                                </form>
+                            </Form>
+                        )}
+
+                        {stage === 'sources' && (
+                            <div className="space-y-8">
+                                <div className="space-y-6">
+                                    <h3 className="font-semibold text-lg text-center">Add Sources</h3>
+                                    
+                                    <div className="flex w-full items-center space-x-2">
+                                        <Input
+                                            placeholder="Search the web for articles, videos..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
+                                        />
+                                        <Button onClick={handleSearch} disabled={isSearching} size="icon">
+                                            <Search className="h-4 w-4" />
+                                        </Button>
                                     </div>
-                                </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {sourceButtons.map(btn => (
-                                        <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
-                                    ))}
-                                </div>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-                            </div>
+                                    <div className="relative py-2">
+                                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                            <div className="w-full border-t" />
+                                        </div>
+                                        <div className="relative flex justify-center">
+                                            <span className="bg-card px-2 text-sm text-muted-foreground">
+                                                Or Add Manually
+                                            </span>
+                                        </div>
+                                    </div>
 
-                            {sources.length > 0 && (
-                                <div className="space-y-2">
-                                <h4 className="font-semibold">Added Sources ({sources.length})</h4>
-                                <ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">
-                                        {sources.map((s, i) => (
-                                            <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
-                                                {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>}
-                                                {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>}
-                                                {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}
-                                                {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}
-                                                {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
-                                                {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
-                                                {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                                <span className="flex-1 min-w-0 break-words">{s.name}</span>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
-                                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                                </Button>
-                                            </li>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {sourceButtons.map(btn => (
+                                            <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
                                         ))}
-                                </ul>
-                                </div>
-                            )}
-                            
-                            <Button onClick={handleCreate} size="lg" className="w-full">Create Study Space</Button>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-            
-            <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader>
-                    <Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/>
-                    <DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader>
-                    <Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/>
-                    <DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
-            <Dialog open={isCameraModalOpen} onOpenChange={handleCloseCameraModal}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader><DialogTitle>Capture from Camera</DialogTitle></DialogHeader>
-                    {capturedImage ? (
-                        <div className="space-y-4">
-                            <Image src={capturedImage} alt="Captured" width={1280} height={720} className="rounded-md" />
-                            <div className="flex justify-end gap-2">
-                                <Button variant="outline" onClick={() => setCapturedImage(null)}>Retake</Button>
-                                <Button onClick={handleUsePhoto}>Use Photo</Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay muted playsInline />
-                            {hasCameraPermission === false && (
-                                <Alert variant="destructive">
-                                    <AlertTitle>Camera Access Required</AlertTitle>
-                                    <AlertDescription>Please allow camera access to use this feature.</AlertDescription>
-                                </Alert>
-                            )}
-                            <div className="flex justify-end">
-                                <Button onClick={handleCapture} disabled={!hasCameraPermission}>Capture</Button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Web Search Results</DialogTitle>
-                        <DialogDescription>Select the resources you want to add to your study space.</DialogDescription>
-                    </DialogHeader>
-                    {isSearching ? (
-                        <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>
-                    ) : searchResults.length > 0 ? (
-                        <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y">
-                            <div className="py-4 space-y-2">
-                            {searchResults.map((result, index) => (
-                                <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
-                                    <Checkbox 
-                                        id={`search-result-${index}`}
-                                        onCheckedChange={(checked) => {
-                                            if (checked) {
-                                                setSelectedWebSources(prev => [...prev, result]);
-                                            } else {
-                                                setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));
-                                            }
-                                        }}
-                                        checked={selectedWebSources.some(s => s.url === result.url)}
-                                    />
-                                    <div className="grid gap-1.5 leading-none flex-1 min-w-0">
-                                        <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">
-                                            {result.title}
-                                        </label>
-                                        <p className="text-xs text-muted-foreground">{result.snippet}</p>
-                                        <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
                                     </div>
+                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                                 </div>
-                            ))}
+
+                                {sources.length > 0 && (
+                                    <div className="space-y-2">
+                                    <h4 className="font-semibold">Added Sources ({sources.length})</h4>
+                                    <ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">
+                                            {sources.map((s, i) => (
+                                                <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
+                                                    {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                                    {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>}
+                                                    {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}
+                                                    {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}
+                                                    {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
+                                                    {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
+                                                    {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
+                                                    <span className="flex-1 min-w-0 break-words">{s.name}</span>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
+                                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                    </ul>
+                                    </div>
+                                )}
+                                
+                                <Button onClick={handleCreate} size="lg" className="w-full">Create Study Space</Button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
-                    )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button>
-                        <Button onClick={handleAddSelectedSources}>Add Selected</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                        )}
+                    </CardContent>
+                </Card>
+                
+                <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
+                    <DialogContent>
+                        <DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader>
+                        <Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/>
+                        <DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}>
+                    <DialogContent>
+                        <DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader>
+                        <Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/>
+                        <DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter>
+                    </DialogContent>
+                </Dialog>
+                
+                <Dialog open={isCameraModalOpen} onOpenChange={handleCloseCameraModal}>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader><DialogTitle>Capture from Camera</DialogTitle></DialogHeader>
+                        {capturedImage ? (
+                            <div className="space-y-4">
+                                <Image src={capturedImage} alt="Captured" width={1280} height={720} className="rounded-md" />
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="outline" onClick={() => setCapturedImage(null)}>Retake</Button>
+                                    <Button onClick={handleUsePhoto}>Use Photo</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay muted playsInline />
+                                {hasCameraPermission === false && (
+                                    <Alert variant="destructive">
+                                        <AlertTitle>Camera Access Required</AlertTitle>
+                                        <AlertDescription>Please allow camera access to use this feature.</AlertDescription>
+                                    </Alert>
+                                )}
+                                <div className="flex justify-end">
+                                    <Button onClick={handleCapture} disabled={!hasCameraPermission}>Capture</Button>
+                                </div>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Web Search Results</DialogTitle>
+                            <DialogDescription>Select the resources you want to add to your study space.</DialogDescription>
+                        </DialogHeader>
+                        {isSearching ? (
+                            <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>
+                        ) : searchResults.length > 0 ? (
+                            <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y">
+                                <div className="py-4 space-y-2">
+                                {searchResults.map((result, index) => (
+                                    <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
+                                        <Checkbox 
+                                            id={`search-result-${index}`}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedWebSources(prev => [...prev, result]);
+                                                } else {
+                                                    setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));
+                                                }
+                                            }}
+                                            checked={selectedWebSources.some(s => s.url === result.url)}
+                                        />
+                                        <div className="grid gap-1.5 leading-none flex-1 min-w-0">
+                                            <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">
+                                                {result.title}
+                                            </label>
+                                            <p className="text-xs text-muted-foreground">{result.snippet}</p>
+                                            <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
+                                        </div>
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
+                        )}
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button>
+                            <Button onClick={handleAddSelectedSources}>Add Selected</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </>
     );
 }
 
@@ -1095,20 +1110,3 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         </Dialog>
     )
 }
-    
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-

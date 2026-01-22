@@ -1,5 +1,4 @@
 import { FooterMenu } from "@/components/layout/FooterMenu";
-import { HomeHeader } from "@/components/layout/HomeHeader";
 
 export default function HomeLayout({
   children,
@@ -9,8 +8,7 @@ export default function HomeLayout({
   return (
     <div className="flex min-h-screen bg-card text-foreground">
         <div className="flex-1 flex flex-col">
-            <HomeHeader />
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-6 flex flex-col">
+            <main className="flex-1 pb-24 md:pb-6 flex flex-col">
                 {children}
             </main>
             <FooterMenu />
