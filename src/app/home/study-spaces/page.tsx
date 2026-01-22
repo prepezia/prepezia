@@ -18,12 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2 } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import Image from "next/image";
+import { useToast } from "@/hooks/use-toast";
+
 
 const sourceSchema = z.object({
   file: z.any().optional(),
@@ -129,7 +132,7 @@ export default function StudySpacesPage() {
   };
 
 
-  function addSource(values: z.infer<typeof sourceSchema>) {
+  function addSource(values: z.infer<typeof sourceSchema>>) {
     if (values.file && values.file[0]) {
         const file = values.file[0];
         const typeMap: {[key: string]: Source['type']} = { 
@@ -405,6 +408,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+    const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
 
     const handleDeleteSource = (indexToDelete: number) => {
@@ -497,6 +501,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") },
+        { name: "Camera", icon: Camera, action: () => setIsCameraModalOpen(true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
@@ -583,7 +588,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     {sourceButtons.map(btn => (
                                         <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
                                     ))}
@@ -690,9 +695,146 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <CameraSourceModal 
+                open={isCameraModalOpen} 
+                onOpenChange={setIsCameraModalOpen}
+                onAddSource={(source) => setSources(prev => [...prev, source])}
+            />
         </div>
     );
 }
+
+function CameraSourceModal({ open, onOpenChange, onAddSource }: { open: boolean, onOpenChange: (open: boolean) => void, onAddSource: (source: Source) => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let mediaStream: MediaStream | null = null;
+    
+    if (open && !capturedImage) {
+        const getCameraPermission = async () => {
+          try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            setStream(mediaStream);
+            setHasCameraPermission(true);
+            if (videoRef.current) {
+              videoRef.current.srcObject = mediaStream;
+            }
+          } catch (error) {
+            console.error('Error accessing camera:', error);
+            setHasCameraPermission(false);
+            toast({
+              variant: 'destructive',
+              title: 'Camera Access Denied',
+              description: 'Please enable camera permissions in your browser settings.',
+            });
+            onOpenChange(false); // Close dialog if no permission
+          }
+        };
+        getCameraPermission();
+    }
+    
+    return () => {
+        if(mediaStream){
+            mediaStream.getTracks().forEach(track => track.stop());
+        }
+    };
+  }, [open, capturedImage, onOpenChange, toast]);
+
+  const handleClose = () => {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+    }
+    setCapturedImage(null);
+    onOpenChange(false);
+  }
+
+  const handleCapture = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    const context = canvas.getContext('2d');
+    if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUri = canvas.toDataURL('image/jpeg');
+        setCapturedImage(dataUri);
+        
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+    }
+  };
+
+  const handleRetake = () => {
+    setCapturedImage(null);
+  };
+  
+  const handleUsePhoto = () => {
+    if (!capturedImage) return;
+    onAddSource({
+      type: 'image',
+      name: `Captured Image - ${new Date().toLocaleString()}.jpg`,
+      data: capturedImage
+    });
+    handleClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Camera className="w-5 h-5" /> Camera Source</DialogTitle>
+          <DialogDescription>
+            {capturedImage ? "Use this photo or retake it." : "Position your document and capture the image."}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="my-4">
+          {capturedImage ? (
+            <div className="relative w-full aspect-video">
+                <Image src={capturedImage} alt="Captured" fill style={{objectFit: 'contain'}} className="rounded-md" />
+            </div>
+          ) : (
+            <div className="relative">
+              <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay playsInline muted />
+              {hasCameraPermission === false && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                      <p className="text-white">Camera access denied.</p>
+                  </div>
+              )}
+            </div>
+          )}
+          <canvas ref={canvasRef} className="hidden"></canvas>
+        </div>
+
+        <DialogFooter>
+          {capturedImage ? (
+            <>
+              <Button variant="outline" onClick={handleRetake}>Retake</Button>
+              <Button onClick={handleUsePhoto}>Use Photo</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button onClick={handleCapture} disabled={hasCameraPermission === false}>Capture</Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean; onOpenChange: (open: boolean) => void; onAddSources: (sources: Source[]) => void; }) {
     const [sources, setSources] = useState<Source[]>([]);
@@ -702,6 +844,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
     const [urlModalConfig, setUrlModalConfig] = useState<{type: 'youtube' | 'website', name: string, icon: React.ElementType} | null>(null);
     const [currentUrl, setCurrentUrl] = useState("");
+    const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
     
     // Web search state
     const [searchQuery, setSearchQuery] = useState("");
@@ -800,6 +943,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") },
+        { name: "Camera", icon: Camera, action: () => setIsCameraModalOpen(true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
         { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
@@ -837,7 +981,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
                             <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t" /></div>
                             <div className="relative flex justify-center"><span className="bg-background px-2 text-sm text-muted-foreground">Or Add Manually</span></div>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {sourceButtons.map(btn => (
                                 <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
                             ))}
@@ -868,8 +1012,14 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
                 <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
                 <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader><Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/><DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter></DialogContent></Dialog>
                 <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add to your study space.</DialogDescription></DialogHeader>{isSearching ? (<div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>) : searchResults.length > 0 ? (<div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => handleSelectSearchResult(result, checked as boolean)} checked={sources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}<DialogFooter><Button onClick={() => setIsSearchModalOpen(false)}>Done</Button></DialogFooter></DialogContent></Dialog>
+                <CameraSourceModal
+                    open={isCameraModalOpen}
+                    onOpenChange={setIsCameraModalOpen}
+                    onAddSource={(source) => setSources(prev => [...prev, source])}
+                />
             </DialogContent>
         </Dialog>
     )
 }
     
+
