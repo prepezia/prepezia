@@ -82,15 +82,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-8 pt-16">
-            <div className="relative p-8 md:p-12 bg-secondary rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
+            <div className="p-8 md:p-12 bg-secondary rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
                 <Image
                     src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fcareer-path_12343398.png?alt=media&token=3d6bcbf8-ed24-40df-be03-0cec15031963"
                     alt="Career Path Icon"
-                    width={96}
-                    height={96}
-                    className="absolute top-8 right-8 w-24 h-24"
+                    width={80}
+                    height={80}
+                    className="w-20 h-20"
                 />
-                <div className="max-w-md relative">
+                <div className="max-w-md mt-6">
                     <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
                     <p className="mt-4 text-muted-foreground">
                         Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
