@@ -56,6 +56,7 @@ function OnboardingView({ onCompleted }: { onCompleted: (cv: string, goals: stri
     const [goals, setGoals] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [onboardingStage, setOnboardingStage] = useState<'intro' | 'form'>('intro');
 
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [templateInfo, setTemplateInfo] = useState({ fullName: "", email: "", phone: "", careerGoal: "" });
@@ -109,13 +110,37 @@ function OnboardingView({ onCompleted }: { onCompleted: (cv: string, goals: stri
             setIsTemplateModalOpen(false);
         }
     }
+    
+    if (onboardingStage === 'intro') {
+        return (
+            <>
+                <HomeHeader />
+                <div className="p-4 sm:p-6 lg:p-8 flex items-center justify-center flex-1">
+                    <div className="text-center p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed max-w-2xl">
+                        <div className="max-w-md mx-auto">
+                            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
+                                <Briefcase className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
+                            <p className="mt-4 text-muted-foreground">
+                                Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
+                            </p>
+                            <Button size="lg" className="mt-8 font-bold" onClick={() => setOnboardingStage('form')}>
+                                Get Started <ArrowRight className="ml-2 w-5 h-5" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </>
+        )
+    }
 
     return (
         <>
             <HomeHeader />
             <div className="p-4 sm:p-6 lg:p-8 space-y-8">
                 <div>
-                    <h1 className="text-3xl font-headline font-bold">Career Hub</h1>
+                    <h1 className="text-3xl font-headline font-bold">Career Hub Onboarding</h1>
                     <p className="text-muted-foreground">Your personal AI career assistant. Let's get you started.</p>
                 </div>
                 <div className="grid md:grid-cols-2 gap-8 items-start">
