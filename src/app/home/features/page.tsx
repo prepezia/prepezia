@@ -59,7 +59,7 @@ export default function FeaturesPage() {
         </div>
         
         <Tabs defaultValue="study" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 bg-secondary">
                 <TabsTrigger value="study">Study</TabsTrigger>
                 <TabsTrigger value="career">Career</TabsTrigger>
             </TabsList>
