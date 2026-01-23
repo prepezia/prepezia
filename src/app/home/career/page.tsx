@@ -470,32 +470,40 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                 <Card className="flex flex-col h-full">
                                     <CardHeader>
                                         <CardTitle>Your CV</CardTitle>
-                                        <CardDescription>Edit your CV here. When ready, click &quot;Improve CV&quot;.</CardDescription>
+                                        <CardDescription>
+                                            {cv.dataUri 
+                                                ? "Your uploaded PDF is shown below. To edit, clear and start over with a text file or generated template."
+                                                : 'Edit your CV here. When ready, click "Improve CV".'
+                                            }
+                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent className="flex-1 relative">
-                                        <Textarea 
-                                            className="h-full min-h-[400px] resize-none" 
-                                            value={cv.dataUri ? '' : cv.content} 
-                                            onChange={e => {
-                                                setCv({ content: e.target.value });
-                                                setIsCvDirty(true);
-                                            }}
-                                            disabled={!!cv.dataUri}
-                                        />
-                                        {cv.dataUri && (
-                                            <div className="absolute inset-0 m-1 p-6 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center rounded-md">
-                                                <FileText className="w-10 h-10 mb-2 text-primary"/>
-                                                <p className="font-semibold">{cv.fileName}</p>
-                                                <p className="text-sm text-muted-foreground mb-4">PDF cannot be edited directly.</p>
-                                                <Button variant="outline" onClick={() => {
-                                                    setCv({ content: '' });
-                                                    setIsCvDirty(true);
-                                                }}>Clear and start over</Button>
+                                        {cv.dataUri ? (
+                                            <div className="h-full min-h-[400px] flex flex-col">
+                                                <iframe src={cv.dataUri} className="w-full h-full flex-1 rounded-md border" title={cv.fileName}>
+                                                    <p>Your browser does not support PDFs. Please download the PDF to view it: <a href={cv.dataUri}>Download PDF</a>.</p>
+                                                </iframe>
+                                                <div className="flex items-center justify-between mt-2">
+                                                    <p className="font-semibold text-sm">{cv.fileName}</p>
+                                                    <Button variant="outline" size="sm" onClick={() => {
+                                                        setCv({ content: '' });
+                                                        setIsCvDirty(true);
+                                                    }}>Clear and start over</Button>
+                                                </div>
                                             </div>
+                                        ) : (
+                                            <Textarea 
+                                                className="h-full min-h-[400px] resize-none" 
+                                                value={cv.content || ''} 
+                                                onChange={e => {
+                                                    setCv({ content: e.target.value });
+                                                    setIsCvDirty(true);
+                                                }}
+                                            />
                                         )}
                                     </CardContent>
                                     <CardFooter className="justify-between">
-                                        <p className="text-sm text-muted-foreground">{cv.content?.split(/\s+/).filter(Boolean).length || 0} words</p>
+                                        <p className="text-sm text-muted-foreground">{!cv.dataUri ? `${cv.content?.split(/\s+/).filter(Boolean).length || 0} words` : "PDF file"}</p>
                                         <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
                                             {isImprovingCv && <Loader2 className="mr-2 animate-spin" />}
                                             Improve CV
@@ -673,3 +681,5 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
         </Card>
     );
 }
+
+    
