@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Sparkles, History, User } from 'lucide-react';
+import { Home, WandSparkles, History, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/home/features', label: 'Features', icon: Sparkles },
+  { href: '/home/features', label: 'Features', icon: WandSparkles },
   { href: '/home/past-questions', label: 'Activities', icon: History },
 ];
 
