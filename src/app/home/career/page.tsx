@@ -35,6 +35,12 @@ type ChatMessage = {
   content: string | React.ReactNode;
 };
 
+type CvData = {
+    content?: string;
+    dataUri?: string;
+    fileName?: string;
+};
+
 export default function CareerPageWrapper() {
     return (
         <Suspense fallback={
@@ -52,15 +58,17 @@ export default function CareerPageWrapper() {
 
 function CareerPage() {
     const [view, setView] = useState<View>("loading");
-    const [cvContent, setCvContent] = useState<string>("");
+    const [cv, setCv] = useState<CvData>({ content: "" });
     const [careerGoals, setCareerGoals] = useState<string>("");
 
     useEffect(() => {
         const onboarded = localStorage.getItem('learnwithtemi_career_onboarded') === 'true';
         if (onboarded) {
-            const savedCv = localStorage.getItem('learnwithtemi_cv') || "";
+            const savedCv = localStorage.getItem('learnwithtemi_cv');
             const savedGoals = localStorage.getItem('learnwithtemi_goals') || "";
-            setCvContent(savedCv);
+            if (savedCv) {
+                setCv(JSON.parse(savedCv));
+            }
             setCareerGoals(savedGoals);
             setView("hub");
         } else {
@@ -68,11 +76,11 @@ function CareerPage() {
         }
     }, []);
 
-    const handleOnboardingComplete = (cv: string, goals: string) => {
-        setCvContent(cv);
+    const handleOnboardingComplete = (cv: CvData, goals: string) => {
+        setCv(cv);
         setCareerGoals(goals);
         localStorage.setItem('learnwithtemi_career_onboarded', 'true');
-        localStorage.setItem('learnwithtemi_cv', cv);
+        localStorage.setItem('learnwithtemi_cv', JSON.stringify(cv));
         localStorage.setItem('learnwithtemi_goals', goals);
         localStorage.removeItem('learnwithtemi_onboarding_progress');
         setView("hub");
@@ -83,7 +91,7 @@ function CareerPage() {
         localStorage.removeItem('learnwithtemi_cv');
         localStorage.removeItem('learnwithtemi_goals');
         localStorage.removeItem('learnwithtemi_onboarding_progress');
-        setCvContent("");
+        setCv({ content: "" });
         setCareerGoals("");
         setView("onboarding");
     }
@@ -103,10 +111,10 @@ function CareerPage() {
         return <OnboardingFlow onCompleted={handleOnboardingComplete} />
     }
 
-    return <HubView initialCv={cvContent} initialGoals={careerGoals} backToOnboarding={handleStartOver} />;
+    return <HubView initialCv={cv} initialGoals={careerGoals} backToOnboarding={handleStartOver} />;
 }
 
-function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: string) => void }) {
+function OnboardingFlow({ onCompleted }: { onCompleted: (cv: CvData, goals: string) => void }) {
     const searchParams = useSearchParams();
     const startAsForm = searchParams.get('start') === 'form';
 
@@ -144,10 +152,6 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
         }
 
         const reader = new FileReader();
-        reader.onload = (e) => {
-            const content = e.target?.result as string;
-            onCompleted(content, goals);
-        };
         reader.onerror = () => {
             toast({
                 variant: 'destructive',
@@ -155,7 +159,20 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
                 description: 'Could not read the selected file.',
             });
         };
-        reader.readAsText(file);
+
+        if (file.type === 'application/pdf') {
+            reader.onload = (e) => {
+                const dataUri = e.target?.result as string;
+                onCompleted({ dataUri: dataUri, fileName: file.name }, goals);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            reader.onload = (e) => {
+                const content = e.target?.result as string;
+                onCompleted({ content: content, fileName: file.name }, goals);
+            };
+            reader.readAsText(file);
+        }
     };
 
     const handleGenerateTemplate = async () => {
@@ -170,7 +187,7 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
                 email: templateInfo.email || "email@example.com",
                 phone: templateInfo.phone || "0123456789",
             });
-            onCompleted(result.cvTemplate, templateInfo.careerGoal);
+            onCompleted({ content: result.cvTemplate }, templateInfo.careerGoal);
         } catch (e) {
             console.error("Template generation error", e);
             toast({ variant: 'destructive', title: 'Generation Failed', description: 'Could not generate a CV template.' });
@@ -185,7 +202,7 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
             toast({ variant: 'destructive', title: 'Goals are required', description: "Please go back and tell us about your aspirations."});
             return;
         }
-        onCompleted("", goals);
+        onCompleted({ content: "" }, goals);
     }
 
     const handleNextToCvStep = () => {
@@ -307,9 +324,9 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
 }
 
 
-function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: string, initialGoals: string, backToOnboarding: () => void }) {
+function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvData, initialGoals: string, backToOnboarding: () => void }) {
     const [activeTab, setActiveTab] = useState<HubTab>("cv");
-    const [cvContent, setCvContent] = useState(initialCv);
+    const [cv, setCv] = useState<CvData>(initialCv);
     const [careerGoals, setCareerGoals] = useState(initialGoals);
     
     // CV Tab State
@@ -330,14 +347,14 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: str
     const { toast } = useToast();
 
     const handleImproveCv = async () => {
-        if (!cvContent.trim()) {
+        if (!cv.content && !cv.dataUri) {
             toast({ variant: 'destructive', title: 'CV is empty', description: 'Please provide your CV content.'});
             return;
         }
         setIsImprovingCv(true);
         setCvResult(null);
         try {
-            const result = await improveCv({ currentCv: cvContent, careerGoals });
+            const result = await improveCv({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals });
             setCvResult(result);
             setIsCvDirty(false);
         } catch(e) {
@@ -349,7 +366,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: str
     };
     
     useEffect(() => {
-        if(initialCv && activeTab === "cv" && !cvResult) {
+        if((initialCv.content || initialCv.dataUri) && activeTab === "cv" && !cvResult) {
             handleImproveCv();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -366,7 +383,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: str
         setChatInput("");
 
         try {
-            const result = await getCareerAdvice({ background: cvContent, careerObjectives: currentInput });
+            const result = await getCareerAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, careerObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e) {
@@ -379,14 +396,14 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: str
     };
     
     const handleJobSearch = async () => {
-        if (!cvContent.trim() && !careerGoals.trim()) {
+        if (!cv.content && !cv.dataUri && !careerGoals.trim()) {
             toast({ variant: 'destructive', title: 'Not enough info', description: 'Please provide your CV or career goals to search for jobs.'});
             return;
         }
         setIsSearchingJobs(true);
         setJobResults(null);
         try {
-            const results = await searchForJobs({ cv: cvContent, careerGoals, location: jobSearchLocation });
+            const results = await searchForJobs({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals, location: jobSearchLocation });
             setJobResults(results);
         } catch(e) {
              console.error("Job search error", e);
@@ -416,33 +433,43 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: str
                 </Button>
             } />
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="flex-1 flex flex-col">
-                <div className="px-4 sm:px-6 lg:px-8 border-b">
-                    <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
-                        <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
-                        <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Career Chat</TabsTrigger>
-                        <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
-                    </TabsList>
-                </div>
+                <TabsList className="grid w-full grid-cols-3 bg-secondary">
+                    <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
+                    <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Career Chat</TabsTrigger>
+                    <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
+                </TabsList>
                 
-                <TabsContent value="cv" className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 mt-0">
+                <TabsContent value="cv" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0">
                     <div className="grid md:grid-cols-2 gap-8">
                         <Card className="flex flex-col">
                            <CardHeader>
                                <CardTitle>Your CV</CardTitle>
                                <CardDescription>Edit your CV here. When ready, click "Improve CV".</CardDescription>
                            </CardHeader>
-                           <CardContent className="flex-1">
+                           <CardContent className="flex-1 relative">
                                <Textarea 
                                    className="h-full min-h-[400px] resize-none" 
-                                   value={cvContent} 
+                                   value={cv.dataUri ? '' : cv.content} 
                                    onChange={e => {
-                                       setCvContent(e.target.value);
+                                       setCv({ content: e.target.value });
                                        setIsCvDirty(true);
                                    }}
+                                   disabled={!!cv.dataUri}
                                />
+                                {cv.dataUri && (
+                                    <div className="absolute inset-0 m-1 p-6 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center rounded-md">
+                                        <FileText className="w-10 h-10 mb-2 text-primary"/>
+                                        <p className="font-semibold">{cv.fileName}</p>
+                                        <p className="text-sm text-muted-foreground mb-4">PDF cannot be edited directly.</p>
+                                        <Button variant="outline" onClick={() => {
+                                            setCv({ content: '' });
+                                            setIsCvDirty(true);
+                                        }}>Clear and start over</Button>
+                                    </div>
+                                )}
                            </CardContent>
                            <CardFooter className="justify-between">
-                                <p className="text-sm text-muted-foreground">{cvContent.split(/\s+/).filter(Boolean).length} words</p>
+                                <p className="text-sm text-muted-foreground">{cv.content?.split(/\s+/).filter(Boolean).length || 0} words</p>
                                 <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
                                     {isImprovingCv && <Loader2 className="mr-2 animate-spin" />}
                                     Improve CV
@@ -528,7 +555,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: str
                     </div>
                 </TabsContent>
 
-                <TabsContent value="jobs" className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 mt-0">
+                <TabsContent value="jobs" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0">
                     <Card className="max-w-4xl mx-auto">
                         <CardHeader>
                             <CardTitle>AI Job Search</CardTitle>
