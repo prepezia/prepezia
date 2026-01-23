@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "jobs";
-type OnboardingStep = "intro" | "form";
+type OnboardingStep = "intro" | "goals" | "cv";
 
 type ChatMessage = {
   role: 'user' | 'assistant';
@@ -110,7 +110,7 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
     const searchParams = useSearchParams();
     const startAsForm = searchParams.get('start') === 'form';
 
-    const [step, setStep] = useState<OnboardingStep>(startAsForm ? 'form' : 'intro');
+    const [step, setStep] = useState<OnboardingStep>(startAsForm ? 'goals' : 'intro');
     
     const { toast } = useToast();
     const [goals, setGoals] = useState("");
@@ -182,11 +182,19 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
 
     const handleContinueWithGoals = () => {
         if (!goals.trim()) {
-            toast({ variant: 'destructive', title: 'Goals are required', description: "Please tell us about your aspirations."});
+            toast({ variant: 'destructive', title: 'Goals are required', description: "Please go back and tell us about your aspirations."});
             return;
         }
         onCompleted("", goals);
     }
+
+    const handleNextToCvStep = () => {
+        if (!goals.trim()) {
+            toast({ variant: 'destructive', title: 'Goals are required', description: "Please tell us about your aspirations."});
+            return;
+        }
+        setStep('cv');
+    };
     
     if (step === 'intro') {
         return (
@@ -202,7 +210,7 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
                             <CardDescription>Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Button className="w-full" size="lg" onClick={() => setStep('form')}>
+                            <Button className="w-full" size="lg" onClick={() => setStep('goals')}>
                                 Get Started <ArrowRight className="ml-2" />
                             </Button>
                         </CardContent>
@@ -212,78 +220,90 @@ function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: stri
         )
     }
 
-    return (
-        <>
-            <HomeHeader />
-            <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-                <div>
-                    <h1 className="text-3xl font-headline font-bold">Career Hub Onboarding</h1>
-                    <p className="text-muted-foreground">Your personal AI career assistant. Let's get you started.</p>
-                </div>
-                <div className="grid md:grid-cols-2 gap-8 items-start">
-                    <Card className="flex-1">
+    if (step === 'goals') {
+        return (
+            <>
+                <HomeHeader />
+                <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center">
+                    <Card className="max-w-2xl mx-auto w-full">
                         <CardHeader>
-                            <CardTitle>1. Tell us about you</CardTitle>
-                            <CardDescription>What are your career aspirations? The more detail, the better.</CardDescription>
+                            <CardTitle>Career Hub Onboarding</CardTitle>
+                            <CardDescription>Step 1 of 2: Tell us about your career aspirations.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Textarea
                                 placeholder="e.g., I'm a final year computer science student looking for a junior software engineering role in fintech..."
                                 value={goals}
                                 onChange={e => setGoals(e.target.value)}
-                                rows={6}
+                                rows={8}
                             />
                         </CardContent>
-                    </Card>
-
-                    <div className="space-y-6">
-                        <Card className="flex-1">
-                            <CardHeader>
-                                <CardTitle>2. Provide your CV</CardTitle>
-                                <CardDescription>Upload your existing CV or let us help you write one.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => fileInputRef.current?.click()}>
-                                    <Upload className="w-6 h-6" /> Upload CV
-                                </Button>
-                                <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setIsTemplateModalOpen(true)}>
-                                    <Sparkles className="w-6 h-6" /> Help me write one
-                                </Button>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.txt,.md" />
-                            </CardContent>
-                            <CardFooter>
-                                <Button className="w-full" onClick={handleContinueWithGoals}>
-                                    Continue with just my goals <ArrowRight className="ml-2" />
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    </div>
-                </div>
-
-                <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Generate a CV Template</DialogTitle>
-                            <DialogDescription>Provide some basic info and we'll create a professional template for you.</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <Input placeholder="Full Name *" value={templateInfo.fullName} onChange={e => setTemplateInfo(p => ({...p, fullName: e.target.value}))} />
-                            <Input placeholder="Email Address" type="email" value={templateInfo.email} onChange={e => setTemplateInfo(p => ({...p, email: e.target.value}))} />
-                            <Input placeholder="Phone Number" value={templateInfo.phone} onChange={e => setTemplateInfo(p => ({...p, phone: e.target.value}))} />
-                            <Input placeholder="Target Role / Career Goal *" value={templateInfo.careerGoal} onChange={e => setTemplateInfo(p => ({...p, careerGoal: e.target.value}))} />
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsTemplateModalOpen(false)}>Cancel</Button>
-                            <Button onClick={handleGenerateTemplate} disabled={isLoading}>
-                                {isLoading && <Loader2 className="mr-2 animate-spin" />}
-                                Generate
+                        <CardFooter className="justify-end">
+                            <Button onClick={handleNextToCvStep}>
+                                Next <ArrowRight className="ml-2" />
                             </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </div>
-        </>
-    )
+                        </CardFooter>
+                    </Card>
+                </div>
+            </>
+        );
+    }
+
+    if (step === 'cv') {
+        return (
+            <>
+                <HomeHeader />
+                <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center">
+                     <Card className="max-w-2xl mx-auto w-full">
+                        <CardHeader>
+                            <CardTitle>Career Hub Onboarding</CardTitle>
+                            <CardDescription>Step 2 of 2: Provide your CV to get personalized advice.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => fileInputRef.current?.click()}>
+                                <Upload className="w-6 h-6" /> Upload CV
+                            </Button>
+                            <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setIsTemplateModalOpen(true)}>
+                                <Sparkles className="w-6 h-6" /> Help me write one
+                            </Button>
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.txt,.md" />
+                        </CardContent>
+                        <CardFooter className="flex-col items-stretch space-y-4">
+                            <Button className="w-full" onClick={handleContinueWithGoals}>
+                                Finish Onboarding (No CV)
+                            </Button>
+                             <Button variant="outline" className="w-full" onClick={() => setStep('goals')}>
+                                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                    <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Generate a CV Template</DialogTitle>
+                                <DialogDescription>Provide some basic info and we'll create a professional template for you.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <Input placeholder="Full Name *" value={templateInfo.fullName} onChange={e => setTemplateInfo(p => ({...p, fullName: e.target.value}))} />
+                                <Input placeholder="Email Address" type="email" value={templateInfo.email} onChange={e => setTemplateInfo(p => ({...p, email: e.target.value}))} />
+                                <Input placeholder="Phone Number" value={templateInfo.phone} onChange={e => setTemplateInfo(p => ({...p, phone: e.target.value}))} />
+                                <Input placeholder="Target Role / Career Goal *" value={templateInfo.careerGoal} onChange={e => setTemplateInfo(p => ({...p, careerGoal: e.target.value}))} />
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsTemplateModalOpen(false)}>Cancel</Button>
+                                <Button onClick={handleGenerateTemplate} disabled={isLoading}>
+                                    {isLoading && <Loader2 className="mr-2 animate-spin" />}
+                                    Generate
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </>
+        )
+    }
+
+    return null;
 }
 
 
