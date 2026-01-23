@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/home/features', label: 'Study', icon: WandSparkles },
+  { href: '/home/study', label: 'Study', icon: WandSparkles },
   { href: '/home/career', label: 'Career', icon: Briefcase },
   { href: '/home/past-questions', label: 'Activities', icon: History },
 ];
@@ -28,8 +28,8 @@ export function FooterMenu() {
         {menuItems.map((item) => {
           let isActive;
           if (item.label === 'Study') {
-            // Study is active for features, study-spaces, and note-generator pages
-            isActive = ['/home/features', '/home/study-spaces', '/home/note-generator'].includes(pathname);
+            // Study is active for study, study-spaces, and note-generator pages
+            isActive = ['/home/study', '/home/study-spaces', '/home/note-generator'].includes(pathname);
           } else {
             // Other items are active only on their exact path
             isActive = pathname === item.href;

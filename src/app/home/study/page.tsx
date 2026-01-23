@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { ArrowRight, Briefcase } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 
 const features = [
     {
@@ -46,52 +44,28 @@ const features = [
     }
 ];
 
-export default function FeaturesPage() {
+export default function StudyPage() {
   return (
     <>
       <HomeHeader />
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-8">
-            <h1 className="text-3xl font-headline font-bold">Features</h1>
+            <h1 className="text-3xl font-headline font-bold">Study Resources</h1>
             <p className="text-muted-foreground">
-                Explore powerful tools for your academic and professional growth.
+                Explore powerful AI tools to supercharge your learning.
             </p>
         </div>
         
-        <Tabs defaultValue="study" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-secondary">
-                <TabsTrigger value="study">Study</TabsTrigger>
-                <TabsTrigger value="career">Career</TabsTrigger>
-            </TabsList>
-            <TabsContent value="study" className="pt-16">
-                <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
-                  {features.map(feature => (
-                      <HomeFeatureCard
-                        key={feature.title}
-                        {...feature}
-                      />
-                  ))}
-                </div>
-            </TabsContent>
-            <TabsContent value="career" className="mt-8">
-                <div className="text-center p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed">
-                    <div className="max-w-md mx-auto">
-                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
-                            <Briefcase className="w-8 h-8" />
-                        </div>
-                        <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
-                        <p className="mt-4 text-muted-foreground">
-                            Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
-                        </p>
-                        <Button asChild size="lg" className="mt-8 font-bold">
-                            <Link href="/home/career">
-                                Go to Career Hub <ArrowRight className="ml-2 w-5 h-5" />
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-            </TabsContent>
-        </Tabs>
+        <div className="pt-8">
+            <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
+              {features.map(feature => (
+                  <HomeFeatureCard
+                    key={feature.title}
+                    {...feature}
+                  />
+              ))}
+            </div>
+        </div>
     </div>
     </>
   );
