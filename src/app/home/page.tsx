@@ -68,7 +68,7 @@ export default function DashboardPage() {
           </div>
 
         <div className="space-y-8">
-            <h2 className="text-2xl font-headline font-bold text-right">Get Started</h2>
+            <h2 className="text-2xl font-headline font-bold text-left">Get Started</h2>
             <div className="pt-8">
               <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
                 {features.map(feature => (
