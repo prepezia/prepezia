@@ -49,6 +49,7 @@ export async function searchWebForSources(input: SearchWebForSourcesInput): Prom
         name: 'searchWebForSourcesFlow',
         inputSchema: SearchWebForSourcesInputSchema,
         outputSchema: SearchWebForSourcesOutputSchema,
+        retries: 3,
       },
       async input => {
         const {output} = await prompt(input);

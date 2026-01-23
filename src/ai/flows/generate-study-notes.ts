@@ -1,5 +1,3 @@
-// This file is machine-generated - edit with caution!
-
 'use server';
 
 /**
@@ -53,6 +51,7 @@ export async function generateStudyNotes(
         name: 'generateStudyNotesFlow',
         inputSchema: GenerateStudyNotesInputSchema,
         outputSchema: GenerateStudyNotesOutputSchema,
+        retries: 3,
       },
       async input => {
         const {output} = await generateStudyNotesPrompt(input);

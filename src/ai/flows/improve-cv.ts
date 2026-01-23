@@ -77,6 +77,7 @@ Target Job Description:
         name: 'improveCvFlow',
         inputSchema: ImproveCvInputSchema,
         outputSchema: ImproveCvOutputSchema,
+        retries: 3,
       },
       async input => {
         const {output} = await improveCvPrompt(input);

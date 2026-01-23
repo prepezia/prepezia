@@ -72,6 +72,7 @@ export async function aiAssessmentRevisionRoadmap(input: AiAssessmentRevisionRoa
         name: 'aiAssessmentRevisionRoadmapFlow',
         inputSchema: AiAssessmentRevisionRoadmapInputSchema,
         outputSchema: AiAssessmentRevisionRoadmapOutputSchema,
+        retries: 3,
       },
       async input => {
         const {output} = await prompt(input);
