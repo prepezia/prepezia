@@ -48,7 +48,7 @@ export default function MorePage() {
                  <div className="grid md:grid-cols-2 gap-8 items-center">
                     <div className="relative h-32 w-32 md:h-48 md:w-48">
                        <Image
-                            src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fgraduation-cap_11933580.png?alt=media&token=e937d9d9-2c7c-40b5-9005-728b7468160e"
+                            src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fadmissions.png?alt=media&token=ee0a0794-32d2-4915-832a-da35ad25375a"
                             alt="Admissions Hub Icon"
                             fill
                             className="object-contain"
