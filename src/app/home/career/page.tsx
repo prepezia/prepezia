@@ -67,7 +67,13 @@ function CareerPage() {
             const savedCv = localStorage.getItem('learnwithtemi_cv');
             const savedGoals = localStorage.getItem('learnwithtemi_goals') || "";
             if (savedCv) {
-                setCv(JSON.parse(savedCv));
+                try {
+                    setCv(JSON.parse(savedCv));
+                } catch (e) {
+                    console.error("Failed to parse saved CV. Clearing corrupted data.", e);
+                    localStorage.removeItem('learnwithtemi_cv');
+                    setCv({ content: "" });
+                }
             }
             setCareerGoals(savedGoals);
             setView("hub");
@@ -433,18 +439,20 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                 </Button>
             } />
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-3 bg-secondary">
-                    <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
-                    <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Career Chat</TabsTrigger>
-                    <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
-                </TabsList>
+                <div className="px-4 sm:px-6 lg:px-8">
+                    <TabsList className="grid w-full grid-cols-3 bg-secondary">
+                        <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
+                        <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Career Chat</TabsTrigger>
+                        <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
+                    </TabsList>
+                </div>
                 
-                <TabsContent value="cv" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0">
-                    <div className="grid md:grid-cols-2 gap-8">
+                <TabsContent value="cv" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0 flex flex-col">
+                    <div className="grid md:grid-cols-2 gap-8 flex-1">
                         <Card className="flex flex-col">
                            <CardHeader>
                                <CardTitle>Your CV</CardTitle>
-                               <CardDescription>Edit your CV here. When ready, click "Improve CV".</CardDescription>
+                               <CardDescription>Edit your CV here. When ready, click &quot;Improve CV&quot;.</CardDescription>
                            </CardHeader>
                            <CardContent className="flex-1 relative">
                                <Textarea 
@@ -479,7 +487,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                          <Card className="flex flex-col">
                            <CardHeader>
                                <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Analysis & Rewrite</CardTitle>
-                               <CardDescription>Here is the AI's feedback and suggested rewrite.</CardDescription>
+                               <CardDescription>Here is the AI&apos;s feedback and suggested rewrite.</CardDescription>
                            </CardHeader>
                            <CardContent className="flex-1 relative">
                                 {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
@@ -555,7 +563,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     </div>
                 </TabsContent>
 
-                <TabsContent value="jobs" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0">
+                <TabsContent value="jobs" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0 flex flex-col">
                     <Card className="max-w-4xl mx-auto">
                         <CardHeader>
                             <CardTitle>AI Job Search</CardTitle>
