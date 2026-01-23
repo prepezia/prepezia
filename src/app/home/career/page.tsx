@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,40 +26,109 @@ import { generateCvTemplate } from "@/ai/flows/generate-cv-template";
 import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow";
 import { cn } from "@/lib/utils";
 
-type View = "onboarding" | "hub";
+type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "jobs";
+type OnboardingStep = "intro" | "form";
 
 type ChatMessage = {
   role: 'user' | 'assistant';
   content: string | React.ReactNode;
 };
 
-export default function CareerPage() {
-    const [view, setView] = useState<View>("onboarding");
+export default function CareerPageWrapper() {
+    return (
+        <Suspense fallback={
+            <>
+                <HomeHeader />
+                <div className="flex-1 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            </>
+        }>
+            <CareerPage />
+        </Suspense>
+    )
+}
+
+function CareerPage() {
+    const [view, setView] = useState<View>("loading");
     const [cvContent, setCvContent] = useState<string>("");
     const [careerGoals, setCareerGoals] = useState<string>("");
 
-    const startHub = (cv: string, goals: string) => {
+    useEffect(() => {
+        const onboarded = localStorage.getItem('learnwithtemi_career_onboarded') === 'true';
+        if (onboarded) {
+            const savedCv = localStorage.getItem('learnwithtemi_cv') || "";
+            const savedGoals = localStorage.getItem('learnwithtemi_goals') || "";
+            setCvContent(savedCv);
+            setCareerGoals(savedGoals);
+            setView("hub");
+        } else {
+            setView("onboarding");
+        }
+    }, []);
+
+    const handleOnboardingComplete = (cv: string, goals: string) => {
         setCvContent(cv);
         setCareerGoals(goals);
+        localStorage.setItem('learnwithtemi_career_onboarded', 'true');
+        localStorage.setItem('learnwithtemi_cv', cv);
+        localStorage.setItem('learnwithtemi_goals', goals);
+        localStorage.removeItem('learnwithtemi_onboarding_progress');
         setView("hub");
     }
 
-    if (view === "onboarding") {
-        return <OnboardingView onCompleted={startHub} />
+    const handleStartOver = () => {
+        localStorage.removeItem('learnwithtemi_career_onboarded');
+        localStorage.removeItem('learnwithtemi_cv');
+        localStorage.removeItem('learnwithtemi_goals');
+        localStorage.removeItem('learnwithtemi_onboarding_progress');
+        setCvContent("");
+        setCareerGoals("");
+        setView("onboarding");
     }
 
-    return <HubView initialCv={cvContent} initialGoals={careerGoals} backToOnboarding={() => setView("onboarding")} />;
+    if (view === "loading") {
+        return (
+            <>
+                <HomeHeader />
+                <div className="flex-1 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            </>
+        );
+    }
+    
+    if (view === "onboarding") {
+        return <OnboardingFlow onCompleted={handleOnboardingComplete} />
+    }
+
+    return <HubView initialCv={cvContent} initialGoals={careerGoals} backToOnboarding={handleStartOver} />;
 }
 
-function OnboardingView({ onCompleted }: { onCompleted: (cv: string, goals: string) => void }) {
+function OnboardingFlow({ onCompleted }: { onCompleted: (cv: string, goals: string) => void }) {
+    const searchParams = useSearchParams();
+    const startAsForm = searchParams.get('start') === 'form';
+
+    const [step, setStep] = useState<OnboardingStep>(startAsForm ? 'form' : 'intro');
+    
     const { toast } = useToast();
     const [goals, setGoals] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [templateInfo, setTemplateInfo] = useState({ fullName: "", email: "", phone: "", careerGoal: "" });
+
+    useEffect(() => {
+        const savedProgress = localStorage.getItem('learnwithtemi_onboarding_progress');
+        if (savedProgress) {
+            setGoals(JSON.parse(savedProgress).goals);
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('learnwithtemi_onboarding_progress', JSON.stringify({ goals }));
+    }, [goals]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -109,7 +179,39 @@ function OnboardingView({ onCompleted }: { onCompleted: (cv: string, goals: stri
             setIsTemplateModalOpen(false);
         }
     }
+
+    const handleContinueWithGoals = () => {
+        if (!goals.trim()) {
+            toast({ variant: 'destructive', title: 'Goals are required', description: "Please tell us about your aspirations."});
+            return;
+        }
+        onCompleted("", goals);
+    }
     
+    if (step === 'intro') {
+        return (
+            <>
+                <HomeHeader />
+                <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center items-center">
+                    <Card className="max-w-2xl w-full">
+                        <CardHeader className="text-center">
+                            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
+                                <Briefcase className="w-8 h-8" />
+                            </div>
+                            <CardTitle className="text-3xl font-headline font-bold">Unlock Your Career Potential</CardTitle>
+                            <CardDescription>Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button className="w-full" size="lg" onClick={() => setStep('form')}>
+                                Get Started <ArrowRight className="ml-2" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </>
+        )
+    }
+
     return (
         <>
             <HomeHeader />
@@ -150,7 +252,7 @@ function OnboardingView({ onCompleted }: { onCompleted: (cv: string, goals: stri
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.txt,.md" />
                             </CardContent>
                             <CardFooter>
-                                <Button className="w-full" onClick={() => onCompleted("", goals)} disabled={!goals}>
+                                <Button className="w-full" onClick={handleContinueWithGoals}>
                                     Continue with just my goals <ArrowRight className="ml-2" />
                                 </Button>
                             </CardFooter>
