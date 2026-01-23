@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, WandSparkles, History, User } from 'lucide-react';
+import { Home, WandSparkles, History, User, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/home/features', label: 'Features', icon: WandSparkles },
+  { href: '/home/features', label: 'Study', icon: WandSparkles },
+  { href: '/home/career', label: 'Career', icon: Briefcase },
   { href: '/home/past-questions', label: 'Activities', icon: History },
 ];
 
@@ -25,7 +26,15 @@ export function FooterMenu() {
     <div className="fixed bottom-0 left-0 right-0 z-50 md:bottom-4">
       <div className="flex justify-around items-center h-16 bg-card border-t border-border md:max-w-md md:mx-auto md:rounded-full md:border md:shadow-lg">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href || (item.href === '/home/features' && pathname.startsWith('/home/')) && pathname !== '/home' && pathname !== '/home/past-questions';
+          let isActive;
+          if (item.label === 'Study') {
+            // Study is active for features, study-spaces, and note-generator pages
+            isActive = ['/home/features', '/home/study-spaces', '/home/note-generator'].includes(pathname);
+          } else {
+            // Other items are active only on their exact path
+            isActive = pathname === item.href;
+          }
+
           return (
             <Link
               key={item.href}
