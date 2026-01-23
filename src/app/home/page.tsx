@@ -7,7 +7,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const features = [
     {
@@ -77,6 +76,29 @@ export default function DashboardPage() {
                   />
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="space-y-8 pt-16">
+          <div className="text-center">
+            <h2 className="text-2xl font-headline font-bold text-center">Career Hub</h2>
+            <p className="mt-2 text-muted-foreground">Tools to accelerate your professional journey.</p>
+          </div>
+          <div className="text-center p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
+              <div className="max-w-md mx-auto">
+                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
+                      <Briefcase className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
+                  <p className="mt-4 text-muted-foreground">
+                      Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
+                  </p>
+                  <Button asChild size="lg" className="mt-8 font-bold">
+                      <Link href="/home/career">
+                          Go to Career Hub <ArrowRight className="ml-2 w-5 h-5" />
+                      </Link>
+                  </Button>
+              </div>
           </div>
         </div>
       </div>
