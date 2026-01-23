@@ -67,10 +67,23 @@ function CareerPage() {
             const savedCv = localStorage.getItem('learnwithtemi_cv');
             const savedGoals = localStorage.getItem('learnwithtemi_goals') || "";
             if (savedCv) {
-                try {
-                    setCv(JSON.parse(savedCv));
-                } catch (e) {
-                    console.error("Failed to parse saved CV. Clearing corrupted data.", e);
+                const trimmedCv = savedCv.trim();
+                if (trimmedCv.startsWith('{') && trimmedCv.endsWith('}')) {
+                    try {
+                        const parsedCv = JSON.parse(trimmedCv);
+                        if (typeof parsedCv === 'object' && parsedCv !== null && !Array.isArray(parsedCv)) {
+                            setCv(parsedCv);
+                        } else {
+                            throw new Error("Parsed CV is not a valid object.");
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse saved CV JSON. Clearing corrupted data.", e);
+                        localStorage.removeItem('learnwithtemi_cv');
+                        setCv({ content: "" });
+                    }
+                } else {
+                    // Data is not in the expected JSON object format. It's corrupted.
+                    console.warn("Corrupted CV data in localStorage (not a JSON object). Clearing.");
                     localStorage.removeItem('learnwithtemi_cv');
                     setCv({ content: "" });
                 }
@@ -438,178 +451,178 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
                 </Button>
             } />
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="flex-1 flex flex-col">
-                <div className="px-4 sm:px-6 lg:px-8">
+            <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="w-full flex-1 flex flex-col">
                     <TabsList className="grid w-full grid-cols-3 bg-secondary">
                         <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
                         <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Career Chat</TabsTrigger>
                         <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
                     </TabsList>
-                </div>
-                
-                <TabsContent value="cv" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0 flex flex-col">
-                    <div className="grid md:grid-cols-2 gap-8 flex-1">
-                        <Card className="flex flex-col">
-                           <CardHeader>
-                               <CardTitle>Your CV</CardTitle>
-                               <CardDescription>Edit your CV here. When ready, click &quot;Improve CV&quot;.</CardDescription>
-                           </CardHeader>
-                           <CardContent className="flex-1 relative">
-                               <Textarea 
-                                   className="h-full min-h-[400px] resize-none" 
-                                   value={cv.dataUri ? '' : cv.content} 
-                                   onChange={e => {
-                                       setCv({ content: e.target.value });
-                                       setIsCvDirty(true);
-                                   }}
-                                   disabled={!!cv.dataUri}
-                               />
-                                {cv.dataUri && (
-                                    <div className="absolute inset-0 m-1 p-6 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center rounded-md">
-                                        <FileText className="w-10 h-10 mb-2 text-primary"/>
-                                        <p className="font-semibold">{cv.fileName}</p>
-                                        <p className="text-sm text-muted-foreground mb-4">PDF cannot be edited directly.</p>
-                                        <Button variant="outline" onClick={() => {
-                                            setCv({ content: '' });
-                                            setIsCvDirty(true);
-                                        }}>Clear and start over</Button>
-                                    </div>
-                                )}
-                           </CardContent>
-                           <CardFooter className="justify-between">
-                                <p className="text-sm text-muted-foreground">{cv.content?.split(/\s+/).filter(Boolean).length || 0} words</p>
-                                <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
-                                    {isImprovingCv && <Loader2 className="mr-2 animate-spin" />}
-                                    Improve CV
-                                </Button>
-                           </CardFooter>
-                        </Card>
-                         <Card className="flex flex-col">
-                           <CardHeader>
-                               <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Analysis & Rewrite</CardTitle>
-                               <CardDescription>Here is the AI&apos;s feedback and suggested rewrite.</CardDescription>
-                           </CardHeader>
-                           <CardContent className="flex-1 relative">
-                                {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
-                                {cvResult ? (
-                                    <div className="space-y-6 h-full overflow-y-auto">
-                                        <div>
-                                            <h3 className="font-semibold mb-2">Critique</h3>
-                                            <p className="text-sm text-muted-foreground">{cvResult.critique}</p>
+                    
+                    <TabsContent value="cv" className="mt-4 flex-1">
+                        <div className="grid md:grid-cols-2 gap-8 h-full">
+                            <Card className="flex flex-col">
+                               <CardHeader>
+                                   <CardTitle>Your CV</CardTitle>
+                                   <CardDescription>Edit your CV here. When ready, click &quot;Improve CV&quot;.</CardDescription>
+                               </CardHeader>
+                               <CardContent className="flex-1 relative">
+                                   <Textarea 
+                                       className="h-full min-h-[400px] resize-none" 
+                                       value={cv.dataUri ? '' : cv.content} 
+                                       onChange={e => {
+                                           setCv({ content: e.target.value });
+                                           setIsCvDirty(true);
+                                       }}
+                                       disabled={!!cv.dataUri}
+                                   />
+                                    {cv.dataUri && (
+                                        <div className="absolute inset-0 m-1 p-6 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center rounded-md">
+                                            <FileText className="w-10 h-10 mb-2 text-primary"/>
+                                            <p className="font-semibold">{cv.fileName}</p>
+                                            <p className="text-sm text-muted-foreground mb-4">PDF cannot be edited directly.</p>
+                                            <Button variant="outline" onClick={() => {
+                                                setCv({ content: '' });
+                                                setIsCvDirty(true);
+                                            }}>Clear and start over</Button>
                                         </div>
-                                         <div>
-                                            <h3 className="font-semibold mb-2">Rewritten Experience</h3>
-                                            <div className="prose prose-sm dark:prose-invert max-w-none p-4 border rounded-md h-64 overflow-y-auto">
-                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.rewrittenExperience}</ReactMarkdown>
+                                    )}
+                               </CardContent>
+                               <CardFooter className="justify-between">
+                                    <p className="text-sm text-muted-foreground">{cv.content?.split(/\s+/).filter(Boolean).length || 0} words</p>
+                                    <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
+                                        {isImprovingCv && <Loader2 className="mr-2 animate-spin" />}
+                                        Improve CV
+                                    </Button>
+                               </CardFooter>
+                            </Card>
+                             <Card className="flex flex-col">
+                               <CardHeader>
+                                   <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Analysis & Rewrite</CardTitle>
+                                   <CardDescription>Here is the AI&apos;s feedback and suggested rewrite.</CardDescription>
+                               </CardHeader>
+                               <CardContent className="flex-1 relative">
+                                    {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
+                                    {cvResult ? (
+                                        <div className="space-y-6 h-full overflow-y-auto">
+                                            <div>
+                                                <h3 className="font-semibold mb-2">Critique</h3>
+                                                <p className="text-sm text-muted-foreground">{cvResult.critique}</p>
                                             </div>
-                                            <Button variant="outline" size="sm" className="mt-2" onClick={() => downloadCv(cvResult.rewrittenExperience)}><Download className="mr-2"/>Download</Button>
+                                             <div>
+                                                <h3 className="font-semibold mb-2">Rewritten Experience</h3>
+                                                <div className="prose prose-sm dark:prose-invert max-w-none p-4 border rounded-md h-64 overflow-y-auto">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.rewrittenExperience}</ReactMarkdown>
+                                                </div>
+                                                <Button variant="outline" size="sm" className="mt-2" onClick={() => downloadCv(cvResult.rewrittenExperience)}><Download className="mr-2"/>Download</Button>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold mb-2">Skill Gap Analysis</h3>
+                                                <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                                                    {cvResult.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}
+                                                </ul>
+                                            </div>
+                                             <div>
+                                                <h3 className="font-semibold mb-2">Action Plan</h3>
+                                                 <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                                                    {cvResult.actionPlan.map((s, i) => <li key={i}>{s}</li>)}
+                                                </ul>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-semibold mb-2">Skill Gap Analysis</h3>
-                                            <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                                                {cvResult.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}
-                                            </ul>
+                                    ) : !isImprovingCv && (
+                                        <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
+                                            <BrainCircuit className="w-12 h-12 mb-4" />
+                                            <p>Your CV analysis will appear here.</p>
                                         </div>
-                                         <div>
-                                            <h3 className="font-semibold mb-2">Action Plan</h3>
-                                             <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                                                {cvResult.actionPlan.map((s, i) => <li key={i}>{s}</li>)}
-                                            </ul>
-                                        </div>
-                                    </div>
-                                ) : !isImprovingCv && (
-                                    <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
-                                        <BrainCircuit className="w-12 h-12 mb-4" />
-                                        <p>Your CV analysis will appear here.</p>
-                                    </div>
-                                )}
-                           </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {chatHistory.length === 0 ? (
-                           <div className="text-center text-muted-foreground pt-10 px-6 h-full flex flex-col justify-center items-center">
-                               <Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" />
-                               <h3 className="font-semibold text-foreground text-lg">AI Career Advisor</h3>
-                               <p className="mt-2 text-sm">Ask about career paths, interview tips, or academic choices based on your profile.</p>
-                           </div>
-                        ) : chatHistory.map((msg, i) => (
-                             <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                                {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
-                                <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                                    {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
-                                </div>
-                            </div>
-                        ))}
-                         {isChatting && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
-                    </div>
-                    <div className="p-4 border-t bg-background">
-                        <form onSubmit={handleChatSubmit} className="relative">
-                            <Textarea
-                                value={chatInput}
-                                onChange={(e) => setChatInput(e.target.value)}
-                                placeholder="Ask a question..."
-                                className="pr-12"
-                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
-                                disabled={isChatting}
-                            />
-                            <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" type="submit" disabled={isChatting}>
-                                <Send className="h-4 w-4" />
-                            </Button>
-                        </form>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="jobs" className="flex-1 p-4 sm:p-6 lg:p-8 mt-0 flex flex-col">
-                    <Card className="max-w-4xl mx-auto">
-                        <CardHeader>
-                            <CardTitle>AI Job Search</CardTitle>
-                            <CardDescription>Find jobs tailored to your profile and goals.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-end gap-2">
-                                <div className="flex-1">
-                                    <label htmlFor="location" className="text-sm font-medium">Location</label>
-                                    <Input id="location" value={jobSearchLocation} onChange={e => setJobSearchLocation(e.target.value)} placeholder="e.g. Accra, Ghana" />
-                                </div>
-                                <Button onClick={handleJobSearch} disabled={isSearchingJobs}>
-                                    {isSearchingJobs && <Loader2 className="mr-2 animate-spin" />}
-                                    <Search className="mr-2" /> Search Jobs
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
-                    {jobResults && (
-                        <div className="max-w-4xl mx-auto mt-8 space-y-4">
-                            {jobResults.results.length > 0 ? (
-                                <>
-                                    <h3 className="font-bold text-lg">Found {jobResults.results.length} jobs</h3>
-                                    {jobResults.results.map((job, i) => (
-                                        <Card key={i}>
-                                            <CardHeader>
-                                                <CardTitle>{job.title}</CardTitle>
-                                                <CardDescription>{job.company} - {job.location}</CardDescription>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <p className="text-sm text-muted-foreground mb-4">{job.snippet}</p>
-                                                <Button asChild>
-                                                    <a href={job.url} target="_blank" rel="noopener noreferrer">View & Apply <ArrowRight className="ml-2"/></a>
-                                                </Button>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </>
-                            ) : (
-                                <p className="text-center text-muted-foreground py-10">No jobs found matching your profile. Try broadening your goals.</p>
-                            )}
+                                    )}
+                               </CardContent>
+                            </Card>
                         </div>
-                    )}
-                </TabsContent>
-            </Tabs>
+                    </TabsContent>
+
+                    <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {chatHistory.length === 0 ? (
+                               <div className="text-center text-muted-foreground pt-10 px-6 h-full flex flex-col justify-center items-center">
+                                   <Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" />
+                                   <h3 className="font-semibold text-foreground text-lg">AI Career Advisor</h3>
+                                   <p className="mt-2 text-sm">Ask about career paths, interview tips, or academic choices based on your profile.</p>
+                               </div>
+                            ) : chatHistory.map((msg, i) => (
+                                 <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                                    {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
+                                    <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                                        {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
+                                    </div>
+                                </div>
+                            ))}
+                             {isChatting && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
+                        </div>
+                        <div className="p-4 border-t bg-background">
+                            <form onSubmit={handleChatSubmit} className="relative">
+                                <Textarea
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    placeholder="Ask a question..."
+                                    className="pr-12"
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
+                                    disabled={isChatting}
+                                />
+                                <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" type="submit" disabled={isChatting}>
+                                    <Send className="h-4 w-4" />
+                                </Button>
+                            </form>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="jobs" className="mt-4 flex-1 flex flex-col">
+                        <Card className="max-w-4xl mx-auto">
+                            <CardHeader>
+                                <CardTitle>AI Job Search</CardTitle>
+                                <CardDescription>Find jobs tailored to your profile and goals.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-1">
+                                        <label htmlFor="location" className="text-sm font-medium">Location</label>
+                                        <Input id="location" value={jobSearchLocation} onChange={e => setJobSearchLocation(e.target.value)} placeholder="e.g. Accra, Ghana" />
+                                    </div>
+                                    <Button onClick={handleJobSearch} disabled={isSearchingJobs}>
+                                        {isSearchingJobs && <Loader2 className="mr-2 animate-spin" />}
+                                        <Search className="mr-2" /> Search Jobs
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
+                        {jobResults && (
+                            <div className="max-w-4xl mx-auto mt-8 space-y-4 flex-1 overflow-y-auto pb-4">
+                                {jobResults.results.length > 0 ? (
+                                    <>
+                                        <h3 className="font-bold text-lg">Found {jobResults.results.length} jobs</h3>
+                                        {jobResults.results.map((job, i) => (
+                                            <Card key={i}>
+                                                <CardHeader>
+                                                    <CardTitle>{job.title}</CardTitle>
+                                                    <CardDescription>{job.company} - {job.location}</CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <p className="text-sm text-muted-foreground mb-4">{job.snippet}</p>
+                                                    <Button asChild>
+                                                        <a href={job.url} target="_blank" rel="noopener noreferrer">View & Apply <ArrowRight className="ml-2"/></a>
+                                                    </Button>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </>
+                                ) : (
+                                    <p className="text-center text-muted-foreground py-10">No jobs found matching your profile. Try broadening your goals.</p>
+                                )}
+                            </div>
+                        )}
+                    </TabsContent>
+                </Tabs>
+            </div>
         </div>
     )
 }
@@ -650,3 +663,5 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
         </Card>
     );
 }
+
+    
