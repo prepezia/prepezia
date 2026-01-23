@@ -459,85 +459,95 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="cv" className="mt-4 flex-1">
-                        <div className="grid md:grid-cols-2 gap-8 h-full">
-                            <Card className="flex flex-col">
-                               <CardHeader>
-                                   <CardTitle>Your CV</CardTitle>
-                                   <CardDescription>Edit your CV here. When ready, click &quot;Improve CV&quot;.</CardDescription>
-                               </CardHeader>
-                               <CardContent className="flex-1 relative">
-                                   <Textarea 
-                                       className="h-full min-h-[400px] resize-none" 
-                                       value={cv.dataUri ? '' : cv.content} 
-                                       onChange={e => {
-                                           setCv({ content: e.target.value });
-                                           setIsCvDirty(true);
-                                       }}
-                                       disabled={!!cv.dataUri}
-                                   />
-                                    {cv.dataUri && (
-                                        <div className="absolute inset-0 m-1 p-6 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center rounded-md">
-                                            <FileText className="w-10 h-10 mb-2 text-primary"/>
-                                            <p className="font-semibold">{cv.fileName}</p>
-                                            <p className="text-sm text-muted-foreground mb-4">PDF cannot be edited directly.</p>
-                                            <Button variant="outline" onClick={() => {
-                                                setCv({ content: '' });
+                    <TabsContent value="cv" className="mt-4 flex-1 flex flex-col">
+                        <Tabs defaultValue="editor" className="w-full flex-1 flex flex-col">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="editor">Your CV</TabsTrigger>
+                                <TabsTrigger value="analysis">AI Analysis & Rewrite</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="editor" className="mt-4 flex-1">
+                                <Card className="flex flex-col h-full">
+                                    <CardHeader>
+                                        <CardTitle>Your CV</CardTitle>
+                                        <CardDescription>Edit your CV here. When ready, click &quot;Improve CV&quot;.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-1 relative">
+                                        <Textarea 
+                                            className="h-full min-h-[400px] resize-none" 
+                                            value={cv.dataUri ? '' : cv.content} 
+                                            onChange={e => {
+                                                setCv({ content: e.target.value });
                                                 setIsCvDirty(true);
-                                            }}>Clear and start over</Button>
-                                        </div>
-                                    )}
-                               </CardContent>
-                               <CardFooter className="justify-between">
-                                    <p className="text-sm text-muted-foreground">{cv.content?.split(/\s+/).filter(Boolean).length || 0} words</p>
-                                    <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
-                                        {isImprovingCv && <Loader2 className="mr-2 animate-spin" />}
-                                        Improve CV
-                                    </Button>
-                               </CardFooter>
-                            </Card>
-                             <Card className="flex flex-col">
-                               <CardHeader>
-                                   <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Analysis & Rewrite</CardTitle>
-                                   <CardDescription>Here is the AI&apos;s feedback and suggested rewrite.</CardDescription>
-                               </CardHeader>
-                               <CardContent className="flex-1 relative">
-                                    {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
-                                    {cvResult ? (
-                                        <div className="space-y-6 h-full overflow-y-auto">
-                                            <div>
-                                                <h3 className="font-semibold mb-2">Critique</h3>
-                                                <p className="text-sm text-muted-foreground">{cvResult.critique}</p>
+                                            }}
+                                            disabled={!!cv.dataUri}
+                                        />
+                                        {cv.dataUri && (
+                                            <div className="absolute inset-0 m-1 p-6 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center rounded-md">
+                                                <FileText className="w-10 h-10 mb-2 text-primary"/>
+                                                <p className="font-semibold">{cv.fileName}</p>
+                                                <p className="text-sm text-muted-foreground mb-4">PDF cannot be edited directly.</p>
+                                                <Button variant="outline" onClick={() => {
+                                                    setCv({ content: '' });
+                                                    setIsCvDirty(true);
+                                                }}>Clear and start over</Button>
                                             </div>
-                                             <div>
-                                                <h3 className="font-semibold mb-2">Rewritten Experience</h3>
-                                                <div className="prose prose-sm dark:prose-invert max-w-none p-4 border rounded-md h-64 overflow-y-auto">
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.rewrittenExperience}</ReactMarkdown>
+                                        )}
+                                    </CardContent>
+                                    <CardFooter className="justify-between">
+                                        <p className="text-sm text-muted-foreground">{cv.content?.split(/\s+/).filter(Boolean).length || 0} words</p>
+                                        <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
+                                            {isImprovingCv && <Loader2 className="mr-2 animate-spin" />}
+                                            Improve CV
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value="analysis" className="mt-4 flex-1">
+                                <Card className="flex flex-col h-full">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Analysis & Rewrite</CardTitle>
+                                        <CardDescription>Here is the AI&apos;s feedback and suggested rewrite.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-1 relative">
+                                        {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
+                                        {cvResult ? (
+                                            <div className="space-y-6 h-full overflow-y-auto">
+                                                <div>
+                                                    <h3 className="font-semibold mb-2">Critique</h3>
+                                                    <p className="text-sm text-muted-foreground">{cvResult.critique}</p>
                                                 </div>
-                                                <Button variant="outline" size="sm" className="mt-2" onClick={() => downloadCv(cvResult.rewrittenExperience)}><Download className="mr-2"/>Download</Button>
+                                                <div>
+                                                    <h3 className="font-semibold mb-2">Rewritten Experience</h3>
+                                                    <div className="prose prose-sm dark:prose-invert max-w-none p-4 border rounded-md h-64 overflow-y-auto">
+                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.rewrittenExperience}</ReactMarkdown>
+                                                    </div>
+                                                    <Button variant="outline" size="sm" className="mt-2" onClick={() => downloadCv(cvResult.rewrittenExperience)}><Download className="mr-2"/>Download</Button>
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold mb-2">Skill Gap Analysis</h3>
+                                                    <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                                                        {cvResult.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}
+                                                    </ul>
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold mb-2">Action Plan</h3>
+                                                    <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                                                        {cvResult.actionPlan.map((s, i) => <li key={i}>{s}</li>)}
+                                                    </ul>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="font-semibold mb-2">Skill Gap Analysis</h3>
-                                                <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                                                    {cvResult.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}
-                                                </ul>
+                                        ) : !isImprovingCv && (
+                                            <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
+                                                <BrainCircuit className="w-12 h-12 mb-4" />
+                                                <p>Your CV analysis will appear here.</p>
                                             </div>
-                                             <div>
-                                                <h3 className="font-semibold mb-2">Action Plan</h3>
-                                                 <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                                                    {cvResult.actionPlan.map((s, i) => <li key={i}>{s}</li>)}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    ) : !isImprovingCv && (
-                                        <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
-                                            <BrainCircuit className="w-12 h-12 mb-4" />
-                                            <p>Your CV analysis will appear here.</p>
-                                        </div>
-                                    )}
-                               </CardContent>
-                            </Card>
-                        </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
                     </TabsContent>
 
                     <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
@@ -663,5 +673,3 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
         </Card>
     );
 }
-
-    
