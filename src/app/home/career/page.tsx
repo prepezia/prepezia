@@ -108,10 +108,7 @@ function CareerPage() {
     const handleStartOver = () => {
         localStorage.removeItem('learnwithtemi_career_onboarded');
         localStorage.removeItem('learnwithtemi_cv');
-        localStorage.removeItem('learnwithtemi_goals');
-        localStorage.removeItem('learnwithtemi_onboarding_progress');
         setCv({ content: "" });
-        setCareerGoals("");
         setView("onboarding");
     }
 
@@ -480,15 +477,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                     <CardContent className="flex-1 relative">
                                         {cv.dataUri ? (
                                             <div className="h-full min-h-[400px] flex flex-col">
-                                                <iframe src={cv.dataUri} className="w-full h-full flex-1 rounded-md border" title={cv.fileName}>
+                                                <object data={cv.dataUri} type="application/pdf" className="w-full h-full flex-1 rounded-md border">
                                                     <p>Your browser does not support PDFs. Please download the PDF to view it: <a href={cv.dataUri}>Download PDF</a>.</p>
-                                                </iframe>
+                                                </object>
                                                 <div className="flex items-center justify-between mt-2">
                                                     <p className="font-semibold text-sm">{cv.fileName}</p>
-                                                    <Button variant="outline" size="sm" onClick={() => {
-                                                        setCv({ content: '' });
-                                                        setIsCvDirty(true);
-                                                    }}>Clear and start over</Button>
+                                                    <Button variant="outline" size="sm" onClick={backToOnboarding}>Clear and start over</Button>
                                                 </div>
                                             </div>
                                         ) : (
