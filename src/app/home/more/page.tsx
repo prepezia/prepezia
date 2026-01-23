@@ -22,7 +22,7 @@ export default function MorePage() {
         <div className="space-y-8">
             <Card className="p-8 md:p-12 bg-secondary rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
                  <div className="grid md:grid-cols-2 gap-8 items-center">
-                    <div className="relative h-32 w-32 md:h-48 md:w-48 md:order-2 md:ml-auto">
+                    <div className="relative h-16 w-16 md:h-48 md:w-48 md:order-2 md:ml-auto">
                        <Image
                             src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fcareer-path_12343398.png?alt=media&token=3d6bcbf8-ed24-40df-be03-0cec15031963"
                             alt="Career Path Icon"
@@ -46,7 +46,7 @@ export default function MorePage() {
 
             <Card className="p-8 md:p-12 bg-blue-50 dark:bg-blue-900/50 rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800 max-w-4xl mx-auto">
                  <div className="grid md:grid-cols-2 gap-8 items-center">
-                    <div className="relative h-32 w-32 md:h-48 md:w-48">
+                    <div className="relative h-16 w-16 md:h-48 md:w-48">
                        <Image
                             src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fadmissions.png?alt=media&token=ee0a0794-32d2-4915-832a-da35ad25375a"
                             alt="Admissions Hub Icon"
