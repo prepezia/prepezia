@@ -68,40 +68,16 @@ export default function DashboardPage() {
 
         <div className="space-y-8">
           <h2 className="text-2xl font-headline font-bold text-center">Get Started</h2>
-          <Tabs defaultValue="study" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-secondary max-w-lg mx-auto">
-                <TabsTrigger value="study">Study</TabsTrigger>
-                <TabsTrigger value="career">Career</TabsTrigger>
-            </TabsList>
-            <TabsContent value="study" className="pt-16">
-                <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
-                  {features.map(feature => (
-                      <HomeFeatureCard
-                        key={feature.title}
-                        {...feature}
-                      />
-                  ))}
-                </div>
-            </TabsContent>
-            <TabsContent value="career" className="mt-8">
-                <div className="text-center p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed">
-                    <div className="max-w-md mx-auto">
-                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
-                            <Briefcase className="w-8 h-8" />
-                        </div>
-                        <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
-                        <p className="mt-4 text-muted-foreground">
-                            Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
-                        </p>
-                        <Button asChild size="lg" className="mt-8 font-bold">
-                            <Link href="/home/career">
-                                Go to Career Hub <ArrowRight className="ml-2 w-5 h-5" />
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-            </TabsContent>
-        </Tabs>
+          <div className="pt-8">
+            <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
+              {features.map(feature => (
+                  <HomeFeatureCard
+                    key={feature.title}
+                    {...feature}
+                  />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </>
