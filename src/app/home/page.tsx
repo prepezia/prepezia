@@ -80,10 +80,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-8 pt-16">
-          <div className="text-center">
-            <h2 className="text-2xl font-headline font-bold text-center">Career Hub</h2>
-            <p className="mt-2 text-muted-foreground">Tools to accelerate your professional journey.</p>
-          </div>
           <div className="text-center p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
               <div className="max-w-md mx-auto">
                   <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
