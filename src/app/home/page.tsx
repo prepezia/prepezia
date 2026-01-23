@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Search, Briefcase } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -66,7 +66,7 @@ export default function DashboardPage() {
           </div>
 
         <div className="space-y-8">
-          <h2 className="text-2xl font-headline font-bold text-center">Get Started</h2>
+          <h2 className="text-2xl font-headline font-bold">Get Started</h2>
           <div className="pt-8">
             <div className="grid gap-x-6 gap-y-16 grid-cols-2 lg:grid-cols-3">
               {features.map(feature => (
@@ -80,22 +80,26 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-8 pt-16">
-          <div className="text-center p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
-              <div className="max-w-md mx-auto">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
-                      <Briefcase className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
-                  <p className="mt-4 text-muted-foreground">
-                      Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
-                  </p>
-                  <Button asChild size="lg" className="mt-8 font-bold">
-                      <Link href="/home/career">
-                          Go to Career Hub <ArrowRight className="ml-2 w-5 h-5" />
-                      </Link>
-                  </Button>
-              </div>
-          </div>
+            <div className="relative overflow-hidden p-8 md:p-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
+                <Image
+                    src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fcareer-path_12343398.png?alt=media&token=3d6bcbf8-ed24-40df-be03-0cec15031963"
+                    alt="Career Path Icon"
+                    width={128}
+                    height={128}
+                    className="absolute -top-4 -right-4 w-32 h-32 text-primary opacity-20 md:opacity-30"
+                />
+                <div className="max-w-md relative">
+                    <h3 className="text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
+                    <p className="mt-4 text-muted-foreground">
+                        Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
+                    </p>
+                    <Button asChild size="lg" className="mt-8 font-bold">
+                        <Link href="/home/career">
+                            Go to Career Hub <ArrowRight className="ml-2 w-5 h-5" />
+                        </Link>
+                    </Button>
+                </div>
+            </div>
         </div>
       </div>
     </>
