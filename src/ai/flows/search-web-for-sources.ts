@@ -27,32 +27,34 @@ const SearchWebForSourcesOutputSchema = z.object({
 });
 export type SearchWebForSourcesOutput = z.infer<typeof SearchWebForSourcesOutputSchema>;
 
+let searchWebForSourcesFlow: any;
 
 export async function searchWebForSources(input: SearchWebForSourcesInput): Promise<SearchWebForSourcesOutput> {
-  return searchWebForSourcesFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'searchWebForSourcesPrompt',
-  input: {schema: SearchWebForSourcesInputSchema},
-  output: {schema: SearchWebForSourcesOutputSchema},
-  prompt: `You are an expert research assistant. Your task is to find relevant and high-quality online resources for a given topic.
+  if (!searchWebForSourcesFlow) {
+    const prompt = ai.definePrompt({
+      name: 'searchWebForSourcesPrompt',
+      input: {schema: SearchWebForSourcesInputSchema},
+      output: {schema: SearchWebForSourcesOutputSchema},
+      prompt: `You are an expert research assistant. Your task is to find relevant and high-quality online resources for a given topic.
 
   Search Query: {{{query}}}
 
   Please find 3-5 relevant resources (articles, videos, documentation, etc.). For each resource, provide a title, a valid URL, and a concise snippet.
   Ensure the URLs are real and lead to relevant content.
   `,
-});
+    });
 
-const searchWebForSourcesFlow = ai.defineFlow(
-  {
-    name: 'searchWebForSourcesFlow',
-    inputSchema: SearchWebForSourcesInputSchema,
-    outputSchema: SearchWebForSourcesOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+    searchWebForSourcesFlow = ai.defineFlow(
+      {
+        name: 'searchWebForSourcesFlow',
+        inputSchema: SearchWebForSourcesInputSchema,
+        outputSchema: SearchWebForSourcesOutputSchema,
+      },
+      async input => {
+        const {output} = await prompt(input);
+        return output!;
+      }
+    );
   }
-);
+  return searchWebForSourcesFlow(input);
+}

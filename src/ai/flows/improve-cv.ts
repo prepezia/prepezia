@@ -26,15 +26,15 @@ const ImproveCvOutputSchema = z.object({
 });
 export type ImproveCvOutput = z.infer<typeof ImproveCvOutputSchema>;
 
-export async function improveCv(input: ImproveCvInput): Promise<ImproveCvOutput> {
-  return improveCvFlow(input);
-}
+let improveCvFlow: any;
 
-const improveCvPrompt = ai.definePrompt({
-  name: 'improveCvPrompt',
-  input: {schema: ImproveCvInputSchema},
-  output: {schema: ImproveCvOutputSchema},
-  prompt: `You are an expert Senior Technical Recruiter and Career Coach with 20 years of experience in talent acquisition for Fortune 500 companies and high-growth startups. Your goal is to transform the user's CV into a high-performance document that passes ATS filters and impresses human recruiters.
+export async function improveCv(input: ImproveCvInput): Promise<ImproveCvOutput> {
+  if (!improveCvFlow) {
+    const improveCvPrompt = ai.definePrompt({
+      name: 'improveCvPrompt',
+      input: {schema: ImproveCvInputSchema},
+      output: {schema: ImproveCvOutputSchema},
+      prompt: `You are an expert Senior Technical Recruiter and Career Coach with 20 years of experience in talent acquisition for Fortune 500 companies and high-growth startups. Your goal is to transform the user's CV into a high-performance document that passes ATS filters and impresses human recruiters.
 
 ### YOUR RULES:
 1.  QUANTIFY IMPACT: Every bullet point should try to follow the Google "XYZ Formula": "Accomplished [X] as measured by [Y], by doing [Z]."
@@ -69,16 +69,19 @@ Target Job Description:
 \`\`\`
 {{/if}}
 `,
-});
+    });
 
-const improveCvFlow = ai.defineFlow(
-  {
-    name: 'improveCvFlow',
-    inputSchema: ImproveCvInputSchema,
-    outputSchema: ImproveCvOutputSchema,
-  },
-  async input => {
-    const {output} = await improveCvPrompt(input);
-    return output!;
+    improveCvFlow = ai.defineFlow(
+      {
+        name: 'improveCvFlow',
+        inputSchema: ImproveCvInputSchema,
+        outputSchema: ImproveCvOutputSchema,
+      },
+      async input => {
+        const {output} = await improveCvPrompt(input);
+        return output!;
+      }
+    );
   }
-);
+  return improveCvFlow(input);
+}

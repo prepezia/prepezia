@@ -24,15 +24,15 @@ const CareerAdviceOutputSchema = z.object({
 });
 export type CareerAdviceOutput = z.infer<typeof CareerAdviceOutputSchema>;
 
-export async function getCareerAdvice(input: CareerAdviceInput): Promise<CareerAdviceOutput> {
-  return careerAdvisorFlow(input);
-}
+let careerAdvisorFlow: any;
 
-const careerAdvisorPrompt = ai.definePrompt({
-  name: 'careerAdvisorPrompt',
-  input: {schema: CareerAdviceInputSchema},
-  output: {schema: CareerAdviceOutputSchema},
-  prompt: `You are a Dual-Path Career and Academic Strategist. Your expertise lies in analyzing professional backgrounds and mapping out the most efficient educational and career trajectories.
+export async function getCareerAdvice(input: CareerAdviceInput): Promise<CareerAdviceOutput> {
+  if (!careerAdvisorFlow) {
+    const careerAdvisorPrompt = ai.definePrompt({
+      name: 'careerAdvisorPrompt',
+      input: {schema: CareerAdviceInputSchema},
+      output: {schema: CareerAdviceOutputSchema},
+      prompt: `You are a Dual-Path Career and Academic Strategist. Your expertise lies in analyzing professional backgrounds and mapping out the most efficient educational and career trajectories.
 
 ### OBJECTIVE:
 Analyze the user's current CV/background and their stated career objectives to provide a multi-layered growth strategy.
@@ -63,16 +63,19 @@ User's Career Objectives:
 {{{careerObjectives}}}
 \`\`\`
 `,
-});
+    });
 
-const careerAdvisorFlow = ai.defineFlow(
-  {
-    name: 'careerAdvisorFlow',
-    inputSchema: CareerAdviceInputSchema,
-    outputSchema: CareerAdviceOutputSchema,
-  },
-  async input => {
-    const {output} = await careerAdvisorPrompt(input);
-    return output!;
+    careerAdvisorFlow = ai.defineFlow(
+      {
+        name: 'careerAdvisorFlow',
+        inputSchema: CareerAdviceInputSchema,
+        outputSchema: CareerAdviceOutputSchema,
+      },
+      async input => {
+        const {output} = await careerAdvisorPrompt(input);
+        return output!;
+      }
+    );
   }
-);
+  return careerAdvisorFlow(input);
+}

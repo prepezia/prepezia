@@ -31,67 +31,71 @@ export type GeneratePodcastFromSourcesOutput = z.infer<
   typeof GeneratePodcastFromSourcesOutputSchema
 >;
 
+let generatePodcastFromSourcesFlow: any;
+
 export async function generatePodcastFromSources(
   input: GeneratePodcastFromSourcesInput
 ): Promise<GeneratePodcastFromSourcesOutput> {
-  return generatePodcastFromSourcesFlow(input);
-}
-
-const podcastScriptPrompt = ai.definePrompt({
-  name: 'podcastScriptPrompt',
-  input: {schema: GeneratePodcastFromSourcesInputSchema},
-  output: {schema: z.string()},
-  prompt: `Act as two hosts, Temi (energetic, lead) and Jay (analytical, supporting). Turn the following uploaded sources into a 10-minute \"Deep Dive\" conversation. Use banter, analogies, and frequent affirmations like \"Exactly\" or \"Right.\" Start with: \"Hey everyone, welcome back to Learn with Temi!\" Output the script in JSON format with speaker tags.\n\nSources:\n{{#each sources}}- {{{this}}}\n{{/each}}`,
-});
-
-const generatePodcastFromSourcesFlow = ai.defineFlow(
-  {
-    name: 'generatePodcastFromSourcesFlow',
-    inputSchema: GeneratePodcastFromSourcesInputSchema,
-    outputSchema: GeneratePodcastFromSourcesOutputSchema,
-  },
-  async input => {
-    const {output: podcastScript} = await podcastScriptPrompt(input);
-
-    const ttsPrompt = podcastScript!.toString();
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-preview-tts',
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          multiSpeakerVoiceConfig: {
-            speakerVoiceConfigs: [
-              {
-                speaker: 'Temi',
-                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Algenib'}},
-              },
-              {
-                speaker: 'Jay',
-                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}},
-              },
-            ],
-          },
-        },
-      },
-      prompt: ttsPrompt,
+  if (!generatePodcastFromSourcesFlow) {
+    const podcastScriptPrompt = ai.definePrompt({
+      name: 'podcastScriptPrompt',
+      input: {schema: GeneratePodcastFromSourcesInputSchema},
+      output: {schema: z.string()},
+      prompt: `Act as two hosts, Temi (energetic, lead) and Jay (analytical, supporting). Turn the following uploaded sources into a 10-minute \"Deep Dive\" conversation. Use banter, analogies, and frequent affirmations like \"Exactly\" or \"Right.\" Start with: \"Hey everyone, welcome back to Learn with Temi!\" Output the script in JSON format with speaker tags.\n\nSources:\n{{#each sources}}- {{{this}}}\n{{/each}}`,
     });
 
-    if (!media) {
-      throw new Error('no media returned');
-    }
+    generatePodcastFromSourcesFlow = ai.defineFlow(
+      {
+        name: 'generatePodcastFromSourcesFlow',
+        inputSchema: GeneratePodcastFromSourcesInputSchema,
+        outputSchema: GeneratePodcastFromSourcesOutputSchema,
+      },
+      async input => {
+        const {output: podcastScript} = await podcastScriptPrompt(input);
 
-    const audioBuffer = Buffer.from(
-      media.url.substring(media.url.indexOf(',') + 1),
-      'base64'
+        const ttsPrompt = podcastScript!.toString();
+        const {media} = await ai.generate({
+          model: 'googleai/gemini-2.5-flash-preview-tts',
+          config: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: [
+                  {
+                    speaker: 'Temi',
+                    voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Algenib'}},
+                  },
+                  {
+                    speaker: 'Jay',
+                    voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}},
+                  },
+                ],
+              },
+            },
+          },
+          prompt: ttsPrompt,
+        });
+
+        if (!media) {
+          throw new Error('no media returned');
+        }
+
+        const audioBuffer = Buffer.from(
+          media.url.substring(media.url.indexOf(',') + 1),
+          'base64'
+        );
+        const podcastAudio = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
+
+        return {
+          podcastScript: podcastScript!,
+          podcastAudio: podcastAudio,
+        };
+      }
     );
-    const podcastAudio = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
-
-    return {
-      podcastScript: podcastScript!,
-      podcastAudio: podcastAudio,
-    };
   }
-);
+
+  return generatePodcastFromSourcesFlow(input);
+}
 
 async function toWav(
   pcmData: Buffer,

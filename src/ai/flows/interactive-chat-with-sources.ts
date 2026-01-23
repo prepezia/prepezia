@@ -28,15 +28,15 @@ const InteractiveChatWithSourcesOutputSchema = z.object({
 });
 export type InteractiveChatWithSourcesOutput = z.infer<typeof InteractiveChatWithSourcesOutputSchema>;
 
-export async function interactiveChatWithSources(input: InteractiveChatWithSourcesInput): Promise<InteractiveChatWithSourcesOutput> {
-  return interactiveChatWithSourcesFlow(input);
-}
+let interactiveChatWithSourcesFlow: any;
 
-const prompt = ai.definePrompt({
-  name: 'interactiveChatWithSourcesPrompt',
-  input: {schema: InteractiveChatWithSourcesInputSchema},
-  output: {schema: InteractiveChatWithSourcesOutputSchema},
-  prompt: `You are TEMI, an AI chatbot that answers questions based on the provided sources only.  You must cite your sources.
+export async function interactiveChatWithSources(input: InteractiveChatWithSourcesInput): Promise<InteractiveChatWithSourcesOutput> {
+  if (!interactiveChatWithSourcesFlow) {
+    const prompt = ai.definePrompt({
+      name: 'interactiveChatWithSourcesPrompt',
+      input: {schema: InteractiveChatWithSourcesInputSchema},
+      output: {schema: InteractiveChatWithSourcesOutputSchema},
+      prompt: `You are TEMI, an AI chatbot that answers questions based on the provided sources only.  You must cite your sources.
 
 Sources:
 {{#each sources}}
@@ -50,16 +50,19 @@ Sources:
 Question: {{{question}}}
 
 Answer:`, 
-});
+    });
 
-const interactiveChatWithSourcesFlow = ai.defineFlow(
-  {
-    name: 'interactiveChatWithSourcesFlow',
-    inputSchema: InteractiveChatWithSourcesInputSchema,
-    outputSchema: InteractiveChatWithSourcesOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+    interactiveChatWithSourcesFlow = ai.defineFlow(
+      {
+        name: 'interactiveChatWithSourcesFlow',
+        inputSchema: InteractiveChatWithSourcesInputSchema,
+        outputSchema: InteractiveChatWithSourcesOutputSchema,
+      },
+      async input => {
+        const {output} = await prompt(input);
+        return output!;
+      }
+    );
   }
-);
+  return interactiveChatWithSourcesFlow(input);
+}

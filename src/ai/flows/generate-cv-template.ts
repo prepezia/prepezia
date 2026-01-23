@@ -25,15 +25,15 @@ const GenerateCvTemplateOutputSchema = z.object({
 });
 export type GenerateCvTemplateOutput = z.infer<typeof GenerateCvTemplateOutputSchema>;
 
-export async function generateCvTemplate(input: GenerateCvTemplateInput): Promise<GenerateCvTemplateOutput> {
-  return generateCvTemplateFlow(input);
-}
+let generateCvTemplateFlow: any;
 
-const prompt = ai.definePrompt({
-  name: 'generateCvTemplatePrompt',
-  input: {schema: GenerateCvTemplateInputSchema},
-  output: {schema: GenerateCvTemplateOutputSchema},
-  prompt: `You are a CV writing assistant. Your task is to generate a clean, professional, and editable CV template in Markdown format based on the user's information.
+export async function generateCvTemplate(input: GenerateCvTemplateInput): Promise<GenerateCvTemplateOutput> {
+  if (!generateCvTemplateFlow) {
+    const prompt = ai.definePrompt({
+      name: 'generateCvTemplatePrompt',
+      input: {schema: GenerateCvTemplateInputSchema},
+      output: {schema: GenerateCvTemplateOutputSchema},
+      prompt: `You are a CV writing assistant. Your task is to generate a clean, professional, and editable CV template in Markdown format based on the user's information.
 
 The template should include the following sections:
 -   Contact Information
@@ -50,16 +50,19 @@ User Information:
 -   Target Role: {{{careerGoal}}}
 
 Generate a template that is easy to read and edit. Use clear headings and bullet points. The objective should be tailored to the user's target role.`,
-});
+    });
 
-const generateCvTemplateFlow = ai.defineFlow(
-  {
-    name: 'generateCvTemplateFlow',
-    inputSchema: GenerateCvTemplateInputSchema,
-    outputSchema: GenerateCvTemplateOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+    generateCvTemplateFlow = ai.defineFlow(
+      {
+        name: 'generateCvTemplateFlow',
+        inputSchema: GenerateCvTemplateInputSchema,
+        outputSchema: GenerateCvTemplateOutputSchema,
+      },
+      async input => {
+        const {output} = await prompt(input);
+        return output!;
+      }
+    );
   }
-);
+  return generateCvTemplateFlow(input);
+}

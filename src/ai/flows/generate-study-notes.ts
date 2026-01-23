@@ -28,17 +28,17 @@ const GenerateStudyNotesOutputSchema = z.object({
 
 export type GenerateStudyNotesOutput = z.infer<typeof GenerateStudyNotesOutputSchema>;
 
+let generateStudyNotesFlow: any;
+
 export async function generateStudyNotes(
   input: GenerateStudyNotesInput
 ): Promise<GenerateStudyNotesOutput> {
-  return generateStudyNotesFlow(input);
-}
-
-const generateStudyNotesPrompt = ai.definePrompt({
-  name: 'generateStudyNotesPrompt',
-  input: {schema: GenerateStudyNotesInputSchema},
-  output: {schema: GenerateStudyNotesOutputSchema},
-  prompt: `You are an expert tutor, skilled in generating study notes for any given topic and academic level.
+  if (!generateStudyNotesFlow) {
+    const generateStudyNotesPrompt = ai.definePrompt({
+      name: 'generateStudyNotesPrompt',
+      input: {schema: GenerateStudyNotesInputSchema},
+      output: {schema: GenerateStudyNotesOutputSchema},
+      prompt: `You are an expert tutor, skilled in generating study notes for any given topic and academic level.
 
   Generate study notes for the topic: {{{topic}}}.
   The academic level is: {{{academicLevel}}}.
@@ -46,16 +46,19 @@ const generateStudyNotesPrompt = ai.definePrompt({
   The study notes should be in various formats, including text, audio, video, and graphics, as appropriate for the topic and level.
   Include links to resources for audio, video and graphics.
   The generated notes should be well-organized, accurate, and easy to understand. Focus on quality content over length.`,
-});
+    });
 
-const generateStudyNotesFlow = ai.defineFlow(
-  {
-    name: 'generateStudyNotesFlow',
-    inputSchema: GenerateStudyNotesInputSchema,
-    outputSchema: GenerateStudyNotesOutputSchema,
-  },
-  async input => {
-    const {output} = await generateStudyNotesPrompt(input);
-    return output!;
+    generateStudyNotesFlow = ai.defineFlow(
+      {
+        name: 'generateStudyNotesFlow',
+        inputSchema: GenerateStudyNotesInputSchema,
+        outputSchema: GenerateStudyNotesOutputSchema,
+      },
+      async input => {
+        const {output} = await generateStudyNotesPrompt(input);
+        return output!;
+      }
+    );
   }
-);
+  return generateStudyNotesFlow(input);
+}

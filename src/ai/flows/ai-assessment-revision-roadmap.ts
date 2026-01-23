@@ -25,15 +25,15 @@ const AiAssessmentRevisionRoadmapOutputSchema = z.object({
 });
 export type AiAssessmentRevisionRoadmapOutput = z.infer<typeof AiAssessmentRevisionRoadmapOutputSchema>;
 
-export async function aiAssessmentRevisionRoadmap(input: AiAssessmentRevisionRoadmapInput): Promise<AiAssessmentRevisionRoadmapOutput> {
-  return aiAssessmentRevisionRoadmapFlow(input);
-}
+let aiAssessmentRevisionRoadmapFlow: any;
 
-const prompt = ai.definePrompt({
-  name: 'aiAssessmentRevisionRoadmapPrompt',
-  input: {schema: AiAssessmentRevisionRoadmapInputSchema},
-  output: {schema: AiAssessmentRevisionRoadmapOutputSchema},
-  prompt: `You are an AI assessment tool designed to analyze student exam performance and generate personalized revision roadmaps.
+export async function aiAssessmentRevisionRoadmap(input: AiAssessmentRevisionRoadmapInput): Promise<AiAssessmentRevisionRoadmapOutput> {
+  if (!aiAssessmentRevisionRoadmapFlow) {
+    const prompt = ai.definePrompt({
+      name: 'aiAssessmentRevisionRoadmapPrompt',
+      input: {schema: AiAssessmentRevisionRoadmapInputSchema},
+      output: {schema: AiAssessmentRevisionRoadmapOutputSchema},
+      prompt: `You are an AI assessment tool designed to analyze student exam performance and generate personalized revision roadmaps.
 
   Analyze the following exam results:
   {{examResults}}
@@ -54,27 +54,30 @@ const prompt = ai.definePrompt({
   Ensure that the revision roadmap contain links to online revision resources.
   The revision roadmap should cover important areas of improvement, list possible reasons for poor performance and how the student can overcome these issues.
   `,config: {
-    safetySettings: [
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_ONLY_HIGH',
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+        ],
       },
-      {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_ONLY_HIGH',
-      },
-    ],
-  },
-});
+    });
 
-const aiAssessmentRevisionRoadmapFlow = ai.defineFlow(
-  {
-    name: 'aiAssessmentRevisionRoadmapFlow',
-    inputSchema: AiAssessmentRevisionRoadmapInputSchema,
-    outputSchema: AiAssessmentRevisionRoadmapOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+    aiAssessmentRevisionRoadmapFlow = ai.defineFlow(
+      {
+        name: 'aiAssessmentRevisionRoadmapFlow',
+        inputSchema: AiAssessmentRevisionRoadmapInputSchema,
+        outputSchema: AiAssessmentRevisionRoadmapOutputSchema,
+      },
+      async input => {
+        const {output} = await prompt(input);
+        return output!;
+      }
+    );
   }
-);
+  return aiAssessmentRevisionRoadmapFlow(input);
+}
