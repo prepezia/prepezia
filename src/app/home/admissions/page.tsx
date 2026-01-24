@@ -159,14 +159,16 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
             return;
         }
 
-        const reader = new FileReader();
-        reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-
         if (file.type === 'application/pdf') {
-            reader.onload = (e) => onCompleted({ dataUri: e.target?.result as string, fileName: file.name }, goals);
-            reader.readAsDataURL(file);
+            const blobUrl = URL.createObjectURL(file);
+            onCompleted({ dataUri: blobUrl, fileName: file.name }, goals);
         } else {
-            reader.onload = (e) => onCompleted({ content: e.target?.result as string, fileName: file.name }, goals);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target?.result as string;
+                onCompleted({ content: content, fileName: file.name }, goals);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
             reader.readAsText(file);
         }
     };
@@ -486,3 +488,5 @@ function AdmissionsAdviceCard({ result }: { result: GetAdmissionsAdviceOutput })
         </Card>
     );
 }
+
+    

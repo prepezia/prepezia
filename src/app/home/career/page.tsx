@@ -168,25 +168,21 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
             return;
         }
 
-        const reader = new FileReader();
-        reader.onerror = () => {
-            toast({
-                variant: 'destructive',
-                title: 'File Read Error',
-                description: 'Could not read the selected file.',
-            });
-        };
-
         if (file.type === 'application/pdf') {
-            reader.onload = (e) => {
-                const dataUri = e.target?.result as string;
-                onCompleted({ dataUri: dataUri, fileName: file.name }, goals);
-            };
-            reader.readAsDataURL(file);
+            const blobUrl = URL.createObjectURL(file);
+            onCompleted({ dataUri: blobUrl, fileName: file.name }, goals);
         } else {
+            const reader = new FileReader();
             reader.onload = (e) => {
                 const content = e.target?.result as string;
                 onCompleted({ content: content, fileName: file.name }, goals);
+            };
+            reader.onerror = () => {
+                toast({
+                    variant: 'destructive',
+                    title: 'File Read Error',
+                    description: 'Could not read the selected file.',
+                });
             };
             reader.readAsText(file);
         }
@@ -679,3 +675,5 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
         </Card>
     );
 }
+
+    
