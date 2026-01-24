@@ -19,8 +19,8 @@ export default function MorePage() {
           </p>
         </div>
 
-        <div className="space-y-8">
-            <Card className="p-8 md:p-12 bg-secondary rounded-2xl border-2 border-dashed max-w-4xl mx-auto">
+        <div className="grid grid-cols-2 gap-4 md:block md:space-y-8">
+            <Card className="p-8 md:p-12 bg-secondary rounded-2xl border-2 border-dashed h-full">
                  <div className="grid md:grid-cols-2 gap-8 items-center">
                     <div className="relative h-20 w-20 md:h-48 md:w-48 md:order-2 md:ml-auto">
                        <Image
@@ -44,7 +44,7 @@ export default function MorePage() {
                 </div>
             </Card>
 
-            <Card className="p-8 md:p-12 bg-blue-50 dark:bg-blue-900/50 rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800 max-w-4xl mx-auto">
+            <Card className="p-8 md:p-12 bg-blue-50 dark:bg-blue-900/50 rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800 h-full">
                  <div className="grid md:grid-cols-2 gap-8 items-center">
                     <div className="relative h-20 w-20 md:h-48 md:w-48">
                        <Image
