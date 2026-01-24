@@ -14,7 +14,7 @@ import {z} from 'genkit';
 const GenerateStudyNotesInputSchema = z.object({
   topic: z.string().describe('The topic for which to generate study notes.'),
   academicLevel: z
-    .enum(['Beginner', 'Intermediate', 'Expert'])
+    .enum(['Beginner', 'Intermediate', 'Expert', 'Undergraduate', 'Masters', 'PhD'])
     .describe('The academic level of the study notes.'),
 });
 
@@ -51,7 +51,6 @@ export async function generateStudyNotes(
         name: 'generateStudyNotesFlow',
         inputSchema: GenerateStudyNotesInputSchema,
         outputSchema: GenerateStudyNotesOutputSchema,
-        retries: 3,
       },
       async input => {
         const {output} = await generateStudyNotesPrompt(input);

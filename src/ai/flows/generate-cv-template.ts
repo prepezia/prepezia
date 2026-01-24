@@ -57,7 +57,6 @@ Generate a template that is easy to read and edit. Use clear headings and bullet
         name: 'generateCvTemplateFlow',
         inputSchema: GenerateCvTemplateInputSchema,
         outputSchema: GenerateCvTemplateOutputSchema,
-        retries: 3,
       },
       async input => {
         const {output} = await prompt(input);

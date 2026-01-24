@@ -49,7 +49,6 @@ export async function generatePodcastFromSources(
         name: 'generatePodcastFromSourcesFlow',
         inputSchema: GeneratePodcastFromSourcesInputSchema,
         outputSchema: GeneratePodcastFromSourcesOutputSchema,
-        retries: 3,
       },
       async input => {
         const {output: podcastScript} = await podcastScriptPrompt(input);

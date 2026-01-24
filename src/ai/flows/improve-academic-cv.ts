@@ -54,7 +54,6 @@ User's CV:
       name: 'improveAcademicCvFlow',
       inputSchema: ImproveAcademicCvInputSchema,
       outputSchema: ImproveAcademicCvOutputSchema,
-      retries: 3,
     },
     async input => {
       const {output} = await improveAcademicCvPrompt(input);

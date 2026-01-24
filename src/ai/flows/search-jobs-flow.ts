@@ -65,7 +65,6 @@ Focus on jobs in Ghana if no location is specified. Ensure the URLs are real and
         name: 'searchForJobsFlow',
         inputSchema: SearchForJobsInputSchema,
         outputSchema: SearchForJobsOutputSchema,
-        retries: 3,
       },
       async input => {
         const {output} = await prompt(input);

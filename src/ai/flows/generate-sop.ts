@@ -62,7 +62,6 @@ Generate the SOP draft now.`,
       name: 'generateSopFlow',
       inputSchema: GenerateSopInputSchema,
       outputSchema: GenerateSopOutputSchema,
-      retries: 3,
     },
     async input => {
       const {output} = await generateSopPrompt(input);

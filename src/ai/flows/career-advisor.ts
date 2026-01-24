@@ -71,7 +71,6 @@ User's Career Objectives:
         name: 'careerAdvisorFlow',
         inputSchema: CareerAdviceInputSchema,
         outputSchema: CareerAdviceOutputSchema,
-        retries: 3,
       },
       async input => {
         const {output} = await careerAdvisorPrompt(input);

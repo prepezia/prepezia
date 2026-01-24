@@ -62,7 +62,6 @@ User's Academic Objectives:
       name: 'getAdmissionsAdviceFlow',
       inputSchema: GetAdmissionsAdviceInputSchema,
       outputSchema: GetAdmissionsAdviceOutputSchema,
-      retries: 3,
     },
     async input => {
       const {output} = await getAdmissionsAdvicePrompt(input);
