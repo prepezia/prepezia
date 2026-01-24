@@ -12,6 +12,7 @@ import { z } from 'genkit';
 const ImproveCvInputSchema = z.object({
   cvContent: z.string().optional().describe("The user's current CV content as plain text."),
   cvDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
+  cvContentType: z.string().optional().describe("The MIME type of the CV file."),
   careerGoals: z.string().optional().describe("The user's stated career goals."),
   jobDescription: z.string().optional().describe("A specific job description to tailor the CV to."),
 });
@@ -50,7 +51,7 @@ const improveCvPrompt = ai.definePrompt(
   4. ACTION PLAN: Provide 3 immediate steps.
   
   User's CV:
-  {{#if cvDataUri}}{{media url=cvDataUri}}{{else}}{{{cvContent}}}{{/if}}
+  {{#if cvDataUri}}{{media url=cvDataUri contentType=cvContentType}}{{else}}{{{cvContent}}}{{/if}}
   
   {{#if careerGoals}}
   User's Career Goals:

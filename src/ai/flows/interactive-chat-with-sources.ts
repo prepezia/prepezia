@@ -17,6 +17,7 @@ const InteractiveChatWithSourcesInputSchema = z.object({
       type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image']),
       url: z.string().optional(),
       dataUri: z.string().optional(),
+      contentType: z.string().optional(),
     })
   ).describe('A list of sources to use for answering questions.'),
   question: z.string().describe('The question to ask the AI.'),
@@ -41,7 +42,7 @@ export async function interactiveChatWithSources(input: InteractiveChatWithSourc
 Sources:
 {{#each sources}}
   {{#if dataUri}}
-    {{type}}: {{media url=dataUri}}
+    {{type}}: {{media url=dataUri contentType=contentType}}
   {{else if url}}
     {{type}}: {{url}}
   {{/if}}

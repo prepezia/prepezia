@@ -45,6 +45,7 @@ type Source = {
     name: string;
     url?: string;
     data?: string; // For file content or copied text
+    contentType?: string;
 };
 
 type ChatMessage = {
@@ -258,6 +259,7 @@ export default function StudySpacesPage() {
                 type,
                 url: s.url,
                 dataUri: s.data,
+                contentType: s.contentType,
             };
         });
 
@@ -268,9 +270,9 @@ export default function StudySpacesPage() {
 
         const assistantMessage: ChatMessage = { role: 'assistant', content: response.answer };
         setChatHistory(prev => [...prev, assistantMessage]);
-    } catch (e) {
+    } catch (e: any) {
         console.error("Chat error", e);
-        const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I couldn't process that request." };
+        const errorMessage: ChatMessage = { role: 'assistant', content: e.message || "Sorry, I couldn't process that request." };
         setChatHistory(prev => [...prev, errorMessage]);
     } finally {
         setIsChatLoading(false);
@@ -285,8 +287,9 @@ export default function StudySpacesPage() {
         const sourceUrls = sources.map(s => s.url).filter((url): url is string => !!url);
         const response = await generatePodcastFromSources({ sources: sourceUrls });
         setPodcast({ script: response.podcastScript, audio: response.podcastAudio });
-    } catch(e) {
+    } catch(e: any) {
         console.error("Podcast generation error", e);
+        toast({ variant: 'destructive', title: 'Podcast Generation Failed', description: e.message || 'Could not generate podcast.' });
     } finally {
         setIsPodcastLoading(false);
     }
@@ -673,7 +676,8 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
             const newSource: Source = {
                 type: 'image',
                 name: `Captured Image ${new Date().toLocaleString()}.jpg`,
-                data: capturedImage
+                data: capturedImage,
+                contentType: 'image/jpeg',
             };
             setSources(prev => [...prev, newSource]);
             handleCloseCameraModal();
@@ -733,7 +737,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                 fileType = 'pdf';
             }
 
-            const newSource: Source = { type: fileType, name: file.name, data: dataUri };
+            const newSource: Source = { type: fileType, name: file.name, data: dataUri, contentType: file.type };
             setSources(prev => [...prev, newSource]);
         };
         reader.readAsDataURL(file);
@@ -741,7 +745,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     
     const handleAddCopiedText = () => {
         if (!copiedText.trim()) return;
-        const newSource: Source = { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText };
+        const newSource: Source = { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText, contentType: 'text/plain' };
         setSources(prev => [...prev, newSource]);
         setCopiedText("");
         setIsTextModalOpen(false);
@@ -764,12 +768,12 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         try {
             const response = await searchWebForSources({ query: searchQuery });
             setSearchResults(response.results);
-        } catch (e) {
+        } catch (e: any) {
             console.error("Web search failed", e);
             toast({
                 variant: 'destructive',
                 title: 'Search Failed',
-                description: 'Could not fetch web results. Please try again.',
+                description: e.message || 'Could not fetch web results. Please try again.',
             });
         } finally {
             setIsSearching(false);
@@ -1132,7 +1136,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
                 fileType = 'pdf';
             }
 
-            const newSource: Source = { type: fileType, name: file.name, data: dataUri };
+            const newSource: Source = { type: fileType, name: file.name, data: dataUri, contentType: file.type };
             setSources(prev => [...prev, newSource]);
         };
         reader.readAsDataURL(file);
@@ -1140,7 +1144,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     
     const handleAddCopiedText = () => {
         if (!copiedText.trim()) return;
-        const newSource: Source = { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText };
+        const newSource: Source = { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText, contentType: 'text/plain' };
         setSources(prev => [...prev, newSource]);
         setCopiedText("");
         setIsTextModalOpen(false);
@@ -1163,12 +1167,12 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         try {
             const response = await searchWebForSources({ query: searchQuery });
             setSearchResults(response.results);
-        } catch (e) {
+        } catch (e: any) {
             console.error("Web search failed", e);
             toast({
                 variant: 'destructive',
                 title: 'Search Failed',
-                description: 'Could not fetch web results. Please try again.',
+                description: e.message || 'Could not fetch web results. Please try again.',
             });
         } finally {
             setIsSearching(false);

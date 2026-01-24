@@ -13,6 +13,7 @@ import {z} from 'genkit';
 const GetAdmissionsAdviceInputSchema = z.object({
   backgroundContent: z.string().optional().describe("The user's current CV or background information as plain text."),
   backgroundDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
+  backgroundContentType: z.string().optional().describe("The MIME type of the background file."),
   academicObjectives: z.string().describe("The user's stated academic objectives."),
 });
 export type GetAdmissionsAdviceInput = z.infer<typeof GetAdmissionsAdviceInputSchema>;
@@ -47,7 +48,7 @@ export async function getAdmissionsAdvice(input: GetAdmissionsAdviceInput): Prom
 
 User's Background/CV:
 \`\`\`
-{{#if backgroundDataUri}}{{media url=backgroundDataUri}}{{else}}{{{backgroundContent}}}{{/if}}
+{{#if backgroundDataUri}}{{media url=backgroundDataUri contentType=backgroundContentType}}{{else}}{{{backgroundContent}}}{{/if}}
 \`\`\`
 
 User's Academic Objectives:

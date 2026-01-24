@@ -14,6 +14,7 @@ import {z} from 'genkit';
 const SearchForJobsInputSchema = z.object({
   cvContent: z.string().optional().describe("The user's CV content as plain text."),
   cvDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
+  cvContentType: z.string().optional().describe("The MIME type of the CV file."),
   careerGoals: z.string().optional().describe("User's career goals."),
   location: z.string().optional().describe("Preferred job location (e.g., Accra, Ghana)."),
 });
@@ -44,7 +45,7 @@ export async function searchForJobs(input: SearchForJobsInput): Promise<SearchFo
 
 User's CV:
 \`\`\`
-{{#if cvDataUri}}{{media url=cvDataUri}}{{else}}{{{cvContent}}}{{/if}}
+{{#if cvDataUri}}{{media url=cvDataUri contentType=cvContentType}}{{else}}{{{cvContent}}}{{/if}}
 \`\`\`
 
 {{#if careerGoals}}

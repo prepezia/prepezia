@@ -14,6 +14,7 @@ import {z} from 'genkit';
 const GenerateSopInputSchema = z.object({
   cvContent: z.string().optional().describe("User's Academic CV content as plain text."),
   cvDataUri: z.string().optional().describe("A data URI of the user's Academic CV file (PDF or text)."),
+  cvContentType: z.string().optional().describe("The MIME type of the CV file."),
   targetUniversity: z.string().describe("The target university."),
   targetProgram: z.string().describe("The target program name."),
   personalMotivation: z.string().describe("User's personal motivation for the field."),
@@ -51,7 +52,7 @@ export async function generateSop(input: GenerateSopInput): Promise<GenerateSopO
 
 User's CV:
 \`\`\`
-{{#if cvDataUri}}{{media url=cvDataUri}}{{else}}{{{cvContent}}}{{/if}}
+{{#if cvDataUri}}{{media url=cvDataUri contentType=cvContentType}}{{else}}{{{cvContent}}}{{/if}}
 \`\`\`
 
 Generate the SOP draft now.`,

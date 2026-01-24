@@ -38,6 +38,7 @@ type CvData = {
     content?: string;
     dataUri?: string;
     fileName?: string;
+    contentType?: string;
 };
 
 export default function AdmissionsPageWrapper() {
@@ -162,19 +163,10 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
         const reader = new FileReader();
         reader.onload = (e) => {
             const result = e.target?.result as string;
-            if (file.type === "application/pdf") {
-                onCompleted({ dataUri: result, fileName: file.name }, goals);
-            } else {
-                onCompleted({ content: result, fileName: file.name }, goals);
-            }
+            onCompleted({ dataUri: result, fileName: file.name, contentType: file.type }, goals);
         };
         reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-
-        if (file.type === "application/pdf") {
-            reader.readAsDataURL(file);
-        } else {
-            reader.readAsText(file);
-        }
+        reader.readAsDataURL(file);
     };
     
     const handleContinueWithGoals = () => {
@@ -308,7 +300,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsImprovingCv(true);
         setCvResult(null);
         try {
-            const result = await improveAcademicCv({ cvContent: cv.content, cvDataUri: cv.dataUri });
+            const result = await improveAcademicCv({ cvContent: cv.content, cvDataUri: cv.dataUri, cvContentType: cv.contentType });
             setCvResult(result);
             setIsCvDirty(false);
         } catch(e: any) {
@@ -336,7 +328,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setChatInput("");
 
         try {
-            const result = await getAdmissionsAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, academicObjectives: currentInput });
+            const result = await getAdmissionsAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, backgroundContentType: cv.contentType, academicObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <AdmissionsAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e: any) {
@@ -360,7 +352,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsGeneratingSop(true);
         setSopResult(null);
         try {
-            const result = await generateSop({ ...sopInputs, cvContent: cv.content, cvDataUri: cv.dataUri });
+            const result = await generateSop({ ...sopInputs, cvContent: cv.content, cvDataUri: cv.dataUri, cvContentType: cv.contentType });
             setSopResult(result);
         } catch(e: any) {
             toast({ variant: 'destructive', title: 'SOP Generation Failed', description: e.message || 'Could not generate the SOP.' });

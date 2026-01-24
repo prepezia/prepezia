@@ -40,6 +40,7 @@ type CvData = {
     content?: string;
     dataUri?: string;
     fileName?: string;
+    contentType?: string;
 };
 
 export default function CareerPageWrapper() {
@@ -171,11 +172,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
         const reader = new FileReader();
         reader.onload = (e) => {
             const result = e.target?.result as string;
-            if (file.type === "application/pdf") {
-                onCompleted({ dataUri: result, fileName: file.name }, goals);
-            } else {
-                onCompleted({ content: result, fileName: file.name }, goals);
-            }
+            onCompleted({ dataUri: result, fileName: file.name, contentType: file.type }, goals);
         };
         reader.onerror = () => {
             toast({
@@ -184,12 +181,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                 description: 'Could not read the selected file.',
             });
         };
-
-        if (file.type === "application/pdf") {
-            reader.readAsDataURL(file);
-        } else {
-            reader.readAsText(file);
-        }
+        reader.readAsDataURL(file);
     };
 
     const handleGenerateTemplate = async () => {
@@ -204,7 +196,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                 email: templateInfo.email || "email@example.com",
                 phone: templateInfo.phone || "0123456789",
             });
-            onCompleted({ content: result.cvTemplate }, templateInfo.careerGoal);
+            onCompleted({ content: result.cvTemplate, contentType: 'text/markdown' }, templateInfo.careerGoal);
         } catch (e) {
             console.error("Template generation error", e);
             toast({ variant: 'destructive', title: 'Generation Failed', description: 'Could not generate a CV template.' });
@@ -371,7 +363,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsImprovingCv(true);
         setCvResult(null);
         try {
-            const result = await improveCv({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals });
+            const result = await improveCv({ cvContent: cv.content, cvDataUri: cv.dataUri, cvContentType: cv.contentType, careerGoals });
             setCvResult(result);
             setIsCvDirty(false);
         } catch(e: any) {
@@ -400,7 +392,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setChatInput("");
 
         try {
-            const result = await getCareerAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, careerObjectives: currentInput });
+            const result = await getCareerAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, backgroundContentType: cv.contentType, careerObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e: any) {
@@ -425,7 +417,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsSearchingJobs(true);
         setJobResults(null);
         try {
-            const results = await searchForJobs({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals, location: jobSearchLocation });
+            const results = await searchForJobs({ cvContent: cv.content, cvDataUri: cv.dataUri, cvContentType: cv.contentType, careerGoals, location: jobSearchLocation });
             setJobResults(results);
         } catch(e: any) {
              console.error("Job search error", e);

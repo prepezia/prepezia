@@ -14,6 +14,7 @@ import {z} from 'genkit';
 const ImproveAcademicCvInputSchema = z.object({
   cvContent: z.string().optional().describe("The user's current CV content as plain text."),
   cvDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
+  cvContentType: z.string().optional().describe("The MIME type of the CV file."),
 });
 export type ImproveAcademicCvInput = z.infer<typeof ImproveAcademicCvInputSchema>;
 
@@ -44,7 +45,7 @@ export async function improveAcademicCv(input: ImproveAcademicCvInput): Promise<
 
 User's CV:
 \`\`\`
-{{#if cvDataUri}}{{media url=cvDataUri}}{{else}}{{{cvContent}}}{{/if}}
+{{#if cvDataUri}}{{media url=cvDataUri contentType=cvContentType}}{{else}}{{{cvContent}}}{{/if}}
 \`\`\`
 `,
   });

@@ -13,6 +13,7 @@ import {z} from 'genkit';
 const CareerAdviceInputSchema = z.object({
   backgroundContent: z.string().optional().describe("The user's current CV or background information as plain text."),
   backgroundDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
+  backgroundContentType: z.string().optional().describe("The MIME type of the background file."),
   careerObjectives: z.string().describe("The user's stated career objectives."),
 });
 export type CareerAdviceInput = z.infer<typeof CareerAdviceInputSchema>;
@@ -56,7 +57,7 @@ Maintain a tone that is high-agency, realistic, and intellectually sharp. Avoid 
 
 User's Background/CV:
 \`\`\`
-{{#if backgroundDataUri}}{{media url=backgroundDataUri}}{{else}}{{{backgroundContent}}}{{/if}}
+{{#if backgroundDataUri}}{{media url=backgroundDataUri contentType=backgroundContentType}}{{else}}{{{backgroundContent}}}{{/if}}
 \`\`\`
 
 User's Career Objectives:
