@@ -374,9 +374,9 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await improveCv({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals });
             setCvResult(result);
             setIsCvDirty(false);
-        } catch(e) {
+        } catch(e: any) {
             console.error("CV improvement error", e);
-            toast({ variant: 'destructive', title: 'Analysis Failed', description: 'Could not improve your CV at this time.' });
+            toast({ variant: 'destructive', title: 'Analysis Failed', description: e.message || 'Could not improve your CV at this time.' });
         } finally {
             setIsImprovingCv(false);
         }
@@ -403,10 +403,15 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await getCareerAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, careerObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
-        } catch(e) {
+        } catch(e: any) {
             console.error("Career advice error", e);
             const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I couldn't process that request." };
             setChatHistory(prev => [...prev, errorMessage]);
+            toast({
+                variant: "destructive",
+                title: "Chat Error",
+                description: e.message || "The AI advisor failed to respond."
+            });
         } finally {
             setIsChatting(false);
         }
@@ -422,9 +427,9 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const results = await searchForJobs({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals, location: jobSearchLocation });
             setJobResults(results);
-        } catch(e) {
+        } catch(e: any) {
              console.error("Job search error", e);
-            toast({ variant: 'destructive', title: 'Search Failed', description: 'Could not find jobs at this time.' });
+            toast({ variant: 'destructive', title: 'Search Failed', description: e.message || 'Could not find jobs at this time.' });
         } finally {
             setIsSearchingJobs(false);
         }

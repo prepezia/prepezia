@@ -305,8 +305,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await improveAcademicCv({ cvContent: cv.content, cvDataUri: cv.dataUri });
             setCvResult(result);
             setIsCvDirty(false);
-        } catch(e) {
-            toast({ variant: 'destructive', title: 'Analysis Failed' });
+        } catch(e: any) {
+            toast({ variant: 'destructive', title: 'Analysis Failed', description: e.message || 'Could not improve your CV.' });
         } finally {
             setIsImprovingCv(false);
         }
@@ -333,9 +333,14 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await getAdmissionsAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, academicObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <AdmissionsAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
-        } catch(e) {
+        } catch(e: any) {
             const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I couldn't process that request." };
             setChatHistory(prev => [...prev, errorMessage]);
+            toast({
+                variant: "destructive",
+                title: "Chat Error",
+                description: e.message || "The AI advisor failed to respond."
+            });
         } finally {
             setIsChatting(false);
         }
@@ -351,8 +356,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const result = await generateSop({ ...sopInputs, cvContent: cv.content, cvDataUri: cv.dataUri });
             setSopResult(result);
-        } catch(e) {
-            toast({ variant: 'destructive', title: 'SOP Generation Failed' });
+        } catch(e: any) {
+            toast({ variant: 'destructive', title: 'SOP Generation Failed', description: e.message || 'Could not generate the SOP.' });
         } finally {
             setIsGeneratingSop(false);
         }
