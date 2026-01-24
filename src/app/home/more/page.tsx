@@ -37,7 +37,7 @@ export default function MorePage() {
                         </p>
                         <Button asChild size="sm" className="mt-4 md:mt-8 font-bold md:h-11 md:px-8">
                             <Link href="/home/career?start=form">
-                                Go to Career Hub <ArrowRight className="hidden md:block ml-2 w-5 h-5" />
+                                Career Hub <ArrowRight className="hidden md:block ml-2 w-5 h-5" />
                             </Link>
                         </Button>
                     </div>
@@ -46,7 +46,7 @@ export default function MorePage() {
 
             <Card className="p-4 md:p-12 bg-blue-50 dark:bg-blue-900/50 rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800 h-full">
                  <div className="grid md:grid-cols-2 gap-4 md:gap-8 items-center text-center md:text-left">
-                    <div className="relative h-[75px] w-[75px] md:h-48 md:w-48 mx-auto md:mx-0">
+                    <div className="relative h-[75px] w-[75px] md:h-48 md:w-48 md:order-2 md:ml-auto mx-auto md:mx-0">
                        <Image
                             src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fadmissions.png?alt=media&token=ee0a0794-32d2-4915-832a-da35ad25375a"
                             alt="Admissions Hub Icon"
@@ -54,14 +54,14 @@ export default function MorePage() {
                             className="object-contain"
                         />
                     </div>
-                    <div>
+                    <div className="md:order-1">
                         <h3 className="text-base md:text-2xl font-headline font-bold text-foreground">Admissions & Scholarships Hub</h3>
                         <p className="mt-2 text-xs md:text-base text-muted-foreground">
                             Find and apply for universities and scholarships that match your profile and ambitions.
                         </p>
                         <Button asChild size="sm" className="mt-4 md:mt-8 font-bold md:h-11 md:px-8">
                             <Link href="/home/admissions">
-                                Go to Admissions Hub <ArrowRight className="hidden md:block ml-2 w-5 h-5" />
+                                Admissions Hub <ArrowRight className="hidden md:block ml-2 w-5 h-5" />
                             </Link>
                         </Button>
                     </div>
