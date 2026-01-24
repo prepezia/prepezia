@@ -8,8 +8,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-// Ensure you are importing the correct model reference
-import { gemini15Flash } from '@genkit-ai/googleai'; 
 
 const ImproveCvInputSchema = z.object({
   cvContent: z.string().optional().describe("The user's current CV content as plain text."),
@@ -33,7 +31,7 @@ export type ImproveCvOutput = z.infer<typeof ImproveCvOutputSchema>;
 const improveCvPrompt = ai.definePrompt(
   {
     name: 'improveCvPrompt',
-    model: gemini15Flash, // Explicitly setting a modern model helps resolve the 400 error
+    model: 'googleai/gemini-1.5-flash-latest', // Explicitly setting a modern model helps resolve potential issues.
     input: { schema: ImproveCvInputSchema },
     output: { schema: ImproveCvOutputSchema },
   },
