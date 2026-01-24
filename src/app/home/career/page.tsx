@@ -76,16 +76,14 @@ function CareerPage() {
                         if (typeof parsedCv === 'object' && parsedCv !== null && !Array.isArray(parsedCv)) {
                             setCv(parsedCv);
                         } else {
-                            throw new Error("Parsed CV is not a valid object.");
+                           localStorage.removeItem('learnwithtemi_cv');
+                           setCv({ content: "" });
                         }
                     } catch (e) {
-                        console.error("Failed to parse saved CV JSON. Clearing corrupted data.", e);
                         localStorage.removeItem('learnwithtemi_cv');
                         setCv({ content: "" });
                     }
                 } else {
-                    // Data is not in the expected JSON object format. It's corrupted.
-                    console.warn("Corrupted CV data in localStorage (not a JSON object). Clearing.");
                     localStorage.removeItem('learnwithtemi_cv');
                     setCv({ content: "" });
                 }
@@ -160,28 +158,29 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
         const file = event.target.files?.[0];
         if (!file) return;
 
-        if (file.type !== "application/pdf" && !file.type.startsWith("text/")) {
-            toast({
+        if (file.type === "application/pdf") {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                onCompleted({ dataUri: result, fileName: file.name, contentType: file.type }, goals);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+            reader.readAsDataURL(file);
+        } else if (file.type.startsWith("text/")) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                onCompleted({ content: result, fileName: file.name, contentType: file.type }, goals);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+            reader.readAsText(file);
+        } else {
+             toast({
                 variant: 'destructive',
                 title: 'Unsupported File Type',
                 description: 'Please upload a PDF or a plain text file.',
             });
-            return;
         }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const result = e.target?.result as string;
-            onCompleted({ dataUri: result, fileName: file.name, contentType: file.type }, goals);
-        };
-        reader.onerror = () => {
-            toast({
-                variant: 'destructive',
-                title: 'File Read Error',
-                description: 'Could not read the selected file.',
-            });
-        };
-        reader.readAsDataURL(file);
     };
 
     const handleGenerateTemplate = async () => {
@@ -197,9 +196,9 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                 phone: templateInfo.phone || "0123456789",
             });
             onCompleted({ content: result.cvTemplate, contentType: 'text/markdown' }, templateInfo.careerGoal);
-        } catch (e) {
+        } catch (e: any) {
             console.error("Template generation error", e);
-            toast({ variant: 'destructive', title: 'Generation Failed', description: 'Could not generate a CV template.' });
+            toast({ variant: 'destructive', title: 'Generation Failed', description: e.message || 'Could not generate a CV template.' });
         } finally {
             setIsLoading(false);
             setIsTemplateModalOpen(false);

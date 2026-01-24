@@ -151,22 +151,29 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
         const file = event.target.files?.[0];
         if (!file) return;
 
-        if (file.type !== "application/pdf" && !file.type.startsWith("text/")) {
-            toast({
+        if (file.type === "application/pdf") {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                onCompleted({ dataUri: result, fileName: file.name, contentType: file.type }, goals);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+            reader.readAsDataURL(file);
+        } else if (file.type.startsWith("text/")) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                onCompleted({ content: result, fileName: file.name, contentType: file.type }, goals);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+            reader.readAsText(file);
+        } else {
+             toast({
                 variant: 'destructive',
                 title: 'Unsupported File Type',
                 description: 'Please upload a PDF or a plain text file.',
             });
-            return;
         }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const result = e.target?.result as string;
-            onCompleted({ dataUri: result, fileName: file.name, contentType: file.type }, goals);
-        };
-        reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-        reader.readAsDataURL(file);
     };
     
     const handleContinueWithGoals = () => {
