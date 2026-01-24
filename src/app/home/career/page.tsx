@@ -42,17 +42,6 @@ type CvData = {
     fileName?: string;
 };
 
-const convertBlobToDataUri = async (blobUri: string): Promise<string> => {
-    const response = await fetch(blobUri);
-    const blob = await response.blob();
-    return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-};
-
 export default function CareerPageWrapper() {
     return (
         <Suspense fallback={
@@ -179,22 +168,26 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
             return;
         }
 
-        if (file.type === 'application/pdf') {
-            const blobUrl = URL.createObjectURL(file);
-            onCompleted({ dataUri: blobUrl, fileName: file.name }, goals);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const result = e.target?.result as string;
+            if (file.type === "application/pdf") {
+                onCompleted({ dataUri: result, fileName: file.name }, goals);
+            } else {
+                onCompleted({ content: result, fileName: file.name }, goals);
+            }
+        };
+        reader.onerror = () => {
+            toast({
+                variant: 'destructive',
+                title: 'File Read Error',
+                description: 'Could not read the selected file.',
+            });
+        };
+
+        if (file.type === "application/pdf") {
+            reader.readAsDataURL(file);
         } else {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const content = e.target?.result as string;
-                onCompleted({ content: content, fileName: file.name }, goals);
-            };
-            reader.onerror = () => {
-                toast({
-                    variant: 'destructive',
-                    title: 'File Read Error',
-                    description: 'Could not read the selected file.',
-                });
-            };
             reader.readAsText(file);
         }
     };
@@ -378,11 +371,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsImprovingCv(true);
         setCvResult(null);
         try {
-            let submissionCv = { cvContent: cv.content, cvDataUri: cv.dataUri };
-            if (cv.dataUri?.startsWith('blob:')) {
-                submissionCv.cvDataUri = await convertBlobToDataUri(cv.dataUri);
-            }
-            const result = await improveCv({ ...submissionCv, careerGoals });
+            const result = await improveCv({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals });
             setCvResult(result);
             setIsCvDirty(false);
         } catch(e: any) {
@@ -411,11 +400,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setChatInput("");
 
         try {
-            let submissionCv = { backgroundContent: cv.content, backgroundDataUri: cv.dataUri };
-            if (cv.dataUri?.startsWith('blob:')) {
-                submissionCv.backgroundDataUri = await convertBlobToDataUri(cv.dataUri);
-            }
-            const result = await getCareerAdvice({ ...submissionCv, careerObjectives: currentInput });
+            const result = await getCareerAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, careerObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e: any) {
@@ -440,11 +425,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsSearchingJobs(true);
         setJobResults(null);
         try {
-            let submissionCv = { cvContent: cv.content, cvDataUri: cv.dataUri };
-            if (cv.dataUri?.startsWith('blob:')) {
-                submissionCv.cvDataUri = await convertBlobToDataUri(cv.dataUri);
-            }
-            const results = await searchForJobs({ ...submissionCv, careerGoals, location: jobSearchLocation });
+            const results = await searchForJobs({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals, location: jobSearchLocation });
             setJobResults(results);
         } catch(e: any) {
              console.error("Job search error", e);
