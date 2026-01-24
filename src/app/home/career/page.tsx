@@ -42,6 +42,17 @@ type CvData = {
     fileName?: string;
 };
 
+const convertBlobToDataUri = async (blobUri: string): Promise<string> => {
+    const response = await fetch(blobUri);
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
 export default function CareerPageWrapper() {
     return (
         <Suspense fallback={
@@ -367,7 +378,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsImprovingCv(true);
         setCvResult(null);
         try {
-            const result = await improveCv({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals });
+            let submissionCv = { cvContent: cv.content, cvDataUri: cv.dataUri };
+            if (cv.dataUri?.startsWith('blob:')) {
+                submissionCv.cvDataUri = await convertBlobToDataUri(cv.dataUri);
+            }
+            const result = await improveCv({ ...submissionCv, careerGoals });
             setCvResult(result);
             setIsCvDirty(false);
         } catch(e: any) {
@@ -396,7 +411,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setChatInput("");
 
         try {
-            const result = await getCareerAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, careerObjectives: currentInput });
+            let submissionCv = { backgroundContent: cv.content, backgroundDataUri: cv.dataUri };
+            if (cv.dataUri?.startsWith('blob:')) {
+                submissionCv.backgroundDataUri = await convertBlobToDataUri(cv.dataUri);
+            }
+            const result = await getCareerAdvice({ ...submissionCv, careerObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e: any) {
@@ -421,7 +440,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsSearchingJobs(true);
         setJobResults(null);
         try {
-            const results = await searchForJobs({ cvContent: cv.content, cvDataUri: cv.dataUri, careerGoals, location: jobSearchLocation });
+            let submissionCv = { cvContent: cv.content, cvDataUri: cv.dataUri };
+            if (cv.dataUri?.startsWith('blob:')) {
+                submissionCv.cvDataUri = await convertBlobToDataUri(cv.dataUri);
+            }
+            const results = await searchForJobs({ ...submissionCv, careerGoals, location: jobSearchLocation });
             setJobResults(results);
         } catch(e: any) {
              console.error("Job search error", e);
@@ -675,5 +698,3 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
         </Card>
     );
 }
-
-    

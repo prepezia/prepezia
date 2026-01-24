@@ -40,6 +40,17 @@ type CvData = {
     fileName?: string;
 };
 
+const convertBlobToDataUri = async (blobUri: string): Promise<string> => {
+    const response = await fetch(blobUri);
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
 export default function AdmissionsPageWrapper() {
     return (
         <Suspense fallback={
@@ -304,7 +315,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsImprovingCv(true);
         setCvResult(null);
         try {
-            const result = await improveAcademicCv({ cvContent: cv.content, cvDataUri: cv.dataUri });
+            let submissionCv = { cvContent: cv.content, cvDataUri: cv.dataUri };
+            if (cv.dataUri?.startsWith('blob:')) {
+                submissionCv.cvDataUri = await convertBlobToDataUri(cv.dataUri);
+            }
+            const result = await improveAcademicCv(submissionCv);
             setCvResult(result);
             setIsCvDirty(false);
         } catch(e: any) {
@@ -332,7 +347,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setChatInput("");
 
         try {
-            const result = await getAdmissionsAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, academicObjectives: currentInput });
+            let submissionCv = { backgroundContent: cv.content, backgroundDataUri: cv.dataUri };
+            if (cv.dataUri?.startsWith('blob:')) {
+                submissionCv.backgroundDataUri = await convertBlobToDataUri(cv.dataUri);
+            }
+            const result = await getAdmissionsAdvice({ ...submissionCv, academicObjectives: currentInput });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <AdmissionsAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e: any) {
@@ -356,7 +375,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsGeneratingSop(true);
         setSopResult(null);
         try {
-            const result = await generateSop({ ...sopInputs, cvContent: cv.content, cvDataUri: cv.dataUri });
+            let submissionCv = { cvContent: cv.content, cvDataUri: cv.dataUri };
+            if (cv.dataUri?.startsWith('blob:')) {
+                submissionCv.cvDataUri = await convertBlobToDataUri(cv.dataUri);
+            }
+            const result = await generateSop({ ...sopInputs, ...submissionCv });
             setSopResult(result);
         } catch(e: any) {
             toast({ variant: 'destructive', title: 'SOP Generation Failed', description: e.message || 'Could not generate the SOP.' });
@@ -488,5 +511,3 @@ function AdmissionsAdviceCard({ result }: { result: GetAdmissionsAdviceOutput })
         </Card>
     );
 }
-
-    
