@@ -25,6 +25,7 @@ import { getCareerAdvice, CareerAdviceOutput } from "@/ai/flows/career-advisor";
 import { generateCvTemplate } from "@/ai/flows/generate-cv-template";
 import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow";
 import { cn } from "@/lib/utils";
+import { PDFViewer } from "@/components/pdf/PDFViewer";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "jobs";
@@ -349,7 +350,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const [cvResult, setCvResult] = useState<ImproveCvOutput | null>(null);
     const [isImprovingCv, setIsImprovingCv] = useState(false);
     const [isCvDirty, setIsCvDirty] = useState(false);
-    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
     // Chat Tab State
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -362,34 +362,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const [jobSearchLocation, setJobSearchLocation] = useState("Ghana");
 
     const { toast } = useToast();
-
-    useEffect(() => {
-        let objectUrl: string | null = null;
-    
-        const createPdfUrl = async () => {
-          if (cv.dataUri && cv.dataUri.startsWith('data:application/pdf')) {
-            try {
-              const response = await fetch(cv.dataUri);
-              const blob = await response.blob();
-              objectUrl = URL.createObjectURL(blob);
-              setPdfUrl(objectUrl);
-            } catch (e) {
-              console.error("Error creating object URL for PDF", e);
-              setPdfUrl(null);
-            }
-          } else {
-            setPdfUrl(null);
-          }
-        };
-    
-        createPdfUrl();
-    
-        return () => {
-          if (objectUrl) {
-            URL.revokeObjectURL(objectUrl);
-          }
-        };
-      }, [cv.dataUri]);
 
     const handleImproveCv = async () => {
         if (!cv.content && !cv.dataUri) {
@@ -504,21 +476,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="flex-1 relative">
-                                    {cv.dataUri && pdfUrl ? (
-                                        <div className="h-full min-h-[400px] flex flex-col">
-                                            <object data={pdfUrl} type="application/pdf" className="w-full h-full flex-1 rounded-md border">
-                                                <p>Your browser does not support PDFs. Please download the PDF to view it: <a href={pdfUrl} download={cv.fileName}>Download PDF</a>.</p>
-                                            </object>
-                                            <div className="flex items-center justify-between mt-2">
-                                                <p className="font-semibold text-sm">{cv.fileName}</p>
-                                                <Button variant="outline" size="sm" onClick={() => backToOnboarding('cv')}>Clear and start over</Button>
-                                            </div>
-                                        </div>
-                                    ) : cv.dataUri && !pdfUrl ? (
-                                        <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-muted-foreground">
-                                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                            <p className="mt-2">Loading PDF preview...</p>
-                                        </div>
+                                    {cv.dataUri ? (
+                                        <PDFViewer 
+                                            dataUri={cv.dataUri} 
+                                            fileName={cv.fileName}
+                                            onClear={() => backToOnboarding('cv')}
+                                        />
                                     ) : (
                                         <Textarea 
                                             className="h-full min-h-[400px] resize-none" 
@@ -530,8 +493,10 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                         />
                                     )}
                                     </CardContent>
-                                    <CardFooter className="justify-between">
-                                        <p className="text-sm text-muted-foreground">{!cv.dataUri ? `${cv.content?.split(/\s+/).filter(Boolean).length || 0} words` : "PDF file"}</p>
+                                    <CardFooter className="justify-end">
+                                        {!cv.dataUri && (
+                                            <p className="text-sm text-muted-foreground mr-auto">{`${cv.content?.split(/\s+/).filter(Boolean).length || 0} words`}</p>
+                                        )}
                                         <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
                                             {isImprovingCv && <Loader2 className="mr-2 animate-spin" />}
                                             Improve CV
@@ -709,6 +674,3 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
         </Card>
     );
 }
-
-    
-

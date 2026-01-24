@@ -23,6 +23,7 @@ import { improveAcademicCv, ImproveAcademicCvOutput } from "@/ai/flows/improve-a
 import { getAdmissionsAdvice, GetAdmissionsAdviceOutput } from "@/ai/flows/get-admissions-advice";
 import { generateSop, GenerateSopOutput } from "@/ai/flows/generate-sop";
 import { cn } from "@/lib/utils";
+import { PDFViewer } from "@/components/pdf/PDFViewer";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "sop";
@@ -280,7 +281,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const [cvResult, setCvResult] = useState<ImproveAcademicCvOutput | null>(null);
     const [isImprovingCv, setIsImprovingCv] = useState(false);
     const [isCvDirty, setIsCvDirty] = useState(false);
-    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
     // Chat Tab State
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -293,21 +293,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const [sopInputs, setSopInputs] = useState({ targetUniversity: "", targetProgram: "", personalMotivation: ""});
 
     const { toast } = useToast();
-
-    useEffect(() => {
-        let objectUrl: string | null = null;
-        if (cv.dataUri && cv.dataUri.startsWith('data:application/pdf')) {
-            try {
-              fetch(cv.dataUri).then(res => res.blob()).then(blob => {
-                objectUrl = URL.createObjectURL(blob);
-                setPdfUrl(objectUrl);
-              });
-            } catch (e) { console.error(e); setPdfUrl(null); }
-        } else {
-            setPdfUrl(null);
-        }
-        return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-    }, [cv.dataUri]);
     
     const handleImproveCv = async () => {
         if (!cv.content && !cv.dataUri) {
@@ -404,20 +389,22 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             </TabsList>
                             <TabsContent value="editor" className="mt-4 flex-1">
                                 <Card className="flex flex-col h-full">
-                                    <CardHeader><CardTitle>Your Academic CV</CardTitle><CardDescription>{cv.dataUri ? "PDF preview. To edit, start over." : 'Edit your CV content.'}</CardDescription></CardHeader>
+                                    <CardHeader><CardTitle>Your Academic CV</CardTitle><CardDescription>{cv.dataUri ? "PDF preview. To edit, clear and start over." : 'Edit your CV content.'}</CardDescription></CardHeader>
                                     <CardContent className="flex-1 relative">
-                                    {cv.dataUri && pdfUrl ? (
-                                        <div className="h-full min-h-[400px] flex flex-col">
-                                            <iframe src={pdfUrl} className="w-full h-full flex-1 rounded-md border" title={cv.fileName} />
-                                        </div>
-                                    ) : cv.dataUri && !pdfUrl ? (
-                                        <div className="h-full min-h-[400px] flex items-center justify-center text-muted-foreground"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                                    {cv.dataUri ? (
+                                        <PDFViewer 
+                                            dataUri={cv.dataUri} 
+                                            fileName={cv.fileName}
+                                            onClear={backToOnboarding}
+                                        />
                                     ) : (
                                         <Textarea className="h-full min-h-[400px] resize-none" value={cv.content || ''} onChange={e => { setCv({ content: e.target.value }); setIsCvDirty(true); }} />
                                     )}
                                     </CardContent>
-                                    <CardFooter className="justify-between">
-                                        <p className="text-sm text-muted-foreground">{!cv.dataUri ? `${cv.content?.split(/\s+/).filter(Boolean).length || 0} words` : cv.fileName}</p>
+                                    <CardFooter className="justify-end">
+                                        {!cv.dataUri && (
+                                            <p className="text-sm text-muted-foreground mr-auto">{`${cv.content?.split(/\s+/).filter(Boolean).length || 0} words`}</p>
+                                        )}
                                         <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
                                             {isImprovingCv && <Loader2 className="mr-2 animate-spin" />} Improve CV
                                         </Button>
