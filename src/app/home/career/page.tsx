@@ -881,7 +881,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             </div>
           </TabsContent>
 
-          <TabsContent value="jobs" className="mt-4">
+          <TabsContent value="jobs" className="mt-4 flex-1 flex flex-col">
               <Accordion type="multiple" value={jobSearchAccordion} onValueChange={setJobSearchAccordion} className="max-w-4xl mx-auto w-full">
                 <AccordionItem value="filters" className="border-b-0">
                     <Card>
@@ -942,32 +942,34 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     </Card>
                 </AccordionItem>
             </Accordion>
-            {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
-            {jobResults && (
-              <div className="max-w-4xl mx-auto mt-4 w-full space-y-4 pb-4">
-                {jobResults.results.length > 0 ? (
-                  <>
-                    <h3 className="font-bold text-lg">Found {jobResults.results.length} jobs</h3>
-                    {jobResults.results.map((job, i) => (
-                      <Card key={i}>
-                        <CardHeader>
-                          <CardTitle>{job.title}</CardTitle>
-                          <CardDescription>{job.company} - {job.location}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-muted-foreground mb-4">{job.snippet}</p>
-                          <Button asChild>
-                            <a href={job.url} target="_blank" rel="noopener noreferrer">View & Apply <ArrowRight className="ml-2"/></a>
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </>
-                ) : (
-                  <p className="text-center text-muted-foreground py-10">No jobs found matching your profile. Try broadening your goals.</p>
+            <div className="flex-1 overflow-y-auto mt-4">
+                {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
+                {jobResults && (
+                <div className="max-w-4xl mx-auto w-full space-y-4 pb-4">
+                    {jobResults.results.length > 0 ? (
+                    <>
+                        <h3 className="font-bold text-lg">Found {jobResults.results.length} jobs</h3>
+                        {jobResults.results.map((job, i) => (
+                        <Card key={i}>
+                            <CardHeader>
+                            <CardTitle>{job.title}</CardTitle>
+                            <CardDescription>{job.company} - {job.location}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4">{job.snippet}</p>
+                            <Button asChild>
+                                <a href={job.url} target="_blank" rel="noopener noreferrer">View & Apply <ArrowRight className="ml-2"/></a>
+                            </Button>
+                            </CardContent>
+                        </Card>
+                        ))}
+                    </>
+                    ) : (
+                    <p className="text-center text-muted-foreground py-10">No jobs found matching your profile. Try broadening your goals.</p>
+                    )}
+                </div>
                 )}
-              </div>
-            )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>
@@ -1015,3 +1017,4 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
     
 
     
+
