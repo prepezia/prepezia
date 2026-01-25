@@ -685,6 +685,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         readOnly={isExtracting}
                         placeholder={isExtracting ? 'Extracting text...' : 'Your CV content will appear here.'}
                     />
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
                     {!cv.content && !isExtracting && (
                         <div className="absolute inset-0 h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center bg-background">
                             <Upload className="h-12 w-12 text-muted-foreground mb-4" />
@@ -695,7 +696,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             </Button>
                         </div>
                     )}
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
                   </CardContent>
                   <CardFooter className="justify-between pt-6">
                     <div className="flex items-center gap-2">
@@ -793,13 +793,13 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
               </TabsContent>
                <TabsContent value="designer" className="mt-4 flex-1">
                 <Card className="h-full">
-                    <CardHeader className="flex-row justify-between items-center">
+                    <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
                             <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI-Designed CV</CardTitle>
                             <CardDescription>Your CV, professionally styled by AI. Use the print option to save as PDF.</CardDescription>
                         </div>
                         {designedCv && (
-                            <Button onClick={handlePrint}>
+                            <Button onClick={handlePrint} className="w-full md:w-auto">
                                 <Printer className="mr-2"/> Print / Save as PDF
                             </Button>
                         )}
