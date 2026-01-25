@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
@@ -27,7 +28,7 @@ import { PDFViewer } from "@/components/pdf/PDFViewer";
 import { Badge } from "@/components/ui/badge";
 
 type View = "loading" | "onboarding" | "hub";
-type HubTab = "cv" | "chat" | "sop";
+type HubTab = "cv" | "chat" | "opportunities";
 type OnboardingStep = "intro" | "goals" | "cv";
 
 type ChatMessage = {
@@ -163,45 +164,24 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-    
+
         const fileType = file.type;
         const fileName = file.name;
-        
         let cvFileType: CvData['fileType'];
-        if (fileType === 'application/pdf') {
-          cvFileType = 'pdf';
-        } else if (fileType.startsWith('image/')) {
-          cvFileType = 'image';
-        } else if (fileType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-          cvFileType = 'text';
-        } else if (fileType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-          cvFileType = 'doc';
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Unsupported File Type',
-            description: 'Please upload a PDF, image, Word document, or plain text file.',
-          });
-          return;
-        }
-    
-        if (cvFileType === 'text') {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const content = e.target?.result as string;
-              onCompleted({ 
-                content, 
-                fileName: file.name, 
-                contentType: file.type,
-                fileType: 'text'
-              }, goals);
-            };
-            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-            reader.readAsText(file);
-        } else {
-            const reader = new FileReader();
+        
+        const reader = new FileReader();
+
+        if (fileType === 'application/pdf' || fileType.startsWith('image/') || fileType.includes('word')) {
             reader.onload = (e) => {
                 const result = e.target?.result as string;
+                let cvFileType: CvData['fileType'];
+                if (fileType === 'application/pdf') {
+                    cvFileType = 'pdf';
+                } else if (fileType.startsWith('image/')) {
+                    cvFileType = 'image';
+                } else {
+                    cvFileType = 'doc';
+                }
                 onCompleted({ 
                     dataUri: result, 
                     fileName: file.name, 
@@ -209,8 +189,24 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                     fileType: cvFileType
                 }, goals);
             };
-            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
             reader.readAsDataURL(file);
+        } else if (fileType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
+            reader.onload = (e) => {
+                const content = e.target?.result as string;
+                onCompleted({ 
+                    content, 
+                    fileName: file.name, 
+                    contentType: file.type,
+                    fileType: 'text'
+                }, goals);
+            };
+            reader.readAsText(file);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Unsupported File Type',
+                description: 'Please upload a PDF, image, Word document, or plain text file.',
+            });
         }
     };
     
@@ -401,6 +397,10 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const [isGeneratingSop, setIsGeneratingSop] = useState(false);
     const [sopInputs, setSopInputs] = useState({ targetUniversity: "", targetProgram: "", personalMotivation: ""});
 
+    // Opportunities Tab State
+    const [opportunitiesResult, setOpportunitiesResult] = useState<GetAdmissionsAdviceOutput | null>(null);
+    const [isFindingOpportunities, setIsFindingOpportunities] = useState(false);
+
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -411,42 +411,46 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         const fileType = file.type;
         const fileName = file.name;
         
-        let cvFileType: CvData['fileType'];
-        if (fileType === 'application/pdf') {
-          cvFileType = 'pdf';
-        } else if (fileType.startsWith('image/')) {
-          cvFileType = 'image';
-        } else if (fileType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-          cvFileType = 'text';
-        } else if (fileType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-          cvFileType = 'doc';
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Unsupported File Type',
-            description: 'Please upload a PDF, image, Word document, or plain text file.',
-          });
-          return;
-        }
+        const reader = new FileReader();
 
-        if (cvFileType === 'text') {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const content = e.target?.result as string;
-              setCv({ content, fileName: file.name, contentType: file.type, fileType: 'text' });
-              setIsCvDirty(true);
-            };
-            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-            reader.readAsText(file);
-        } else {
-            const reader = new FileReader();
+        if (fileType === 'application/pdf' || fileType.startsWith('image/') || fileType.includes('word')) {
             reader.onload = (e) => {
                 const result = e.target?.result as string;
-                setCv({ dataUri: result, fileName: file.name, contentType: file.type, fileType: cvFileType });
+                let cvFileType: CvData['fileType'];
+                if (fileType === 'application/pdf') {
+                    cvFileType = 'pdf';
+                } else if (fileType.startsWith('image/')) {
+                    cvFileType = 'image';
+                } else {
+                    cvFileType = 'doc';
+                }
+                setCv({ 
+                    dataUri: result, 
+                    fileName: file.name, 
+                    contentType: file.type,
+                    fileType: cvFileType
+                });
                 setIsCvDirty(true);
             };
-            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
             reader.readAsDataURL(file);
+        } else if (fileType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
+            reader.onload = (e) => {
+                const content = e.target?.result as string;
+                setCv({ 
+                    content, 
+                    fileName: file.name, 
+                    contentType: file.type,
+                    fileType: 'text'
+                });
+                setIsCvDirty(true);
+            };
+            reader.readAsText(file);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Unsupported File Type',
+                description: 'Please upload a PDF, image, Word document, or plain text file.',
+            });
         }
     };
     
@@ -458,7 +462,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsImprovingCv(true);
         setCvResult(null);
         try {
-            const result = await improveAcademicCv({ cvContent: cv.content, cvDataUri: cv.dataUri, cvContentType: cv.contentType });
+            const result = await improveAcademicCv({ 
+                cvContent: cv.content, 
+                cvDataUri: cv.dataUri, 
+                cvContentType: cv.contentType 
+            });
             setCvResult(result);
             setIsCvDirty(false);
         } catch(e: any) {
@@ -486,7 +494,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setChatInput("");
 
         try {
-            const result = await getAdmissionsAdvice({ backgroundContent: cv.content, backgroundDataUri: cv.dataUri, backgroundContentType: cv.contentType, academicObjectives: currentInput });
+            const result = await getAdmissionsAdvice({ 
+                backgroundContent: cv.content, 
+                backgroundDataUri: cv.dataUri, 
+                backgroundContentType: cv.contentType, 
+                academicObjectives: currentInput 
+            });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <AdmissionsAdviceCard result={result} /> };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e: any) {
@@ -510,7 +523,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsGeneratingSop(true);
         setSopResult(null);
         try {
-            const result = await generateSop({ ...sopInputs, cvContent: cv.content, cvDataUri: cv.dataUri, cvContentType: cv.contentType });
+            const result = await generateSop({ 
+                ...sopInputs, 
+                cvContent: cv.content, 
+                cvDataUri: cv.dataUri, 
+                cvContentType: cv.contentType 
+            });
             setSopResult(result);
         } catch(e: any) {
             toast({ variant: 'destructive', title: 'SOP Generation Failed', description: e.message || 'Could not generate the SOP.' });
@@ -519,6 +537,28 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         }
     }
     
+    const handleFindOpportunities = async () => {
+        if (!academicObjectives.trim()) {
+            toast({ variant: 'destructive', title: 'Academic Objectives Required', description: 'Please provide your academic objectives to find opportunities.' });
+            return;
+        }
+        setIsFindingOpportunities(true);
+        setOpportunitiesResult(null);
+        try {
+            const result = await getAdmissionsAdvice({
+                backgroundContent: cv.content,
+                backgroundDataUri: cv.dataUri,
+                backgroundContentType: cv.contentType,
+                academicObjectives,
+            });
+            setOpportunitiesResult(result);
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Failed to Find Opportunities', description: e.message || 'Could not find opportunities at this time.' });
+        } finally {
+            setIsFindingOpportunities(false);
+        }
+    };
+
     const downloadCv = (content: string) => {
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
@@ -545,14 +585,15 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     <TabsList className="grid w-full grid-cols-3 bg-secondary">
                         <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
                         <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Admissions Chat</TabsTrigger>
-                        <TabsTrigger value="sop"><Sparkles className="mr-2"/>SOP Generator</TabsTrigger>
+                        <TabsTrigger value="opportunities"><Search className="mr-2"/>Opportunities</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="cv" className="mt-4 flex-1 flex flex-col">
                         <Tabs defaultValue="editor" className="w-full flex-1 flex flex-col">
-                            <TabsList className="grid w-full grid-cols-2">
+                            <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="editor">Your CV</TabsTrigger>
                                 <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
+                                <TabsTrigger value="sop">SOP Generator</TabsTrigger>
                             </TabsList>
                             <TabsContent value="editor" className="mt-4 flex-1">
                                 <Card className="flex flex-col h-full">
@@ -596,6 +637,28 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                     </CardContent>
                                 </Card>
                             </TabsContent>
+                             <TabsContent value="sop" className="mt-4 flex-1 flex flex-col">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+                                    <Card>
+                                        <CardHeader><CardTitle>SOP Generator</CardTitle><CardDescription>Provide the details to generate your Statement of Purpose.</CardDescription></CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div><label className="text-sm font-medium">Target University</label><Input value={sopInputs.targetUniversity} onChange={e => setSopInputs(p => ({...p, targetUniversity: e.target.value}))} /></div>
+                                            <div><label className="text-sm font-medium">Target Program</label><Input value={sopInputs.targetProgram} onChange={e => setSopInputs(p => ({...p, targetProgram: e.target.value}))} /></div>
+                                            <div><label className="text-sm font-medium">Personal Motivation</label><Textarea value={sopInputs.personalMotivation} onChange={e => setSopInputs(p => ({...p, personalMotivation: e.target.value}))} placeholder="Why this field? What's your story?" rows={5}/></div>
+                                            <Button onClick={handleGenerateSop} disabled={isGeneratingSop}>{isGeneratingSop && <Loader2 className="mr-2 animate-spin"/>} Generate SOP</Button>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="flex flex-col">
+                                        <CardHeader><CardTitle>Generated SOP</CardTitle></CardHeader>
+                                        <CardContent className="flex-1 relative">
+                                            {isGeneratingSop && <div className="absolute inset-0 bg-background/50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
+                                            {sopResult ? (<div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4"><ReactMarkdown remarkPlugins={[remarkGfm]}>{sopResult.sopDraft}</ReactMarkdown></div>) 
+                                            : (<div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center"><FileText className="w-12 h-12 mb-4" /><p>Your generated SOP will appear here.</p></div>)}
+                                        </CardContent>
+                                        {sopResult && <CardFooter><Button variant="outline" onClick={() => downloadCv(sopResult.sopDraft)}>Download SOP</Button></CardFooter>}
+                                    </Card>
+                                </div>
+                            </TabsContent>
                         </Tabs>
                     </TabsContent>
 
@@ -610,27 +673,28 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="sop" className="mt-4 flex-1 flex flex-col">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
-                            <Card>
-                                <CardHeader><CardTitle>SOP Generator</CardTitle><CardDescription>Provide the details to generate your Statement of Purpose.</CardDescription></CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div><label className="text-sm font-medium">Target University</label><Input value={sopInputs.targetUniversity} onChange={e => setSopInputs(p => ({...p, targetUniversity: e.target.value}))} /></div>
-                                    <div><label className="text-sm font-medium">Target Program</label><Input value={sopInputs.targetProgram} onChange={e => setSopInputs(p => ({...p, targetProgram: e.target.value}))} /></div>
-                                    <div><label className="text-sm font-medium">Personal Motivation</label><Textarea value={sopInputs.personalMotivation} onChange={e => setSopInputs(p => ({...p, personalMotivation: e.target.value}))} placeholder="Why this field? What's your story?" rows={5}/></div>
-                                    <Button onClick={handleGenerateSop} disabled={isGeneratingSop}>{isGeneratingSop && <Loader2 className="mr-2 animate-spin"/>} Generate SOP</Button>
-                                </CardContent>
-                            </Card>
-                            <Card className="flex flex-col">
-                                <CardHeader><CardTitle>Generated SOP</CardTitle></CardHeader>
-                                <CardContent className="flex-1 relative">
-                                    {isGeneratingSop && <div className="absolute inset-0 bg-background/50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
-                                    {sopResult ? (<div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4"><ReactMarkdown remarkPlugins={[remarkGfm]}>{sopResult.sopDraft}</ReactMarkdown></div>) 
-                                    : (<div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center"><FileText className="w-12 h-12 mb-4" /><p>Your generated SOP will appear here.</p></div>)}
-                                </CardContent>
-                                {sopResult && <CardFooter><Button variant="outline" onClick={() => downloadCv(sopResult.sopDraft)}>Download SOP</Button></CardFooter>}
-                            </Card>
-                        </div>
+                    <TabsContent value="opportunities" className="mt-4 flex-1 flex flex-col">
+                        <Card className="max-w-4xl mx-auto w-full">
+                            <CardHeader>
+                            <CardTitle>AI Opportunity Finder</CardTitle>
+                            <CardDescription>Find universities and scholarships tailored to your profile and goals.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                            <p className="text-sm text-muted-foreground p-4 bg-secondary/50 rounded-lg">
+                                Your objectives: "{academicObjectives || 'No objectives set. Please go back to onboarding to set them.'}"
+                            </p>
+                            <Button onClick={handleFindOpportunities} disabled={isFindingOpportunities}>
+                                {isFindingOpportunities && <Loader2 className="mr-2 animate-spin" />}
+                                <Search className="mr-2" /> Find Opportunities
+                            </Button>
+                            </CardContent>
+                        </Card>
+                        {isFindingOpportunities && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
+                        {opportunitiesResult && (
+                            <div className="max-w-4xl mx-auto mt-8 w-full">
+                                <AdmissionsAdviceCard result={opportunitiesResult} />
+                            </div>
+                        )}
                     </TabsContent>
                 </Tabs>
             </div>
@@ -651,3 +715,5 @@ function AdmissionsAdviceCard({ result }: { result: GetAdmissionsAdviceOutput })
         </Card>
     );
 }
+
+    
