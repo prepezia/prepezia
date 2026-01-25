@@ -13,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,7 @@ import { getCareerAdvice, CareerAdviceOutput } from "@/ai/flows/career-advisor";
 import { generateCvTemplate } from "@/ai/flows/generate-cv-template";
 import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
+import { designCv, DesignCvOutput } from "@/ai/flows/design-cv-flow";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -176,7 +177,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
         
         let extractedText;
 
-        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        if (file.type.startsWith('image/') || file.type === 'application/pdf' || file.type.includes('word')) {
             const dataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
@@ -392,7 +393,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
 function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvData, initialGoals: string, backToOnboarding: (startFrom?: 'cv' | 'intro') => void }) {
   const [activeTab, setActiveTab] = useState<HubTab>("cv");
-  const [activeCvTab, setActiveCvTab] = useState('editor');
+  const [activeCvTab, setActiveCvTab] = useState<'editor' | 'analysis' | 'designer'>('editor');
   const [cv, setCv] = useState<CvData>(initialCv);
   const [careerGoals, setCareerGoals] = useState(initialGoals);
   
@@ -401,6 +402,10 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const [isImprovingCv, setIsImprovingCv] = useState(false);
   const [isCvDirty, setIsCvDirty] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  
+  // Designer Tab State
+  const [designedCv, setDesignedCv] = useState<DesignCvOutput | null>(null);
+  const [isDesigningCv, setIsDesigningCv] = useState(false);
 
   // Chat Tab State
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -426,7 +431,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
         let extractedText;
 
-        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        if (file.type.startsWith('image/') || file.type === 'application/pdf' || file.type.includes('word')) {
             const dataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
@@ -486,6 +491,68 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     } finally {
       setIsImprovingCv(false);
     }
+  };
+  
+  const handleDesignCv = async () => {
+    if (!cvResult?.fullRewrittenCv) {
+        toast({ variant: 'destructive', title: 'Rewritten CV is not available' });
+        return;
+    }
+    setIsDesigningCv(true);
+    setDesignedCv(null);
+    try {
+        const result = await designCv({ cvMarkdown: cvResult.fullRewrittenCv });
+        setDesignedCv(result);
+        setActiveCvTab('designer');
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'Design Failed', description: e.message || 'Could not design your CV.' });
+    } finally {
+        setIsDesigningCv(false);
+    }
+  };
+
+  const handlePrint = () => {
+      const printContent = document.getElementById('cv-print-area')?.innerHTML;
+      if (!printContent) return;
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+          toast({ variant: 'destructive', title: 'Could not open print window', description: 'Please disable your pop-up blocker.' });
+          return;
+      }
+
+      const styles = Array.from(document.getElementsByTagName('link'))
+        .filter(link => link.rel === 'stylesheet')
+        .map(link => link.outerHTML)
+        .join('');
+        
+      const styleBlocks = Array.from(document.getElementsByTagName('style'))
+        .map(style => style.outerHTML)
+        .join('');
+
+      printWindow.document.write(`
+          <html>
+              <head>
+                  <title>Print CV</title>
+                  ${styles}
+                  ${styleBlocks}
+                  <style>
+                      @page { size: A4; margin: 0; }
+                      body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  </style>
+              </head>
+              <body>
+                  ${printContent}
+              </body>
+          </html>
+      `);
+
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+      }, 1000);
   };
 
   const handleChatSubmit = async (e: React.FormEvent) => {
@@ -585,10 +652,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
           </TabsList>
           
           <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-24">
-            <Tabs value={activeCvTab} onValueChange={(v) => setActiveCvTab(v as 'editor' | 'analysis')} className="w-full flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs value={activeCvTab} onValueChange={(v) => setActiveCvTab(v as any)} className="w-full flex-1 flex flex-col">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="editor">Your CV</TabsTrigger>
-                <TabsTrigger value="analysis">AI Analysis & Rewrite</TabsTrigger>
+                <TabsTrigger value="analysis">AI Rewrite</TabsTrigger>
+                <TabsTrigger value="designer" disabled={!cvResult}>AI Designer</TabsTrigger>
               </TabsList>
 
               <TabsContent value="editor" className="mt-4 flex-1 pb-8">
@@ -604,33 +672,25 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   </CardHeader>
                   <CardContent className="flex-1 relative">
                     {isExtracting && <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Extracting text...</p></div>}
-                    {cv.content || isExtracting ? (
-                      <Textarea 
-                          className="h-full min-h-[400px] resize-none" 
-                          value={cv.content || ''} 
-                          onChange={e => {
-                              setCv(prev => ({...prev, content: e.target.value}));
-                              setIsCvDirty(true);
-                          }}
-                          readOnly={isExtracting}
-                          placeholder={isExtracting ? 'Extracting text...' : 'Your CV content will appear here.'}
-                      />
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center">
-                        <Upload className="h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground mb-2">Upload your CV to get started</p>
-                        <p className="text-sm text-muted-foreground mb-4">Supports PDF, JPG/PNG, Word docs, and TXT files</p>
-                        <Button onClick={() => fileInputRef.current?.click()}>
-                          <Upload className="mr-2 h-4 w-4" /> Upload CV
-                        </Button>
-                        <input 
-                          type="file" 
-                          ref={fileInputRef} 
-                          onChange={handleFileChange} 
-                          className="hidden" 
-                          accept={ALL_ACCEPTED_FILES}
-                        />
-                      </div>
+                    <Textarea 
+                        className="h-full min-h-[400px] resize-none" 
+                        value={cv.content || ''} 
+                        onChange={e => {
+                            setCv(prev => ({...prev, content: e.target.value}));
+                            setIsCvDirty(true);
+                        }}
+                        readOnly={isExtracting}
+                        placeholder={isExtracting ? 'Extracting text...' : 'Your CV content will appear here.'}
+                    />
+                    {!cv.content && !isExtracting && (
+                        <div className="absolute inset-0 h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center bg-background">
+                            <Upload className="h-12 w-12 text-muted-foreground mb-4" />
+                            <p className="text-muted-foreground mb-2">Upload your CV to get started</p>
+                            <p className="text-sm text-muted-foreground mb-4">Supports PDF, JPG/PNG, Word docs, and TXT files</p>
+                            <Button onClick={() => fileInputRef.current?.click()}>
+                                <Upload className="mr-2 h-4 w-4" /> Upload CV
+                            </Button>
+                        </div>
                     )}
                   </CardContent>
                   <CardFooter className="justify-between pt-6">
@@ -648,6 +708,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         {isImprovingCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
                         {isImprovingCv ? 'Analyzing...' : cvResult ? 'Re-analyze CV' : 'Improve CV'}
                     </Button>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
                   </CardFooter>
                 </Card>
               </TabsContent>
@@ -655,7 +716,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
               <TabsContent value="analysis" className="mt-4 flex-1">
                 <Card className="flex flex-col h-full">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Analysis & Rewrite</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Rewrite</CardTitle>
                     <CardDescription>Here is the AI&apos;s feedback and suggested rewrite.</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-1 relative">
@@ -697,16 +758,20 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.fullRewrittenCv}</ReactMarkdown>
                                       </div>
                                   </CardContent>
-                                  <CardFooter className="flex-col items-start gap-2">
-                                    <div className="flex gap-2">
+                                  <CardFooter className="flex-col items-start gap-4">
+                                    <div className="flex flex-wrap gap-2">
                                         <Button variant="outline" size="sm" onClick={() => downloadMarkdown(cvResult.fullRewrittenCv, 'rewritten_cv.md')}>
                                             <Download className="mr-2"/>Download
                                         </Button>
                                         <Button variant="outline" size="sm" onClick={() => copyToClipboard(cvResult.fullRewrittenCv)}>
                                             <Clipboard className="mr-2"/>Copy Text
                                         </Button>
+                                        <Button onClick={handleDesignCv} disabled={isDesigningCv}>
+                                            {isDesigningCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
+                                            Approve & Design CV
+                                        </Button>
                                     </div>
-                                    <p className="text-xs text-muted-foreground pt-2">To save as PDF or Word, use "Copy Text" and paste into an editor like Google Docs, or open the downloaded file with your word processor.</p>
+                                    <p className="text-xs text-muted-foreground pt-2">To save as PDF or Word, open the downloaded document or paste the copied text into an editor like Google Docs or MS Word.</p>
                                   </CardFooter>
                               </Card>
                           </div>
@@ -721,6 +786,35 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   </CardContent>
                 </Card>
               </TabsContent>
+               <TabsContent value="designer" className="mt-4 flex-1">
+                <Card className="h-full">
+                    <CardHeader className="flex-row justify-between items-center">
+                        <div>
+                            <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI-Designed CV</CardTitle>
+                            <CardDescription>Your CV, professionally styled by AI. Use the print option to save as PDF.</CardDescription>
+                        </div>
+                        {designedCv && (
+                            <Button onClick={handlePrint}>
+                                <Printer className="mr-2"/> Print / Save as PDF
+                            </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent className="flex-1 relative">
+                        {isDesigningCv && <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Designing your CV...</p></div>}
+                        {designedCv ? (
+                             <div id="cv-print-area-wrapper" className="bg-gray-200 dark:bg-gray-800 p-4 md:p-8 rounded-md overflow-y-auto">
+                                <div id="cv-print-area" className="bg-white rounded-md shadow-lg aspect-[210/297] w-full max-w-[8.5in] mx-auto p-4 md:p-8 text-black" dangerouslySetInnerHTML={{ __html: designedCv.cvHtml }} />
+                            </div>
+                        ) : !isDesigningCv && (
+                            <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
+                                <Sparkles className="w-12 h-12 mb-4" />
+                                <p>Your designed CV will appear here.</p>
+                                <p className="text-sm mt-2">Approve the rewritten CV in the "AI Rewrite" tab to get started.</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
             </Tabs>
           </TabsContent>
 
