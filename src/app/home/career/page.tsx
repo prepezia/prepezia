@@ -58,12 +58,12 @@ const ALL_ACCEPTED_FILES = Object.values(ACCEPTED_FILE_TYPES).join(',');
 export default function CareerPageWrapper() {
   return (
     <Suspense fallback={
-      <>
+      <div className="flex flex-col min-h-screen">
         <HomeHeader />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      </>
+      </div>
     }>
       <CareerPage />
     </Suspense>
@@ -256,7 +256,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     return (
       <div className="flex flex-col min-h-screen">
         <HomeHeader />
-        <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center items-center">
+        <div className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col justify-center items-center">
           <Card className="max-w-2xl w-full">
             <CardHeader className="text-center">
               <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
@@ -280,7 +280,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     return (
       <div className="flex flex-col min-h-screen">
         <HomeHeader />
-        <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center">
+        <div className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col justify-center">
           <Card className="max-w-2xl mx-auto w-full">
             <CardHeader>
               <CardTitle>Career Hub Onboarding</CardTitle>
@@ -309,7 +309,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     return (
       <div className="flex flex-col min-h-screen">
         <HomeHeader />
-        <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center">
+        <div className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col justify-center">
           <Card className="max-w-2xl mx-auto w-full relative">
             {isLoading && (
               <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-lg z-10">
@@ -570,7 +570,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   };
   
   return (
-    <div className="flex flex-col flex-1 min-h-screen">
+    <div className="flex flex-col flex-1 min-h-0">
       <HomeHeader left={
         <Button variant="outline" onClick={() => backToOnboarding('intro')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
@@ -700,13 +700,13 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                   <CardFooter className="flex-col items-start gap-2">
                                     <div className="flex gap-2">
                                         <Button variant="outline" size="sm" onClick={() => downloadMarkdown(cvResult.fullRewrittenCv, 'rewritten_cv.md')}>
-                                            <Download className="mr-2"/>Download Markdown
+                                            <Download className="mr-2"/>Download
                                         </Button>
                                         <Button variant="outline" size="sm" onClick={() => copyToClipboard(cvResult.fullRewrittenCv)}>
-                                            <Clipboard className="mr-2"/>Copy Markdown
+                                            <Clipboard className="mr-2"/>Copy Text
                                         </Button>
                                     </div>
-                                    <p className="text-xs text-muted-foreground pt-2">To save as PDF or Word, paste the copied text into an editor like Google Docs or MS Word.</p>
+                                    <p className="text-xs text-muted-foreground pt-2">To save as PDF or Word, use "Copy Text" and paste into an editor like Google Docs, or open the downloaded file with your word processor.</p>
                                   </CardFooter>
                               </Card>
                           </div>
