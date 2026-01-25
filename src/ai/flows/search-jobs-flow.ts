@@ -16,6 +16,10 @@ const SearchForJobsInputSchema = z.object({
   cvDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
   cvContentType: z.string().optional().describe("The MIME type of the CV file."),
   careerGoals: z.string().optional().describe("User's career goals."),
+  role: z.string().optional().describe("The desired role or job title (e.g., Software Engineer, Marketing Manager)."),
+  jobType: z.string().optional().describe("The desired job type (e.g., Full-time, Part-time, Internship)."),
+  industry: z.string().optional().describe("The desired industry (e.g., Technology, Finance)."),
+  experienceLevel: z.string().optional().describe("The desired experience level (e.g., Entry-level, Mid-level, Senior)."),
   location: z.string().optional().describe("Preferred job location (e.g., Accra, Ghana)."),
 });
 export type SearchForJobsInput = z.infer<typeof SearchForJobsInputSchema>;
@@ -42,22 +46,22 @@ export async function searchForJobs(input: SearchForJobsInput): Promise<SearchFo
       model: 'googleai/gemini-2.5-flash',
       input: {schema: SearchForJobsInputSchema},
       output: {schema: SearchForJobsOutputSchema},
-      prompt: `You are an expert job search assistant. Your task is to find relevant and high-quality online job postings based on the user's CV and career goals.
+      prompt: `You are an expert job search assistant. Your task is to find relevant and high-quality online job postings based on the user's CV and search criteria.
 
 User's CV:
 \`\`\`
 {{#if cvDataUri}}{{media url=cvDataUri contentType=cvContentType}}{{else}}{{{cvContent}}}{{/if}}
 \`\`\`
 
-{{#if careerGoals}}
-Career Goals: {{{careerGoals}}}
-{{/if}}
+Search Criteria:
+{{#if careerGoals}}- General Career Goals: {{{careerGoals}}}{{/if}}
+{{#if role}}- Role/Title: {{{role}}}{{/if}}
+{{#if jobType}}- Job Type: {{{jobType}}}{{/if}}
+{{#if industry}}- Industry: {{{industry}}}{{/if}}
+{{#if experienceLevel}}- Experience Level: {{{experienceLevel}}}{{/if}}
+{{#if location}}- Location: {{{location}}}{{/if}}
 
-{{#if location}}
-Preferred Location: {{{location}}}
-{{/if}}
-
-Please find 5-7 relevant job postings. For each job, provide a title, company, location, a valid URL, and a concise snippet.
+Please find 5-7 relevant job postings based on the provided criteria.
 Focus on jobs in Ghana if no location is specified. Ensure the URLs are real and lead to actual job application pages on well-known job boards (e.g., LinkedIn, Jobberman, etc.).
 `,
     });
