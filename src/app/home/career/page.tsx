@@ -881,13 +881,13 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             </div>
           </TabsContent>
 
-          <TabsContent value="jobs" className="flex-1 flex flex-col">
+          <TabsContent value="jobs" className="mt-4">
               <Accordion type="multiple" value={jobSearchAccordion} onValueChange={setJobSearchAccordion} className="max-w-4xl mx-auto w-full">
                 <AccordionItem value="filters" className="border-b-0">
                     <Card>
                         <AccordionTrigger className="p-6 w-full hover:no-underline" disabled={isSearchingJobs}>
                             <div className="flex-1 text-left">
-                                <h3 className="text-2xl font-semibold leading-none tracking-tight">AI Job Search</h3>
+                                <h3 className="text-2xl font-semibold leading-none tracking-tight">Job Search</h3>
                                 <p className="text-sm text-muted-foreground mt-1.5">
                                     {jobSearchAccordion.includes('filters')
                                     ? 'Find jobs tailored to your profile and goals.'
@@ -944,7 +944,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             </Accordion>
             {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
             {jobResults && (
-              <div className="max-w-4xl mx-auto mt-8 w-full space-y-4 flex-1 overflow-y-auto pb-4">
+              <div className="max-w-4xl mx-auto mt-4 w-full space-y-4 pb-4">
                 {jobResults.results.length > 0 ? (
                   <>
                     <h3 className="font-bold text-lg">Found {jobResults.results.length} jobs</h3>
