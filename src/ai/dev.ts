@@ -17,3 +17,5 @@ import '@/ai/flows/get-admissions-advice.ts';
 import '@/ai/flows/generate-sop.ts';
 import '@/ai/flows/extract-text-from-file.ts';
 import '@/ai/flows/design-cv-flow.ts';
+import '@/ai/flows/career-chat.ts';
+import '@/ai/flows/admissions-chat.ts';

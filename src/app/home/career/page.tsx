@@ -22,6 +22,7 @@ import remarkGfm from "remark-gfm";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { improveCv, ImproveCvOutput } from "@/ai/flows/improve-cv";
+import { careerChat } from "@/ai/flows/career-chat";
 import { getCareerAdvice, CareerAdviceOutput } from "@/ai/flows/career-advisor";
 import { generateCvTemplate } from "@/ai/flows/generate-cv-template";
 import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow";
@@ -568,11 +569,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     setChatInput("");
 
     try {
-      const result = await getCareerAdvice({ 
-        backgroundContent: cv.content,
-        careerObjectives: currentInput,
+      const result = await careerChat({ 
+        cvContent: cv.content,
+        careerObjectives: careerGoals,
+        question: currentInput,
       });
-      const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
+      const assistantMessage: ChatMessage = { role: 'assistant', content: result.answer };
       setChatHistory(prev => [...prev, assistantMessage]);
     } catch(e: any) {
       console.error("Career advice error", e);

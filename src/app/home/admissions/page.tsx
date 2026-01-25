@@ -25,6 +25,7 @@ import { getAdmissionsAdvice, GetAdmissionsAdviceOutput } from "@/ai/flows/get-a
 import { generateSop, GenerateSopOutput } from "@/ai/flows/generate-sop";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
 import { designCv, DesignCvOutput } from "@/ai/flows/design-cv-flow";
+import { admissionsChat } from "@/ai/flows/admissions-chat";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -431,11 +432,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setChatInput("");
 
         try {
-            const result = await getAdmissionsAdvice({ 
-                backgroundContent: cv.content,
-                academicObjectives: currentInput 
+            const result = await admissionsChat({ 
+                cvContent: cv.content,
+                academicObjectives: academicObjectives,
+                question: currentInput
             });
-            const assistantMessage: ChatMessage = { role: 'assistant', content: <AdmissionsAdviceCard result={result} /> };
+            const assistantMessage: ChatMessage = { role: 'assistant', content: result.answer };
             setChatHistory(prev => [...prev, assistantMessage]);
         } catch(e: any) {
             const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I couldn't process that request." };
