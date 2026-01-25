@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "jobs";
@@ -424,6 +425,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   // Jobs Tab State
   const [jobResults, setJobResults] = useState<SearchForJobsOutput | null>(null);
   const [isSearchingJobs, setIsSearchingJobs] = useState(false);
+  const [jobSearchAccordion, setJobSearchAccordion] = useState<string[]>(['filters']);
   const [jobSearchFilters, setJobSearchFilters] = useState({
     role: "",
     jobType: "",
@@ -611,6 +613,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     }
     setIsSearchingJobs(true);
     setJobResults(null);
+    setJobSearchAccordion([]);
     try {
       const results = await searchForJobs({ 
         cvContent: cv.content, 
@@ -879,51 +882,66 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
           </TabsContent>
 
           <TabsContent value="jobs" className="mt-4 flex-1 flex flex-col">
-            <Card className="max-w-4xl mx-auto w-full">
-              <CardHeader>
-                <CardTitle>AI Job Search</CardTitle>
-                <CardDescription>Find jobs tailored to your profile and goals. The AI uses your CV and goals to refine the search.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="role">Role / Title</Label>
-                    <Input id="role" value={jobSearchFilters.role} onChange={e => handleFilterChange('role', e.target.value)} placeholder="e.g., Software Engineer" />
-                  </div>
-                  <div>
-                    <Label htmlFor="jobType">Job Type</Label>
-                    <Select value={jobSearchFilters.jobType || "Any"} onValueChange={value => handleFilterChange('jobType', value === 'Any' ? '' : value)}>
-                      <SelectTrigger id="jobType"><SelectValue placeholder="Select type..." /></SelectTrigger>
-                      <SelectContent>{jobTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="industry">Industry</Label>
-                    <Select value={jobSearchFilters.industry || "Any"} onValueChange={value => handleFilterChange('industry', value === 'Any' ? '' : value)}>
-                      <SelectTrigger id="industry"><SelectValue placeholder="Select industry..." /></SelectTrigger>
-                      <SelectContent>{industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="experienceLevel">Experience Level</Label>
-                    <Select value={jobSearchFilters.experienceLevel || "Any"} onValueChange={value => handleFilterChange('experienceLevel', value === 'Any' ? '' : value)}>
-                      <SelectTrigger id="experienceLevel"><SelectValue placeholder="Select level..." /></SelectTrigger>
-                      <SelectContent>{experienceLevels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                   <div className="md:col-span-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input id="location" value={jobSearchFilters.location} onChange={e => handleFilterChange('location', e.target.value)} placeholder="e.g., Accra, Ghana" />
-                  </div>
-                </div>
-                 <div className="flex justify-end pt-4">
-                    <Button onClick={handleJobSearch} disabled={isSearchingJobs} size="lg">
-                        {isSearchingJobs && <Loader2 className="mr-2 animate-spin" />}
-                        <Search className="mr-2" /> Search for Jobs
-                    </Button>
-                </div>
-              </CardContent>
-            </Card>
+              <Accordion type="multiple" value={jobSearchAccordion} onValueChange={setJobSearchAccordion} className="max-w-4xl mx-auto w-full">
+                <AccordionItem value="filters" className="border-b-0">
+                    <Card>
+                        <AccordionTrigger className="p-6 w-full hover:no-underline" disabled={isSearchingJobs}>
+                            <div className="flex-1 text-left">
+                                <h3 className="text-2xl font-semibold leading-none tracking-tight">AI Job Search</h3>
+                                <p className="text-sm text-muted-foreground mt-1.5">
+                                    {jobSearchAccordion.includes('filters')
+                                    ? 'Find jobs tailored to your profile and goals.'
+                                    : 'Click to show filters and find matching jobs.'}
+                                </p>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <CardContent className="space-y-4 pt-0">
+                              <p className="text-sm text-muted-foreground">
+                                  Use the filters below to refine your search. The AI also uses your CV and goals.
+                              </p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                  <Label htmlFor="role">Role / Title</Label>
+                                  <Input id="role" value={jobSearchFilters.role} onChange={e => handleFilterChange('role', e.target.value)} placeholder="e.g., Software Engineer" />
+                                </div>
+                                <div>
+                                  <Label htmlFor="jobType">Job Type</Label>
+                                  <Select value={jobSearchFilters.jobType || "Any"} onValueChange={value => handleFilterChange('jobType', value === 'Any' ? '' : value)}>
+                                    <SelectTrigger id="jobType"><SelectValue placeholder="Select type..." /></SelectTrigger>
+                                    <SelectContent>{jobTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="industry">Industry</Label>
+                                  <Select value={jobSearchFilters.industry || "Any"} onValueChange={value => handleFilterChange('industry', value === 'Any' ? '' : value)}>
+                                    <SelectTrigger id="industry"><SelectValue placeholder="Select industry..." /></SelectTrigger>
+                                    <SelectContent>{industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="experienceLevel">Experience Level</Label>
+                                  <Select value={jobSearchFilters.experienceLevel || "Any"} onValueChange={value => handleFilterChange('experienceLevel', value === 'Any' ? '' : value)}>
+                                    <SelectTrigger id="experienceLevel"><SelectValue placeholder="Select level..." /></SelectTrigger>
+                                    <SelectContent>{experienceLevels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <Label htmlFor="location">Location</Label>
+                                  <Input id="location" value={jobSearchFilters.location} onChange={e => handleFilterChange('location', e.target.value)} placeholder="e.g., Accra, Ghana" />
+                                </div>
+                              </div>
+                              <div className="flex justify-end pt-4">
+                                <Button onClick={handleJobSearch} disabled={isSearchingJobs} size="lg">
+                                    {isSearchingJobs && <Loader2 className="mr-2 animate-spin" />}
+                                    <Search className="mr-2" /> Search for Jobs
+                                </Button>
+                              </div>
+                            </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+            </Accordion>
             {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
             {jobResults && (
               <div className="max-w-4xl mx-auto mt-8 w-full space-y-4 flex-1 overflow-y-auto pb-4">
@@ -993,3 +1011,5 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
     </Card>
   );
 }
+
+    
