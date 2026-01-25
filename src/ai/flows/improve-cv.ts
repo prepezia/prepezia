@@ -32,7 +32,7 @@ export type ImproveCvOutput = z.infer<typeof ImproveCvOutputSchema>;
 const improveCvPrompt = ai.definePrompt(
   {
     name: 'improveCvPrompt',
-    model: 'googleai/gemini-1.5-flash-latest', // Explicitly setting a modern model helps resolve potential issues.
+    model: 'googleai/gemini-2.5-flash',
     input: { schema: ImproveCvInputSchema },
     output: { schema: ImproveCvOutputSchema },
   },
