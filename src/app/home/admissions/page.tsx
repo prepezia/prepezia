@@ -166,10 +166,9 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
         try {
             toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
             let extractedText;
-            let dataUri;
 
             if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-                dataUri = await new Promise<string>((resolve, reject) => {
+                const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result as string);
                     reader.onerror = (e) => reject(e);
@@ -356,10 +355,9 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
             let extractedText;
-            let dataUri;
 
             if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-                dataUri = await new Promise<string>((resolve, reject) => {
+                const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result as string);
                     reader.onerror = (e) => reject(e);
@@ -402,7 +400,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const result = await improveAcademicCv({ 
                 cvContent: cv.content,
-                cvContentType: cv.contentType,
             });
             setCvResult(result);
             setIsCvDirty(false); // Analysis is based on current content
@@ -428,7 +425,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const result = await getAdmissionsAdvice({ 
                 backgroundContent: cv.content,
-                backgroundContentType: cv.contentType,
                 academicObjectives: currentInput 
             });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <AdmissionsAdviceCard result={result} /> };
@@ -457,7 +453,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await generateSop({ 
                 ...sopInputs, 
                 cvContent: cv.content,
-                cvContentType: cv.contentType,
             });
             setSopResult(result);
         } catch(e: any) {
@@ -477,7 +472,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const result = await getAdmissionsAdvice({
                 backgroundContent: cv.content,
-                backgroundContentType: cv.contentType,
                 academicObjectives,
             });
             setOpportunitiesResult(result);
@@ -509,7 +503,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     };
 
     return (
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col flex-1">
             <HomeHeader left={ <Button variant="outline" onClick={backToOnboarding}><ArrowLeft className="mr-2 h-4 w-4" /> Start Over</Button> } />
             <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="w-full flex-1 flex flex-col">
@@ -526,7 +520,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                 <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
                                 <TabsTrigger value="sop">SOP Generator</TabsTrigger>
                             </TabsList>
-                            <TabsContent value="editor" className="mt-4 flex-1">
+                            <TabsContent value="editor" className="mt-4 flex-1 pb-8">
                                 <Card className="flex flex-col h-full">
                                     <CardHeader>
                                         <CardTitle>Your Academic CV</CardTitle>
@@ -537,7 +531,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                             }
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="flex-1 relative pb-8">
+                                    <CardContent className="flex-1 relative">
                                         {isExtracting && <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Extracting text...</p></div>}
                                         {cv.content || isExtracting ? (
                                             <Textarea 
@@ -565,9 +559,9 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isExtracting}><Upload className="mr-2 h-4 w-4" /> Upload New</Button>
                                             {(cv.content) && (<Button variant="outline" size="sm" onClick={clearCv} disabled={isExtracting}>Clear</Button>)}
                                         </div>
-                                        <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty || isExtracting || !cv.content}>
-                                            {isImprovingCv ? <Loader2 className="mr-2 animate-spin" /> : isCvDirty ? <Sparkles className="mr-2" /> : null}
-                                            {isCvDirty ? 'Re-analyze CV' : 'Improve CV'}
+                                        <Button onClick={handleImproveCv} disabled={isImprovingCv || isExtracting || !cv.content}>
+                                            {isImprovingCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
+                                            {isImprovingCv ? 'Analyzing...' : cvResult ? 'Re-analyze CV' : 'Improve CV'}
                                         </Button>
                                     </CardFooter>
                                 </Card>
@@ -665,4 +659,3 @@ function AdmissionsAdviceCard({ result }: { result: GetAdmissionsAdviceOutput })
         </Card>
     );
 }
-
