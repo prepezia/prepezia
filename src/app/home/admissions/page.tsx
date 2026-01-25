@@ -13,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, School, File, ImageIcon, Image as LucideImage } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, School, File, ImageIcon, Image as LucideImage, Clipboard } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,7 @@ import { generateSop, GenerateSopOutput } from "@/ai/flows/generate-sop";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "opportunities";
@@ -492,7 +493,15 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-    }
+    };
+
+    const copyToClipboard = (content: string) => {
+        navigator.clipboard.writeText(content).then(() => {
+            toast({ title: "Copied to clipboard!" });
+        }).catch(err => {
+            toast({ variant: 'destructive', title: "Failed to copy", description: "Could not copy text to clipboard." });
+        });
+    };
     
     const clearCv = () => {
         setCv({ content: "", contentType: undefined, fileName: undefined });
@@ -503,7 +512,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     };
 
     return (
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 min-h-screen">
             <HomeHeader left={ <Button variant="outline" onClick={backToOnboarding}><ArrowLeft className="mr-2 h-4 w-4" /> Start Over</Button> } />
             <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="w-full flex-1 flex flex-col">
@@ -513,7 +522,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         <TabsTrigger value="opportunities"><Search className="mr-2"/>Opportunities</TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-8">
+                    <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-24">
                         <Tabs value={activeCvTab} onValueChange={(v) => setActiveCvTab(v as 'editor' | 'analysis' | 'sop')} className="w-full flex-1 flex flex-col">
                             <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="editor">Your CV</TabsTrigger>
@@ -572,10 +581,46 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                     <CardContent className="flex-1 relative">
                                         {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
                                         {cvResult ? (
-                                            <div className="space-y-6 h-full overflow-y-auto">
-                                                <div><h3 className="font-semibold mb-2">CV Audit</h3><p className="text-sm text-muted-foreground">{cvResult.audit}</p></div>
-                                                <div><h3 className="font-semibold mb-2">Rewritten Experience</h3><div className="prose prose-sm dark:prose-invert max-w-none p-4 border rounded-md h-64 overflow-y-auto"><ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.rewrittenExperience}</ReactMarkdown></div><Button variant="outline" size="sm" className="mt-2" onClick={() => downloadMarkdown(cvResult.rewrittenExperience, 'rewritten_academic_cv_experience.md')}><Download className="mr-2"/>Download Rewrite</Button></div>
-                                                <div><h3 className="font-semibold mb-2">Citation Style Check</h3><p className="text-sm text-muted-foreground">{cvResult.citationStyleCheck}</p></div>
+                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                                                <div className="flex flex-col gap-6">
+                                                    <div>
+                                                        <h3 className="font-semibold mb-2 text-lg">CV Analysis</h3>
+                                                        <Card>
+                                                            <CardContent className="p-4 space-y-4">
+                                                                <div>
+                                                                    <h4 className="font-semibold">CV Audit</h4>
+                                                                    <p className="text-sm text-muted-foreground">{cvResult.analysis.audit}</p>
+                                                                </div>
+                                                                <Separator />
+                                                                <div>
+                                                                    <h4 className="font-semibold">Citation Style Check</h4>
+                                                                    <p className="text-sm text-muted-foreground">{cvResult.analysis.citationStyleCheck}</p>
+                                                                </div>
+                                                            </CardContent>
+                                                        </Card>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <h3 className="font-semibold mb-2 text-lg">Full Rewritten Academic CV</h3>
+                                                    <Card className="flex-1 flex flex-col">
+                                                        <CardContent className="p-4 flex-1">
+                                                            <div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4">
+                                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.fullRewrittenCv}</ReactMarkdown>
+                                                            </div>
+                                                        </CardContent>
+                                                        <CardFooter className="flex-col items-start gap-2">
+                                                            <div className="flex gap-2">
+                                                                <Button variant="outline" size="sm" onClick={() => downloadMarkdown(cvResult.fullRewrittenCv, 'rewritten_academic_cv.md')}>
+                                                                    <Download className="mr-2"/>Download Markdown
+                                                                </Button>
+                                                                <Button variant="outline" size="sm" onClick={() => copyToClipboard(cvResult.fullRewrittenCv)}>
+                                                                    <Clipboard className="mr-2"/>Copy Markdown
+                                                                </Button>
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground pt-2">To save as PDF or Word, paste the copied text into an editor like Google Docs or MS Word.</p>
+                                                        </CardFooter>
+                                                    </Card>
+                                                </div>
                                             </div>
                                         ) : !isImprovingCv && (<div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center"><BrainCircuit className="w-12 h-12 mb-4" /><p>Your CV analysis will appear here.</p></div>)}
                                     </CardContent>

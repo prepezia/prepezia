@@ -20,10 +20,12 @@ const ImproveCvInputSchema = z.object({
 export type ImproveCvInput = z.infer<typeof ImproveCvInputSchema>;
 
 const ImproveCvOutputSchema = z.object({
-  critique: z.string().describe("Analysis of the current CV for layout, clarity, and impact."),
-  rewrittenExperience: z.string().describe("The rewritten version of the 'Professional Experience' section."),
-  skillGapAnalysis: z.array(z.string()).describe("A list of 3-5 skills or certifications the user is missing."),
-  actionPlan: z.array(z.string()).describe("A list of 3 immediate steps for the user to improve their marketability."),
+    analysis: z.object({
+        critique: z.string().describe("A concise, high-level critique of the original CV, focusing on layout, clarity, and overall impact."),
+        skillGapAnalysis: z.array(z.string()).describe("A list of 3-5 key skills or certifications the user appears to be missing for their stated goals, based on the provided job description if available."),
+        actionPlan: z.array(z.string()).describe("A list of 3 immediate, actionable steps the user can take to improve their marketability."),
+    }),
+    fullRewrittenCv: z.string().describe("The complete, rewritten CV in Markdown format. This version should incorporate all improvements, especially in the 'Professional Experience' section, while preserving the original structure and content of other sections like Education and Skills."),
 });
 
 export type ImproveCvOutput = z.infer<typeof ImproveCvOutputSchema>;
@@ -36,32 +38,42 @@ const improveCvPrompt = ai.definePrompt(
     input: { schema: ImproveCvInputSchema },
     output: { schema: ImproveCvOutputSchema },
   },
-  `You are an expert Senior Technical Recruiter and Career Coach with 20 years of experience.
-  
-  ### YOUR RULES:
-  1. QUANTIFY IMPACT: Use the Google "XYZ Formula": "Accomplished [X] as measured by [Y], by doing [Z]."
-  2. ACTION VERBS: Use strong verbs like "Spearheaded," "Architected," "Optimized."
-  3. ATS OPTIMIZATION: Highlight industry keywords naturally.
-  4. TONE: Professional and data-driven.
-  
-  ### YOUR TASKS:
-  1. CRITIQUE: Analyze layout, clarity, and impact.
-  2. REWRITE: Provide a significant rewrite of the "Professional Experience" section.
-  3. SKILL GAP ANALYSIS: Identify 3-5 missing skills/certifications.
-  4. ACTION PLAN: Provide 3 immediate steps.
-  
-  User's CV:
-  {{#if cvDataUri}}{{media url=cvDataUri contentType=cvContentType}}{{else}}{{{cvContent}}}{{/if}}
-  
-  {{#if careerGoals}}
-  User's Career Goals:
-  {{{careerGoals}}}
-  {{/if}}
-  
-  {{#if jobDescription}}
-  Target Job Description:
-  {{{jobDescription}}}
-  {{/if}}`
+  `You are an expert Senior Technical Recruiter and Career Coach. Your task is to provide a comprehensive analysis of a user's CV and then rewrite the entire document with targeted improvements.
+
+### YOUR RULES for rewriting the experience section:
+1.  QUANTIFY IMPACT: Use the Google "XYZ Formula": "Accomplished [X] as measured by [Y], by doing [Z]." Frame bullet points around achievements, not just responsibilities.
+2.  ACTION VERBS: Start each bullet point with strong, industry-relevant action verbs like "Spearheaded," "Architected," "Optimized," "Engineered," "Managed."
+3.  ATS OPTIMIZATION: Naturally integrate keywords from the target job description (if provided) into the rewritten experience.
+
+### YOUR TASKS:
+1.  **ANALYZE:**
+    *   **Critique:** Provide a concise, high-level critique of the original CV.
+    *   **Skill Gap Analysis:** Identify 3-5 missing skills/certifications based on the user's goals and target job description.
+    *   **Action Plan:** Provide 3 immediate, actionable steps for the user.
+2.  **REWRITE:**
+    *   Take the user's entire CV content.
+    *   Apply your rewriting rules **specifically to the 'Professional Experience' section**.
+    *   Keep all other sections (e.g., Contact Info, Summary, Education, Skills) intact unless they contain obvious typos.
+    *   Return the **complete, full CV** as a single Markdown string in the 'fullRewrittenCv' field.
+
+### USER-PROVIDED DATA:
+
+User's CV:
+\`\`\`
+{{#if cvDataUri}}{{media url=cvDataUri contentType=cvContentType}}{{else}}{{{cvContent}}}{{/if}}
+\`\`\`
+
+{{#if careerGoals}}
+User's Career Goals:
+{{{careerGoals}}}
+{{/if}}
+
+{{#if jobDescription}}
+Target Job Description:
+\`\`\`
+{{{jobDescription}}}
+\`\`\`
+{{/if}}`
 );
 
 // Define the flow once

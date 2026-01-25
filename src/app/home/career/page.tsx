@@ -13,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +28,7 @@ import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow"
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "jobs";
@@ -121,12 +122,12 @@ function CareerPage() {
 
   if (view === "loading") {
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
         <HomeHeader />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      </>
+      </div>
     );
   }
   
@@ -253,7 +254,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
   
   if (step === 'intro') {
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
         <HomeHeader />
         <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center items-center">
           <Card className="max-w-2xl w-full">
@@ -271,13 +272,13 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
             </CardContent>
           </Card>
         </div>
-      </>
+      </div>
     )
   }
 
   if (step === 'goals') {
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
         <HomeHeader />
         <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center">
           <Card className="max-w-2xl mx-auto w-full">
@@ -300,13 +301,13 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
             </CardFooter>
           </Card>
         </div>
-      </>
+      </div>
     );
   }
 
   if (step === 'cv') {
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
         <HomeHeader />
         <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col justify-center">
           <Card className="max-w-2xl mx-auto w-full relative">
@@ -382,7 +383,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
             </DialogContent>
           </Dialog>
         </div>
-      </>
+      </div>
     )
   }
 
@@ -540,16 +541,24 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     }
   };
 
-  const downloadCv = (content: string) => {
+  const downloadMarkdown = (content: string, filename: string) => {
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'rewritten_cv.md';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+  
+  const copyToClipboard = (content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+        toast({ title: "Copied to clipboard!" });
+    }).catch(err => {
+        toast({ variant: 'destructive', title: "Failed to copy", description: "Could not copy text to clipboard." });
+    });
   };
 
   const clearCv = () => {
@@ -561,7 +570,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   };
   
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 min-h-screen">
       <HomeHeader left={
         <Button variant="outline" onClick={() => backToOnboarding('intro')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
@@ -575,7 +584,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-8">
+          <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-24">
             <Tabs value={activeCvTab} onValueChange={(v) => setActiveCvTab(v as 'editor' | 'analysis')} className="w-full flex-1 flex flex-col">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="editor">Your CV</TabsTrigger>
@@ -652,30 +661,55 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   <CardContent className="flex-1 relative">
                     {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
                     {cvResult ? (
-                      <div className="space-y-6 h-full overflow-y-auto">
-                        <div>
-                          <h3 className="font-semibold mb-2">Critique</h3>
-                          <p className="text-sm text-muted-foreground">{cvResult.critique}</p>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold mb-2">Rewritten Experience</h3>
-                          <div className="prose prose-sm dark:prose-invert max-w-none p-4 border rounded-md h-64 overflow-y-auto">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.rewrittenExperience}</ReactMarkdown>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                          <div className="flex flex-col gap-6">
+                              <div>
+                                  <h3 className="font-semibold mb-2 text-lg">Critique & Action Plan</h3>
+                                  <Card>
+                                      <CardContent className="p-4 space-y-4">
+                                          <div>
+                                              <h4 className="font-semibold">Critique</h4>
+                                              <p className="text-sm text-muted-foreground">{cvResult.analysis.critique}</p>
+                                          </div>
+                                          <Separator />
+                                          <div>
+                                              <h4 className="font-semibold">Skill Gap Analysis</h4>
+                                              <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1 mt-2">
+                                                  {cvResult.analysis.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}
+                                              </ul>
+                                          </div>
+                                          <Separator />
+                                          <div>
+                                              <h4 className="font-semibold">Action Plan</h4>
+                                              <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1 mt-2">
+                                                  {cvResult.analysis.actionPlan.map((s, i) => <li key={i}>{s}</li>)}
+                                              </ul>
+                                          </div>
+                                      </CardContent>
+                                  </Card>
+                              </div>
                           </div>
-                          <Button variant="outline" size="sm" className="mt-2" onClick={() => downloadCv(cvResult.rewrittenExperience)}><Download className="mr-2"/>Download</Button>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold mb-2">Skill Gap Analysis</h3>
-                          <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                            {cvResult.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}
-                          </ul>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold mb-2">Action Plan</h3>
-                          <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                            {cvResult.actionPlan.map((s, i) => <li key={i}>{s}</li>)}
-                          </ul>
-                        </div>
+                          <div className="flex flex-col">
+                              <h3 className="font-semibold mb-2 text-lg">Full Rewritten CV</h3>
+                              <Card className="flex-1 flex flex-col">
+                                  <CardContent className="p-4 flex-1">
+                                      <div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4">
+                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.fullRewrittenCv}</ReactMarkdown>
+                                      </div>
+                                  </CardContent>
+                                  <CardFooter className="flex-col items-start gap-2">
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => downloadMarkdown(cvResult.fullRewrittenCv, 'rewritten_cv.md')}>
+                                            <Download className="mr-2"/>Download Markdown
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(cvResult.fullRewrittenCv)}>
+                                            <Clipboard className="mr-2"/>Copy Markdown
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground pt-2">To save as PDF or Word, paste the copied text into an editor like Google Docs or MS Word.</p>
+                                  </CardFooter>
+                              </Card>
+                          </div>
                       </div>
                     ) : !isImprovingCv && (
                       <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">

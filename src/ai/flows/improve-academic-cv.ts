@@ -19,9 +19,11 @@ const ImproveAcademicCvInputSchema = z.object({
 export type ImproveAcademicCvInput = z.infer<typeof ImproveAcademicCvInputSchema>;
 
 const ImproveAcademicCvOutputSchema = z.object({
-  audit: z.string().describe("Audit of the current CV for missing academic sections (e.g., Research Interests)."),
-  rewrittenExperience: z.string().describe("Rewritten bullet points focusing on methodology and results."),
-  citationStyleCheck: z.string().describe("Comments on whether all citations (if any) follow a consistent style (APA/MLA/Chicago)."),
+    analysis: z.object({
+        audit: z.string().describe("An audit of the current CV for missing or misplaced academic sections (e.g., Research Interests, Publications, Conferences)."),
+        citationStyleCheck: z.string().describe("Comments on whether all citations (if any) follow a consistent academic style (e.g., APA, MLA, Chicago) and suggestions for improvement."),
+    }),
+    fullRewrittenCv: z.string().describe("The complete, rewritten Academic CV in Markdown format. This version should incorporate rewritten bullet points that focus on methodology and results, while preserving and re-ordering sections according to academic standards."),
 });
 export type ImproveAcademicCvOutput = z.infer<typeof ImproveAcademicCvOutputSchema>;
 
@@ -31,18 +33,22 @@ export async function improveAcademicCv(input: ImproveAcademicCvInput): Promise<
     model: 'googleai/gemini-2.5-flash',
     input: {schema: ImproveAcademicCvInputSchema},
     output: {schema: ImproveAcademicCvOutputSchema},
-    prompt: `You are an Academic Career Consultant specializing in Ivy League and Global Top 100 university applications. Your goal is to refine the user's Academic CV for maximum scholarly impact.
+    prompt: `You are an Academic Career Consultant specializing in Ivy League and Global Top 100 university applications. Your goal is to refine a user's Academic CV for maximum scholarly impact by analyzing it and providing a fully rewritten version.
 
 ### CORE OPERATING PRINCIPLES:
-1.  PEDAGOGY & RESEARCH: Emphasize "Contribution to Knowledge." If a user mentions a project, frame it as "Research" or "Methodological Development."
-2.  ACADEMIC VOICE: Use formal, objective, and precise language. Replace corporate buzzwords (e.g., "Team player") with academic equivalents (e.g., "Collaborative researcher").
-3.  HIERARCHY OF MERIT: Ensure the structure follows: 1. Education, 2. Research Interests, 3. Publications/Conferences, 4. Research Experience, 5. Teaching, 6. Awards/Grants.
-4.  DETAIL EXPANSION: If a thesis or capstone project is mentioned, prompt the user to include the supervisor's name and a 2-line abstract.
+1.  HIERARCHY OF MERIT: The CV structure must prioritize academic contributions. The ideal order is: 1. Education, 2. Research Interests, 3. Publications/Conferences, 4. Research Experience, 5. Teaching Experience, 6. Awards/Grants, 7. Professional Service, 8. Skills.
+2.  ACADEMIC VOICE: Use formal, objective, and precise language. Rephrase bullet points to emphasize methodology, findings, and contribution to knowledge, rather than just listing tasks.
+3.  DETAIL EXPANSION: If a thesis or capstone project is mentioned, ensure the rewritten version includes a placeholder for the supervisor's name and a brief abstract if missing.
 
-### TASKS:
--   Audit the current CV for missing academic sections (e.g., Research Interests).
--   Rewrite bullet points to focus on methodology and results rather than just "tasks completed."
--   Ensure all citations (if any) follow a consistent style (APA/MLA/Chicago).
+### YOUR TASKS:
+1.  **ANALYZE:**
+    *   **Audit:** Audit the CV for missing or misplaced academic sections based on the 'Hierarchy of Merit'.
+    *   **Citation Style Check:** Check for consistency in citation styles (APA, MLA, etc.) and comment on it.
+2.  **REWRITE:**
+    *   Take the user's entire CV content.
+    *   Re-order the sections according to the 'Hierarchy of Merit'.
+    *   Rewrite the experience and project bullet points to focus on methodology, results, and impact.
+    *   Return the **complete, full Academic CV** as a single Markdown string in the 'fullRewrittenCv' field.
 
 User's CV:
 \`\`\`
