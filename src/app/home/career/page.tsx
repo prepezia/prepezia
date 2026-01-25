@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
@@ -12,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as ImageIcon } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -39,7 +40,6 @@ type ChatMessage = {
 
 type CvData = {
   content?: string;
-  dataUri?: string;
   fileName?: string;
   contentType?: string;
 };
@@ -171,32 +171,41 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
     setIsLoading(true);
     try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const dataUri = e.target?.result as string;
-            try {
-                toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
-                const { extractedText } = await extractTextFromFile({
-                    fileDataUri: dataUri,
-                    fileContentType: file.type,
-                });
-                onCompleted({ 
-                    content: extractedText, 
-                    fileName: file.name, 
-                    contentType: file.type,
-                }, goals);
-            } catch (err: any) {
-                toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
-                setIsLoading(false);
-            }
-        };
-        reader.onerror = () => {
-            toast({ variant: 'destructive', title: 'File Read Error' });
-            setIsLoading(false);
+        toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+        
+        let extractedText;
+        let dataUri;
+
+        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+            dataUri = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = (e) => reject(e);
+                reader.readAsDataURL(file);
+            });
+            const result = await extractTextFromFile({
+                fileDataUri: dataUri,
+                fileContentType: file.type,
+            });
+            extractedText = result.extractedText;
+        } else {
+            extractedText = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
         }
-        reader.readAsDataURL(file);
+        
+        onCompleted({ 
+            content: extractedText, 
+            fileName: file.name, 
+            contentType: file.type,
+        }, goals);
+
     } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Upload Failed', description: err.message || 'An unexpected error occurred.' });
+        toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
+    } finally {
         setIsLoading(false);
     }
   };
@@ -316,7 +325,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                   <File className="h-3 w-3" /> PDF
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1">
-                  <ImageIcon className="h-3 w-3" /> JPG/PNG
+                  <LucideImage className="h-3 w-3" /> JPG/PNG
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1">
                   <FileText className="h-3 w-3" /> Word
@@ -383,6 +392,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
 function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvData, initialGoals: string, backToOnboarding: (startFrom?: 'cv' | 'intro') => void }) {
   const [activeTab, setActiveTab] = useState<HubTab>("cv");
+  const [activeCvTab, setActiveCvTab] = useState('editor');
   const [cv, setCv] = useState<CvData>(initialCv);
   const [careerGoals, setCareerGoals] = useState(initialGoals);
   
@@ -408,38 +418,45 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
+    
+    setActiveCvTab('editor');
     setIsExtracting(true);
     setCvResult(null); // Clear old analysis
     try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const dataUri = e.target?.result as string;
-            try {
-                toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
-                const { extractedText } = await extractTextFromFile({
-                    fileDataUri: dataUri,
-                    fileContentType: file.type,
-                });
-                setCv({ 
-                    content: extractedText, 
-                    fileName: file.name, 
-                    contentType: file.type,
-                });
-                setIsCvDirty(true); // Mark as dirty since content has changed
-            } catch (err: any) {
-                toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
-            } finally {
-                setIsExtracting(false);
-            }
-        };
-        reader.onerror = () => {
-            toast({ variant: 'destructive', title: 'File Read Error' });
-            setIsExtracting(false);
+        toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+        let extractedText;
+        let dataUri;
+
+        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+            dataUri = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = (e) => reject(e);
+                reader.readAsDataURL(file);
+            });
+            const result = await extractTextFromFile({
+                fileDataUri: dataUri,
+                fileContentType: file.type,
+            });
+            extractedText = result.extractedText;
+        } else {
+            extractedText = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
         }
-        reader.readAsDataURL(file);
+        
+        setCv({ 
+            content: extractedText, 
+            fileName: file.name, 
+            contentType: file.type,
+        });
+        setIsCvDirty(true);
     } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Upload Failed', description: err.message || 'An unexpected error occurred.' });
+        toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
+    } finally {
         setIsExtracting(false);
     }
   };
@@ -454,11 +471,13 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     try {
       const result = await improveCv({ 
         cvContent: cv.content, 
+        cvContentType: cv.contentType,
         careerGoals,
       });
       setCvResult(result);
       setIsCvDirty(false);
       localStorage.setItem('learnwithtemi_cv', JSON.stringify(cv)); // Save extracted CV
+      setActiveCvTab('analysis');
     } catch(e: any) {
       console.error("CV improvement error", e);
       toast({ 
@@ -470,13 +489,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
       setIsImprovingCv(false);
     }
   };
-  
-  useEffect(() => {
-    if(cv.content && activeTab === "cv" && !cvResult && !isCvDirty) {
-      handleImproveCv();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cv.content, activeTab]);
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -490,7 +502,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
     try {
       const result = await getCareerAdvice({ 
-        backgroundContent: cv.content, 
+        backgroundContent: cv.content,
+        backgroundContentType: cv.contentType, 
         careerObjectives: currentInput,
       });
       const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
@@ -519,6 +532,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     try {
       const results = await searchForJobs({ 
         cvContent: cv.content, 
+        cvContentType: cv.contentType,
         careerGoals, 
         location: jobSearchLocation,
       });
@@ -544,10 +558,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   };
 
   const clearCv = () => {
-    setCv({ content: "" });
+    setCv({ content: "", contentType: undefined, fileName: undefined });
     setCvResult(null);
     setIsCvDirty(false);
     localStorage.removeItem('learnwithtemi_cv');
+    setActiveCvTab('editor');
   };
   
   return (
@@ -565,8 +580,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="cv" className="mt-4 flex-1 flex flex-col">
-            <Tabs defaultValue="editor" className="w-full flex-1 flex flex-col">
+          <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-8">
+            <Tabs value={activeCvTab} onValueChange={(v) => setActiveCvTab(v as 'editor' | 'analysis')} className="w-full flex-1 flex flex-col">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="editor">Your CV</TabsTrigger>
                 <TabsTrigger value="analysis">AI Analysis & Rewrite</TabsTrigger>

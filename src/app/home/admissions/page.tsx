@@ -13,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, School, File, ImageIcon } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, School, File, ImageIcon, Image as LucideImage } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -38,10 +38,8 @@ type ChatMessage = {
 
 type CvData = {
   content?: string;
-  dataUri?: string;
   fileName?: string;
   contentType?: string;
-  fileType?: 'pdf' | 'image' | 'text' | 'doc';
 };
 
 // Supported file types
@@ -166,35 +164,43 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
         setIsLoading(true);
         try {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const dataUri = e.target?.result as string;
-                try {
-                    toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
-                    const { extractedText } = await extractTextFromFile({
-                        fileDataUri: dataUri,
-                        fileContentType: file.type,
-                    });
-                    onCompleted({ 
-                        content: extractedText, 
-                        fileName: file.name, 
-                        contentType: file.type,
-                    }, goals);
-                } catch (err: any) {
-                    toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
-                    setIsLoading(false);
-                }
-            };
-            reader.onerror = () => {
-                toast({ variant: 'destructive', title: 'File Read Error' });
-                setIsLoading(false);
+            toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+            let extractedText;
+            let dataUri;
+
+            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+                dataUri = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(file);
+                });
+                const result = await extractTextFromFile({
+                    fileDataUri: dataUri,
+                    fileContentType: file.type,
+                });
+                extractedText = result.extractedText;
+            } else {
+                extractedText = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsText(file);
+                });
             }
-            reader.readAsDataURL(file);
+
+            onCompleted({ 
+                content: extractedText, 
+                fileName: file.name, 
+                contentType: file.type,
+            }, goals);
+
         } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Upload Failed', description: err.message || 'An unexpected error occurred.' });
+            toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
+        } finally {
             setIsLoading(false);
         }
-      };
+    };
     
     const handleContinueWithGoals = () => {
         if (!goals.trim()) {
@@ -282,7 +288,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                             <CardDescription>Step 2 of 2: Provide your Academic CV.</CardDescription>
                             <div className="flex flex-wrap gap-2 mt-2">
                                 <Badge variant="outline" className="flex items-center gap-1"><File className="h-3 w-3" /> PDF</Badge>
-                                <Badge variant="outline" className="flex items-center gap-1"><ImageIcon className="h-3 w-3" /> JPG/PNG</Badge>
+                                <Badge variant="outline" className="flex items-center gap-1"><LucideImage className="h-3 w-3" /> JPG/PNG</Badge>
                                 <Badge variant="outline" className="flex items-center gap-1"><FileText className="h-3 w-3" /> Word</Badge>
                                 <Badge variant="outline" className="flex items-center gap-1"><FileText className="h-3 w-3" /> TXT</Badge>
                             </div>
@@ -313,6 +319,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
 function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvData, initialGoals: string, backToOnboarding: () => void }) {
     const [activeTab, setActiveTab] = useState<HubTab>("cv");
+    const [activeCvTab, setActiveCvTab] = useState('editor');
     const [cv, setCv] = useState<CvData>(initialCv);
     const [academicObjectives, setAcademicObjectives] = useState(initialGoals);
     
@@ -343,40 +350,47 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         const file = event.target.files?.[0];
         if (!file) return;
     
+        setActiveCvTab('editor');
         setIsExtracting(true);
         setCvResult(null);
         try {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const dataUri = e.target?.result as string;
-                try {
-                    toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
-                    const { extractedText } = await extractTextFromFile({
-                        fileDataUri: dataUri,
-                        fileContentType: file.type,
-                    });
-                    setCv({ 
-                        content: extractedText, 
-                        fileName: file.name, 
-                        contentType: file.type,
-                    });
-                    setIsCvDirty(true);
-                } catch (err: any) {
-                    toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
-                } finally {
-                    setIsExtracting(false);
-                }
-            };
-            reader.onerror = () => {
-                toast({ variant: 'destructive', title: 'File Read Error' });
-                setIsExtracting(false);
+            toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+            let extractedText;
+            let dataUri;
+
+            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+                dataUri = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(file);
+                });
+                const result = await extractTextFromFile({
+                    fileDataUri: dataUri,
+                    fileContentType: file.type,
+                });
+                extractedText = result.extractedText;
+            } else {
+                extractedText = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsText(file);
+                });
             }
-            reader.readAsDataURL(file);
+            
+            setCv({ 
+                content: extractedText, 
+                fileName: file.name, 
+                contentType: file.type,
+            });
+            setIsCvDirty(true);
         } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Upload Failed', description: err.message || 'An unexpected error occurred.' });
+            toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
+        } finally {
             setIsExtracting(false);
         }
-      };
+    };
     
     const handleImproveCv = async () => {
         if (!cv.content) {
@@ -387,24 +401,19 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setCvResult(null);
         try {
             const result = await improveAcademicCv({ 
-                cvContent: cv.content, 
+                cvContent: cv.content,
+                cvContentType: cv.contentType,
             });
             setCvResult(result);
             setIsCvDirty(false); // Analysis is based on current content
             localStorage.setItem('learnwithtemi_academic_cv', JSON.stringify(cv)); // Save extracted CV
+            setActiveCvTab('analysis');
         } catch(e: any) {
             toast({ variant: 'destructive', title: 'Analysis Failed', description: e.message || 'Could not improve your CV.' });
         } finally {
             setIsImprovingCv(false);
         }
     };
-    
-    useEffect(() => {
-        if(cv.content && !cv.dataUri && activeTab === "cv" && !cvResult && !isCvDirty) {
-            handleImproveCv();
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [cv.content, cv.dataUri, activeTab]);
 
     const handleChatSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -418,7 +427,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
         try {
             const result = await getAdmissionsAdvice({ 
-                backgroundContent: cv.content, 
+                backgroundContent: cv.content,
+                backgroundContentType: cv.contentType,
                 academicObjectives: currentInput 
             });
             const assistantMessage: ChatMessage = { role: 'assistant', content: <AdmissionsAdviceCard result={result} /> };
@@ -446,7 +456,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const result = await generateSop({ 
                 ...sopInputs, 
-                cvContent: cv.content, 
+                cvContent: cv.content,
+                cvContentType: cv.contentType,
             });
             setSopResult(result);
         } catch(e: any) {
@@ -466,6 +477,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const result = await getAdmissionsAdvice({
                 backgroundContent: cv.content,
+                backgroundContentType: cv.contentType,
                 academicObjectives,
             });
             setOpportunitiesResult(result);
@@ -489,10 +501,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     }
     
     const clearCv = () => {
-        setCv({ content: "" });
+        setCv({ content: "", contentType: undefined, fileName: undefined });
         setCvResult(null);
         setIsCvDirty(false);
         localStorage.removeItem('learnwithtemi_academic_cv');
+        setActiveCvTab('editor');
     };
 
     return (
@@ -506,8 +519,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         <TabsTrigger value="opportunities"><Search className="mr-2"/>Opportunities</TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="cv" className="mt-4 flex-1 flex flex-col">
-                        <Tabs defaultValue="editor" className="w-full flex-1 flex flex-col">
+                    <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-8">
+                        <Tabs value={activeCvTab} onValueChange={(v) => setActiveCvTab(v as 'editor' | 'analysis' | 'sop')} className="w-full flex-1 flex flex-col">
                             <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="editor">Your CV</TabsTrigger>
                                 <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
@@ -524,7 +537,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                             }
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="flex-1 relative">
+                                    <CardContent className="flex-1 relative pb-8">
                                         {isExtracting && <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Extracting text...</p></div>}
                                         {cv.content || isExtracting ? (
                                             <Textarea 
@@ -547,7 +560,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                             </div>
                                         )}
                                     </CardContent>
-                                    <CardFooter className="justify-between pt-6 pb-8">
+                                    <CardFooter className="justify-between pt-6">
                                         <div className="flex items-center gap-2">
                                             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isExtracting}><Upload className="mr-2 h-4 w-4" /> Upload New</Button>
                                             {(cv.content) && (<Button variant="outline" size="sm" onClick={clearCv} disabled={isExtracting}>Clear</Button>)}
@@ -652,3 +665,4 @@ function AdmissionsAdviceCard({ result }: { result: GetAdmissionsAdviceOutput })
         </Card>
     );
 }
+
