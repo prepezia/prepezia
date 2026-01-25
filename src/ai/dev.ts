@@ -15,3 +15,4 @@ import '@/ai/flows/search-jobs-flow.ts';
 import '@/ai/flows/improve-academic-cv.ts';
 import '@/ai/flows/get-admissions-advice.ts';
 import '@/ai/flows/generate-sop.ts';
+import '@/ai/flows/extract-text-from-file.ts';
