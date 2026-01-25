@@ -881,7 +881,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             </div>
           </TabsContent>
 
-          <TabsContent value="jobs" className="mt-4 flex-1 flex flex-col">
+          <TabsContent value="jobs" className="flex-1 flex flex-col">
               <Accordion type="multiple" value={jobSearchAccordion} onValueChange={setJobSearchAccordion} className="max-w-4xl mx-auto w-full">
                 <AccordionItem value="filters" className="border-b-0">
                     <Card>
@@ -1011,5 +1011,7 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
     </Card>
   );
 }
+
+    
 
     
