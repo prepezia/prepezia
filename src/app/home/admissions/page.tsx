@@ -723,7 +723,16 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                             {sopResult ? (<div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4"><ReactMarkdown remarkPlugins={[remarkGfm]}>{sopResult.sopDraft}</ReactMarkdown></div>) 
                                             : (<div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center"><FileText className="w-12 h-12 mb-4" /><p>Your generated SOP will appear here.</p></div>)}
                                         </CardContent>
-                                        {sopResult && <CardFooter><Button variant="outline" onClick={() => downloadMarkdown(sopResult.sopDraft, 'statement_of_purpose.md')}>Download SOP</Button></CardFooter>}
+                                        {sopResult && (
+                                            <CardFooter className="flex-wrap gap-2">
+                                                <Button variant="outline" size="sm" onClick={() => downloadMarkdown(sopResult.sopDraft, 'statement_of_purpose.md')}>
+                                                    <Download className="mr-2" /> Download SOP
+                                                </Button>
+                                                <Button variant="outline" size="sm" onClick={() => copyToClipboard(sopResult.sopDraft)}>
+                                                    <Clipboard className="mr-2" /> Copy Text
+                                                </Button>
+                                            </CardFooter>
+                                        )}
                                     </Card>
                                 </div>
                             </TabsContent>
