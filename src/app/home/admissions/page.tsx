@@ -12,7 +12,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, School } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, School, File, ImageIcon } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ import { getAdmissionsAdvice, GetAdmissionsAdviceOutput } from "@/ai/flows/get-a
 import { generateSop, GenerateSopOutput } from "@/ai/flows/generate-sop";
 import { cn } from "@/lib/utils";
 import { PDFViewer } from "@/components/pdf/PDFViewer";
+import { Badge } from "@/components/ui/badge";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "sop";
@@ -35,11 +36,23 @@ type ChatMessage = {
 };
 
 type CvData = {
-    content?: string;
-    dataUri?: string;
-    fileName?: string;
-    contentType?: string;
+  content?: string;
+  dataUri?: string;
+  fileName?: string;
+  contentType?: string;
+  fileType?: 'pdf' | 'image' | 'text' | 'doc';
 };
+
+// Supported file types
+const ACCEPTED_FILE_TYPES = {
+  pdf: 'application/pdf',
+  images: 'image/jpeg,image/jpg,image/png,image/webp',
+  text: 'text/plain,text/markdown,.txt,.md',
+  doc: 'application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx'
+};
+
+const ALL_ACCEPTED_FILES = Object.values(ACCEPTED_FILE_TYPES).join(',');
+
 
 export default function AdmissionsPageWrapper() {
     return (
@@ -150,29 +163,54 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
-        if (file.type === "application/pdf") {
+    
+        const fileType = file.type;
+        const fileName = file.name;
+        
+        let cvFileType: CvData['fileType'];
+        if (fileType === 'application/pdf') {
+          cvFileType = 'pdf';
+        } else if (fileType.startsWith('image/')) {
+          cvFileType = 'image';
+        } else if (fileType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
+          cvFileType = 'text';
+        } else if (fileType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+          cvFileType = 'doc';
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Unsupported File Type',
+            description: 'Please upload a PDF, image, Word document, or plain text file.',
+          });
+          return;
+        }
+    
+        if (cvFileType === 'text') {
             const reader = new FileReader();
             reader.onload = (e) => {
-                const result = e.target?.result as string;
-                onCompleted({ dataUri: result, fileName: file.name, contentType: file.type }, goals);
-            };
-            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-            reader.readAsDataURL(file);
-        } else if (file.type.startsWith("text/")) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const result = e.target?.result as string;
-                onCompleted({ content: result, fileName: file.name, contentType: file.type }, goals);
+              const content = e.target?.result as string;
+              onCompleted({ 
+                content, 
+                fileName: file.name, 
+                contentType: file.type,
+                fileType: 'text'
+              }, goals);
             };
             reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
             reader.readAsText(file);
         } else {
-             toast({
-                variant: 'destructive',
-                title: 'Unsupported File Type',
-                description: 'Please upload a PDF or a plain text file.',
-            });
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                onCompleted({ 
+                    dataUri: result, 
+                    fileName: file.name, 
+                    contentType: file.type,
+                    fileType: cvFileType
+                }, goals);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+            reader.readAsDataURL(file);
         }
     };
     
@@ -254,12 +292,19 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                         <CardHeader>
                             <CardTitle>Admissions Hub Onboarding</CardTitle>
                             <CardDescription>Step 2 of 2: Provide your Academic CV.</CardDescription>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                <Badge variant="outline" className="flex items-center gap-1"><File className="h-3 w-3" /> PDF</Badge>
+                                <Badge variant="outline" className="flex items-center gap-1"><ImageIcon className="h-3 w-3" /> JPG/PNG</Badge>
+                                <Badge variant="outline" className="flex items-center gap-1"><FileText className="h-3 w-3" /> Word</Badge>
+                                <Badge variant="outline" className="flex items-center gap-1"><FileText className="h-3 w-3" /> TXT</Badge>
+                            </div>
                         </CardHeader>
                         <CardContent>
                              <Button variant="outline" className="w-full h-24 flex-col gap-2" onClick={() => fileInputRef.current?.click()}>
-                                <Upload className="w-6 h-6" /> Upload CV
+                                <Upload className="w-6 h-6" /> Upload Academic CV
+                                <span className="text-xs text-muted-foreground">PDF, Images, Word, TXT</span>
                             </Button>
-                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.txt,.md" />
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
                         </CardContent>
                         <CardFooter className="flex-col items-stretch space-y-4">
                             <Button className="w-full" onClick={handleContinueWithGoals}>
@@ -278,9 +323,68 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     return null;
 }
 
+function FilePreview({ cv, onClear }: { cv: CvData; onClear?: () => void }) {
+    if (!cv.dataUri && !cv.content) return null;
+  
+    if (cv.fileType === 'pdf' && cv.dataUri) {
+      return <PDFViewer dataUri={cv.dataUri} fileName={cv.fileName} onClear={onClear} />;
+    }
+  
+    if (cv.fileType === 'image' && cv.dataUri) {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">{cv.fileName || 'uploaded_image.jpg'}</span>
+            </div>
+            <Badge variant="secondary">IMAGE</Badge>
+          </div>
+          <div className="border rounded-md overflow-hidden">
+            <img src={cv.dataUri} alt="Uploaded CV" className="w-full max-h-[500px] object-contain" />
+          </div>
+          {onClear && (
+            <div className="flex justify-end"><Button variant="outline" size="sm" onClick={onClear}>Clear Image</Button></div>
+          )}
+        </div>
+      );
+    }
+  
+    if (cv.fileType === 'doc' && cv.dataUri) {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2"><FileText className="h-4 w-4" /><span className="text-sm font-medium">{cv.fileName || 'uploaded_document.docx'}</span></div>
+            <Badge variant="secondary">WORD DOCUMENT</Badge>
+          </div>
+          <div className="border rounded-md p-6 bg-muted/30 text-center">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground mb-4">Word document uploaded. AI can analyze the content but preview is not available in browser.</p>
+            <Button variant="outline" size="sm" asChild><a href={cv.dataUri} download={cv.fileName}>Download Document</a></Button>
+          </div>
+        </div>
+      );
+    }
+  
+    // Default to text/content display
+    return (
+        <div className="flex flex-col gap-4 h-full">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    <span className="text-sm font-medium">{cv.fileName || 'text_content.txt'} ({cv.content?.split(/\s+/).filter(Boolean).length || 0} words)</span>
+                </div>
+                <Badge variant="secondary">TEXT</Badge>
+            </div>
+            <Textarea className="h-full min-h-[400px] resize-none" value={cv.content || ''} readOnly />
+        </div>
+    );
+}
+
 function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvData, initialGoals: string, backToOnboarding: () => void }) {
     const [activeTab, setActiveTab] = useState<HubTab>("cv");
     const [cv, setCv] = useState<CvData>(initialCv);
+    const [academicObjectives, setAcademicObjectives] = useState(initialGoals);
     
     // CV Tab State
     const [cvResult, setCvResult] = useState<ImproveAcademicCvOutput | null>(null);
@@ -298,6 +402,53 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const [sopInputs, setSopInputs] = useState({ targetUniversity: "", targetProgram: "", personalMotivation: ""});
 
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const fileType = file.type;
+        const fileName = file.name;
+        
+        let cvFileType: CvData['fileType'];
+        if (fileType === 'application/pdf') {
+          cvFileType = 'pdf';
+        } else if (fileType.startsWith('image/')) {
+          cvFileType = 'image';
+        } else if (fileType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
+          cvFileType = 'text';
+        } else if (fileType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+          cvFileType = 'doc';
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Unsupported File Type',
+            description: 'Please upload a PDF, image, Word document, or plain text file.',
+          });
+          return;
+        }
+
+        if (cvFileType === 'text') {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const content = e.target?.result as string;
+              setCv({ content, fileName: file.name, contentType: file.type, fileType: 'text' });
+              setIsCvDirty(true);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+            reader.readAsText(file);
+        } else {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                setCv({ dataUri: result, fileName: file.name, contentType: file.type, fileType: cvFileType });
+                setIsCvDirty(true);
+            };
+            reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+            reader.readAsDataURL(file);
+        }
+    };
     
     const handleImproveCv = async () => {
         if (!cv.content && !cv.dataUri) {
@@ -380,6 +531,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         URL.revokeObjectURL(url);
     }
     
+    const clearCv = () => {
+        setCv({ content: "" });
+        setCvResult(null);
+        setIsCvDirty(false);
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <HomeHeader left={ <Button variant="outline" onClick={backToOnboarding}><ArrowLeft className="mr-2 h-4 w-4" /> Start Over</Button> } />
@@ -399,22 +556,25 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             </TabsList>
                             <TabsContent value="editor" className="mt-4 flex-1">
                                 <Card className="flex flex-col h-full">
-                                    <CardHeader><CardTitle>Your Academic CV</CardTitle><CardDescription>{cv.dataUri ? "PDF preview. To edit, clear and start over." : 'Edit your CV content.'}</CardDescription></CardHeader>
+                                    <CardHeader><CardTitle>Your Academic CV</CardTitle><CardDescription>{cv.dataUri ? "File preview. To edit, clear and upload a new file." : 'Edit your CV content.'}</CardDescription></CardHeader>
                                     <CardContent className="flex-1 relative">
-                                    {cv.dataUri ? (
-                                        <PDFViewer 
-                                            dataUri={cv.dataUri} 
-                                            fileName={cv.fileName}
-                                            onClear={backToOnboarding}
-                                        />
+                                    {cv.dataUri || cv.content ? (
+                                        <FilePreview cv={cv} onClear={clearCv} />
                                     ) : (
-                                        <Textarea className="h-full min-h-[400px] resize-none" value={cv.content || ''} onChange={e => { setCv({ content: e.target.value }); setIsCvDirty(true); }} />
+                                        <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center">
+                                            <Upload className="h-12 w-12 text-muted-foreground mb-4" />
+                                            <p className="text-muted-foreground mb-2">Upload your Academic CV to get started</p>
+                                            <p className="text-sm text-muted-foreground mb-4">Supports PDF, JPG/PNG, Word docs, and TXT files</p>
+                                            <Button onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" /> Upload CV</Button>
+                                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
+                                        </div>
                                     )}
                                     </CardContent>
-                                    <CardFooter className="justify-end">
-                                        {!cv.dataUri && (
-                                            <p className="text-sm text-muted-foreground mr-auto">{`${cv.content?.split(/\s+/).filter(Boolean).length || 0} words`}</p>
-                                        )}
+                                    <CardFooter className="justify-between pt-6 pb-8">
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" /> Upload New</Button>
+                                            {(cv.dataUri || cv.content) && (<Button variant="outline" size="sm" onClick={clearCv}>Clear</Button>)}
+                                        </div>
                                         <Button onClick={handleImproveCv} disabled={isImprovingCv || !isCvDirty}>
                                             {isImprovingCv && <Loader2 className="mr-2 animate-spin" />} Improve CV
                                         </Button>

@@ -159,9 +159,7 @@ export function PDFViewer({ dataUri, fileName, onClear, className }: PDFViewerPr
           </div>
           <h3 className="font-semibold text-lg mb-2">PDF Document Ready</h3>
           <p className="text-sm text-muted-foreground max-w-md mb-4">
-            Your PDF file has been uploaded successfully. For security reasons, 
-            Chrome blocks inline PDF previews. Please use the options below to 
-            view or download your document.
+            Your PDF file has been uploaded successfully.
           </p>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm mb-2">
             <CheckCircle className="w-3 h-3" />
@@ -188,14 +186,6 @@ export function PDFViewer({ dataUri, fileName, onClear, className }: PDFViewerPr
             <ExternalLink className="w-5 h-5" />
             Open in New Tab
           </Button>
-        </div>
-
-        {/* Additional Info */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg w-full max-w-md">
-          <p className="text-xs text-muted-foreground text-center">
-            <strong>Note:</strong> Most modern browsers block inline PDF previews for security. 
-            This is a Chrome/Edge security feature, not an issue with your file.
-          </p>
         </div>
       </div>
 

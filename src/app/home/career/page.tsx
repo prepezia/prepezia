@@ -173,7 +173,6 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     const fileType = file.type;
     const fileName = file.name;
     
-    // Determine file category
     let cvFileType: CvData['fileType'];
     if (fileType === 'application/pdf') {
       cvFileType = 'pdf';
@@ -192,62 +191,32 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
       return;
     }
 
-    if (fileType === "application/pdf") {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onCompleted({ 
-          dataUri: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'pdf'
-        }, goals);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsDataURL(file);
-    } 
-    else if (fileType.startsWith("text/") || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onCompleted({ 
-          content: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'text'
-        }, goals);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsText(file);
-    }
-    else if (fileType.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onCompleted({ 
-          dataUri: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'image'
-        }, goals);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsDataURL(file);
-    }
-    else if (fileType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-      // For Word documents, we'll read as binary and convert to base64
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onCompleted({ 
-          dataUri: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'doc'
-        }, goals);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsDataURL(file);
+    if (cvFileType === 'text') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          onCompleted({ 
+            content, 
+            fileName: file.name, 
+            contentType: file.type,
+            fileType: 'text'
+          }, goals);
+        };
+        reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+        reader.readAsText(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const result = e.target?.result as string;
+            onCompleted({ 
+                dataUri: result, 
+                fileName: file.name, 
+                contentType: file.type,
+                fileType: cvFileType
+            }, goals);
+        };
+        reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+        reader.readAsDataURL(file);
     }
   };
 
@@ -429,15 +398,7 @@ function FilePreview({ cv, onClear }: { cv: CvData; onClear?: () => void }) {
   if (!cv.dataUri && !cv.content) return null;
 
   if (cv.fileType === 'pdf' && cv.dataUri) {
-    return (
-      <div className="flex flex-col gap-4">
-        <PDFViewer 
-          dataUri={cv.dataUri} 
-          fileName={cv.fileName}
-          onClear={onClear}
-        />
-      </div>
-    );
+    return <PDFViewer dataUri={cv.dataUri} fileName={cv.fileName} onClear={onClear} />;
   }
 
   if (cv.fileType === 'image' && cv.dataUri) {
@@ -493,28 +454,25 @@ function FilePreview({ cv, onClear }: { cv: CvData; onClear?: () => void }) {
     );
   }
 
-  if (cv.fileType === 'text' || cv.content) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              {cv.fileName || 'text_content.txt'} ({cv.content?.split(/\s+/).filter(Boolean).length || 0} words)
-            </span>
-          </div>
-          <Badge variant="secondary">TEXT</Badge>
+  // Default to text/content display
+  return (
+    <div className="flex flex-col gap-4 h-full">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          <span className="text-sm font-medium">
+            {cv.fileName || 'text_content.txt'} ({cv.content?.split(/\s+/).filter(Boolean).length || 0} words)
+          </span>
         </div>
-        <Textarea 
-          className="h-full min-h-[400px] resize-none font-mono text-sm" 
-          value={cv.content || ''} 
-          readOnly
-        />
+        <Badge variant="secondary">TEXT</Badge>
       </div>
-    );
-  }
-
-  return null;
+      <Textarea 
+        className="h-full min-h-[400px] resize-none" 
+        value={cv.content || ''} 
+        readOnly
+      />
+    </div>
+  );
 }
 
 function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvData, initialGoals: string, backToOnboarding: (startFrom?: 'cv' | 'intro') => void }) {
@@ -565,65 +523,24 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
       return;
     }
 
-    if (fileType === "application/pdf") {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCv({ 
-          dataUri: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'pdf'
-        });
-        setIsCvDirty(true);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsDataURL(file);
-    } 
-    else if (fileType.startsWith("text/") || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCv({ 
-          content: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'text'
-        });
-        setIsCvDirty(true);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsText(file);
-    }
-    else if (fileType.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCv({ 
-          dataUri: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'image'
-        });
-        setIsCvDirty(true);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsDataURL(file);
-    }
-    else if (fileType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCv({ 
-          dataUri: result, 
-          fileName: file.name, 
-          contentType: file.type,
-          fileType: 'doc'
-        });
-        setIsCvDirty(true);
-      };
-      reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
-      reader.readAsDataURL(file);
+    if (cvFileType === 'text') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          setCv({ content, fileName: file.name, contentType: file.type, fileType: 'text' });
+          setIsCvDirty(true);
+        };
+        reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+        reader.readAsText(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const result = e.target?.result as string;
+            setCv({ dataUri: result, fileName: file.name, contentType: file.type, fileType: cvFileType });
+            setIsCvDirty(true);
+        };
+        reader.onerror = () => toast({ variant: 'destructive', title: 'File Read Error' });
+        reader.readAsDataURL(file);
     }
   };
 
@@ -640,7 +557,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         cvDataUri: cv.dataUri, 
         cvContentType: cv.contentType, 
         careerGoals,
-        cvFileType: cv.fileType 
       });
       setCvResult(result);
       setIsCvDirty(false);
@@ -679,7 +595,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         backgroundDataUri: cv.dataUri, 
         backgroundContentType: cv.contentType, 
         careerObjectives: currentInput,
-        backgroundFileType: cv.fileType 
       });
       const assistantMessage: ChatMessage = { role: 'assistant', content: <CareerAdviceCard result={result} /> };
       setChatHistory(prev => [...prev, assistantMessage]);
@@ -711,7 +626,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         cvContentType: cv.contentType, 
         careerGoals, 
         location: jobSearchLocation,
-        cvFileType: cv.fileType 
       });
       setJobResults(results);
     } catch(e: any) {
@@ -768,7 +682,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
       <CardTitle>Your CV</CardTitle>
       <CardDescription>
         {cv.dataUri || cv.content 
-          ? `Your uploaded file is shown below. ${cv.fileType === 'doc' ? 'Word documents are supported but cannot be edited in browser.' : 'To edit, clear and upload a text file or generated template.'}`
+          ? `Your uploaded file is shown below. ${cv.fileType === 'doc' ? 'Word documents are supported but cannot be edited in browser.' : 'To edit, clear and upload a new file.'}`
           : 'Upload or edit your CV here. When ready, click "Improve CV".'
         }
       </CardDescription>
@@ -794,7 +708,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         </div>
       )}
     </CardContent>
-    <CardFooter className="justify-between pt-6 pb-8"> {/* Added pt-6 pb-8 for spacing */}
+    <CardFooter className="justify-between pt-6 pb-8">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
           <Upload className="mr-2 h-4 w-4" /> Upload New
