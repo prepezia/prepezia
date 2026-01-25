@@ -399,6 +399,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   
   // CV Tab State
   const [cvResult, setCvResult] = useState<ImproveCvOutput | null>(null);
+  const [rewrittenCvContent, setRewrittenCvContent] = useState("");
   const [isImprovingCv, setIsImprovingCv] = useState(false);
   const [isCvDirty, setIsCvDirty] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -478,6 +479,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         careerGoals,
       });
       setCvResult(result);
+      setRewrittenCvContent(result.fullRewrittenCv);
       setIsCvDirty(false);
       localStorage.setItem('learnwithtemi_cv', JSON.stringify(cv)); // Save extracted CV
       setActiveCvTab('analysis');
@@ -494,14 +496,14 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   };
   
   const handleDesignCv = async () => {
-    if (!cvResult?.fullRewrittenCv) {
+    if (!rewrittenCvContent) {
         toast({ variant: 'destructive', title: 'Rewritten CV is not available' });
         return;
     }
     setIsDesigningCv(true);
     setDesignedCv(null);
     try {
-        const result = await designCv({ cvMarkdown: cvResult.fullRewrittenCv });
+        const result = await designCv({ cvMarkdown: rewrittenCvContent });
         setDesignedCv(result);
         setActiveCvTab('designer');
     } catch(e: any) {
@@ -631,6 +633,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const clearCv = () => {
     setCv({ content: "", contentType: undefined, fileName: undefined });
     setCvResult(null);
+    setRewrittenCvContent("");
     setIsCvDirty(false);
     localStorage.removeItem('learnwithtemi_cv');
     setActiveCvTab('editor');
@@ -692,6 +695,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             </Button>
                         </div>
                     )}
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
                   </CardContent>
                   <CardFooter className="justify-between pt-6">
                     <div className="flex items-center gap-2">
@@ -708,7 +712,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         {isImprovingCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
                         {isImprovingCv ? 'Analyzing...' : cvResult ? 'Re-analyze CV' : 'Improve CV'}
                     </Button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
                   </CardFooter>
                 </Card>
               </TabsContent>
@@ -751,19 +754,21 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                               </div>
                           </div>
                           <div className="flex flex-col">
-                              <h3 className="font-semibold mb-2 text-lg">Full Rewritten CV</h3>
+                              <h3 className="font-semibold mb-2 text-lg">Full Rewritten CV (Editable)</h3>
                               <Card className="flex-1 flex flex-col">
                                   <CardContent className="p-4 flex-1">
-                                      <div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4">
-                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{cvResult.fullRewrittenCv}</ReactMarkdown>
-                                      </div>
+                                      <Textarea
+                                        className="h-full min-h-[400px] resize-none"
+                                        value={rewrittenCvContent}
+                                        onChange={(e) => setRewrittenCvContent(e.target.value)}
+                                      />
                                   </CardContent>
                                   <CardFooter className="flex-col items-start gap-4">
                                     <div className="flex flex-wrap gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => downloadMarkdown(cvResult.fullRewrittenCv, 'rewritten_cv.md')}>
+                                        <Button variant="outline" size="sm" onClick={() => downloadMarkdown(rewrittenCvContent, 'rewritten_cv.md')}>
                                             <Download className="mr-2"/>Download
                                         </Button>
-                                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(cvResult.fullRewrittenCv)}>
+                                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(rewrittenCvContent)}>
                                             <Clipboard className="mr-2"/>Copy Text
                                         </Button>
                                         <Button onClick={handleDesignCv} disabled={isDesigningCv}>
