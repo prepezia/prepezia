@@ -46,7 +46,9 @@ export async function searchForJobs(input: SearchForJobsInput): Promise<SearchFo
       model: 'googleai/gemini-2.5-flash',
       input: {schema: SearchForJobsInputSchema},
       output: {schema: SearchForJobsOutputSchema},
-      prompt: `You are an expert job search assistant. Your task is to find relevant and high-quality online job postings based on the user's CV and search criteria.
+      prompt: `You are an expert job search assistant with access to real-time job search APIs. Your primary function is to find currently active job postings and return their real, direct application URLs.
+
+**IMPORTANT RULE: Do NOT under any circumstances invent, guess, or create URLs. If you cannot find a real, verifiable URL for a job posting, do not include it in the output.** It is better to return fewer results that are accurate than more results with broken links.
 
 User's CV:
 \`\`\`
@@ -61,8 +63,9 @@ Search Criteria:
 {{#if experienceLevel}}- Experience Level: {{{experienceLevel}}}{{/if}}
 {{#if location}}- Location: {{{location}}}{{/if}}
 
-Please find 5-7 relevant job postings based on the provided criteria.
-Focus on jobs in Ghana if no location is specified. Ensure the URLs are real and lead to actual job application pages on well-known job boards (e.g., LinkedIn, Jobberman, etc.).
+Please find 3-5 currently active job postings from reputable job boards (like LinkedIn, Jobberman, Indeed).
+- Focus on jobs in Ghana if no location is specified.
+- For each job, provide the exact title, company name, location, a brief snippet, and the **direct, valid URL to the application page.**
 `,
     });
 
