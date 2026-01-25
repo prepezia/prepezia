@@ -39,6 +39,7 @@ export async function generatePodcastFromSources(
   if (!generatePodcastFromSourcesFlow) {
     const podcastScriptPrompt = ai.definePrompt({
       name: 'podcastScriptPrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: GeneratePodcastFromSourcesInputSchema},
       output: {schema: z.string()},
       prompt: `Act as two hosts, Temi (energetic, lead) and Jay (analytical, supporting). Turn the following uploaded sources into a 10-minute \"Deep Dive\" conversation. Use banter, analogies, and frequent affirmations like \"Exactly\" or \"Right.\" Start with: \"Hey everyone, welcome back to Learn with Temi!\" Output the script in JSON format with speaker tags.\n\nSources:\n{{#each sources}}- {{{this}}}\n{{/each}}`,

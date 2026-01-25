@@ -31,6 +31,7 @@ export async function generateCvTemplate(input: GenerateCvTemplateInput): Promis
   if (!generateCvTemplateFlow) {
     const prompt = ai.definePrompt({
       name: 'generateCvTemplatePrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: GenerateCvTemplateInputSchema},
       output: {schema: GenerateCvTemplateOutputSchema},
       prompt: `You are a CV writing assistant. Your task is to generate a clean, professional, and editable CV template in Markdown format based on the user's information.

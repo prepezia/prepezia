@@ -34,6 +34,7 @@ export async function generateStudyNotes(
   if (!generateStudyNotesFlow) {
     const generateStudyNotesPrompt = ai.definePrompt({
       name: 'generateStudyNotesPrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: GenerateStudyNotesInputSchema},
       output: {schema: GenerateStudyNotesOutputSchema},
       prompt: `You are an expert tutor, skilled in generating study notes for any given topic and academic level.

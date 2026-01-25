@@ -23,6 +23,7 @@ export type ExtractTextFromFileOutput = z.infer<typeof ExtractTextFromFileOutput
 
 const extractTextPrompt = ai.definePrompt({
   name: 'extractTextPrompt',
+  model: 'googleai/gemini-2.5-flash',
   input: {schema: ExtractTextFromFileInputSchema},
   output: {schema: ExtractTextFromFileOutputSchema},
   prompt: `You are an expert OCR (Optical Character Recognition) tool. Your task is to accurately extract all text content from the provided file.

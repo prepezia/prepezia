@@ -29,6 +29,7 @@ export type GenerateSopOutput = z.infer<typeof GenerateSopOutputSchema>;
 export async function generateSop(input: GenerateSopInput): Promise<GenerateSopOutput> {
   const generateSopPrompt = ai.definePrompt({
     name: 'generateSopPrompt',
+    model: 'googleai/gemini-2.5-flash',
     input: {schema: GenerateSopInputSchema},
     output: {schema: GenerateSopOutputSchema},
     prompt: `You are an Expert Admissions Ghostwriter. Your goal is to draft a compelling, highly personalized Statement of Purpose (SOP) for graduate school applications.

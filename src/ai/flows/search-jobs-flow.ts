@@ -39,6 +39,7 @@ export async function searchForJobs(input: SearchForJobsInput): Promise<SearchFo
   if (!searchForJobsFlow) {
     const prompt = ai.definePrompt({
       name: 'searchForJobsPrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: SearchForJobsInputSchema},
       output: {schema: SearchForJobsOutputSchema},
       prompt: `You are an expert job search assistant. Your task is to find relevant and high-quality online job postings based on the user's CV and career goals.

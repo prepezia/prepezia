@@ -31,6 +31,7 @@ export async function aiAssessmentRevisionRoadmap(input: AiAssessmentRevisionRoa
   if (!aiAssessmentRevisionRoadmapFlow) {
     const prompt = ai.definePrompt({
       name: 'aiAssessmentRevisionRoadmapPrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: AiAssessmentRevisionRoadmapInputSchema},
       output: {schema: AiAssessmentRevisionRoadmapOutputSchema},
       prompt: `You are an AI assessment tool designed to analyze student exam performance and generate personalized revision roadmaps.

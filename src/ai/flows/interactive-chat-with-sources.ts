@@ -35,6 +35,7 @@ export async function interactiveChatWithSources(input: InteractiveChatWithSourc
   if (!interactiveChatWithSourcesFlow) {
     const prompt = ai.definePrompt({
       name: 'interactiveChatWithSourcesPrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: InteractiveChatWithSourcesInputSchema},
       output: {schema: InteractiveChatWithSourcesOutputSchema},
       prompt: `You are TEMI, an AI chatbot that answers questions based on the provided sources only.  You must cite your sources.

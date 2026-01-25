@@ -33,6 +33,7 @@ export async function searchWebForSources(input: SearchWebForSourcesInput): Prom
   if (!searchWebForSourcesFlow) {
     const prompt = ai.definePrompt({
       name: 'searchWebForSourcesPrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: SearchWebForSourcesInputSchema},
       output: {schema: SearchWebForSourcesOutputSchema},
       prompt: `You are an expert research assistant. Your task is to find relevant and high-quality online resources for a given topic.

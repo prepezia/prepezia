@@ -28,6 +28,7 @@ export type ImproveAcademicCvOutput = z.infer<typeof ImproveAcademicCvOutputSche
 export async function improveAcademicCv(input: ImproveAcademicCvInput): Promise<ImproveAcademicCvOutput> {
   const improveAcademicCvPrompt = ai.definePrompt({
     name: 'improveAcademicCvPrompt',
+    model: 'googleai/gemini-2.5-flash',
     input: {schema: ImproveAcademicCvInputSchema},
     output: {schema: ImproveAcademicCvOutputSchema},
     prompt: `You are an Academic Career Consultant specializing in Ivy League and Global Top 100 university applications. Your goal is to refine the user's Academic CV for maximum scholarly impact.

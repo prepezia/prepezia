@@ -32,6 +32,7 @@ export async function getCareerAdvice(input: CareerAdviceInput): Promise<CareerA
   if (!careerAdvisorFlow) {
     const careerAdvisorPrompt = ai.definePrompt({
       name: 'careerAdvisorPrompt',
+      model: 'googleai/gemini-2.5-flash',
       input: {schema: CareerAdviceInputSchema},
       output: {schema: CareerAdviceOutputSchema},
       prompt: `You are a Dual-Path Career and Academic Strategist. Your expertise lies in analyzing professional backgrounds and mapping out the most efficient educational and career trajectories.

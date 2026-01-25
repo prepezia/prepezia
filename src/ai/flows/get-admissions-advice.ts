@@ -29,6 +29,7 @@ export type GetAdmissionsAdviceOutput = z.infer<typeof GetAdmissionsAdviceOutput
 export async function getAdmissionsAdvice(input: GetAdmissionsAdviceInput): Promise<GetAdmissionsAdviceOutput> {
   const getAdmissionsAdvicePrompt = ai.definePrompt({
     name: 'getAdmissionsAdvicePrompt',
+    model: 'googleai/gemini-2.5-flash',
     input: {schema: GetAdmissionsAdviceInputSchema},
     output: {schema: GetAdmissionsAdviceOutputSchema},
     prompt: `You are a Strategic Admissions & Scholarship Advisor. Your expertise is mapping a student's current academic profile to high-value global opportunities.
