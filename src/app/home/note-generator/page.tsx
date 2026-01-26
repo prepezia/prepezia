@@ -207,7 +207,7 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
 
 function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
   const { toast } = useToast();
-  const [topic, setTopic] = useState(initialTopic || initialNote?.topic || "");
+  const [topic, setTopic] = useState(initialNote?.topic || initialTopic || "");
   const [academicLevel, setAcademicLevel] = useState(initialNote?.level || "Undergraduate");
   const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(initialNote ? { notes: initialNote.content, nextStepsPrompt: initialNote.nextStepsPrompt || "" } : null);
   const [isLoading, setIsLoading] = useState(false);
@@ -269,20 +269,22 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   }, [onNoteGenerated, toast]);
   
-  // Effect for generating notes from a topic
+  // Effect for triggering generation
   useEffect(() => {
     if (initialTopic && !initialNote) {
-        generate(initialTopic, academicLevel);
+      generate(initialTopic, "Undergraduate");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTopic, initialNote]);
+  }, [initialTopic]);
 
   // Effect for deriving pages from generated or initial notes
   useEffect(() => {
-    const noteContent = generatedNotes?.notes ?? initialNote?.content ?? "";
-    const notePages = noteContent.split(/\n---\n/);
-    setPages(notePages);
-    setCurrentPage(0);
+    const noteContent = generatedNotes?.notes ?? initialNote?.content;
+    if (noteContent) {
+      const notePages = noteContent.split(/\n---\n/);
+      setPages(notePages);
+      setCurrentPage(0);
+    }
   }, [generatedNotes, initialNote]);
 
 
@@ -378,12 +380,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     </CardContent>
                   </Card>
 
-                  <div className="mt-8 flex flex-col sm:flex-row justify-end gap-2">
+                  <div className="mt-8 flex flex-wrap justify-center sm:justify-end gap-2">
                       <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                       <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
                   </div>
 
-                  <div className="fixed bottom-24 right-6 z-50">
+                  <div className="fixed bottom-[150px] right-6 z-50">
                       <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
                           <MessageCircle className="h-7 w-7"/>
                           <span className="sr-only">AI Deep Dive</span>
