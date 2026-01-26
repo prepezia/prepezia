@@ -42,7 +42,7 @@ const generateFlashcardsPrompt = ai.definePrompt({
     *   The 'back' should be the corresponding answer, definition, or explanation.
 4.  The flashcards should be clear, concise, and focused on a single piece of information.
 
-{{#if (eq context "note-generator")}}
+{{#if topic}}
 ### CONTEXT:
 These flashcards are for a student studying the topic of **"{{{topic}}}"** at the **"{{{academicLevel}}}"** level. The source content is a set of notes.
 {{else}}

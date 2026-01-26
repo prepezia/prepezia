@@ -47,7 +47,7 @@ const generateQuizPrompt = ai.definePrompt({
     *   **hint**: An optional, short hint to guide the student if they are struggling.
     *   **explanation**: A detailed explanation. This is crucial. Explain why the correct answer is right and why the other three options are incorrect.
 
-{{#if (eq context "note-generator")}}
+{{#if topic}}
 ### CONTEXT:
 This quiz is for a student studying the topic of **"{{{topic}}}"** at the **"{{{academicLevel}}}"** level. The source content is a set of notes. You are encouraged to include some questions that, while not explicitly answered in the notes, are highly relevant to the topic and appropriate for the academic level. This tests for broader understanding.
 {{else}}

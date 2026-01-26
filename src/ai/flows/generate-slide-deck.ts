@@ -45,7 +45,7 @@ const generateSlideDeckPrompt = ai.definePrompt({
     *   **speakerNotes**: More detailed information and talking points for the presenter to use. This is where you can elaborate on the slide's content.
 4.  Generate a main title for the entire presentation.
 
-{{#if (eq context "note-generator")}}
+{{#if topic}}
 ### CONTEXT:
 This slide deck is for a student studying the topic of **"{{{topic}}}"** at the **"{{{academicLevel}}}"** level. The source content is a set of notes.
 {{else}}
