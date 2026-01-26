@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useCallback } from "react";
@@ -30,22 +31,24 @@ type RecentNote = {
   topic: string;
   level: string;
   date: string;
+  content: string;
 };
 
 const dummyRecentNotes: RecentNote[] = [
-  { id: 1, topic: 'Photosynthesis', level: 'Undergraduate', date: 'July 21, 2024' },
-  { id: 2, topic: 'The Scramble for Africa', level: 'Secondary', date: 'July 21, 2024' },
-  { id: 3, topic: 'Newtonian Physics', level: 'Intermediate', date: 'July 20, 2024' },
-  { id: 4, topic: 'Introduction to Python', level: 'Beginner', date: 'July 20, 2024' },
-  { id: 5, topic: 'Ghanaian Independence', level: 'Secondary', date: 'July 19, 2024' },
-  { id: 6, 'topic': 'Machine Learning Algorithms', level: 'Masters', date: 'July 18, 2024' },
-  { id: 7, topic: 'The Cell Structure', level: 'Secondary', date: 'July 17, 2024' },
+  { id: 1, topic: 'Photosynthesis', level: 'Undergraduate', date: 'July 21, 2024', content: "## Introduction to Photosynthesis\nPhotosynthesis is the process used by plants, algae, and certain bacteria to harness energy from sunlight and turn it into chemical energy." },
+  { id: 2, topic: 'The Scramble for Africa', level: 'Secondary', date: 'July 21, 2024', content: "## The Scramble for Africa\nThe Scramble for Africa was the invasion, occupation, division, and colonization of most of Africa by seven Western European powers during a short period known to historians as the New Imperialism (between 1881 and 1914)." },
+  { id: 3, topic: 'Newtonian Physics', level: 'Intermediate', date: 'July 20, 2024', content: "### Newton's Three Laws of Motion\n\n| Law | Description |\n|---|---|\n| First | An object will not change its motion unless a force acts on it. |\n| Second | The force on an object is equal to its mass times its acceleration. |\n| Third | For every action, there is an equal and opposite reaction. |" },
+  { id: 4, topic: 'Introduction to Python', level: 'Beginner', date: 'July 20, 2024', content: "### Your First Python Program\n\nTo get started, let's write a simple \"Hello, World!\" program.\n\n\`\`\`python\nprint(\"Hello, World!\")\n\`\`\`" },
+  { id: 5, topic: 'Ghanaian Independence', level: 'Secondary', date: 'July 19, 2024', content: "## Ghana's Independence\nGhana, formerly known as the Gold Coast, was the first country in sub-Saharan Africa to gain independence from European colonial rule. Independence was declared on **March 6, 1957**." },
+  { id: 6, 'topic': 'Machine Learning Algorithms', level: 'Masters', date: 'July 18, 2024', content: "### Common Algorithms\n- Linear Regression\n- Logistic Regression\n- Decision Trees\n- Support Vector Machines (SVM)\n- K-Nearest Neighbors (KNN)" },
+  { id: 7, topic: 'The Cell Structure', level: 'Secondary', date: 'July 17, 2024', content: "#### Key Organelles\n*   **Nucleus:** Contains the cell's genetic material.\n*   **Mitochondria:** The powerhouse of the cell.\n*   **Ribosomes:** Synthesize proteins." },
 ];
 
 function NoteGeneratorPage() {
   const [recentNotes, setRecentNotes] = useState<RecentNote[]>([]);
   const [visibleCount, setVisibleCount] = useState(7);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [viewingNote, setViewingNote] = useState<RecentNote | null>(null);
 
   const searchParams = useSearchParams();
   const topicFromUrl = searchParams.get('topic');
@@ -65,28 +68,44 @@ function NoteGeneratorPage() {
   }, []);
 
   useEffect(() => {
-    // This effect runs when the component mounts and topicFromUrl is present,
-    // or when topicFromUrl changes.
-    if (topicFromUrl) {
+    if (topicFromUrl && !isDialogOpen) {
+      setViewingNote(null); // Ensure we are generating new, not viewing old
       setIsDialogOpen(true);
     }
-  }, [topicFromUrl]);
+  }, [topicFromUrl, isDialogOpen]);
   
-  const handleNoteGenerated = useCallback((topic: string, level: string) => {
+  const handleNoteGenerated = useCallback((topic: string, level: string, content: string) => {
     const newNote: RecentNote = {
       id: Date.now(),
       topic,
       level,
       date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      content: content,
     };
 
     setRecentNotes(prev => {
-      const updatedNotes = [newNote, ...prev];
-      // Save to localStorage
+      const updatedNotes = [newNote, ...prev.filter(n => n.topic !== topic || n.level !== level)];
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
       return updatedNotes;
     });
   }, []);
+
+  const handleOpenNote = (note: RecentNote) => {
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('topic');
+    window.history.replaceState({}, '', newUrl);
+
+    setViewingNote(note);
+    setIsDialogOpen(true);
+  };
+  
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    setViewingNote(null);
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('topic');
+    window.history.replaceState({}, '', newUrl);
+  };
   
   return (
     <>
@@ -97,7 +116,7 @@ function NoteGeneratorPage() {
               <h1 className="text-3xl font-headline font-bold">Notes</h1>
               <p className="text-muted-foreground mt-1 text-balance">Your personal AI-powered note-taking assistant.</p>
             </div>
-            <Button onClick={() => setIsDialogOpen(true)} className="shrink-0">
+            <Button onClick={() => { setViewingNote(null); setIsDialogOpen(true); }} className="shrink-0">
                 <Plus className="mr-2 h-4 w-4" /> Create New
             </Button>
         </div>
@@ -114,7 +133,7 @@ function NoteGeneratorPage() {
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {recentNotes.slice(0, visibleCount).map(note => (
-                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleOpenNote(note)}>
                                 <CardHeader>
                                     <CardTitle>{note.topic}</CardTitle>
                                     <CardDescription>{note.level}</CardDescription>
@@ -137,9 +156,10 @@ function NoteGeneratorPage() {
       </div>
       <NoteGeneratorDialog
           isOpen={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
+          onOpenChange={handleDialogClose}
           onNoteGenerated={handleNoteGenerated}
           initialTopic={topicFromUrl || ''}
+          initialNote={viewingNote}
       />
     </>
   );
@@ -178,7 +198,7 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
 
         try {
             const response = await interactiveChatWithSources({
-                sources: [{ type: 'text', dataUri: `data:text/plain;base64,${btoa(noteContent)}`, contentType: 'text/plain' }],
+                sources: [{ type: 'text', dataUri: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(noteContent)))}`, contentType: 'text/plain' }],
                 question: currentInput
             });
             const assistantMessage: ChatMessage = { role: 'assistant', content: response.answer };
@@ -236,7 +256,7 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
     );
 }
 
-function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTopic }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onNoteGenerated: (topic: string, level: string) => void, initialTopic?: string }) {
+function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTopic, initialNote }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onNoteGenerated: (topic: string, level: string, content: string) => void, initialTopic?: string, initialNote: RecentNote | null }) {
     const { toast } = useToast();
     const [topic, setTopic] = useState("");
     const [academicLevel, setAcademicLevel] = useState("Undergraduate");
@@ -250,33 +270,7 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
     // Chat
     const [isChatOpen, setIsChatOpen] = useState(false);
 
-    useEffect(() => {
-        if (initialTopic) {
-            setTopic(initialTopic);
-            // If dialog is opened via URL, start generation immediately
-            if (isOpen) {
-                generate(initialTopic, academicLevel);
-            }
-        }
-    }, [initialTopic, isOpen]);
-    
-    // Reset state when dialog is closed
-    useEffect(() => {
-        if (!isOpen) {
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.delete('topic');
-            window.history.replaceState({}, '', newUrl);
-
-            setTopic("");
-            setGeneratedNotes(null);
-            setIsLoading(false);
-            setAcademicLevel("Undergraduate");
-            setPages([]);
-            setCurrentPage(0);
-        }
-    }, [isOpen]);
-
-    const generate = async (currentTopic: string, currentLevel: string) => {
+    const generate = useCallback(async (currentTopic: string, currentLevel: string) => {
         if (!currentTopic.trim()) {
             toast({
                 variant: "destructive",
@@ -295,7 +289,7 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
           setPages(notePages);
           setGeneratedNotes(result);
           setCurrentPage(0);
-          onNoteGenerated(currentTopic, currentLevel);
+          onNoteGenerated(currentTopic, currentLevel, result.notes);
         } catch (error: any) {
           console.error("Error generating notes:", error);
           toast({
@@ -306,7 +300,39 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
         } finally {
           setIsLoading(false);
         }
-    }
+    }, [onNoteGenerated, toast]);
+    
+    // Effect to handle opening the dialog
+    useEffect(() => {
+        if (!isOpen) return;
+
+        if (initialNote) {
+            setTopic(initialNote.topic);
+            setAcademicLevel(initialNote.level);
+            const notePages = initialNote.content.split(/\n---\n/);
+            setPages(notePages);
+            setGeneratedNotes({ notes: initialNote.content });
+            setCurrentPage(0);
+            setIsLoading(false);
+        } else if (initialTopic) {
+            if (!generatedNotes) {
+                setTopic(initialTopic);
+                generate(initialTopic, academicLevel);
+            }
+        }
+    }, [isOpen, initialNote, initialTopic, generatedNotes, generate, academicLevel]);
+    
+    // Reset state when dialog is closed
+    useEffect(() => {
+        if (!isOpen) {
+            setTopic("");
+            setGeneratedNotes(null);
+            setIsLoading(false);
+            setAcademicLevel("Undergraduate");
+            setPages([]);
+            setCurrentPage(0);
+        }
+    }, [isOpen]);
 
     const handleGenerateClick = () => {
         generate(topic, academicLevel);
@@ -324,7 +350,7 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
                 <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>Generate New Study Notes</DialogTitle>
+                        <DialogTitle>{initialNote ? "View Note" : "Generate New Study Notes"}</DialogTitle>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto -mx-6 px-6 border-y py-4 relative">
                         {isLoading ? (
@@ -344,6 +370,7 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
                                             <ReactMarkdown 
                                                 remarkPlugins={[remarkGfm]}
                                                 components={{
+                                                    table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
                                                     p: (paragraph) => {
                                                         const { node } = paragraph;
                                                         if (node.children.length === 1 && node.children[0].tagName === 'a') {
@@ -384,8 +411,9 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
                                     <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}><MessageCircle className="h-7 w-7"/></Button>
                                 </div>
                                 <div className="mt-6 flex justify-end gap-2">
+                                    <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
+                                    <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
                                     <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-                                    <Button onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                                 </div>
                             </div>
                         ) : (
@@ -454,3 +482,5 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
