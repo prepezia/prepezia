@@ -19,3 +19,6 @@ import '@/ai/flows/extract-text-from-file.ts';
 import '@/ai/flows/design-cv-flow.ts';
 import '@/ai/flows/career-chat.ts';
 import '@/ai/flows/admissions-chat.ts';
+import '@/ai/flows/generate-flashcards.ts';
+import '@/ai/flows/generate-quiz.ts';
+import '@/ai/flows/generate-slide-deck.ts';
