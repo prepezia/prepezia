@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useCallback } from "react";
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { generateStudyNotes, GenerateStudyNotesOutput } from "@/ai/flows/generate-study-notes";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -32,6 +33,7 @@ type RecentNote = {
   level: string;
   date: string;
   content: string;
+  nextStepsPrompt?: string;
 };
 
 const dummyRecentNotes: RecentNote[] = [
@@ -44,14 +46,9 @@ const dummyRecentNotes: RecentNote[] = [
   { id: 7, topic: 'The Cell Structure', level: 'Secondary', date: 'July 17, 2024', content: "#### Key Organelles\n*   **Nucleus:** Contains the cell's genetic material.\n*   **Mitochondria:** The powerhouse of the cell.\n*   **Ribosomes:** Synthesize proteins." },
 ];
 
-function NoteGeneratorPage() {
+function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: RecentNote) => void, onCreateNew: () => void }) {
   const [recentNotes, setRecentNotes] = useState<RecentNote[]>([]);
   const [visibleCount, setVisibleCount] = useState(7);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [viewingNote, setViewingNote] = useState<RecentNote | null>(null);
-
-  const searchParams = useSearchParams();
-  const topicFromUrl = searchParams.get('topic');
 
   useEffect(() => {
     try {
@@ -66,50 +63,6 @@ function NoteGeneratorPage() {
       setRecentNotes(dummyRecentNotes);
     }
   }, []);
-
-  useEffect(() => {
-    if (topicFromUrl && !isDialogOpen) {
-      setViewingNote(null); // Ensure we are generating new, not viewing old
-      setIsDialogOpen(true);
-    }
-  }, [topicFromUrl, isDialogOpen]);
-  
-  const handleNoteGenerated = useCallback((topic: string, level: string, content: string) => {
-    const newNote: RecentNote = {
-      id: Date.now(),
-      topic,
-      level,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      content: content,
-    };
-
-    setRecentNotes(prev => {
-      const updatedNotes = [newNote, ...prev.filter(n => n.topic !== topic || n.level !== level)];
-      try {
-        localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
-      } catch (e) {
-        console.error("Failed to save notes to local storage:", e);
-      }
-      return updatedNotes;
-    });
-  }, []);
-
-  const handleOpenNote = (note: RecentNote) => {
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.delete('topic');
-    window.history.replaceState({}, '', newUrl);
-
-    setViewingNote(note);
-    setIsDialogOpen(true);
-  };
-  
-  const handleDialogClose = () => {
-    setIsDialogOpen(false);
-    setViewingNote(null);
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.delete('topic');
-    window.history.replaceState({}, '', newUrl);
-  };
   
   return (
     <>
@@ -120,7 +73,7 @@ function NoteGeneratorPage() {
               <h1 className="text-3xl font-headline font-bold">Notes</h1>
               <p className="text-muted-foreground mt-1 text-balance">Your personal AI-powered note-taking assistant.</p>
             </div>
-            <Button onClick={() => { setViewingNote(null); setIsDialogOpen(true); }} className="shrink-0">
+            <Button onClick={onCreateNew} className="shrink-0">
                 <Plus className="mr-2 h-4 w-4" /> Create New
             </Button>
         </div>
@@ -137,7 +90,7 @@ function NoteGeneratorPage() {
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {recentNotes.slice(0, visibleCount).map(note => (
-                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleOpenNote(note)}>
+                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onSelectNote(note)}>
                                 <CardHeader>
                                     <CardTitle>{note.topic}</CardTitle>
                                     <CardDescription>{note.level}</CardDescription>
@@ -156,15 +109,7 @@ function NoteGeneratorPage() {
                 </>
             )}
         </div>
-
       </div>
-      <NoteGeneratorDialog
-          isOpen={isDialogOpen}
-          onOpenChange={handleDialogClose}
-          onNoteGenerated={handleNoteGenerated}
-          initialTopic={topicFromUrl || ''}
-          initialNote={viewingNote}
-      />
     </>
   );
 }
@@ -182,7 +127,6 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
     const { toast } = useToast();
 
     useEffect(() => {
-        // Reset chat when a new note is opened
         if (open) {
             setChatHistory([]);
             setChatInput("");
@@ -247,7 +191,7 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
                             onChange={(e) => setChatInput(e.target.value)}
                             placeholder="Ask a question..."
                             className="pr-12"
-                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e); } }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); } }}
                             disabled={isChatting}
                         />
                         <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" type="submit" disabled={isChatting}>
@@ -260,228 +204,297 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
     );
 }
 
-function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTopic, initialNote }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onNoteGenerated: (topic: string, level: string, content: string) => void, initialTopic?: string, initialNote: RecentNote | null }) {
-    const { toast } = useToast();
-    const [topic, setTopic] = useState("");
-    const [academicLevel, setAcademicLevel] = useState("Undergraduate");
-    const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
+  const { toast } = useToast();
+  const [topic, setTopic] = useState(initialTopic || initialNote?.topic || "");
+  const [academicLevel, setAcademicLevel] = useState(initialNote?.level || "Undergraduate");
+  const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(initialNote ? { notes: initialNote.content, nextStepsPrompt: initialNote.nextStepsPrompt || "" } : null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-    // Pagination
-    const [pages, setPages] = useState<string[]>([]);
-    const [currentPage, setCurrentPage] = useState(0);
+  // Pagination
+  const [pages, setPages] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
 
-    // Chat
-    const [isChatOpen, setIsChatOpen] = useState(false);
+  // Chat
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
-    const generate = useCallback(async (currentTopic: string, currentLevel: string) => {
-        if (!currentTopic.trim()) {
-            toast({
-                variant: "destructive",
-                title: "Topic is required",
-                description: "Please enter a topic to generate notes.",
-            });
-            return;
-        }
-
-        setIsLoading(true);
-        setGeneratedNotes(null);
-        setPages([]);
-        try {
-          const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
-          const notePages = result.notes.split(/\n---\n/);
-          setPages(notePages);
-          setGeneratedNotes(result);
-          setCurrentPage(0);
-          onNoteGenerated(currentTopic, currentLevel, result.notes);
-        } catch (error: any) {
-          console.error("Error generating notes:", error);
-          toast({
-                variant: "destructive",
-                title: "Generation Failed",
-                description: error.message || "An unexpected error occurred.",
-            });
-        } finally {
-          setIsLoading(false);
-        }
-    }, [onNoteGenerated, toast]);
-    
-    // Effect to handle opening the dialog
-    useEffect(() => {
-        if (!isOpen) return;
-
-        if (initialNote) {
-            setTopic(initialNote.topic);
-            setAcademicLevel(initialNote.level);
-            const content = initialNote.content || "";
-            const notePages = content.split(/\n---\n/);
-            setPages(notePages);
-            setGeneratedNotes({ notes: content });
-            setCurrentPage(0);
-            setIsLoading(false);
-        } else if (initialTopic) {
-            if (!generatedNotes && !isLoading) {
-                setTopic(initialTopic);
-                generate(initialTopic, academicLevel);
-            }
-        }
-    }, [isOpen, initialNote, initialTopic, generatedNotes, generate, academicLevel, isLoading]);
-    
-    // Reset state when dialog is closed
-    useEffect(() => {
-        if (!isOpen) {
-            setTopic("");
-            setGeneratedNotes(null);
-            setIsLoading(false);
-            setAcademicLevel("Undergraduate");
-            setPages([]);
-            setCurrentPage(0);
-        }
-    }, [isOpen]);
-
-    const handleGenerateClick = () => {
-        generate(topic, academicLevel);
+  const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
+    const newNote: RecentNote = {
+      id: Date.now(),
+      topic,
+      level,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      content,
+      nextStepsPrompt: nextSteps,
     };
 
-    const handleGenerateAnother = () => {
-        setGeneratedNotes(null);
-        setPages([]);
-        setCurrentPage(0);
-        setTopic("");
+    try {
+      const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+      const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw) : dummyRecentNotes;
+      const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
+      localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+    } catch (e) {
+      console.error("Failed to save notes to local storage:", e);
+    }
+  }, []);
+
+  const generate = useCallback(async (currentTopic: string, currentLevel: string) => {
+    if (!currentTopic.trim()) {
+        toast({
+            variant: "destructive",
+            title: "Topic is required",
+            description: "Please enter a topic to generate notes.",
+        });
+        return;
     }
 
-    return (
-        <>
-            <Dialog open={isOpen} onOpenChange={onOpenChange}>
-                <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
-                    <DialogHeader>
-                        <DialogTitle>{initialNote ? "View Note" : "Generate New Study Notes"}</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex-1 overflow-y-auto -mx-6 px-6 border-y py-4 relative">
-                        {isLoading ? (
-                            <div className="flex flex-col items-center justify-center h-full gap-4">
-                                <Loader2 className="h-10 w-10 animate-spin text-primary"/>
-                                <p className="text-muted-foreground">Generating notes for "{topic}"...</p>
-                            </div>
-                        ) : generatedNotes ? (
-                            <div className="h-full flex flex-col">
-                                <Card className="flex-1 flex flex-col">
-                                    <CardHeader>
-                                        <CardTitle>Generated Notes for &quot;{topic}&quot;</CardTitle>
-                                        <CardDescription>Level: {academicLevel}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="flex-1">
-                                        <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 bg-secondary/30">
-                                            <ReactMarkdown 
-                                                remarkPlugins={[remarkGfm]}
-                                                components={{
-                                                    table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
-                                                    p: (paragraph) => {
-                                                        const { node } = paragraph;
-                                                        if (node.children.length === 1 && node.children[0].tagName === 'a') {
-                                                            const link = node.children[0] as any;
-                                                            if (link && link.properties) {
-                                                                const url = link.properties.href || '';
-                                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                                                if (youtubeMatch && youtubeMatch[1]) {
-                                                                    const videoId = youtubeMatch[1];
-                                                                    if (link.children.length === 1 && link.children[0].type === 'text' && link.children[0].value === url) {
-                                                                        return (
-                                                                            <div className="my-4 aspect-video">
-                                                                                <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
-                                                                            </div>
-                                                                        );
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                        return <p>{paragraph.children}</p>;
-                                                    },
-                                                    a: ({node, ...props}) => {
-                                                        const { href } = props;
-                                                        const youtubeMatch = href?.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                                        if (youtubeMatch && youtubeMatch[1]) {
-                                                            const videoId = youtubeMatch[1];
-                                                             if (props.children && typeof props.children[0] === 'string' && props.children[0] === href) {
-                                                                return (
-                                                                    <div className="my-4 aspect-video">
-                                                                        <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
-                                                                    </div>
-                                                                );
-                                                            }
-                                                        }
-                                                        return <a {...props} target="_blank" rel="noopener noreferrer" />;
-                                                    }
-                                                }}
-                                            >
-                                                {pages[currentPage]}
-                                            </ReactMarkdown>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                                <div className="mt-4 flex justify-between items-center">
-                                    <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
-                                    <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
-                                    <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
-                                </div>
-                                <div className="absolute bottom-6 right-6">
-                                    <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}><MessageCircle className="h-7 w-7"/></Button>
-                                </div>
-                                <div className="mt-6 flex justify-end gap-2">
-                                    <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
-                                    <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
-                                    <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <Input 
-                                    placeholder="e.g., Photosynthesis, Ghanaian Independence" 
-                                    value={topic}
-                                    onChange={(e) => setTopic(e.target.value)}
-                                    className="h-12 text-base"
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
-                                />
-                                <Select value={academicLevel} onValueChange={setAcademicLevel}>
-                                    <SelectTrigger className="h-12 text-base">
-                                    <SelectValue placeholder="Select a level" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            <SelectLabel>Proficiency</SelectLabel>
-                                            <SelectItem value="Beginner">Beginner</SelectItem>
-                                            <SelectItem value="Intermediate">Intermediate</SelectItem>
-                                            <SelectItem value="Expert">Expert</SelectItem>
-                                        </SelectGroup>
-                                        <SelectGroup>
-                                            <SelectLabel>Degree Level</SelectLabel>
-                                            <SelectItem value="Secondary">Secondary</SelectItem>
-                                            <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                                            <SelectItem value="Masters">Masters</SelectItem>
-                                            <SelectItem value="PhD">PhD</SelectItem>
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                                <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12">
-                                    <Sparkles className="mr-2 h-5 w-5" />
-                                    Generate Notes
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+    setIsLoading(true);
+    setGeneratedNotes(null);
+    setPages([]);
+    try {
+      const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
+      const noteContent = result.notes || "";
+      const notePages = noteContent.split(/\n---\n/);
+      setPages(notePages);
+      setGeneratedNotes(result);
+      setCurrentPage(0);
+      onNoteGenerated(currentTopic, currentLevel, noteContent, result.nextStepsPrompt);
+    } catch (error: any) {
+      console.error("Error generating notes:", error);
+      toast({
+            variant: "destructive",
+            title: "Generation Failed",
+            description: error.message || "An unexpected error occurred.",
+        });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onNoteGenerated, toast]);
+  
+  useEffect(() => {
+    if (initialNote) {
+        const noteContent = initialNote.content || "";
+        const notePages = noteContent.split(/\n---\n/);
+        setPages(notePages);
+        setGeneratedNotes({ notes: noteContent, nextStepsPrompt: initialNote.nextStepsPrompt || ""});
+        setTopic(initialNote.topic);
+        setAcademicLevel(initialNote.level);
+        setCurrentPage(0);
+    } else if (initialTopic && !generatedNotes && !isLoading) {
+        generate(initialTopic, academicLevel);
+    }
+  }, [initialNote, initialTopic, generate, academicLevel, isLoading, generatedNotes]);
 
-            {generatedNotes && (
-                <ChatWithNoteDialog 
-                    open={isChatOpen} 
-                    onOpenChange={setIsChatOpen}
-                    noteContent={generatedNotes.notes}
-                    topic={topic}
-                />
-            )}
-        </>
-    );
+
+  const handleGenerateClick = () => {
+      router.push(`/home/note-generator?topic=${encodeURIComponent(topic)}&level=${academicLevel}`);
+      generate(topic, academicLevel);
+  };
+
+  const handleGenerateAnother = () => {
+    setGeneratedNotes(null);
+    setPages([]);
+    setCurrentPage(0);
+    setTopic("");
+    router.push('/home/note-generator?new=true');
+  }
+
+  const nextStepActions = [
+      { label: "Flashcards", icon: SquareStack, action: () => toast({title: "Coming Soon!", description: "Flashcard generation will be available soon."})},
+      { label: "Quiz", icon: HelpCircle, action: () => toast({title: "Coming Soon!", description: "Quiz generation will be available soon."})},
+      { label: "Slide Deck", icon: Presentation, action: () => toast({title: "Coming Soon!", description: "Slide deck generation will be available soon."})},
+  ]
+
+  return (
+    <>
+      <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>} />
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 relative">
+          {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary"/>
+                  <p className="text-muted-foreground text-lg">Generating notes for "{topic}"...</p>
+                  <p className="text-sm text-muted-foreground">This may take a moment.</p>
+              </div>
+          ) : generatedNotes ? (
+              <div className="max-w-4xl mx-auto">
+                  <Card className="flex-1 flex flex-col">
+                      <CardHeader>
+                          <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
+                          <CardDescription>Academic Level: {academicLevel}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1">
+                          <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 bg-secondary/30 min-h-[50vh]">
+                              <ReactMarkdown 
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                      table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
+                                      p: (paragraph) => {
+                                          const { node } = paragraph;
+                                          if (node.children.length === 1 && node.children[0].tagName === 'a') {
+                                              const link = node.children[0] as any;
+                                              if (link && link.properties) {
+                                                  const url = link.properties.href || '';
+                                                  const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                                  if (youtubeMatch && youtubeMatch[1]) {
+                                                      const videoId = youtubeMatch[1];
+                                                      return (
+                                                          <div className="my-4 aspect-video">
+                                                              <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                          </div>
+                                                      );
+                                                  }
+                                              }
+                                          }
+                                          return <p>{paragraph.children}</p>;
+                                      },
+                                  }}
+                              >
+                                  {pages[currentPage]}
+                              </ReactMarkdown>
+                          </div>
+                      </CardContent>
+                  </Card>
+                  
+                  {pages.length > 1 && (
+                      <div className="mt-4 flex justify-between items-center">
+                          <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                          <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
+                          <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                      </div>
+                  )}
+
+                  <Card className="mt-8">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
+                        <CardDescription>{generatedNotes.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-4">
+                        {nextStepActions.map(item => (
+                            <Button key={item.label} variant="outline" onClick={item.action}>
+                                <item.icon className="mr-2"/>
+                                {item.label}
+                            </Button>
+                        ))}
+                    </CardContent>
+                  </Card>
+
+                  <div className="mt-8 flex flex-col sm:flex-row justify-end gap-2">
+                      <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
+                      <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
+                  </div>
+
+                  <div className="fixed bottom-6 right-6 z-50">
+                      <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
+                          <MessageCircle className="h-7 w-7"/>
+                          <span className="sr-only">AI Deep Dive</span>
+                      </Button>
+                  </div>
+              </div>
+          ) : (
+              <div className="max-w-2xl mx-auto space-y-4 text-center py-10">
+                  <h1 className="text-3xl font-headline font-bold">Generate New Study Notes</h1>
+                  <p className="text-muted-foreground">Enter any topic and select the academic level to get started.</p>
+                  <div className="space-y-4 pt-4">
+                      <Input 
+                          placeholder="e.g., Photosynthesis, Ghanaian Independence" 
+                          value={topic}
+                          onChange={(e) => setTopic(e.target.value)}
+                          className="h-12 text-base"
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
+                      />
+                      <Select value={academicLevel} onValueChange={setAcademicLevel}>
+                          <SelectTrigger className="h-12 text-base">
+                          <SelectValue placeholder="Select a level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectGroup>
+                                  <SelectLabel>Proficiency</SelectLabel>
+                                  <SelectItem value="Beginner">Beginner</SelectItem>
+                                  <SelectItem value="Intermediate">Intermediate</SelectItem>
+                                  <SelectItem value="Expert">Expert</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                  <SelectLabel>Degree Level</SelectLabel>
+                                  <SelectItem value="Secondary">Secondary</SelectItem>
+                                  <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                                  <SelectItem value="Masters">Masters</SelectItem>
+                                  <SelectItem value="PhD">PhD</SelectItem>
+                              </SelectGroup>
+                          </SelectContent>
+                      </Select>
+                      <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12" size="lg">
+                          <Sparkles className="mr-2 h-5 w-5" />
+                          Generate Notes
+                      </Button>
+                  </div>
+              </div>
+          )}
+      </div>
+
+      {generatedNotes && (
+          <ChatWithNoteDialog 
+              open={isChatOpen} 
+              onOpenChange={setIsChatOpen}
+              noteContent={generatedNotes.notes}
+              topic={topic}
+          />
+      )}
+    </>
+  );
+}
+
+
+function NoteGeneratorPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const [view, setView] = useState<'list' | 'note'>('list');
+    
+    const [initialTopic, setInitialTopic] = useState<string | null>(null);
+    const [initialNote, setInitialNote] = useState<RecentNote | null>(null);
+
+    useEffect(() => {
+        const topic = searchParams.get('topic');
+        const noteId = searchParams.get('noteId');
+        const isNew = searchParams.get('new');
+
+        if (topic || noteId || isNew) {
+            setView('note');
+            if (noteId) {
+                try {
+                    const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+                    const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
+                    const foundNote = savedNotes.find((n: RecentNote) => n.id.toString() === noteId);
+                    setInitialNote(foundNote || null);
+                    setInitialTopic(null);
+                } catch(e) { console.error("Error loading note from storage", e); }
+            } else {
+                setInitialTopic(topic);
+                setInitialNote(null);
+            }
+        } else {
+            setView('list');
+        }
+
+    }, [searchParams]);
+
+    const handleSelectNote = (note: RecentNote) => {
+        router.push(`/home/note-generator?noteId=${note.id}`);
+    }
+
+    const handleCreateNew = () => {
+        router.push('/home/note-generator?new=true');
+    }
+
+    const handleBackToList = () => {
+        router.push('/home/note-generator');
+    }
+
+    if (view === 'note') {
+        return <NoteViewPage onBack={handleBackToList} initialTopic={initialTopic} initialNote={initialNote} />
+    }
+    
+    return <NoteListPage onSelectNote={handleSelectNote} onCreateNew={handleCreateNew} />;
 }
 
 
@@ -499,9 +512,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
-    
-
-    
-
-    

@@ -22,6 +22,7 @@ export type GenerateStudyNotesInput = z.infer<typeof GenerateStudyNotesInputSche
 
 const GenerateStudyNotesOutputSchema = z.object({
   notes: z.string().describe('The generated study notes in various formats.'),
+  nextStepsPrompt: z.string().describe('A question prompting the user for next steps like generating a quiz or flashcards.')
 });
 
 export type GenerateStudyNotesOutput = z.infer<typeof GenerateStudyNotesOutputSchema>;
@@ -51,10 +52,7 @@ export async function generateStudyNotes(
       *   Include links to relevant infographics or high-quality graphics to illustrate concepts.
       *   Embed links to relevant YouTube videos for visual explanations. Provide standard YouTube video URLs.
   6.  **Accuracy and Clarity:** The notes must be accurate, easy to understand, and tailored to the selected academic level.
-
-  ### Concluding Action:
-  After providing the notes, ALWAYS conclude your response with the following question on a new line:
-  "Would you like me to generate flashcards, a quiz, or a slide deck from these notes?"`,
+  7.  **Next Steps**: After generating the notes, formulate a question for the user about what they would like to do next. For example: "Would you like me to generate flashcards, a quiz, or a slide deck from these notes?" and place it in the 'nextStepsPrompt' field.`,
     });
 
     generateStudyNotesFlow = ai.defineFlow(
