@@ -20,9 +20,18 @@ export type GetAdmissionsAdviceInput = z.infer<typeof GetAdmissionsAdviceInputSc
 
 const GetAdmissionsAdviceOutputSchema = z.object({
   profileStrengths: z.string().describe("What makes this student a 'strong candidate' right now?"),
-  universityShortlist: z.array(z.object({ school: z.string(), reason: z.string() })).describe("A list of 5 curated programs with a brief 'Why this school?' for each."),
-  scholarshipRadar: z.array(z.string()).describe("A list of 3-5 specific funding bodies the user should investigate."),
-  admissionsCalendar: z.string().describe("A high-level timeline of when they need to take exams and submit applications."),
+  universityShortlist: z.array(z.object({ 
+      school: z.string().describe("The name of the university."),
+      program: z.string().describe("The specific program at the school."),
+      url: z.string().url().describe("A direct, valid link to the program or university's main page."),
+      reason: z.string().describe("A brief reason why this school/program is a good fit.")
+  })).describe("A list of 3-5 curated universities/programs with a brief 'Why this school?' for each."),
+  scholarshipRadar: z.array(z.object({
+      name: z.string().describe("The name of the scholarship."),
+      url: z.string().url().describe("A direct, valid link to the scholarship's application or information page."),
+      description: z.string().describe("A brief description of the scholarship, including key eligibility and benefits."),
+  })).describe("A list of 3-5 specific, relevant scholarship opportunities with direct links."),
+  admissionsCalendar: z.string().describe("A high-level timeline of when they need to take exams and submit applications, formatted with newlines."),
 });
 export type GetAdmissionsAdviceOutput = z.infer<typeof GetAdmissionsAdviceOutputSchema>;
 
@@ -43,9 +52,11 @@ export async function getAdmissionsAdvice(input: GetAdmissionsAdviceInput): Prom
 
 ### OUTPUT STRUCTURE:
 -   PROFILE STRENGTHS: What makes this student a "strong candidate" right now?
--   THE UNIVERSITY SHORTLIST: 5 curated programs with a brief "Why this school?" for each.
--   THE SCHOLARSHIP RADAR: A list of 3-5 specific funding bodies the user should investigate.
--   ADMISSIONS CALENDAR: A high-level timeline of when they need to take exams and submit applications.
+-   THE UNIVERSITY SHORTLIST: Provide 3-5 curated programs. For each, include the school name, the specific program, a direct and valid URL to the program or university's website, and a brief "Why this school?" reason.
+-   THE SCHOLARSHIP RADAR: A list of 3-5 specific, relevant scholarship opportunities. For each, provide the scholarship name, a brief description including eligibility, and the direct, valid URL to the information or application page.
+-   ADMISSIONS CALENDAR: A high-level timeline of when they need to take exams and submit applications. Use newlines to format the calendar.
+
+**IMPORTANT RULE: Do NOT under any circumstances invent, guess, or create URLs. If you cannot find a real, verifiable URL, do not include that item in the output.** It is better to return fewer results with accurate links than more results with broken links.
 
 User's Background/CV:
 \`\`\`

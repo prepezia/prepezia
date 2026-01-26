@@ -782,13 +782,17 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     <TabsContent value="opportunities" className="mt-4 flex-1 flex flex-col">
                         <Card className="max-w-4xl mx-auto w-full">
                             <CardHeader>
-                            <CardTitle>AI Opportunity Finder</CardTitle>
+                            <CardTitle>Opportunity Finder</CardTitle>
                             <CardDescription>Find universities and scholarships tailored to your profile and goals.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                            <p className="text-sm text-muted-foreground p-4 bg-secondary/50 rounded-lg">
-                                Your objectives: "{academicObjectives || 'No objectives set. Please go back to onboarding to set them.'}"
-                            </p>
+                            <Textarea
+                                value={academicObjectives}
+                                onChange={(e) => setAcademicObjectives(e.target.value)}
+                                placeholder="e.g., I want to pursue a Master's in Computer Science in Germany, focusing on AI, and I'm looking for a full scholarship..."
+                                rows={4}
+                                className="bg-secondary/50"
+                            />
                             <Button onClick={handleFindOpportunities} disabled={isFindingOpportunities}>
                                 {isFindingOpportunities && <Loader2 className="mr-2 animate-spin" />}
                                 <Search className="mr-2" /> Find Opportunities
@@ -812,11 +816,40 @@ function AdmissionsAdviceCard({ result }: { result: GetAdmissionsAdviceOutput })
     return (
         <Card className="bg-background">
             <CardHeader><CardTitle>Your Admissions & Scholarship Strategy</CardTitle></CardHeader>
-            <CardContent className="space-y-4 text-sm">
-                <div><h4 className="font-semibold mb-1">Profile Strengths</h4><p className="text-muted-foreground">{result.profileStrengths}</p></div>
-                <div><h4 className="font-semibold mb-1">University Shortlist</h4><ul className="space-y-2">{result.universityShortlist.map((item, i) => (<li key={i} className="p-2 border rounded-md"><p className="font-medium">{item.school}</p><p className="text-muted-foreground text-xs">{item.reason}</p></li>))}</ul></div>
-                <div><h4 className="font-semibold mb-1">Scholarship Radar</h4><ul className="list-disc pl-5 text-muted-foreground">{result.scholarshipRadar.map((item, i) => <li key={i}>{item}</li>)}</ul></div>
-                <div><h4 className="font-semibold mb-1">Admissions Calendar</h4><p className="text-muted-foreground">{result.admissionsCalendar}</p></div>
+            <CardContent className="space-y-6 text-sm">
+                <div>
+                    <h4 className="font-semibold text-base mb-2">Profile Strengths</h4>
+                    <p className="text-muted-foreground">{result.profileStrengths}</p>
+                </div>
+                <Separator />
+                <div>
+                    <h4 className="font-semibold text-base mb-2">University & Program Shortlist</h4>
+                    <ul className="space-y-3">
+                        {result.universityShortlist.map((item, i) => (
+                            <li key={i} className="p-3 border rounded-lg bg-secondary/50">
+                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">{item.school} - {item.program}</a>
+                                <p className="text-muted-foreground text-xs mt-1">{item.reason}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <Separator />
+                <div>
+                    <h4 className="font-semibold text-base mb-2">Scholarship Radar</h4>
+                    <ul className="space-y-3">
+                        {result.scholarshipRadar.map((item, i) => (
+                            <li key={i} className="p-3 border rounded-lg bg-secondary/50">
+                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">{item.name}</a>
+                                <p className="text-muted-foreground text-xs mt-1">{item.description}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                 <Separator />
+                <div>
+                    <h4 className="font-semibold text-base mb-2">Admissions Calendar</h4>
+                    <p className="text-muted-foreground whitespace-pre-line">{result.admissionsCalendar}</p>
+                </div>
             </CardContent>
         </Card>
     );
