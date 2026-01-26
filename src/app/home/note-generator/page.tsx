@@ -70,12 +70,12 @@ function NoteGeneratorPage() {
     <>
       <HomeHeader />
       <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-        <div className="flex justify-between items-center gap-4">
+        <div className="flex justify-between items-start gap-4">
             <div>
               <h1 className="text-3xl font-headline font-bold">Notes</h1>
               <p className="text-muted-foreground mt-1">Your personal AI-powered note-taking assistant.</p>
             </div>
-            <Button onClick={() => setIsDialogOpen(true)}>
+            <Button onClick={() => setIsDialogOpen(true)} className="shrink-0">
                 <Plus className="mr-2 h-4 w-4" /> Create New
             </Button>
         </div>
@@ -200,7 +200,35 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
                                 </CardHeader>
                                 <CardContent>
                                 <div className="prose dark:prose-invert max-w-none">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedNotes.notes}</ReactMarkdown>
+                                    <ReactMarkdown 
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            a: ({node, ...props}) => {
+                                                const url = props.href || '';
+                                                // Check for YouTube URLs
+                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                                if (youtubeMatch && youtubeMatch[1]) {
+                                                    const videoId = youtubeMatch[1];
+                                                    return (
+                                                        <div className="my-4 aspect-video">
+                                                            <iframe
+                                                                src={`https://www.youtube.com/embed/${videoId}`}
+                                                                frameBorder="0"
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                allowFullScreen
+                                                                title="Embedded YouTube video"
+                                                                className="w-full h-full rounded-md"
+                                                            ></iframe>
+                                                        </div>
+                                                    );
+                                                }
+                                                // Default link rendering
+                                                return <a {...props} target="_blank" rel="noopener noreferrer" />;
+                                            }
+                                        }}
+                                    >
+                                        {generatedNotes.notes}
+                                    </ReactMarkdown>
                                 </div>
                                 </CardContent>
                             </Card>

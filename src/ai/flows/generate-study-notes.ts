@@ -37,14 +37,23 @@ export async function generateStudyNotes(
       model: 'googleai/gemini-2.5-flash',
       input: {schema: GenerateStudyNotesInputSchema},
       output: {schema: GenerateStudyNotesOutputSchema},
-      prompt: `You are an expert tutor, skilled in generating study notes for any given topic and academic level.
+      prompt: `You are an expert tutor, skilled in generating rich, multi-format study notes for any given topic and academic level.
 
-  Generate study notes for the topic: {{{topic}}}.
+  Generate comprehensive study notes for the topic: {{{topic}}}.
   The academic level is: {{{academicLevel}}}.
 
-  The study notes should be in various formats, including text, audio, video, and graphics, as appropriate for the topic and level.
-  Include links to resources for audio, video and graphics.
-  The generated notes should be well-organized, accurate, and easy to understand. Focus on quality content over length.`,
+  ### Content Requirements:
+  1.  **Well-Structured Text:** Use clear headings, bullet points, and bold text to organize the information.
+  2.  **Data Tables:** Where appropriate, use Markdown tables to present data or comparisons.
+  3.  **Chemical Equations:** Ensure all chemical equations are correctly formatted, using subscripts and superscripts where necessary (e.g., H₂O).
+  4.  **Visuals & Videos:**
+      *   Include links to relevant infographics or high-quality graphics to illustrate concepts.
+      *   Embed links to relevant YouTube videos for visual explanations. Provide standard YouTube video URLs.
+  5.  **Accuracy and Clarity:** The notes must be accurate, easy to understand, and tailored to the selected academic level.
+
+  ### Concluding Action:
+  After providing the notes, ALWAYS conclude your response with the following question on a new line:
+  "Would you like me to generate flashcards, a quiz, or a slide deck from these notes?"`,
     });
 
     generateStudyNotesFlow = ai.defineFlow(
