@@ -203,26 +203,40 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
                                     <ReactMarkdown 
                                         remarkPlugins={[remarkGfm]}
                                         components={{
-                                            a: ({node, ...props}) => {
-                                                const url = props.href || '';
-                                                // Check for YouTube URLs
-                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                                if (youtubeMatch && youtubeMatch[1]) {
-                                                    const videoId = youtubeMatch[1];
-                                                    return (
-                                                        <div className="my-4 aspect-video">
-                                                            <iframe
-                                                                src={`https://www.youtube.com/embed/${videoId}`}
-                                                                frameBorder="0"
-                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                allowFullScreen
-                                                                title="Embedded YouTube video"
-                                                                className="w-full h-full rounded-md"
-                                                            ></iframe>
-                                                        </div>
-                                                    );
+                                            p: (paragraph) => {
+                                                const { node } = paragraph;
+                                                // Check if the paragraph contains a single link
+                                                if (node.children.length === 1 && node.children[0].tagName === 'a') {
+                                                    const link = node.children[0] as any;
+                                                    if (link && link.properties) {
+                                                        const url = link.properties.href || '';
+                                                        const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                        
+                                                        // Check if it's a standalone YouTube link
+                                                        if (youtubeMatch && youtubeMatch[1]) {
+                                                            const videoId = youtubeMatch[1];
+                                                            if (link.children.length === 1 && link.children[0].type === 'text' && link.children[0].value === url) {
+                                                                return (
+                                                                    <div className="my-4 aspect-video">
+                                                                        <iframe
+                                                                            src={`https://www.youtube.com/embed/${videoId}`}
+                                                                            frameBorder="0"
+                                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                            allowFullScreen
+                                                                            title="Embedded YouTube video"
+                                                                            className="w-full h-full rounded-md"
+                                                                        ></iframe>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                        }
+                                                    }
                                                 }
-                                                // Default link rendering
+                                                // Otherwise, render a normal paragraph
+                                                return <p>{paragraph.children}</p>;
+                                            },
+                                            a: ({node, ...props}) => {
+                                                // Render all other links as normal links opening in a new tab
                                                 return <a {...props} target="_blank" rel="noopener noreferrer" />;
                                             }
                                         }}
