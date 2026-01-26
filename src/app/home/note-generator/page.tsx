@@ -20,13 +20,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { generateStudyNotes, GenerateStudyNotesOutput } from "@/ai/flows/generate-study-notes";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack } from "lucide-react";
+import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
 
 type RecentNote = {
   id: number;
@@ -213,15 +218,18 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Pagination
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
-
-  // Chat
   const [isChatOpen, setIsChatOpen] = useState(false);
-
-  // Ref to prevent double generation in strict mode
   const generationStarted = useRef(false);
+
+  const [generatedContent, setGeneratedContent] = useState<{
+    flashcards?: GenerateFlashcardsOutput['flashcards'];
+    quiz?: GenerateQuizOutput['quiz'];
+    deck?: GenerateSlideDeckOutput;
+  }>({});
+  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
+  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
 
   const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
     const newNote: RecentNote = {
@@ -232,10 +240,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       content,
       nextStepsPrompt: nextSteps,
     };
-
     try {
       const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-      const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw) : dummyRecentNotes;
+      const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw).filter((n: RecentNote) => n.id !== 0) : dummyRecentNotes;
       const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
     } catch (e) {
@@ -272,29 +279,37 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   }, [onNoteGenerated, toast]);
   
-  // Effect for triggering generation when navigating via topic URL
   useEffect(() => {
     if (initialTopic && !initialNote && !generationStarted.current) {
         generationStarted.current = true;
-        generate(initialTopic, "Undergraduate");
+        generate(initialTopic, academicLevel);
     }
-  }, [initialTopic, initialNote, generate]);
+  }, [initialTopic, initialNote, generate, academicLevel]);
 
-  // Effect for deriving pages from generated or initial notes
   useEffect(() => {
-    const noteContent = generatedNotes?.notes ?? initialNote?.content;
+    const noteContent = generatedNotes?.notes;
     if (noteContent) {
       const notePages = noteContent.split(/\n---\n/);
       setPages(notePages);
       setCurrentPage(0);
-    } else {
-        setPages([]);
     }
-  }, [generatedNotes, initialNote]);
+  }, [generatedNotes]);
+  
+  useEffect(() => {
+    if (initialNote?.content) {
+        const notePages = initialNote.content.split(/\n---\n/);
+        setPages(notePages);
+        setGeneratedNotes({ notes: initialNote.content, nextStepsPrompt: initialNote.nextStepsPrompt || ""});
+        setTopic(initialNote.topic);
+        setAcademicLevel(initialNote.level);
+        setCurrentPage(0);
+    }
+  }, [initialNote]);
 
 
   const handleGenerateClick = () => {
       router.push(`/home/note-generator?topic=${encodeURIComponent(topic)}&level=${academicLevel}`);
+      generationStarted.current = true;
       generate(topic, academicLevel);
   };
 
@@ -303,14 +318,158 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     setPages([]);
     setCurrentPage(0);
     setTopic("");
+    setActiveView('notes');
+    setGeneratedContent({});
     router.push('/home/note-generator?new=true');
+    generationStarted.current = false;
   }
+  
+  const handleGenerateFlashcards = async () => {
+    if (!generatedNotes) return;
+    setIsGenerating('flashcards');
+    try {
+        const result = await generateFlashcards({
+            context: 'note-generator',
+            topic: topic,
+            academicLevel: academicLevel,
+            content: generatedNotes.notes,
+        });
+        setGeneratedContent(prev => ({ ...prev, flashcards: result.flashcards }));
+        setActiveView('flashcards');
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to generate flashcards', description: e.message });
+    } finally {
+        setIsGenerating(null);
+    }
+  };
+
+  const handleGenerateQuiz = async () => {
+    if (!generatedNotes) return;
+    setIsGenerating('quiz');
+    try {
+        const result = await generateQuiz({
+            context: 'note-generator',
+            topic: topic,
+            academicLevel: academicLevel,
+            content: generatedNotes.notes,
+        });
+        setGeneratedContent(prev => ({ ...prev, quiz: result.quiz }));
+        setActiveView('quiz');
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to generate quiz', description: e.message });
+    } finally {
+        setIsGenerating(null);
+    }
+  };
+
+  const handleGenerateSlideDeck = async () => {
+    if (!generatedNotes) return;
+    setIsGenerating('deck');
+    try {
+        const result = await generateSlideDeck({
+            context: 'note-generator',
+            topic: topic,
+            academicLevel: academicLevel,
+            content: generatedNotes.notes,
+        });
+        setGeneratedContent(prev => ({ ...prev, deck: result }));
+        setActiveView('deck');
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to generate slide deck', description: e.message });
+    } finally {
+        setIsGenerating(null);
+    }
+  };
 
   const nextStepActions = [
-      { label: "Flashcards", icon: SquareStack, action: () => toast({title: "Coming Soon!", description: "Flashcard generation will be available soon."})},
-      { label: "Quiz", icon: HelpCircle, action: () => toast({title: "Coming Soon!", description: "Quiz generation will be available soon."})},
-      { label: "Slide Deck", icon: Presentation, action: () => toast({title: "Coming Soon!", description: "Slide deck generation will be available soon."})},
+      { label: "Flashcards", icon: SquareStack, action: handleGenerateFlashcards, loading: isGenerating === 'flashcards'},
+      { label: "Quiz", icon: HelpCircle, action: handleGenerateQuiz, loading: isGenerating === 'quiz'},
+      { label: "Slide Deck", icon: Presentation, action: handleGenerateSlideDeck, loading: isGenerating === 'deck'},
   ]
+
+  const renderContent = () => {
+    if (activeView === 'flashcards' && generatedContent.flashcards) {
+        return <FlashcardView flashcards={generatedContent.flashcards} onBack={() => setActiveView('notes')} topic={topic} />;
+    }
+    if (activeView === 'quiz' && generatedContent.quiz) {
+        return <QuizView quiz={generatedContent.quiz} onBack={() => setActiveView('notes')} topic={topic} />;
+    }
+    if (activeView === 'deck' && generatedContent.deck) {
+        return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveView('notes')} />;
+    }
+
+    // Default to notes view
+    return (
+        <>
+            <Card className="flex-1 flex flex-col">
+                <CardHeader>
+                    <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
+                    <CardDescription>Academic Level: {academicLevel}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1">
+                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 bg-secondary/30 min-h-[50vh]">
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
+                                pre: ({node, ...props}) => <div className="overflow-x-auto my-4 bg-white dark:bg-black rounded p-2"><pre {...props} /></div>,
+                                p: (paragraph) => {
+                                    const { node } = paragraph;
+                                    if (node.children.length === 1 && node.children[0].tagName === 'a') {
+                                        const link = node.children[0] as any;
+                                        if (link && link.properties) {
+                                            const url = link.properties.href || '';
+                                            const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                            if (youtubeMatch && youtubeMatch[1]) {
+                                                const videoId = youtubeMatch[1];
+                                                return (
+                                                    <div className="my-4 aspect-video">
+                                                        <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                    </div>
+                                                );
+                                            }
+                                        }
+                                    }
+                                    return <p>{paragraph.children}</p>;
+                                },
+                            }}
+                        >
+                            {pages[currentPage]}
+                        </ReactMarkdown>
+                    </div>
+                </CardContent>
+            </Card>
+            
+            {pages.length > 1 && (
+                <div className="mt-4 flex justify-between items-center">
+                    <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                    <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
+                    <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                </div>
+            )}
+
+            <Card className="mt-8">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
+                  <CardDescription>{generatedNotes.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-4">
+                  {nextStepActions.map(item => (
+                      <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading}>
+                          {item.loading ? <Loader2 className="mr-2 animate-spin"/> : <item.icon className="mr-2"/>}
+                          {item.label}
+                      </Button>
+                  ))}
+              </CardContent>
+            </Card>
+
+            <div className="mt-8 flex flex-col sm:flex-row gap-2 justify-center sm:justify-end">
+                <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
+                <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
+            </div>
+        </>
+    );
+  }
 
   return (
     <>
@@ -323,80 +482,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   <p className="text-sm text-muted-foreground">This may take a moment.</p>
               </div>
           ) : generatedNotes ? (
-              <div className="max-w-4xl mx-auto">
-                  <Card className="flex-1 flex flex-col">
-                      <CardHeader>
-                          <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
-                          <CardDescription>Academic Level: {academicLevel}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-1">
-                          <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 bg-secondary/30 min-h-[50vh]">
-                              <ReactMarkdown 
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                      table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
-                                      pre: ({node, ...props}) => <div className="overflow-x-auto my-4"><pre {...props} /></div>,
-                                      p: (paragraph) => {
-                                          const { node } = paragraph;
-                                          if (node.children.length === 1 && node.children[0].tagName === 'a') {
-                                              const link = node.children[0] as any;
-                                              if (link && link.properties) {
-                                                  const url = link.properties.href || '';
-                                                  const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                                  if (youtubeMatch && youtubeMatch[1]) {
-                                                      const videoId = youtubeMatch[1];
-                                                      return (
-                                                          <div className="my-4 aspect-video">
-                                                              <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
-                                                          </div>
-                                                      );
-                                                  }
-                                              }
-                                          }
-                                          return <p>{paragraph.children}</p>;
-                                      },
-                                  }}
-                              >
-                                  {pages[currentPage]}
-                              </ReactMarkdown>
-                          </div>
-                      </CardContent>
-                  </Card>
-                  
-                  {pages.length > 1 && (
-                      <div className="mt-4 flex justify-between items-center">
-                          <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
-                          <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
-                          <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
-                      </div>
-                  )}
-
-                  <Card className="mt-8">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
-                        <CardDescription>{generatedNotes.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap gap-4">
-                        {nextStepActions.map(item => (
-                            <Button key={item.label} variant="outline" onClick={item.action}>
-                                <item.icon className="mr-2"/>
-                                {item.label}
-                            </Button>
-                        ))}
-                    </CardContent>
-                  </Card>
-
-                  <div className="mt-8 flex flex-wrap justify-center sm:justify-end gap-2">
-                      <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
-                      <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
-                  </div>
-
-                  <div className="fixed bottom-[150px] right-6 z-50">
-                      <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
-                          <MessageCircle className="h-7 w-7"/>
-                          <span className="sr-only">AI Deep Dive</span>
-                      </Button>
-                  </div>
+              <div className="max-w-4xl mx-auto pb-20">
+                {renderContent()}
               </div>
           ) : (
               <div className="max-w-2xl mx-auto space-y-4 text-center py-10">
@@ -440,15 +527,221 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       </div>
 
       {generatedNotes && (
-          <ChatWithNoteDialog 
-              open={isChatOpen} 
-              onOpenChange={setIsChatOpen}
-              noteContent={generatedNotes.notes}
-              topic={topic}
-          />
+          <>
+            <div className="fixed bottom-[80px] right-6 z-50 md:bottom-24">
+                <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
+                    <MessageCircle className="h-7 w-7"/>
+                    <span className="sr-only">AI Deep Dive</span>
+                </Button>
+            </div>
+            <ChatWithNoteDialog 
+                open={isChatOpen} 
+                onOpenChange={setIsChatOpen}
+                noteContent={generatedNotes.notes}
+                topic={topic}
+            />
+          </>
       )}
     </>
   );
+}
+
+function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
+    const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
+
+    const handleFlip = (index: number) => {
+        setFlippedStates(prev => {
+            const newStates = [...prev];
+            newStates[index] = !newStates[index];
+            return newStates;
+        });
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"><SquareStack className="text-primary"/> Flashcards for "{topic}"</CardTitle>
+                <CardDescription>Click on a card to flip it and see the answer.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {flashcards.map((card, index) => (
+                        <div key={index} className="perspective-1000" onClick={() => handleFlip(index)}>
+                            <div className={cn("relative w-full h-64 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[index] && "rotate-y-180")}>
+                                {/* Front of Card */}
+                                <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center">
+                                    <p className="font-semibold text-lg">{card.front}</p>
+                                </div>
+                                {/* Back of Card */}
+                                <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center">
+                                    <p className="text-sm">{card.back}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: () => void, topic: string }) {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+    const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
+    const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
+    const [score, setScore] = useState(0);
+
+    const currentQuestion = quiz[currentQuestionIndex];
+    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
+
+    const handleAnswerSelect = (answer: string) => {
+        if (isAnswered) return;
+        setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
+        setShowExplanation(prev => ({ ...prev, [currentQuestionIndex]: true }));
+    };
+    
+    const handleSeeResults = () => {
+        let finalScore = 0;
+        quiz.forEach((q, index) => {
+            if(selectedAnswers[index] === q.correctAnswer) {
+                finalScore++;
+            }
+        });
+        setScore(finalScore);
+        setQuizState('results');
+    };
+
+    const handleRestart = () => {
+        setCurrentQuestionIndex(0);
+        setSelectedAnswers({});
+        setShowExplanation({});
+        setScore(0);
+        setQuizState('in-progress');
+    };
+
+    if (quizState === 'results') {
+        return (
+            <Card>
+                <CardHeader>
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <CardTitle className="pt-4">Quiz Results</CardTitle>
+                    <CardDescription>You scored {score} out of {quiz.length}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <Progress value={(score / quiz.length) * 100} className="w-full" />
+                     {quiz.map((q, index) => (
+                        <Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}>
+                            <CardHeader>
+                                <p className="font-semibold">{index + 1}. {q.questionText}</p>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p>
+                                <p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p>
+                                <details className="mt-2 text-xs text-muted-foreground">
+                                    <summary className="cursor-pointer">Show Explanation</summary>
+                                    <p className="pt-1">{q.explanation}</p>
+                                </details>
+                            </CardContent>
+                        </Card>
+                     ))}
+                     <Button onClick={handleRestart}>Take Again</Button>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"><HelpCircle className="text-primary"/> Quiz for "{topic}"</CardTitle>
+                <CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription>
+                <Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" />
+            </CardHeader>
+            <CardContent>
+                <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
+                <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswers[currentQuestionIndex]} disabled={isAnswered}>
+                    {currentQuestion.options.map((option, i) => {
+                        const isCorrect = option === currentQuestion.correctAnswer;
+                        const isSelected = selectedAnswers[currentQuestionIndex] === option;
+                        return (
+                             <FormItem key={i} className={cn("flex items-center space-x-3 space-y-0 p-3 rounded-md border",
+                                isAnswered && isCorrect && "bg-green-100 dark:bg-green-900/50 border-green-500",
+                                isAnswered && isSelected && !isCorrect && "bg-red-100 dark:bg-red-900/50 border-destructive"
+                             )}>
+                                <FormControl>
+                                    <RadioGroupItem value={option} />
+                                </FormControl>
+                                <FormLabel className="font-normal flex-1 cursor-pointer">{option}</FormLabel>
+                                {isAnswered && isCorrect && <CheckCircle className="text-green-500" />}
+                                {isAnswered && isSelected && !isCorrect && <XCircle className="text-destructive" />}
+                            </FormItem>
+                        )
+                    })}
+                </RadioGroup>
+                
+                {isAnswered && showExplanation[currentQuestionIndex] && (
+                    <Card className="mt-4 bg-secondary/50">
+                        <CardHeader className="flex-row items-center gap-2 pb-2">
+                           <Lightbulb className="w-5 h-5 text-yellow-500" />
+                           <CardTitle className="text-md">Explanation</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p>
+                        </CardContent>
+                    </Card>
+                )}
+                 {!isAnswered && currentQuestion.hint && (
+                    <details className="mt-4 text-sm text-muted-foreground">
+                        <summary className="cursor-pointer">Need a hint?</summary>
+                        <p className="pt-1">{currentQuestion.hint}</p>
+                    </details>
+                )}
+
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}>Previous</Button>
+                {currentQuestionIndex < quiz.length - 1 ? (
+                     <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button>
+                ) : (
+                    <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>
+                )}
+            </CardFooter>
+        </Card>
+    );
+}
+
+function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack: () => void }) {
+    const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+    const currentSlide = deck.slides[currentSlideIndex];
+
+    return (
+        <Card className="flex flex-col">
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"><Presentation className="text-primary"/> {deck.title}</CardTitle>
+                <CardDescription>Slide {currentSlideIndex + 1} of {deck.slides.length}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 rounded-lg border p-6 bg-secondary/30 min-h-[40vh] flex flex-col justify-center">
+                     <h3 className="text-2xl font-bold mb-4">{currentSlide.title}</h3>
+                     <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSlide.content}</ReactMarkdown>
+                     </div>
+                </div>
+                <div className="md:col-span-1 rounded-lg border p-4 bg-background">
+                     <h4 className="font-semibold mb-2">Speaker Notes</h4>
+                     <p className="text-sm text-muted-foreground">{currentSlide.speakerNotes}</p>
+                </div>
+            </CardContent>
+             <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentSlideIndex(p => p - 1)} disabled={currentSlideIndex === 0}>Previous</Button>
+                <Button onClick={() => setCurrentSlideIndex(p => p + 1)} disabled={currentSlideIndex === deck.slides.length - 1}>Next</Button>
+            </CardFooter>
+        </Card>
+    );
 }
 
 
