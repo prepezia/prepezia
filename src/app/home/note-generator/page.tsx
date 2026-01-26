@@ -1,18 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,122 +11,151 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { generateStudyNotes, GenerateStudyNotesOutput } from "@/ai/flows/generate-study-notes";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, HelpCircle, SquareStack, Presentation, Mic } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { useToast } from "@/hooks/use-toast";
 
-const formSchema = z.object({
-  topic: z.string().min(3, { message: "Topic must be at least 3 characters." }),
-  academicLevel: z.enum(["Beginner", "Intermediate", "Expert", "Undergraduate", "Masters", "PhD"]),
-});
-
-export default function NoteGeneratorPage() {
+function NoteGenerator() {
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const [topic, setTopic] = useState(searchParams.get('topic') || '');
+  const [academicLevel, setAcademicLevel] = useState(searchParams.get('level') || "Undergraduate");
   const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      topic: "",
-      academicLevel: "Intermediate",
-    },
-  });
+  const generate = async () => {
+    if (!topic.trim()) {
+        toast({
+            variant: "destructive",
+            title: "Topic is required",
+            description: "Please enter a topic to generate notes.",
+        });
+        return;
+    }
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setGeneratedNotes(null);
     try {
-      const result = await generateStudyNotes(values);
+      const result = await generateStudyNotes({ topic, academicLevel });
       setGeneratedNotes(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating notes:", error);
-      // TODO: Show toast notification
+      toast({
+            variant: "destructive",
+            title: "Generation Failed",
+            description: error.message || "An unexpected error occurred.",
+        });
     } finally {
       setIsLoading(false);
     }
   }
 
+  useEffect(() => {
+    // If topic is in URL, auto-generate notes
+    if (searchParams.get('topic')) {
+      generate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   return (
     <>
       <HomeHeader />
       <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-        <div>
-          <h1 className="text-3xl font-headline font-bold">Note Generator</h1>
-          <p className="text-muted-foreground">
-            Enter a topic and select an academic level to generate detailed study notes.
+        <div className="text-center space-y-4">
+          <h1 className="text-3xl md:text-4xl font-headline font-bold">AI Note Generator</h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Enter any topic, select an academic level, and let our AI create comprehensive, well-structured study notes for you.
           </p>
         </div>
 
-        <Card>
+        <Card className="max-w-3xl mx-auto">
           <CardContent className="pt-6">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="topic"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Topic</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Photosynthesis, Ghanaian Independence" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="academicLevel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Academic Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a level" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Beginner">Beginner</SelectItem>
-                          <SelectItem value="Intermediate">Intermediate</SelectItem>
-                          <SelectItem value="Expert">Expert</SelectItem>
-                          <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                          <SelectItem value="Masters">Masters</SelectItem>
-                          <SelectItem value="PhD">PhD</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Notes
-                </Button>
-              </form>
-            </Form>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <Input 
+                placeholder="e.g., Photosynthesis, Ghanaian Independence" 
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="h-12 text-base flex-1"
+                onKeyDown={(e) => { if (e.key === 'Enter') generate(); }}
+              />
+              <Select value={academicLevel} onValueChange={setAcademicLevel}>
+                <SelectTrigger className="w-full sm:w-[200px] h-12 text-base">
+                  <SelectValue placeholder="Select a level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Beginner">Beginner</SelectItem>
+                  <SelectItem value="Intermediate">Intermediate</SelectItem>
+                  <SelectItem value="Expert">Expert</SelectItem>
+                  <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                  <SelectItem value="Masters">Masters</SelectItem>
+                  <SelectItem value="PhD">PhD</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={generate} disabled={isLoading || !topic.trim()} className="w-full sm:w-auto h-12">
+                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
+                Generate
+              </Button>
+            </div>
           </CardContent>
         </Card>
         
         {isLoading && (
-          <div className="flex justify-center items-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-primary"/>
-              <p className="ml-4 text-muted-foreground">Generating your notes, please wait...</p>
+          <div className="flex flex-col items-center justify-center py-10 gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-primary"/>
+              <p className="text-muted-foreground">Generating your notes, please wait...</p>
           </div>
         )}
 
         {generatedNotes && (
-          <Card>
-            <CardContent className="pt-6">
-              <h2 className="text-2xl font-headline font-bold mb-4">Generated Notes</h2>
-              <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: generatedNotes.notes.replace(/\n/g, '<br />') }} />
-            </CardContent>
-          </Card>
+          <>
+            <Card className="max-w-4xl mx-auto">
+                <CardHeader>
+                    <CardTitle>Generated Notes for &quot;{topic}&quot;</CardTitle>
+                </CardHeader>
+                <CardContent>
+                <div className="prose dark:prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedNotes.notes}</ReactMarkdown>
+                </div>
+                </CardContent>
+            </Card>
+
+            <Card className="max-w-4xl mx-auto">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>Generate More</CardTitle>
+                    <CardDescription>Would you like to generate more content based on this topic?</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Button variant="outline" className="h-20 flex-col gap-2"><HelpCircle />Quiz</Button>
+                        <Button variant="outline" className="h-20 flex-col gap-2"><SquareStack />Flashcards</Button>
+                        <Button variant="outline" className="h-20 flex-col gap-2"><Presentation />Slide Deck</Button>
+                        <Button variant="outline" className="h-20 flex-col gap-2"><Mic />Podcast</Button>
+                    </div>
+                </CardContent>
+            </Card>
+          </>
         )}
       </div>
     </>
   );
+}
+
+export default function NoteGeneratorPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col min-h-screen">
+                <HomeHeader />
+                <div className="flex-1 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            </div>
+        }>
+            <NoteGenerator />
+        </Suspense>
+    )
 }

@@ -1,14 +1,41 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import * as React from "react"
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ArrowRight, Search, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { useRouter } from 'next/navigation';
 
+
+function HomePageSearchForm() {
+    const router = useRouter();
+    const [topic, setTopic] = React.useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (topic.trim()) {
+            router.push(`/home/note-generator?topic=${encodeURIComponent(topic)}`);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="relative max-w-xl mx-auto">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input 
+                type="search"
+                placeholder="Search any topic to generate notes..."
+                className="h-12 rounded-full border-0 bg-secondary/50 pl-12 pr-5 text-base focus-visible:ring-2 focus-visible:ring-primary"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+            />
+        </form>
+    );
+}
 
 const features = [
     {
@@ -64,14 +91,7 @@ export default function DashboardPage() {
           <div className="text-center space-y-4 pt-10">
               <p className="text-xl text-muted-foreground">Hi, Firstname!</p>
               <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
-              <div className="relative max-w-xl mx-auto">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input 
-                      type="search"
-                      placeholder="Search any topic"
-                      className="h-12 rounded-full border-0 bg-secondary/50 pl-12 pr-5 text-base focus-visible:ring-2 focus-visible:ring-primary"
-                  />
-              </div>
+              <HomePageSearchForm />
           </div>
 
         <div className="space-y-8">
