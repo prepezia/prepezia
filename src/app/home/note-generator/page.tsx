@@ -309,9 +309,10 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
         if (initialNote) {
             setTopic(initialNote.topic);
             setAcademicLevel(initialNote.level);
-            const notePages = initialNote.content.split(/\n---\n/);
+            const content = initialNote.content || "";
+            const notePages = content.split(/\n---\n/);
             setPages(notePages);
-            setGeneratedNotes({ notes: initialNote.content });
+            setGeneratedNotes({ notes: content });
             setCurrentPage(0);
             setIsLoading(false);
         } else if (initialTopic) {
@@ -393,6 +394,18 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
                                                         return <p>{paragraph.children}</p>;
                                                     },
                                                     a: ({node, ...props}) => {
+                                                        const { href } = props;
+                                                        const youtubeMatch = href?.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                                        if (youtubeMatch && youtubeMatch[1]) {
+                                                            const videoId = youtubeMatch[1];
+                                                             if (props.children && typeof props.children[0] === 'string' && props.children[0] === href) {
+                                                                return (
+                                                                    <div className="my-4 aspect-video">
+                                                                        <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                        }
                                                         return <a {...props} target="_blank" rel="noopener noreferrer" />;
                                                     }
                                                 }}
@@ -482,5 +495,7 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
 
     
