@@ -23,7 +23,7 @@ import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sou
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2 } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -34,6 +34,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormItem, FormLabel } from "@/components/ui/form";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
 type GeneratedContent = {
@@ -65,6 +66,7 @@ const dummyRecentNotes: RecentNote[] = [
 function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: RecentNote) => void, onCreateNew: () => void }) {
   const [recentNotes, setRecentNotes] = useState<RecentNote[]>([]);
   const [visibleCount, setVisibleCount] = useState(7);
+  const { toast } = useToast();
 
   useEffect(() => {
     try {
@@ -79,6 +81,19 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: Rece
       setRecentNotes(dummyRecentNotes);
     }
   }, []);
+
+  const handleDeleteNote = (noteId: number) => {
+    setRecentNotes(prev => {
+        const updatedNotes = prev.filter(note => note.id !== noteId);
+        try {
+          localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+        } catch (error) {
+          console.error("Failed to save updated notes to localStorage", error);
+        }
+        return updatedNotes;
+    });
+    toast({ title: 'Note Deleted', description: 'The note has been removed.' });
+  };
   
   return (
     <>
@@ -106,7 +121,7 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: Rece
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {recentNotes.slice(0, visibleCount).map(note => (
-                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onSelectNote(note)}>
+                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow relative" onClick={() => onSelectNote(note)}>
                                 <CardHeader>
                                     <CardTitle>{note.topic}</CardTitle>
                                     <CardDescription>{note.level}</CardDescription>
@@ -114,6 +129,18 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: Rece
                                 <CardContent>
                                     <p className="text-sm text-muted-foreground">Generated on {note.date}</p>
                                 </CardContent>
+                                <div className="absolute top-1 right-1">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </Card>
                         ))}
                     </div>

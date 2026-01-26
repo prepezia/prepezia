@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -313,6 +314,14 @@ export default function StudySpacesPage() {
     }
   };
 
+  const handleDeleteStudySpace = (spaceId: number) => {
+    setStudySpaces(prev => prev.filter(space => space.id !== spaceId));
+    toast({
+      title: "Study Space Deleted",
+      description: "The study space has been removed.",
+    });
+  };
+
   
   if (viewState === 'create') {
     return <CreateStudySpaceView onCreate={handleCreateStudySpace} onBack={handleBackToList} />
@@ -591,7 +600,7 @@ export default function StudySpacesPage() {
               <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {studySpaces.slice(0, visibleCount).map(space => (
-                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleSelectStudySpace(space)}>
+                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative" onClick={() => handleSelectStudySpace(space)}>
                               <CardHeader>
                                   <CardTitle>{space.name}</CardTitle>
                                   <CardDescription>{space.description}</CardDescription>
@@ -599,6 +608,18 @@ export default function StudySpacesPage() {
                               <CardContent>
                                   <p className="text-sm font-bold text-primary">{space.sources.length} sources</p>
                               </CardContent>
+                               <div className="absolute top-1 right-1">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteStudySpace(space.id); }} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                           </Card>
                       ))}
                   </div>
