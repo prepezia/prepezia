@@ -13,14 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { generateStudyNotes, GenerateStudyNotesOutput } from "@/ai/flows/generate-study-notes";
-import { Loader2, Sparkles, BookOpen, Plus } from "lucide-react";
+import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type RecentNote = {
   id: number;
@@ -37,13 +40,10 @@ const dummyRecentNotes: RecentNote[] = [
   { id: 5, topic: 'Ghanaian Independence', level: 'Secondary', date: 'July 19, 2024' },
   { id: 6, 'topic': 'Machine Learning Algorithms', level: 'Masters', date: 'July 18, 2024' },
   { id: 7, topic: 'The Cell Structure', level: 'Secondary', date: 'July 17, 2024' },
-  { id: 8, topic: 'Quantum Mechanics', level: 'PhD', date: 'July 16, 2024' },
-  { id: 9, topic: 'Macroeconomic Policies', level: 'Undergraduate', date: 'July 15, 2024' },
-  { id: 10, topic: 'The Transatlantic Slave Trade', level: 'Secondary', date: 'July 14, 2024' },
 ];
 
 function NoteGeneratorPage() {
-  const [recentNotes, setRecentNotes] = useState<RecentNote[]>(dummyRecentNotes);
+  const [recentNotes, setRecentNotes] = useState<RecentNote[]>([]);
   const [visibleCount, setVisibleCount] = useState(7);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -51,20 +51,42 @@ function NoteGeneratorPage() {
   const topicFromUrl = searchParams.get('topic');
 
   useEffect(() => {
-    if (topicFromUrl && !isDialogOpen) {
+    try {
+      const savedNotes = localStorage.getItem('learnwithtemi_recent_notes');
+      if (savedNotes) {
+        setRecentNotes(JSON.parse(savedNotes));
+      } else {
+        setRecentNotes(dummyRecentNotes); // Load dummy data if nothing is in storage
+      }
+    } catch (error) {
+      console.error("Failed to parse recent notes from localStorage", error);
+      setRecentNotes(dummyRecentNotes);
+    }
+  }, []);
+
+  useEffect(() => {
+    // This effect runs when the component mounts and topicFromUrl is present,
+    // or when topicFromUrl changes.
+    if (topicFromUrl) {
       setIsDialogOpen(true);
     }
-  }, [topicFromUrl, isDialogOpen]);
-
-  const handleNoteGenerated = (topic: string, level: string) => {
+  }, [topicFromUrl]);
+  
+  const handleNoteGenerated = useCallback((topic: string, level: string) => {
     const newNote: RecentNote = {
       id: Date.now(),
       topic,
       level,
       date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
     };
-    setRecentNotes(prev => [newNote, ...prev]);
-  };
+
+    setRecentNotes(prev => {
+      const updatedNotes = [newNote, ...prev];
+      // Save to localStorage
+      localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+      return updatedNotes;
+    });
+  }, []);
   
   return (
     <>
@@ -73,7 +95,7 @@ function NoteGeneratorPage() {
         <div className="flex justify-between items-start gap-4">
             <div>
               <h1 className="text-3xl font-headline font-bold">Notes</h1>
-              <p className="text-muted-foreground mt-1">Your personal AI-powered note-taking assistant.</p>
+              <p className="text-muted-foreground mt-1 text-balance">Your personal AI-powered note-taking assistant.</p>
             </div>
             <Button onClick={() => setIsDialogOpen(true)} className="shrink-0">
                 <Plus className="mr-2 h-4 w-4" /> Create New
@@ -123,6 +145,97 @@ function NoteGeneratorPage() {
   );
 }
 
+
+type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: boolean, onOpenChange: (open: boolean) => void, noteContent: string, topic: string }) {
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState("");
+    const [isChatting, setIsChatting] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        // Reset chat when a new note is opened
+        if (open) {
+            setChatHistory([]);
+            setChatInput("");
+            setIsChatting(false);
+        }
+    }, [open]);
+
+    const handleChatSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!chatInput.trim() || isChatting) return;
+
+        const userMessage: ChatMessage = { role: 'user', content: chatInput };
+        setChatHistory(prev => [...prev, userMessage]);
+        setIsChatting(true);
+        const currentInput = chatInput;
+        setChatInput("");
+
+        try {
+            const response = await interactiveChatWithSources({
+                sources: [{ type: 'text', dataUri: `data:text/plain;base64,${btoa(noteContent)}`, contentType: 'text/plain' }],
+                question: currentInput
+            });
+            const assistantMessage: ChatMessage = { role: 'assistant', content: response.answer };
+            setChatHistory(prev => [...prev, assistantMessage]);
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Chat Error", description: error.message || "The AI failed to respond." });
+            setChatHistory(prev => [...prev, { role: 'assistant', content: "Sorry, an error occurred." }]);
+        } finally {
+            setIsChatting(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl h-[80vh] flex flex-col p-0">
+                <DialogHeader className="p-6 pb-2">
+                    <DialogTitle>Chat about "{topic}"</DialogTitle>
+                    <DialogDescription>Ask the AI for more details or explanations about the notes.</DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 overflow-y-auto px-6 space-y-4">
+                    {chatHistory.length === 0 && (
+                        <div className="text-center text-muted-foreground pt-10 px-6 h-full flex flex-col justify-center items-center">
+                            <Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" />
+                            <h3 className="font-semibold text-foreground text-lg">AI Assistant</h3>
+                            <p className="mt-2 text-sm">Ask me anything about these notes!</p>
+                        </div>
+                    )}
+                    {chatHistory.map((msg, i) => (
+                        <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                            {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5" /></div>}
+                            <div className={cn("p-3 rounded-lg max-w-[85%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                                <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                            </div>
+                        </div>
+                    ))}
+                    {isChatting && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
+                </div>
+                <div className="p-4 border-t bg-background">
+                    <form onSubmit={handleChatSubmit} className="relative">
+                        <Textarea
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            placeholder="Ask a question..."
+                            className="pr-12"
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e); } }}
+                            disabled={isChatting}
+                        />
+                        <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" type="submit" disabled={isChatting}>
+                            <Send className="h-4 w-4" />
+                        </Button>
+                    </form>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTopic }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onNoteGenerated: (topic: string, level: string) => void, initialTopic?: string }) {
     const { toast } = useToast();
     const [topic, setTopic] = useState("");
@@ -130,24 +243,41 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
     const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Pagination
+    const [pages, setPages] = useState<string[]>([]);
+    const [currentPage, setCurrentPage] = useState(0);
+
+    // Chat
+    const [isChatOpen, setIsChatOpen] = useState(false);
+
     useEffect(() => {
         if (initialTopic) {
             setTopic(initialTopic);
+            // If dialog is opened via URL, start generation immediately
+            if (isOpen) {
+                generate(initialTopic, academicLevel);
+            }
         }
-    }, [initialTopic]);
+    }, [initialTopic, isOpen]);
     
     // Reset state when dialog is closed
     useEffect(() => {
         if (!isOpen) {
-            setTopic(initialTopic || "");
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('topic');
+            window.history.replaceState({}, '', newUrl);
+
+            setTopic("");
             setGeneratedNotes(null);
             setIsLoading(false);
             setAcademicLevel("Undergraduate");
+            setPages([]);
+            setCurrentPage(0);
         }
-    }, [isOpen, initialTopic]);
+    }, [isOpen]);
 
-    const generate = async () => {
-        if (!topic.trim()) {
+    const generate = async (currentTopic: string, currentLevel: string) => {
+        if (!currentTopic.trim()) {
             toast({
                 variant: "destructive",
                 title: "Topic is required",
@@ -158,10 +288,14 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
 
         setIsLoading(true);
         setGeneratedNotes(null);
+        setPages([]);
         try {
-          const result = await generateStudyNotes({ topic, academicLevel });
+          const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
+          const notePages = result.notes.split(/\n---\n/);
+          setPages(notePages);
           setGeneratedNotes(result);
-          onNoteGenerated(topic, academicLevel);
+          setCurrentPage(0);
+          onNoteGenerated(currentTopic, currentLevel);
         } catch (error: any) {
           console.error("Error generating notes:", error);
           toast({
@@ -174,125 +308,137 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
         }
     }
 
+    const handleGenerateClick = () => {
+        generate(topic, academicLevel);
+    };
+
     const handleGenerateAnother = () => {
         setGeneratedNotes(null);
+        setPages([]);
+        setCurrentPage(0);
         setTopic("");
     }
 
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Generate New Study Notes</DialogTitle>
-                </DialogHeader>
-                <div className="flex-1 overflow-y-auto -mx-6 px-6 border-y py-4">
-                    {isLoading ? (
-                         <div className="flex flex-col items-center justify-center h-full gap-4">
-                            <Loader2 className="h-10 w-10 animate-spin text-primary"/>
-                            <p className="text-muted-foreground">Generating notes for "{topic}"...</p>
-                        </div>
-                    ) : generatedNotes ? (
-                        <div>
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Generated Notes for &quot;{topic}&quot;</CardTitle>
-                                    <CardDescription>Level: {academicLevel}</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                <div className="prose dark:prose-invert max-w-none">
-                                    <ReactMarkdown 
-                                        remarkPlugins={[remarkGfm]}
-                                        components={{
-                                            p: (paragraph) => {
-                                                const { node } = paragraph;
-                                                // Check if the paragraph contains a single link
-                                                if (node.children.length === 1 && node.children[0].tagName === 'a') {
-                                                    const link = node.children[0] as any;
-                                                    if (link && link.properties) {
-                                                        const url = link.properties.href || '';
-                                                        const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                        
-                                                        // Check if it's a standalone YouTube link
-                                                        if (youtubeMatch && youtubeMatch[1]) {
-                                                            const videoId = youtubeMatch[1];
-                                                            if (link.children.length === 1 && link.children[0].type === 'text' && link.children[0].value === url) {
-                                                                return (
-                                                                    <div className="my-4 aspect-video">
-                                                                        <iframe
-                                                                            src={`https://www.youtube.com/embed/${videoId}`}
-                                                                            frameBorder="0"
-                                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                            allowFullScreen
-                                                                            title="Embedded YouTube video"
-                                                                            className="w-full h-full rounded-md"
-                                                                        ></iframe>
-                                                                    </div>
-                                                                );
+        <>
+            <Dialog open={isOpen} onOpenChange={onOpenChange}>
+                <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Generate New Study Notes</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto -mx-6 px-6 border-y py-4 relative">
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center h-full gap-4">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary"/>
+                                <p className="text-muted-foreground">Generating notes for "{topic}"...</p>
+                            </div>
+                        ) : generatedNotes ? (
+                            <div className="h-full flex flex-col">
+                                <Card className="flex-1 flex flex-col">
+                                    <CardHeader>
+                                        <CardTitle>Generated Notes for &quot;{topic}&quot;</CardTitle>
+                                        <CardDescription>Level: {academicLevel}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-1">
+                                        <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 bg-secondary/30">
+                                            <ReactMarkdown 
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    p: (paragraph) => {
+                                                        const { node } = paragraph;
+                                                        if (node.children.length === 1 && node.children[0].tagName === 'a') {
+                                                            const link = node.children[0] as any;
+                                                            if (link && link.properties) {
+                                                                const url = link.properties.href || '';
+                                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                                                if (youtubeMatch && youtubeMatch[1]) {
+                                                                    const videoId = youtubeMatch[1];
+                                                                    if (link.children.length === 1 && link.children[0].type === 'text' && link.children[0].value === url) {
+                                                                        return (
+                                                                            <div className="my-4 aspect-video">
+                                                                                <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                }
                                                             }
                                                         }
+                                                        return <p>{paragraph.children}</p>;
+                                                    },
+                                                    a: ({node, ...props}) => {
+                                                        return <a {...props} target="_blank" rel="noopener noreferrer" />;
                                                     }
-                                                }
-                                                // Otherwise, render a normal paragraph
-                                                return <p>{paragraph.children}</p>;
-                                            },
-                                            a: ({node, ...props}) => {
-                                                // Render all other links as normal links opening in a new tab
-                                                return <a {...props} target="_blank" rel="noopener noreferrer" />;
-                                            }
-                                        }}
-                                    >
-                                        {generatedNotes.notes}
-                                    </ReactMarkdown>
+                                                }}
+                                            >
+                                                {pages[currentPage]}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <div className="mt-4 flex justify-between items-center">
+                                    <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                                    <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
+                                    <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
                                 </div>
-                                </CardContent>
-                            </Card>
-                            <div className="mt-4 flex justify-end gap-2">
-                                <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-                                <Button onClick={handleGenerateAnother}>
-                                    <Plus className="mr-2 h-4 w-4"/> Generate Another
+                                <div className="absolute bottom-6 right-6">
+                                    <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}><MessageCircle className="h-7 w-7"/></Button>
+                                </div>
+                                <div className="mt-6 flex justify-end gap-2">
+                                    <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+                                    <Button onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <Input 
+                                    placeholder="e.g., Photosynthesis, Ghanaian Independence" 
+                                    value={topic}
+                                    onChange={(e) => setTopic(e.target.value)}
+                                    className="h-12 text-base"
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
+                                />
+                                <Select value={academicLevel} onValueChange={setAcademicLevel}>
+                                    <SelectTrigger className="h-12 text-base">
+                                    <SelectValue placeholder="Select a level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Proficiency</SelectLabel>
+                                            <SelectItem value="Beginner">Beginner</SelectItem>
+                                            <SelectItem value="Intermediate">Intermediate</SelectItem>
+                                            <SelectItem value="Expert">Expert</SelectItem>
+                                        </SelectGroup>
+                                        <SelectGroup>
+                                            <SelectLabel>Degree Level</SelectLabel>
+                                            <SelectItem value="Secondary">Secondary</SelectItem>
+                                            <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                                            <SelectItem value="Masters">Masters</SelectItem>
+                                            <SelectItem value="PhD">PhD</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12">
+                                    <Sparkles className="mr-2 h-5 w-5" />
+                                    Generate Notes
                                 </Button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <Input 
-                                placeholder="e.g., Photosynthesis, Ghanaian Independence" 
-                                value={topic}
-                                onChange={(e) => setTopic(e.target.value)}
-                                className="h-12 text-base"
-                                onKeyDown={(e) => { if (e.key === 'Enter') generate(); }}
-                            />
-                            <Select value={academicLevel} onValueChange={setAcademicLevel}>
-                                <SelectTrigger className="h-12 text-base">
-                                <SelectValue placeholder="Select a level" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Proficiency</SelectLabel>
-                                        <SelectItem value="Beginner">Beginner</SelectItem>
-                                        <SelectItem value="Intermediate">Intermediate</SelectItem>
-                                        <SelectItem value="Expert">Expert</SelectItem>
-                                    </SelectGroup>
-                                    <SelectGroup>
-                                        <SelectLabel>Degree Level</SelectLabel>
-                                        <SelectItem value="Secondary">Secondary</SelectItem>
-                                        <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                                        <SelectItem value="Masters">Masters</SelectItem>
-                                        <SelectItem value="PhD">PhD</SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                            <Button onClick={generate} disabled={!topic.trim()} className="w-full h-12">
-                                <Sparkles className="mr-2 h-5 w-5" />
-                                Generate Notes
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            </DialogContent>
-        </Dialog>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {generatedNotes && (
+                <ChatWithNoteDialog 
+                    open={isChatOpen} 
+                    onOpenChange={setIsChatOpen}
+                    noteContent={generatedNotes.notes}
+                    topic={topic}
+                />
+            )}
+        </>
     );
 }
+
 
 export default function NoteGeneratorPageWrapper() {
     return (
