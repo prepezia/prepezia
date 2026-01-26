@@ -23,7 +23,7 @@ import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sou
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -314,8 +314,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   }, [initialTopic, initialNote, generate, academicLevel]);
 
   useEffect(() => {
-    const noteContent = generatedNotes?.notes;
-    if (noteContent) {
+    if (generatedNotes?.notes) {
+      const noteContent = generatedNotes.notes;
       const notePages = noteContent.split(/\n---\n/);
       setPages(notePages);
       setCurrentPage(0);
@@ -362,11 +362,14 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             academicLevel: academicLevel,
             content: generatedNotes.notes,
         });
-        const newGeneratedContent = { ...generatedContent, flashcards: result.flashcards };
-        setGeneratedContent(newGeneratedContent);
-        if (initialNote) {
-            updateAndSaveNote(initialNote.id, { generatedContent: newGeneratedContent });
-        }
+        setGeneratedContent(prev => {
+            const newContent = { ...prev, flashcards: result.flashcards };
+            if (initialNote) {
+                const { quiz, ...contentToSave } = newContent;
+                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+            }
+            return newContent;
+        });
         setActiveView('flashcards');
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Failed to generate flashcards', description: e.message });
@@ -385,11 +388,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             academicLevel: academicLevel,
             content: generatedNotes.notes,
         });
-        const newGeneratedContent = { ...generatedContent, quiz: result.quiz };
-        setGeneratedContent(newGeneratedContent);
-         if (initialNote) {
-            updateAndSaveNote(initialNote.id, { generatedContent: newGeneratedContent });
-        }
+        // Just update state for viewing, don't save the quiz
+        setGeneratedContent(prev => ({...prev, quiz: result.quiz}));
         setActiveView('quiz');
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Failed to generate quiz', description: e.message });
@@ -408,11 +408,14 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             academicLevel: academicLevel,
             content: generatedNotes.notes,
         });
-        const newGeneratedContent = { ...generatedContent, deck: result };
-        setGeneratedContent(newGeneratedContent);
-        if (initialNote) {
-            updateAndSaveNote(initialNote.id, { generatedContent: newGeneratedContent });
-        }
+        setGeneratedContent(prev => {
+            const newContent = { ...prev, deck: result };
+            if (initialNote) {
+                const { quiz, ...contentToSave } = newContent;
+                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+            }
+            return newContent;
+        });
         setActiveView('deck');
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Failed to generate slide deck', description: e.message });
@@ -502,6 +505,29 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   ))}
               </CardContent>
             </Card>
+
+            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck) && (
+              <Card className="mt-8">
+                  <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
+                      <CardDescription>
+                          Your generated flashcards and slide decks are saved here. Quizzes are not saved.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-4">
+                      {generatedContent.flashcards && generatedContent.flashcards.length > 0 && (
+                          <Button variant="secondary" onClick={() => setActiveView('flashcards')}>
+                              <SquareStack className="mr-2"/> View Flashcards
+                          </Button>
+                      )}
+                      {generatedContent.deck && (
+                          <Button variant="secondary" onClick={() => setActiveView('deck')}>
+                              <Presentation className="mr-2"/> View Slide Deck
+                          </Button>
+                      )}
+                  </CardContent>
+              </Card>
+            )}
 
             <div className="mt-8 flex flex-col sm:flex-row gap-2 justify-center sm:justify-end">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>

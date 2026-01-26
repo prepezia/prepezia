@@ -48,7 +48,7 @@ const generateQuizPrompt = ai.definePrompt({
 
 ### INSTRUCTIONS:
 1.  Read the content provided below.
-2.  Generate a set of multiple-choice questions. Each question must have exactly 4 options.
+2.  Generate between 10 and 15 multiple-choice questions. Each question must have exactly 4 options.
 3.  For each question, you MUST provide:
     *   **questionText**: The question itself.
     *   **options**: An array of 4 strings representing the possible answers.

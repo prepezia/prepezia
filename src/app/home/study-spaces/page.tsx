@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -289,9 +289,22 @@ export default function StudySpacesPage() {
         sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type }))
       });
       
-      updateSelectedStudySpace(current => ({
-        generatedContent: { ...current.generatedContent, [type]: result },
-      }));
+      setSelectedStudySpace(currentSpace => {
+          if (!currentSpace) return null;
+
+          const newGeneratedContent = { ...(currentSpace.generatedContent || {}), [type]: result };
+
+          const updatedSpace = { ...currentSpace, generatedContent: newGeneratedContent };
+
+          if (type !== 'quiz') {
+              const { quiz, ...contentToSave } = newGeneratedContent;
+              const spaceToPersist = { ...currentSpace, generatedContent: contentToSave };
+              setStudySpaces(currentList => currentList.map(s => s.id === spaceToPersist.id ? spaceToPersist : s));
+          }
+
+          return updatedSpace;
+      });
+      
       setActiveGeneratedView(type);
     } catch (e: any) {
       toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
@@ -516,25 +529,30 @@ export default function StudySpacesPage() {
                                         </div>
                                     </div>
                                     
-                                    {(Object.keys(generatedContent).length > 0 && Object.values(generatedContent).some(v => v)) && (
-                                    <div>
-                                        <h3 className="font-semibold mb-4">Previously Generated</h3>
-                                        <div className="space-y-2">
-                                            {Object.entries(generatedContent).map(([type, content]) => {
-                                                if (!content) return null;
-                                                const option = generationOptions.find(o => o.type === type);
-                                                if (!option) return null;
-                                                
-                                                return (
-                                                    <Button key={type} variant="secondary" className="w-full justify-start h-12" onClick={() => setActiveGeneratedView(type as keyof GeneratedContent)}>
-                                                        <option.icon className="mr-2 h-5 w-5" />
-                                                        View Generated {option.name}
-                                                    </Button>
-                                                )
-                                            })}
+                                    {(() => {
+                                        const savedContent = { ...(generatedContent || {}) };
+                                        delete savedContent.quiz; // Don't show quiz in saved content
+                                        
+                                        return (Object.keys(savedContent).length > 0 && Object.values(savedContent).some(v => v)) && (
+                                        <div>
+                                            <h3 className="font-semibold mb-4">Previously Generated</h3>
+                                            <div className="space-y-2">
+                                                {Object.entries(savedContent).map(([type, content]) => {
+                                                    if (!content) return null;
+                                                    const option = generationOptions.find(o => o.type === type);
+                                                    if (!option) return null;
+                                                    
+                                                    return (
+                                                        <Button key={type} variant="secondary" className="w-full justify-start h-12" onClick={() => setActiveGeneratedView(type as keyof GeneratedContent)}>
+                                                            <option.icon className="mr-2 h-5 w-5" />
+                                                            View Generated {option.name}
+                                                        </Button>
+                                                    )
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                    )}
+                                        );
+                                    })()}
                                 </CardContent>
                             </Card>
                         )}
