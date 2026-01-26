@@ -85,7 +85,11 @@ function NoteGeneratorPage() {
 
     setRecentNotes(prev => {
       const updatedNotes = [newNote, ...prev.filter(n => n.topic !== topic || n.level !== level)];
-      localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+      try {
+        localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+      } catch (e) {
+        console.error("Failed to save notes to local storage:", e);
+      }
       return updatedNotes;
     });
   }, []);
@@ -316,12 +320,12 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
             setCurrentPage(0);
             setIsLoading(false);
         } else if (initialTopic) {
-            if (!generatedNotes) {
+            if (!generatedNotes && !isLoading) {
                 setTopic(initialTopic);
                 generate(initialTopic, academicLevel);
             }
         }
-    }, [isOpen, initialNote, initialTopic, generatedNotes, generate, academicLevel]);
+    }, [isOpen, initialNote, initialTopic, generatedNotes, generate, academicLevel, isLoading]);
     
     // Reset state when dialog is closed
     useEffect(() => {
@@ -495,6 +499,8 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
 
     
 
