@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -223,13 +225,19 @@ function NoteGeneratorDialog({ isOpen, onOpenChange, onNoteGenerated, initialTop
                                 <SelectValue placeholder="Select a level" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                <SelectItem value="Beginner">Beginner</SelectItem>
-                                <SelectItem value="Intermediate">Intermediate</SelectItem>
-                                <SelectItem value="Expert">Expert</SelectItem>
-                                <SelectItem value="Secondary">Secondary</SelectItem>
-                                <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                                <SelectItem value="Masters">Masters</SelectItem>
-                                <SelectItem value="PhD">PhD</SelectItem>
+                                    <SelectGroup>
+                                        <SelectLabel>Proficiency</SelectLabel>
+                                        <SelectItem value="Beginner">Beginner</SelectItem>
+                                        <SelectItem value="Intermediate">Intermediate</SelectItem>
+                                        <SelectItem value="Expert">Expert</SelectItem>
+                                    </SelectGroup>
+                                    <SelectGroup>
+                                        <SelectLabel>Degree Level</SelectLabel>
+                                        <SelectItem value="Secondary">Secondary</SelectItem>
+                                        <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                                        <SelectItem value="Masters">Masters</SelectItem>
+                                        <SelectItem value="PhD">PhD</SelectItem>
+                                    </SelectGroup>
                                 </SelectContent>
                             </Select>
                             <Button onClick={generate} disabled={!topic.trim()} className="w-full h-12">
