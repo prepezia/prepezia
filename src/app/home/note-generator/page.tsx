@@ -384,7 +384,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                       <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
                   </div>
 
-                  <div className="fixed bottom-6 right-6 z-50">
+                  <div className="fixed bottom-24 right-6 z-50">
                       <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
                           <MessageCircle className="h-7 w-7"/>
                           <span className="sr-only">AI Deep Dive</span>
