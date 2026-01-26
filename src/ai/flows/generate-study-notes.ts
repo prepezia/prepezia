@@ -4,8 +4,8 @@
  * @fileOverview This file defines a Genkit flow for generating study notes based on a topic and academic level.
  *
  * - generateStudyNotes - The main function to generate study notes.
- * - GenerateStudyNotesInput - The input type for the generateStudyNotes function.
- * - GenerateStudyNotesOutput - The output type for the generateStudyNotes function.
+ * - GenerateStudyNotesInput - The input type for the generateStudyNotesInput function.
+ * - GenerateStudyNotesOutput - The output type for the generateStudyNotesOutput function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -14,7 +14,7 @@ import {z} from 'genkit';
 const GenerateStudyNotesInputSchema = z.object({
   topic: z.string().describe('The topic for which to generate study notes.'),
   academicLevel: z
-    .enum(['Beginner', 'Intermediate', 'Expert', 'Undergraduate', 'Masters', 'PhD'])
+    .enum(['Beginner', 'Intermediate', 'Expert', 'Secondary', 'Undergraduate', 'Masters', 'PhD'])
     .describe('The academic level of the study notes.'),
 });
 
