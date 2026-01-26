@@ -45,7 +45,7 @@ export async function generateStudyNotes(
 
   ### Content Requirements:
   1.  **Well-Structured Text:** Use clear headings, subheadings, bullet points, and bold text to organize the information logically. Ensure good spacing between sections for readability.
-  2.  **Use Page Breaks:** For longer content, use a horizontal rule \`---\` on its own line to indicate a good place for a page break. Use this to separate major sections.
+  2.  **Mandatory Page Breaks:** You MUST break up long content into multiple pages for readability. To do this, insert a horizontal rule (\`---\`) on its own line to indicate a page break. Use this to separate major sections or after every few paragraphs. All generated notes MUST contain at least one page break.
   3.  **Data Tables:** Where appropriate, use Markdown tables to present data or comparisons.
   4.  **Chemical Equations:** Ensure all chemical equations are correctly formatted, using subscripts and superscripts where necessary (e.g., H₂O).
   5.  **Visuals & Videos:**

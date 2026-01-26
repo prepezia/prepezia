@@ -220,6 +220,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   // Chat
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  // Ref to prevent double generation in strict mode
+  const generationStarted = useRef(false);
+
   const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
     const newNote: RecentNote = {
       id: Date.now(),
@@ -269,13 +272,13 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   }, [onNoteGenerated, toast]);
   
-  // Effect for triggering generation
+  // Effect for triggering generation when navigating via topic URL
   useEffect(() => {
-    if (initialTopic && !initialNote) {
-      generate(initialTopic, "Undergraduate");
+    if (initialTopic && !initialNote && !generationStarted.current) {
+        generationStarted.current = true;
+        generate(initialTopic, "Undergraduate");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTopic]);
+  }, [initialTopic, initialNote, generate]);
 
   // Effect for deriving pages from generated or initial notes
   useEffect(() => {
@@ -284,6 +287,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       const notePages = noteContent.split(/\n---\n/);
       setPages(notePages);
       setCurrentPage(0);
+    } else {
+        setPages([]);
     }
   }, [generatedNotes, initialNote]);
 
@@ -330,6 +335,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                   remarkPlugins={[remarkGfm]}
                                   components={{
                                       table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
+                                      pre: ({node, ...props}) => <div className="overflow-x-auto my-4"><pre {...props} /></div>,
                                       p: (paragraph) => {
                                           const { node } = paragraph;
                                           if (node.children.length === 1 && node.children[0].tagName === 'a') {
