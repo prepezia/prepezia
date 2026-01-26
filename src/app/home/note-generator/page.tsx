@@ -70,7 +70,7 @@ function NoteGeneratorPage() {
       <div className="p-4 sm:p-6 lg:p-8 space-y-8">
         <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-headline font-bold">Note Generator</h1>
+              <h1 className="text-3xl font-headline font-bold">Notes</h1>
               <p className="text-muted-foreground mt-1">Your personal AI-powered note-taking assistant.</p>
             </div>
             <Button onClick={() => setIsDialogOpen(true)}>
