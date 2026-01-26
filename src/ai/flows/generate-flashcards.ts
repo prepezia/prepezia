@@ -9,11 +9,20 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 
+const SourceSchema = z.object({
+    type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
+    name: z.string(),
+    url: z.string().optional(),
+    data: z.string().optional(),
+    contentType: z.string().optional(),
+});
+
 const GenerateFlashcardsInputSchema = z.object({
   context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
   topic: z.string().optional().describe("The topic of the content (used in 'note-generator' context)."),
   academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
-  content: z.string().describe("The source text content (notes or combined sources) to generate flashcards from."),
+  content: z.string().optional().describe("The source text content (for note generation)."),
+  sources: z.array(SourceSchema).optional().describe("An array of sources (for study spaces)."),
 });
 export type GenerateFlashcardsInput = z.infer<typeof GenerateFlashcardsInputSchema>;
 
@@ -52,7 +61,13 @@ These flashcards must be generated **strictly** from the provided source content
 
 ### SOURCE CONTENT:
 \`\`\`
+{{#if content}}
 {{{content}}}
+{{else}}
+  {{#each sources}}
+- {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
+  {{/each}}
+{{/if}}
 \`\`\`
 
 Generate the set of flashcards now.

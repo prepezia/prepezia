@@ -17,10 +17,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
+import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
@@ -32,6 +35,9 @@ import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
 
 
 const createSpaceSchema = z.object({
@@ -53,16 +59,24 @@ type ChatMessage = {
     content: string;
 };
 
+type GeneratedContent = {
+  flashcards?: GenerateFlashcardsOutput['flashcards'];
+  quiz?: GenerateQuizOutput['quiz'];
+  deck?: GenerateSlideDeckOutput;
+  podcast?: { script: string; audio: string };
+};
+
 type StudySpace = {
     id: number;
     name:string;
     description: string;
-    sourceCount: number;
+    sources: Source[];
+    generatedContent?: GeneratedContent;
 };
 
 type ViewState = 'list' | 'create' | 'edit';
 
-const mockStudySpaces: StudySpace[] = [
+const mockStudySpaces: Omit<StudySpace, 'sources' | 'generatedContent'> & { sourceCount: number }[] = [
     { id: 1, name: "WASSCE Core Maths Prep", description: "All topics for the WASSCE core mathematics exam.", sourceCount: 12 },
     { id: 2, name: "Ghanaian History 1800-1957", description: "From the Ashanti Empire to Independence.", sourceCount: 7 },
     { id: 3, name: "Final Year Project - AI Tutors", description: "Research and resources for my final project on AI in education.", sourceCount: 23 },
@@ -76,15 +90,12 @@ const summaryText = "This study space covers the core principles of macroeconomi
 
 export default function StudySpacesPage() {
   const [viewState, setViewState] = useState<ViewState>('list');
-  const [sources, setSources] = useState<Source[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [isPodcastLoading, setIsPodcastLoading] = useState(false);
-  const [podcast, setPodcast] = useState<{ script: string; audio: string } | null>(null);
   
   const [selectedStudySpace, setSelectedStudySpace] = useState<StudySpace | null>(null);
-  const [studySpaces, setStudySpaces] = useState<StudySpace[]>(mockStudySpaces);
+  const [studySpaces, setStudySpaces] = useState<StudySpace[]>(mockStudySpaces.map(s => ({...s, sources: []})));
   const [visibleCount, setVisibleCount] = useState(5);
 
   const [isAddSourcesOpen, setIsAddSourcesOpen] = useState(false);
@@ -95,26 +106,8 @@ export default function StudySpacesPage() {
   const [isNotesDirty, setIsNotesDirty] = useState(false);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [isGenerateOptionsOpen, setIsGenerateOptionsOpen] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState([
-    { id: 1, type: 'podcast', title: 'Intro to Macroeconomics', date: 'July 16, 2024' },
-    { id: 2, type: 'quiz', title: 'Keynesian Theory Quiz', date: 'July 15, 2024' },
-    { id: 3, type: 'deck', title: 'IS-LM Model Presentation', date: 'July 14, 2024' },
-  ]);
-
-  const generationOptions = [
-    { name: "Study Notes", icon: BookOpen, type: "notes", action: () => alert("Study Notes generation coming soon!") },
-    { name: "Podcast", icon: Mic, type: "podcast", action: () => handleGeneratePodcast() },
-    { name: "Mind Map", icon: GitFork, type: "mindmap", action: () => alert("Mind Map generation coming soon!") },
-    { name: "Report", icon: FileText, type: "report", action: () => alert("Report generation coming soon!") },
-    { name: "Quiz", icon: HelpCircle, type: "quiz", action: () => alert("Quiz generation coming soon!") },
-    { name: "Slide Deck", icon: Presentation, type: "deck", action: () => alert("Slide Deck generation coming soon!") },
-    { name: "Data Table", icon: Table, type: "table", action: () => alert("Data Table generation coming soon!") },
-    { name: "Infographic", icon: AreaChart, type: "infographic", action: () => alert("Infographic generation coming soon!") },
-    { name: "Flashcards", icon: SquareStack, type: "flashcards", action: () => alert("Flashcard generation coming soon!") },
-    { name: "Video", icon: Video, type: "video", action: () => alert("Video generation coming soon!") },
-    { name: "Audio Overview", icon: Music, type: "audio", action: () => alert("Audio Overview generation coming soon!") },
-  ];
+  const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
+  const [activeGeneratedView, setActiveGeneratedView] = useState<keyof GeneratedContent | null>(null);
 
 
   const handleSaveNotes = () => {
@@ -139,7 +132,6 @@ export default function StudySpacesPage() {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       
-      // For non-bullet formats, require a selection
       if (start === end && type !== 'bullet') return;
 
       const selectedText = notes.substring(start, end);
@@ -149,8 +141,6 @@ export default function StudySpacesPage() {
 
       if (type === 'bullet') {
           const lines = selectedText.split('\n');
-          // If there's no selection, it will be `['']`, so we get a single bullet.
-          // If there is a selection, we bullet each line.
           const bulletedLines = lines.map(line => `- ${line}`);
           const replacement = bulletedLines.join('\n');
 
@@ -179,22 +169,14 @@ export default function StudySpacesPage() {
       }, 0);
   };
 
-  const form = useForm<CreateSpaceFormSchema>({
-    resolver: zodResolver(createSpaceSchema),
-    defaultValues: { name: "", description: "" },
-  });
-
   const handleShowCreateView = () => {
-    setSources([]);
     setViewState('create');
   };
   
   const handleSelectStudySpace = (space: StudySpace) => {
     setSelectedStudySpace(space);
-    // In a real app, you would fetch the sources for this space
-    setSources([]);
     setChatHistory([]);
-    setPodcast(null);
+    setActiveGeneratedView(null);
     setViewState('edit');
     setIsDirty(false);
   };
@@ -204,36 +186,48 @@ export default function StudySpacesPage() {
     setViewState('list');
   };
   
-  const handleCreateStudySpace = (name: string, description: string, createdSources: Source[]) => {
+  const handleCreateStudySpace = (name: string, description: string, sources: Source[]) => {
     const newSpace: StudySpace = {
         id: Date.now(),
         name,
         description,
-        sourceCount: createdSources.length
+        sources,
+        generatedContent: {},
     };
     setStudySpaces(prev => [newSpace, ...prev]);
     setSelectedStudySpace(newSpace);
-    setSources(createdSources);
     setChatHistory([]);
-    setPodcast(null);
+    setActiveGeneratedView(null);
     setViewState('edit');
   };
 
+  const updateSelectedStudySpace = (update: Partial<StudySpace> | ((current: StudySpace) => Partial<StudySpace>)) => {
+    setSelectedStudySpace(prev => {
+        if (!prev) return null;
+        const changes = typeof update === 'function' ? update(prev) : update;
+        const newSpace = { ...prev, ...changes };
+
+        setStudySpaces(currentSpaces => currentSpaces.map(s => s.id === newSpace.id ? newSpace : s));
+        
+        return newSpace;
+    });
+  };
+
   const handleDeleteSource = (indexToDelete: number) => {
-    setSources(prev => prev.filter((_, index) => index !== indexToDelete));
+    if (!selectedStudySpace) return;
+    const newSources = selectedStudySpace.sources.filter((_, index) => index !== indexToDelete);
+    updateSelectedStudySpace({ sources: newSources });
     setIsDirty(true);
   };
 
   const handleAddMoreSources = (newSources: Source[]) => {
     if (newSources.length > 0) {
-      setSources(prev => [...prev, ...newSources]);
+      updateSelectedStudySpace(current => ({ sources: [...current.sources, ...newSources] }));
       setIsDirty(true);
     }
   };
 
   const handleUpdateStudySpace = () => {
-    // In a real app, this would save the changes to the backend.
-    console.log("Updating study space with new sources:", sources);
     setIsDirty(false);
     toast({
         title: "Study Space Updated",
@@ -242,7 +236,7 @@ export default function StudySpacesPage() {
   };
 
   async function handleChatSubmit() {
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || !selectedStudySpace) return;
     
     const userMessage: ChatMessage = { role: 'user', content: chatInput };
     setChatHistory(prev => [...prev, userMessage]);
@@ -250,18 +244,12 @@ export default function StudySpacesPage() {
     setChatInput("");
 
     try {
-        const sourceInputs: InteractiveChatWithSourcesInput['sources'] = sources.map(s => {
-            let type: InteractiveChatWithSourcesInput['sources'][0]['type'] = 'website';
-            if (s.type === 'pdf' || s.type === 'text' || s.type === 'audio' || s.type === 'youtube' || s.type === 'image') {
-                type = s.type;
-            }
-            return {
-                type,
-                url: s.url,
-                dataUri: s.data,
-                contentType: s.contentType,
-            };
-        });
+        const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
+            type: s.type === 'clipboard' ? 'text' : s.type,
+            url: s.url,
+            dataUri: s.data,
+            contentType: s.contentType,
+        }));
 
         const response = await interactiveChatWithSources({
             sources: sourceInputs,
@@ -279,21 +267,39 @@ export default function StudySpacesPage() {
     }
   }
 
-  async function handleGeneratePodcast() {
-    setIsGenerateOptionsOpen(false);
-    setIsPodcastLoading(true);
-    setPodcast(null);
-    try {
-        const sourceUrls = sources.map(s => s.url).filter((url): url is string => !!url);
-        const response = await generatePodcastFromSources({ sources: sourceUrls });
-        setPodcast({ script: response.podcastScript, audio: response.podcastAudio });
-    } catch(e: any) {
-        console.error("Podcast generation error", e);
-        toast({ variant: 'destructive', title: 'Podcast Generation Failed', description: e.message || 'Could not generate podcast.' });
-    } finally {
-        setIsPodcastLoading(false);
+  const handleGenerateContent = async (type: keyof GeneratedContent) => {
+    if (!selectedStudySpace || selectedStudySpace.sources.length === 0) {
+      toast({ variant: 'destructive', title: 'No sources', description: 'Add sources to your study space before generating content.' });
+      return;
     }
-  }
+    setIsGenerating(type);
+    setActiveGeneratedView(null);
+
+    const generationMap = {
+      'flashcards': generateFlashcards,
+      'quiz': generateQuiz,
+      'deck': generateSlideDeck,
+      'podcast': generatePodcastFromSources,
+    };
+
+    try {
+      const generator = generationMap[type];
+      const result = await generator({
+        context: 'study-space',
+        sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type }))
+      });
+      
+      updateSelectedStudySpace(current => ({
+        generatedContent: { ...current.generatedContent, [type]: result },
+      }));
+      setActiveGeneratedView(type);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
   
   if (viewState === 'create') {
     return <CreateStudySpaceView onCreate={handleCreateStudySpace} onBack={handleBackToList} />
@@ -309,6 +315,32 @@ export default function StudySpacesPage() {
         }/>
     );
 
+    const generatedContent = selectedStudySpace.generatedContent || {};
+
+    const generationOptions: { name: string; icon: React.ElementType; type: keyof GeneratedContent }[] = [
+        { name: "Podcast", icon: Mic, type: "podcast" },
+        { name: "Quiz", icon: HelpCircle, type: "quiz" },
+        { name: "Slide Deck", icon: Presentation, type: "deck" },
+        { name: "Flashcards", icon: SquareStack, type: "flashcards" },
+    ];
+    
+    const renderGeneratedContent = () => {
+        if (!activeGeneratedView) return null;
+        if (activeGeneratedView === 'flashcards' && generatedContent.flashcards) {
+            return <FlashcardView flashcards={generatedContent.flashcards} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+        }
+        if (activeGeneratedView === 'quiz' && generatedContent.quiz) {
+            return <QuizView quiz={generatedContent.quiz} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+        }
+        if (activeGeneratedView === 'deck' && generatedContent.deck) {
+            return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveGeneratedView(null)} />;
+        }
+        if (activeGeneratedView === 'podcast' && generatedContent.podcast) {
+            return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveGeneratedView(null)} />
+        }
+        return null;
+    }
+
     return (
         <div className="flex flex-col">
             {header}
@@ -316,7 +348,7 @@ export default function StudySpacesPage() {
                 <Tabs defaultValue="intro" className="w-full flex-1 flex flex-col">
                     <TabsList className="grid w-full grid-cols-4 bg-secondary">
                         <TabsTrigger value="intro">Intro</TabsTrigger>
-                        <TabsTrigger value="sources">Sources</TabsTrigger>
+                        <TabsTrigger value="sources">Sources ({selectedStudySpace.sources.length})</TabsTrigger>
                         <TabsTrigger value="chat">Chat</TabsTrigger>
                         <TabsTrigger value="generate">Generate</TabsTrigger>
                     </TabsList>
@@ -392,15 +424,15 @@ export default function StudySpacesPage() {
                     <TabsContent value="sources" className="mt-4">
                         <Card>
                             <CardHeader className="flex-row items-center justify-between">
-                                <CardTitle>Your Sources ({sources.length})</CardTitle>
+                                <CardTitle>Your Sources ({selectedStudySpace.sources.length})</CardTitle>
                                 <Button onClick={() => setIsAddSourcesOpen(true)}>Add More Sources</Button>
                             </CardHeader>
                             <CardContent>
-                                {sources.length === 0 ? (
+                                {selectedStudySpace.sources.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">No sources added yet. Click &quot;Add More Sources&quot; to begin.</p>
                                 ) : (
                                     <ul className="space-y-2">
-                                    {sources.map((s, i) => (
+                                    {selectedStudySpace.sources.map((s, i) => (
                                         <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
                                             {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>}
@@ -435,15 +467,12 @@ export default function StudySpacesPage() {
                                         <p className="mt-2 text-sm">
                                             Ask me a question and I will answer based solely on the materials you've provided.
                                         </p>
-                                        <p className="mt-1 text-xs">
-                                            You can even ask for specific citations, like a page from a PDF or a timestamp in a video.
-                                        </p>
                                     </div>
                                 )}
                                 {chatHistory.map((msg, i) => (
                                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                            <p className="text-sm" dangerouslySetInnerHTML={{__html: msg.content.replace(/\n/g, '<br />')}}/>
+                                            <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                         </div>
                                     </div>
                                 ))}
@@ -457,9 +486,9 @@ export default function StudySpacesPage() {
                                         placeholder="Ask a question about your sources..."
                                         className="pr-12"
                                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); }}}
-                                        disabled={sources.length === 0 || isChatLoading}
+                                        disabled={selectedStudySpace.sources.length === 0 || isChatLoading}
                                     />
-                                    <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={sources.length === 0 || isChatLoading}>
+                                    <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={selectedStudySpace.sources.length === 0 || isChatLoading}>
                                         <Send className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -468,53 +497,43 @@ export default function StudySpacesPage() {
                     </TabsContent>
 
                     <TabsContent value="generate" className="mt-4">
-                        {isPodcastLoading ? (
-                            <Card className="flex flex-col items-center justify-center text-center min-h-[60vh]">
-                                <CardContent>
-                                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-                                    <p className="mt-4 text-muted-foreground">Generating your podcast...</p>
-                                </CardContent>
-                            </Card>
-                        ) : podcast ? (
+                        {activeGeneratedView ? renderGeneratedContent() : (
                             <Card>
                                 <CardHeader>
-                                    <Button onClick={() => setPodcast(null)}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Generated Content</Button>
+                                    <CardTitle>Generate from Sources</CardTitle>
+                                    <CardDescription>Create study materials from the sources you've added.</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <h3 className="text-xl font-headline">Podcast Ready!</h3>
-                                    <audio controls src={podcast.audio} className="w-full"></audio>
-                                    <Card className="text-left max-h-80 overflow-y-auto">
-                                        <CardHeader><CardTitle>Script</CardTitle></CardHeader>
-                                        <CardContent>
-                                            <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
-                                        </CardContent>
-                                    </Card>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <Card>
-                                <CardHeader className="flex-row items-center justify-between">
+                                <CardContent className="space-y-6">
                                     <div>
-                                        <CardTitle>Generated Content</CardTitle>
-                                        <CardDescription>AI-generated materials based on your sources.</CardDescription>
-                                    </div>
-                                    <Button onClick={() => setIsGenerateOptionsOpen(true)}>
-                                        <Plus className="mr-2 h-4 w-4" /> Generate
-                                    </Button>
-                                </CardHeader>
-                                <CardContent>
-                                    {generatedContent.length > 0 ? (
-                                        <ul className="space-y-3">
-                                            {generatedContent.map((item) => (
-                                                <GeneratedContentItem key={item.id} item={item} />
+                                        <h3 className="font-semibold mb-4">Generate New</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            {generationOptions.map((option) => (
+                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
+                                                    {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
+                                                    <span>{option.name}</span>
+                                                </Button>
                                             ))}
-                                        </ul>
-                                    ) : (
-                                        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                                            <Sparkles className="mx-auto h-10 w-10 mb-4" />
-                                            <h3 className="font-semibold text-lg text-foreground">Nothing generated yet</h3>
-                                            <p className="text-sm">Click "+ Generate" to create your first asset.</p>
                                         </div>
+                                    </div>
+                                    
+                                    {(Object.keys(generatedContent).length > 0 && Object.values(generatedContent).some(v => v)) && (
+                                    <div>
+                                        <h3 className="font-semibold mb-4">Previously Generated</h3>
+                                        <div className="space-y-2">
+                                            {Object.entries(generatedContent).map(([type, content]) => {
+                                                if (!content) return null;
+                                                const option = generationOptions.find(o => o.type === type);
+                                                if (!option) return null;
+                                                
+                                                return (
+                                                    <Button key={type} variant="secondary" className="w-full justify-start h-12" onClick={() => setActiveGeneratedView(type as keyof GeneratedContent)}>
+                                                        <option.icon className="mr-2 h-5 w-5" />
+                                                        View Generated {option.name}
+                                                    </Button>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
                                     )}
                                 </CardContent>
                             </Card>
@@ -522,28 +541,6 @@ export default function StudySpacesPage() {
                     </TabsContent>
                 </Tabs>
                 <AddSourcesDialog open={isAddSourcesOpen} onOpenChange={setIsAddSourcesOpen} onAddSources={handleAddMoreSources} />
-                <Dialog open={isGenerateOptionsOpen} onOpenChange={setIsGenerateOptionsOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>What would you like to generate?</DialogTitle>
-                            <DialogDescription>Select a content type to generate from your sources.</DialogDescription>
-                        </DialogHeader>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4">
-                            {generationOptions.map((option) => (
-                                <Button
-                                    key={option.name}
-                                    variant="outline"
-                                    className="h-24 flex-col gap-2 text-center"
-                                    onClick={option.action}
-                                    disabled={option.type === 'podcast' && sources.length === 0}
-                                >
-                                    <option.icon className="w-6 h-6 text-primary" />
-                                    <span className="text-sm font-medium">{option.name}</span>
-                                </Button>
-                            ))}
-                        </div>
-                    </DialogContent>
-                </Dialog>
             </div>
         </div>
     )
@@ -582,7 +579,7 @@ export default function StudySpacesPage() {
                                   <CardDescription>{space.description}</CardDescription>
                               </CardHeader>
                               <CardContent>
-                                  <p className="text-sm font-bold text-primary">{space.sourceCount} sources</p>
+                                  <p className="text-sm font-bold text-primary">{space.sources.length} sources</p>
                               </CardContent>
                           </Card>
                       ))}
@@ -627,87 +624,14 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [selectedWebSources, setSelectedWebSources] = useState<SourceSearchResult[]>([]);
 
-    // Camera state
-    const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-    const [capturedImage, setCapturedImage] = useState<string | null>(null);
-    const videoRef = useRef<HTMLVideoElement>(null);
-
-    useEffect(() => {
-        if (isCameraModalOpen) {
-            const getCameraPermission = async () => {
-              try {
-                const stream = await navigator.mediaDevices.getUserMedia({video: true});
-                setHasCameraPermission(true);
-        
-                if (videoRef.current) {
-                  videoRef.current.srcObject = stream;
-                }
-              } catch (error) {
-                console.error('Error accessing camera:', error);
-                setHasCameraPermission(false);
-                toast({
-                  variant: 'destructive',
-                  title: 'Camera Access Denied',
-                  description: 'Please enable camera permissions in your browser settings to use this app.',
-                });
-              }
-            };
-        
-            getCameraPermission();
-        }
-    }, [isCameraModalOpen, toast]);
-
-    const handleCapture = () => {
-        if (videoRef.current) {
-            const canvas = document.createElement('canvas');
-            canvas.width = videoRef.current.videoWidth;
-            canvas.height = videoRef.current.videoHeight;
-            const context = canvas.getContext('2d');
-            if (context) {
-                context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-                setCapturedImage(canvas.toDataURL('image/jpeg'));
-            }
-        }
-    };
-
-    const handleUsePhoto = () => {
-        if (capturedImage) {
-            const newSource: Source = {
-                type: 'image',
-                name: `Captured Image ${new Date().toLocaleString()}.jpg`,
-                data: capturedImage,
-                contentType: 'image/jpeg',
-            };
-            setSources(prev => [...prev, newSource]);
-            handleCloseCameraModal();
-        }
-    };
-    
-    const handleCloseCameraModal = () => {
-        setCapturedImage(null);
-        setIsCameraModalOpen(false);
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-        }
-        setHasCameraPermission(null);
-    };
-
-
     const handleDeleteSource = (indexToDelete: number) => {
         setSources(prev => prev.filter((_, index) => index !== indexToDelete));
     };
 
-    const handleFileButtonClick = (accept: string, capture = false) => {
+    const handleFileButtonClick = (accept: string) => {
         if (fileInputRef.current) {
             fileInputRef.current.accept = accept;
-            if (capture) {
-                fileInputRef.current.setAttribute('capture', 'environment');
-            } else {
-                fileInputRef.current.removeAttribute('capture');
-            }
+            fileInputRef.current.removeAttribute('capture');
             fileInputRef.current.value = ""; // Reset to allow same file selection
             fileInputRef.current.click();
         }
@@ -803,10 +727,9 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
         { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
         { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/*") },
-        { name: "Camera", icon: Camera, action: () => handleFileButtonClick("image/*", true) },
         { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
         { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
-        { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
+        { name: "Text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
     ];
 
     const handleNext = (values: CreateSpaceFormSchema) => {
@@ -897,7 +820,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                         {sourceButtons.map(btn => (
                                             <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
                                         ))}
@@ -947,34 +870,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                         <DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader>
                         <Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/>
                         <DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter>
-                    </DialogContent>
-                </Dialog>
-                
-                <Dialog open={isCameraModalOpen} onOpenChange={handleCloseCameraModal}>
-                    <DialogContent className="sm:max-w-2xl">
-                        <DialogHeader><DialogTitle>Capture from Camera</DialogTitle></DialogHeader>
-                        {capturedImage ? (
-                            <div className="space-y-4">
-                                <Image src={capturedImage} alt="Captured" width={1280} height={720} className="rounded-md" />
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="outline" onClick={() => setCapturedImage(null)}>Retake</Button>
-                                    <Button onClick={handleUsePhoto}>Use Photo</Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay muted playsInline />
-                                {hasCameraPermission === false && (
-                                    <Alert variant="destructive">
-                                        <AlertTitle>Camera Access Required</AlertTitle>
-                                        <AlertDescription>Please allow camera access to use this feature.</AlertDescription>
-                                    </Alert>
-                                )}
-                                <div className="flex justify-end">
-                                    <Button onClick={handleCapture} disabled={!hasCameraPermission}>Capture</Button>
-                                </div>
-                            </div>
-                        )}
                     </DialogContent>
                 </Dialog>
 
@@ -1027,54 +922,206 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     );
 }
 
-function GeneratedContentItem({ item }: { item: { id: number; type: string; title: string; date: string; } }) {
-    const icons: { [key: string]: React.ElementType } = {
-        podcast: Mic,
-        quiz: HelpCircle,
-        deck: Presentation,
-        report: FileText,
-        mindmap: GitFork,
-        table: Table,
-        infographic: AreaChart,
-        flashcards: SquareStack,
-        video: Video,
-        audio: Music,
-    };
-
-    const Icon = icons[item.type] || BookOpen;
-
+function PodcastView({ podcast, onBack }: { podcast: { script: string, audio: string }, onBack: () => void }) {
     return (
-        <li className="flex items-center gap-4 rounded-lg border bg-background p-3 shadow-sm hover:bg-accent/50 transition-colors">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-                <p className="font-semibold">{item.title}</p>
-                <p className="text-sm text-muted-foreground">Generated on {item.date}</p>
-            </div>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                        <Eye className="mr-2 h-4 w-4" /> View
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                        <Download className="mr-2 h-4 w-4" /> Download
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </li>
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <h3 className="text-xl font-headline">Podcast Ready!</h3>
+                <audio controls src={podcast.audio} className="w-full"></audio>
+                <Card className="text-left max-h-80 overflow-y-auto">
+                    <CardHeader><CardTitle>Script</CardTitle></CardHeader>
+                    <CardContent>
+                        <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
+                    </CardContent>
+                </Card>
+            </CardContent>
+        </Card>
     );
 }
 
+// These view components are copied from note-generator/page.tsx and adapted slightly
+function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
+    const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
+    const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
+    const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const { toast } = useToast();
+
+    const handleFlip = (index: number) => {
+        setFlippedStates(prev => {
+            const newStates = [...prev];
+            newStates[index] = !newStates[index];
+            return newStates;
+        });
+    };
+
+    const handlePrint = () => {
+        const printContent = document.getElementById('flashcard-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Flashcards</title>${styles}${styleBlocks}<style>@media print { @page { size: A4; margin: 20mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .flashcard-print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .flashcard-print-item { border: 1px solid #ccc; padding: 10px; page-break-inside: avoid; } .flashcard-print-item h4 { font-weight: bold; } }</style></head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+    };
+
+    const currentCard = flashcards[currentCardIndex];
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={() => setViewMode('grid')} variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon"><Grid className="h-4 w-4"/></Button>
+                        <Button onClick={() => setViewMode('single')} variant={viewMode === 'single' ? 'secondary' : 'ghost'} size="icon"><View className="h-4 w-4"/></Button>
+                        <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
+                    </div>
+                </div>
+                <CardTitle className="pt-4 flex items-center gap-2"><SquareStack className="text-primary"/> Flashcards for "{topic}"</CardTitle>
+            </CardHeader>
+            <CardContent>
+                 {viewMode === 'grid' ? (
+                    <div id="flashcard-print-area">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flashcard-print-grid">
+                            {flashcards.map((card, index) => (
+                                <div key={index} className="perspective-1000 flashcard-print-item" onClick={() => handleFlip(index)}>
+                                    <div className={cn("relative w-full h-64 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[index] && "rotate-y-180")}>
+                                        <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center"><div><h4 className="print-only">Front:</h4><p className="font-semibold text-lg">{card.front}</p></div></div>
+                                        <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center"><div><h4 className="print-only">Back:</h4><p className="text-sm">{card.back}</p></div></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                     <div>
+                        <div className="perspective-1000 mx-auto max-w-lg" onClick={() => handleFlip(currentCardIndex)}>
+                            <div className={cn("relative w-full h-80 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[currentCardIndex] && "rotate-y-180")}>
+                                <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center"><p className="font-semibold text-xl">{currentCard.front}</p></div>
+                                <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center"><p>{currentCard.back}</p></div>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center mt-4 max-w-lg mx-auto">
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p - 1)} disabled={currentCardIndex === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                            <span className="text-sm text-muted-foreground">{currentCardIndex + 1} / {flashcards.length}</span>
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p + 1)} disabled={currentCardIndex === flashcards.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: () => void, topic: string }) {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+    const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
+    const [score, setScore] = useState(0);
+    const { toast } = useToast();
+
+    const handleAnswerSelect = (answer: string) => {
+        if (selectedAnswers[currentQuestionIndex] !== undefined) return;
+        setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
+    };
+    const handleSeeResults = () => {
+        let finalScore = 0;
+        quiz.forEach((q, index) => { if(selectedAnswers[index] === q.correctAnswer) finalScore++; });
+        setScore(finalScore);
+        setQuizState('results');
+    };
+    const handleRestart = () => {
+        setCurrentQuestionIndex(0);
+        setSelectedAnswers({});
+        setScore(0);
+        setQuizState('in-progress');
+    };
+    const handlePrint = () => {
+        const printContent = document.getElementById('quiz-results-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Quiz Results</title>${styles}${styleBlocks}</head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+    };
+
+    if (quizState === 'results') {
+        return (
+            <Card>
+                <CardHeader><div className="flex justify-between items-start"><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {quiz.length}</CardDescription></CardHeader>
+                <CardContent id="quiz-results-print-area"><Progress value={(score / quiz.length) * 100} className="w-full mb-4" /><div className="space-y-4">{quiz.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
+                <CardFooter><Button onClick={handleRestart}>Take Again</Button></CardFooter>
+            </Card>
+        );
+    }
+    
+    const currentQuestion = quiz[currentQuestionIndex];
+    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
+    return (
+        <Card>
+            <CardHeader><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"><HelpCircle className="text-primary"/> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" /></CardHeader>
+            <CardContent>
+                <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
+                <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswers[currentQuestionIndex]} disabled={isAnswered}>
+                    {currentQuestion.options.map((option, i) => {
+                        const isCorrect = option === currentQuestion.correctAnswer;
+                        const isSelected = selectedAnswers[currentQuestionIndex] === option;
+                        return (<div key={i} className={cn("flex items-center space-x-3 space-y-0 p-3 rounded-md border cursor-pointer", isAnswered && isCorrect && "bg-green-100 dark:bg-green-900/50 border-green-500", isAnswered && isSelected && !isCorrect && "bg-red-100 dark:bg-red-900/50 border-destructive")} onClick={() => handleAnswerSelect(option)}><RadioGroupItem value={option} /><Label className="font-normal flex-1 cursor-pointer">{option}</Label>{isAnswered && isCorrect && <CheckCircle className="text-green-500" />}{isAnswered && isSelected && !isCorrect && <XCircle className="text-destructive" />}</div>);
+                    })}
+                </RadioGroup>
+                {isAnswered && <Card className="mt-4 bg-secondary/50"><CardHeader className="flex-row items-center gap-2 pb-2"><Lightbulb className="w-5 h-5 text-yellow-500" /><CardTitle className="text-md">Explanation</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p></CardContent></Card>}
+                {!isAnswered && currentQuestion.hint && <details className="mt-4 text-sm text-muted-foreground"><summary className="cursor-pointer">Need a hint?</summary><p className="pt-1">{currentQuestion.hint}</p></details>}
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}>Previous</Button>
+                {currentQuestionIndex < quiz.length - 1 ? <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button> : <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>}
+            </CardFooter>
+        </Card>
+    );
+}
+
+function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack: () => void }) {
+    const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+    const { toast } = useToast();
+    const handlePrint = () => {
+        const printContent = document.getElementById('deck-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Deck</title>${styles}${styleBlocks}<style>@page { size: landscape; }</style></head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+    };
+    const currentSlide = deck.slides[currentSlideIndex];
+    return (
+        <Card className="flex flex-col">
+            <CardHeader><div className="flex justify-between items-start"><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4 flex items-center gap-2"><Presentation className="text-primary"/> {deck.title}</CardTitle><CardDescription>Slide {currentSlideIndex + 1} of {deck.slides.length}</CardDescription></CardHeader>
+            <CardContent className="flex-1" id="deck-print-area">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2 rounded-lg border p-6 bg-secondary/30 min-h-[40vh] flex flex-col justify-center"><h3 className="text-2xl font-bold mb-4">{currentSlide.title}</h3><div className="prose prose-sm dark:prose-invert max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSlide.content}</ReactMarkdown></div></div>
+                    <div className="md:col-span-1 rounded-lg border p-4 bg-background"><h4 className="font-semibold mb-2">Speaker Notes</h4><p className="text-sm text-muted-foreground">{currentSlide.speakerNotes}</p></div>
+                </div>
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentSlideIndex(p => p - 1)} disabled={currentSlideIndex === 0}>Previous</Button>
+                <Button onClick={() => setCurrentSlideIndex(p => p + 1)} disabled={currentSlideIndex === deck.slides.length - 1}>Next</Button>
+            </CardFooter>
+        </Card>
+    );
+}
 
 function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean; onOpenChange: (open: boolean) => void; onAddSources: (sources: Source[]) => void; }) {
     const [sources, setSources] = useState<Source[]>([]);
@@ -1086,7 +1133,6 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     const [currentUrl, setCurrentUrl] = useState("");
     const { toast } = useToast();
     
-    // Web search state
     const [searchQuery, setSearchQuery] = useState("");
     type SourceSearchResult = { title: string; url: string; snippet: string; };
     const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
@@ -1094,70 +1140,25 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [selectedWebSources, setSelectedWebSources] = useState<SourceSearchResult[]>([]);
 
-
-    const handleDeleteSource = (indexToDelete: number) => {
-        setSources(prev => prev.filter((_, index) => index !== indexToDelete));
-    };
-
-    const handleFileButtonClick = (accept: string, capture = false) => {
-        if (fileInputRef.current) {
-            fileInputRef.current.accept = accept;
-            if (capture) {
-                fileInputRef.current.setAttribute('capture', 'environment');
-            } else {
-                fileInputRef.current.removeAttribute('capture');
-            }
-            fileInputRef.current.value = ""; // Reset to allow same file selection
-            fileInputRef.current.click();
-        }
-    };
-
-    const handleOpenUrlModal = (type: 'youtube' | 'website', name: string, icon: React.ElementType) => {
-        setUrlModalConfig({ type, name, icon });
-        setCurrentUrl("");
-        setIsUrlModalOpen(true);
-    };
-
+    const handleDeleteSource = (indexToDelete: number) => { setSources(prev => prev.filter((_, index) => index !== indexToDelete)); };
+    const handleFileButtonClick = (accept: string) => { if (fileInputRef.current) { fileInputRef.current.accept = accept; fileInputRef.current.removeAttribute('capture'); fileInputRef.current.value = ""; fileInputRef.current.click(); } };
+    const handleOpenUrlModal = (type: 'youtube' | 'website', name: string, icon: React.ElementType) => { setUrlModalConfig({ type, name, icon }); setCurrentUrl(""); setIsUrlModalOpen(true); };
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (e) => {
             const dataUri = e.target?.result as string;
-
             let fileType: Source['type'] = 'text';
-
-            if (file.type.startsWith('image/')) {
-                fileType = 'image';
-            } else if (file.type.startsWith('audio/')) {
-                fileType = 'audio';
-            } else if (file.type === 'application/pdf') {
-                fileType = 'pdf';
-            }
-
-            const newSource: Source = { type: fileType, name: file.name, data: dataUri, contentType: file.type };
-            setSources(prev => [...prev, newSource]);
+            if (file.type.startsWith('image/')) fileType = 'image';
+            else if (file.type.startsWith('audio/')) fileType = 'audio';
+            else if (file.type === 'application/pdf') fileType = 'pdf';
+            setSources(prev => [...prev, { type: fileType, name: file.name, data: dataUri, contentType: file.type }]);
         };
         reader.readAsDataURL(file);
     };
-    
-    const handleAddCopiedText = () => {
-        if (!copiedText.trim()) return;
-        const newSource: Source = { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText, contentType: 'text/plain' };
-        setSources(prev => [...prev, newSource]);
-        setCopiedText("");
-        setIsTextModalOpen(false);
-    };
-
-    const handleAddUrl = () => {
-        if (!currentUrl.trim() || !urlModalConfig) return;
-        const newSource: Source = { type: urlModalConfig.type, name: currentUrl, url: currentUrl };
-        setSources(prev => [...prev, newSource]);
-        setCurrentUrl("");
-        setIsUrlModalOpen(false);
-    };
-
+    const handleAddCopiedText = () => { if (!copiedText.trim()) return; setSources(prev => [...prev, { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText, contentType: 'text/plain' }]); setCopiedText(""); setIsTextModalOpen(false); };
+    const handleAddUrl = () => { if (!currentUrl.trim() || !urlModalConfig) return; setSources(prev => [...prev, { type: urlModalConfig.type, name: currentUrl, url: currentUrl }]); setCurrentUrl(""); setIsUrlModalOpen(false); };
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
         setIsSearching(true);
@@ -1168,159 +1169,38 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
             const response = await searchWebForSources({ query: searchQuery });
             setSearchResults(response.results);
         } catch (e: any) {
-            console.error("Web search failed", e);
-            toast({
-                variant: 'destructive',
-                title: 'Search Failed',
-                description: e.message || 'Could not fetch web results. Please try again.',
-            });
+            toast({ variant: 'destructive', title: 'Search Failed', description: e.message || 'Could not fetch web results.' });
         } finally {
             setIsSearching(false);
         }
-    }
-
+    };
     const handleAddSelectedSources = () => {
-        const newSources: Source[] = selectedWebSources.map(result => {
-            const isYoutube = result.url.includes('youtube.com') || result.url.includes('youtu.be');
-            return {
-                type: isYoutube ? 'youtube' : 'website',
-                name: result.title,
-                url: result.url
-            };
-        });
-
-        if (newSources.length > 0) {
-            const sourcesToAdd = newSources.filter(ns => 
-                !sources.some(s => s.url === ns.url)
-            );
-            setSources(prev => [...prev, ...sourcesToAdd]);
-        }
+        const newSources: Source[] = selectedWebSources.map(result => ({ type: (result.url.includes('youtube.com') || result.url.includes('youtu.be')) ? 'youtube' : 'website', name: result.title, url: result.url }));
+        if (newSources.length > 0) setSources(prev => [...prev, ...newSources.filter(ns => !prev.some(s => s.url === ns.url))]);
         setIsSearchModalOpen(false);
     };
-
-    const sourceButtons = [
-        { name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") },
-        { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") },
-        { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") },
-        { name: "Camera", icon: Camera, action: () => handleFileButtonClick("image/*", true) },
-        { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) },
-        { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) },
-        { name: "Copied text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) },
-    ];
-
-    const handleDone = () => {
-        onAddSources(sources);
-        setSources([]); // Clear internal state
-        onOpenChange(false);
-    };
+    const sourceButtons = [{ name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") }, { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") }, { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") }, { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) }, { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) }, { name: "Text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) }];
+    const handleDone = () => { onAddSources(sources); setSources([]); onOpenChange(false); };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Add More Sources</DialogTitle>
-                    <DialogDescription>
-                        Search the web or add files and links. Click &quot;Add to Space&quot; when you&apos;re done.
-                    </DialogDescription>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Add More Sources</DialogTitle><DialogDescription>Search the web or add files and links. Click &quot;Add to Space&quot; when you&apos;re done.</DialogDescription></DialogHeader>
                 <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-8 border-y py-6">
-                    <div className="space-y-6">
-                        <div className="flex w-full items-center space-x-2">
-                            <Input
-                                placeholder="Search the web for articles, videos..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
-                            />
-                            <Button onClick={handleSearch} disabled={isSearching} size="icon">
-                                <Search className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <div className="relative py-2">
-                            <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t" /></div>
-                            <div className="relative flex justify-center"><span className="bg-background px-2 text-sm text-muted-foreground">Or Add Manually</span></div>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {sourceButtons.map(btn => (
-                                <Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>
-                            ))}
-                        </div>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-                    </div>
-                    {sources.length > 0 && (
-                        <div className="space-y-2">
-                            <h4 className="font-semibold">Sources to Add ({sources.length})</h4>
-                            <ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">
-                                {sources.map((s, i) => (
-                                    <li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">
-                                        {s.type === 'pdf' && <FileText className="w-4 h-4 mt-0.5"/>} 
-                                        {s.type === 'text' && <FileText className="w-4 h-4 mt-0.5"/>} 
-                                        {s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>} 
-                                        {s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>} 
-                                        {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>} 
-                                        {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>} 
-                                        {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                        <span className="flex-1 min-w-0 break-words">{s.name}</span>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+                    <div className="space-y-6"><div className="flex w-full items-center space-x-2"><Input placeholder="Search the web for articles, videos..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}/><Button onClick={handleSearch} disabled={isSearching} size="icon"><Search className="h-4 w-4" /></Button></div><div className="relative py-2"><div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t" /></div><div className="relative flex justify-center"><span className="bg-background px-2 text-sm text-muted-foreground">Or Add Manually</span></div></div><div className="grid grid-cols-2 md:grid-cols-3 gap-4">{sourceButtons.map(btn => (<Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>))}</div><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" /></div>
+                    {sources.length > 0 && (<div className="space-y-2"><h4 className="font-semibold">Sources to Add ({sources.length})</h4><ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">{sources.map((s, i) => (<li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">{(s.type === 'pdf' || s.type === 'text') && <FileText className="w-4 h-4 mt-0.5"/>}{s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}{s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}{s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}{s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}{s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}<span className="flex-1 min-w-0 break-words">{s.name}</span><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button></li>))}</ul></div>)}
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleDone}>Add to Space</Button>
-                </DialogFooter>
-
-                {/* Dialogs for manual adding */}
+                <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button onClick={handleDone}>Add to Space</Button></DialogFooter>
                 <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
                 <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader><Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/><DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter></DialogContent></Dialog>
                 <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
                     <DialogContent className="sm:max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>Web Search Results</DialogTitle>
-                            <DialogDescription>Select the resources you want to add to your study space.</DialogDescription>
-                        </DialogHeader>
-                        {isSearching ? (
-                            <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>
-                        ) : searchResults.length > 0 ? (
-                            <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y">
-                                <div className="py-4 space-y-2">
-                                    {searchResults.map((result, index) => (
-                                        <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
-                                            <Checkbox 
-                                                id={`add-search-result-${index}`} 
-                                                onCheckedChange={(checked) => {
-                                                    if (checked) {
-                                                        setSelectedWebSources(prev => [...prev, result]);
-                                                    } else {
-                                                        setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));
-                                                    }
-                                                }}
-                                                checked={selectedWebSources.some(s => s.url === result.url)}
-                                            />
-                                            <div className="grid gap-1.5 leading-none flex-1 min-w-0">
-                                                <label htmlFor={`add-search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label>
-                                                <p className="text-xs text-muted-foreground">{result.snippet}</p>
-                                                <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
-                        )}
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button>
-                            <Button onClick={handleAddSelectedSources}>Add Selected</Button>
-                        </DialogFooter>
+                        <DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add.</DialogDescription></DialogHeader>
+                        {isSearching ? <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div> : searchResults.length > 0 ? <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`add-search-result-${index}`} onCheckedChange={(checked) => { if (checked) setSelectedWebSources(p => [...p, result]); else setSelectedWebSources(p => p.filter(r => r.url !== result.url)); }} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`add-search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div> : <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>}
+                        <DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>
             </DialogContent>
         </Dialog>
     )
 }
-
-    

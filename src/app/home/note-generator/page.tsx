@@ -23,7 +23,7 @@ import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sou
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -32,6 +32,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormItem, FormLabel } from "@/components/ui/form";
+
+
+type GeneratedContent = {
+  flashcards?: GenerateFlashcardsOutput['flashcards'];
+  quiz?: GenerateQuizOutput['quiz'];
+  deck?: GenerateSlideDeckOutput;
+};
 
 type RecentNote = {
   id: number;
@@ -40,6 +49,7 @@ type RecentNote = {
   date: string;
   content: string;
   nextStepsPrompt?: string;
+  generatedContent?: GeneratedContent;
 };
 
 const dummyRecentNotes: RecentNote[] = [
@@ -223,13 +233,25 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const [isChatOpen, setIsChatOpen] = useState(false);
   const generationStarted = useRef(false);
 
-  const [generatedContent, setGeneratedContent] = useState<{
-    flashcards?: GenerateFlashcardsOutput['flashcards'];
-    quiz?: GenerateQuizOutput['quiz'];
-    deck?: GenerateSlideDeckOutput;
-  }>({});
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
   const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
   const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
+
+  const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
+    try {
+        const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+        const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
+        const noteIndex = savedNotes.findIndex((n: RecentNote) => n.id === noteId);
+        
+        if (noteIndex > -1) {
+            const updatedNote = { ...savedNotes[noteIndex], ...newContent };
+            savedNotes[noteIndex] = updatedNote;
+            localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
+        }
+    } catch (e) {
+        console.error("Failed to update note in local storage:", e);
+    }
+  }, []);
 
   const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
     const newNote: RecentNote = {
@@ -239,16 +261,19 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       content,
       nextStepsPrompt: nextSteps,
+      generatedContent: {},
     };
     try {
       const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
       const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw).filter((n: RecentNote) => n.id !== 0) : dummyRecentNotes;
       const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+      // Replace URL to reflect the new note ID for saving subsequent generated content
+      router.replace(`/home/note-generator?noteId=${newNote.id}`);
     } catch (e) {
       console.error("Failed to save notes to local storage:", e);
     }
-  }, []);
+  }, [router]);
 
   const generate = useCallback(async (currentTopic: string, currentLevel: string) => {
     if (!currentTopic.trim()) {
@@ -263,6 +288,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     setIsLoading(true);
     setGeneratedNotes(null);
     setPages([]);
+    setActiveView('notes');
+    setGeneratedContent({});
     try {
       const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
       setGeneratedNotes(result);
@@ -296,19 +323,20 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   }, [generatedNotes]);
   
   useEffect(() => {
-    if (initialNote?.content) {
-        const notePages = initialNote.content.split(/\n---\n/);
+    if (initialNote) {
+        const noteContent = initialNote.content || "";
+        const notePages = noteContent.split(/\n---\n/);
         setPages(notePages);
-        setGeneratedNotes({ notes: initialNote.content, nextStepsPrompt: initialNote.nextStepsPrompt || ""});
+        setGeneratedNotes({ notes: noteContent, nextStepsPrompt: initialNote.nextStepsPrompt || ""});
         setTopic(initialNote.topic);
         setAcademicLevel(initialNote.level);
+        setGeneratedContent(initialNote.generatedContent || {});
         setCurrentPage(0);
     }
   }, [initialNote]);
 
 
   const handleGenerateClick = () => {
-      router.push(`/home/note-generator?topic=${encodeURIComponent(topic)}&level=${academicLevel}`);
       generationStarted.current = true;
       generate(topic, academicLevel);
   };
@@ -334,7 +362,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             academicLevel: academicLevel,
             content: generatedNotes.notes,
         });
-        setGeneratedContent(prev => ({ ...prev, flashcards: result.flashcards }));
+        const newGeneratedContent = { ...generatedContent, flashcards: result.flashcards };
+        setGeneratedContent(newGeneratedContent);
+        if (initialNote) {
+            updateAndSaveNote(initialNote.id, { generatedContent: newGeneratedContent });
+        }
         setActiveView('flashcards');
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Failed to generate flashcards', description: e.message });
@@ -353,7 +385,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             academicLevel: academicLevel,
             content: generatedNotes.notes,
         });
-        setGeneratedContent(prev => ({ ...prev, quiz: result.quiz }));
+        const newGeneratedContent = { ...generatedContent, quiz: result.quiz };
+        setGeneratedContent(newGeneratedContent);
+         if (initialNote) {
+            updateAndSaveNote(initialNote.id, { generatedContent: newGeneratedContent });
+        }
         setActiveView('quiz');
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Failed to generate quiz', description: e.message });
@@ -372,7 +408,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             academicLevel: academicLevel,
             content: generatedNotes.notes,
         });
-        setGeneratedContent(prev => ({ ...prev, deck: result }));
+        const newGeneratedContent = { ...generatedContent, deck: result };
+        setGeneratedContent(newGeneratedContent);
+        if (initialNote) {
+            updateAndSaveNote(initialNote.id, { generatedContent: newGeneratedContent });
+        }
         setActiveView('deck');
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Failed to generate slide deck', description: e.message });
@@ -528,7 +568,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
       {generatedNotes && (
           <>
-            <div className="fixed bottom-[80px] right-6 z-50 md:bottom-24">
+            <div className="fixed bottom-[150px] right-6 z-50 md:bottom-24">
                 <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
                     <MessageCircle className="h-7 w-7"/>
                     <span className="sr-only">AI Deep Dive</span>
@@ -548,6 +588,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
+    const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
+    const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const { toast } = useToast();
 
     const handleFlip = (index: number) => {
         setFlippedStates(prev => {
@@ -557,30 +600,101 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
         });
     };
 
+    const handlePrint = () => {
+        const printContent = document.getElementById('flashcard-print-area')?.innerHTML;
+        if (!printContent) return;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast({ variant: 'destructive', title: 'Could not open print window' });
+            return;
+        }
+
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+
+        printWindow.document.write(`
+            <html>
+                <head><title>Print Flashcards</title>${styles}${styleBlocks}
+                <style>
+                    @media print {
+                        @page { size: A4; margin: 20mm; }
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .flashcard-print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+                        .flashcard-print-item { border: 1px solid #ccc; padding: 10px; page-break-inside: avoid; }
+                        .flashcard-print-item h4 { font-weight: bold; }
+                    }
+                </style>
+                </head><body>${printContent}</body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 1000);
+    };
+
+    const currentCard = flashcards[currentCardIndex];
+
     return (
         <Card>
             <CardHeader>
-                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={() => setViewMode('grid')} variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon"><Grid className="h-4 w-4"/></Button>
+                        <Button onClick={() => setViewMode('single')} variant={viewMode === 'single' ? 'secondary' : 'ghost'} size="icon"><View className="h-4 w-4"/></Button>
+                        <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
+                    </div>
+                </div>
                 <CardTitle className="pt-4 flex items-center gap-2"><SquareStack className="text-primary"/> Flashcards for "{topic}"</CardTitle>
                 <CardDescription>Click on a card to flip it and see the answer.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {flashcards.map((card, index) => (
-                        <div key={index} className="perspective-1000" onClick={() => handleFlip(index)}>
-                            <div className={cn("relative w-full h-64 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[index] && "rotate-y-180")}>
-                                {/* Front of Card */}
-                                <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center">
-                                    <p className="font-semibold text-lg">{card.front}</p>
+                {viewMode === 'grid' ? (
+                    <div id="flashcard-print-area">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flashcard-print-grid">
+                            {flashcards.map((card, index) => (
+                                <div key={index} className="perspective-1000 flashcard-print-item" onClick={() => handleFlip(index)}>
+                                    <div className={cn("relative w-full h-64 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[index] && "rotate-y-180")}>
+                                        <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center">
+                                            <div>
+                                                <h4 className="print-only">Front:</h4>
+                                                <p className="font-semibold text-lg">{card.front}</p>
+                                            </div>
+                                        </div>
+                                        <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center">
+                                            <div>
+                                                <h4 className="print-only">Back:</h4>
+                                                <p className="text-sm">{card.back}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                {/* Back of Card */}
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                     <div>
+                        <div className="perspective-1000 mx-auto max-w-lg" onClick={() => handleFlip(currentCardIndex)}>
+                            <div className={cn("relative w-full h-80 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[currentCardIndex] && "rotate-y-180")}>
+                                <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center">
+                                    <p className="font-semibold text-xl">{currentCard.front}</p>
+                                </div>
                                 <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center">
-                                    <p className="text-sm">{card.back}</p>
+                                    <p>{currentCard.back}</p>
                                 </div>
                             </div>
                         </div>
-                    ))}
-                </div>
+                        <div className="flex justify-between items-center mt-4 max-w-lg mx-auto">
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p - 1)} disabled={currentCardIndex === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                            <span className="text-sm text-muted-foreground">{currentCardIndex + 1} / {flashcards.length}</span>
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p + 1)} disabled={currentCardIndex === flashcards.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                        </div>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -592,6 +706,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
     const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
     const [score, setScore] = useState(0);
+    const { toast } = useToast();
 
     const currentQuestion = quiz[currentQuestionIndex];
     const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
@@ -620,17 +735,40 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         setScore(0);
         setQuizState('in-progress');
     };
+    
+    const handlePrint = () => {
+        const printContent = document.getElementById('quiz-results-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast({ variant: 'destructive', title: 'Could not open print window' });
+            return;
+        }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Quiz Results</title>${styles}${styleBlocks}</head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 1000);
+    };
 
     if (quizState === 'results') {
         return (
             <Card>
                 <CardHeader>
-                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
-                    <CardTitle className="pt-4">Quiz Results</CardTitle>
+                    <div className="flex justify-between items-start">
+                        <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                        <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
+                    </div>
+                    <CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle>
                     <CardDescription>You scored {score} out of {quiz.length}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                     <Progress value={(score / quiz.length) * 100} className="w-full" />
+                <CardContent id="quiz-results-print-area">
+                     <Progress value={(score / quiz.length) * 100} className="w-full mb-4" />
+                     <div className="space-y-4">
                      {quiz.map((q, index) => (
                         <Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}>
                             <CardHeader>
@@ -646,8 +784,11 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
                             </CardContent>
                         </Card>
                      ))}
-                     <Button onClick={handleRestart}>Take Again</Button>
+                     </div>
                 </CardContent>
+                <CardFooter>
+                     <Button onClick={handleRestart}>Take Again</Button>
+                </CardFooter>
             </Card>
         )
     }
@@ -667,17 +808,15 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
                         const isCorrect = option === currentQuestion.correctAnswer;
                         const isSelected = selectedAnswers[currentQuestionIndex] === option;
                         return (
-                             <FormItem key={i} className={cn("flex items-center space-x-3 space-y-0 p-3 rounded-md border",
+                            <div key={i} className={cn("flex items-center space-x-3 space-y-0 p-3 rounded-md border cursor-pointer",
                                 isAnswered && isCorrect && "bg-green-100 dark:bg-green-900/50 border-green-500",
                                 isAnswered && isSelected && !isCorrect && "bg-red-100 dark:bg-red-900/50 border-destructive"
-                             )}>
-                                <FormControl>
-                                    <RadioGroupItem value={option} />
-                                </FormControl>
-                                <FormLabel className="font-normal flex-1 cursor-pointer">{option}</FormLabel>
+                             )} onClick={() => handleAnswerSelect(option)}>
+                                <RadioGroupItem value={option} />
+                                <Label className="font-normal flex-1 cursor-pointer">{option}</Label>
                                 {isAnswered && isCorrect && <CheckCircle className="text-green-500" />}
                                 {isAnswered && isSelected && !isCorrect && <XCircle className="text-destructive" />}
-                            </FormItem>
+                            </div>
                         )
                     })}
                 </RadioGroup>
@@ -716,24 +855,49 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
 function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack: () => void }) {
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const currentSlide = deck.slides[currentSlideIndex];
+    const { toast } = useToast();
+
+    const handlePrint = () => {
+        const printContent = document.getElementById('deck-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast({ variant: 'destructive', title: 'Could not open print window' });
+            return;
+        }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Deck</title>${styles}${styleBlocks}<style>@page { size: landscape; }</style></head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 1000);
+    };
 
     return (
         <Card className="flex flex-col">
             <CardHeader>
-                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                 <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
+                </div>
                 <CardTitle className="pt-4 flex items-center gap-2"><Presentation className="text-primary"/> {deck.title}</CardTitle>
                 <CardDescription>Slide {currentSlideIndex + 1} of {deck.slides.length}</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 rounded-lg border p-6 bg-secondary/30 min-h-[40vh] flex flex-col justify-center">
-                     <h3 className="text-2xl font-bold mb-4">{currentSlide.title}</h3>
-                     <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSlide.content}</ReactMarkdown>
-                     </div>
-                </div>
-                <div className="md:col-span-1 rounded-lg border p-4 bg-background">
-                     <h4 className="font-semibold mb-2">Speaker Notes</h4>
-                     <p className="text-sm text-muted-foreground">{currentSlide.speakerNotes}</p>
+            <CardContent className="flex-1" id="deck-print-area">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2 rounded-lg border p-6 bg-secondary/30 min-h-[40vh] flex flex-col justify-center">
+                        <h3 className="text-2xl font-bold mb-4">{currentSlide.title}</h3>
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSlide.content}</ReactMarkdown>
+                        </div>
+                    </div>
+                    <div className="md:col-span-1 rounded-lg border p-4 bg-background">
+                        <h4 className="font-semibold mb-2">Speaker Notes</h4>
+                        <p className="text-sm text-muted-foreground">{currentSlide.speakerNotes}</p>
+                    </div>
                 </div>
             </CardContent>
              <CardFooter className="justify-between">
