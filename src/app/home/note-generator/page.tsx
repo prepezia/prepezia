@@ -312,6 +312,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         return;
     }
 
+    if (generationStarted.current) return;
+    generationStarted.current = true;
+
     setIsLoading(true);
     setGeneratedNotes(null);
     setPages([]);
@@ -334,11 +337,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   }, [onNoteGenerated, toast]);
   
   useEffect(() => {
-    if (initialTopic && !initialNote && !generationStarted.current) {
-        generationStarted.current = true;
+    if (initialTopic && !initialNote) {
         generate(initialTopic, academicLevel);
     }
-  }, [initialTopic, initialNote, generate, academicLevel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTopic, initialNote, academicLevel]);
 
   useEffect(() => {
     if (generatedNotes?.notes) {
@@ -364,7 +367,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 
   const handleGenerateClick = () => {
-      generationStarted.current = true;
+      generationStarted.current = false;
       generate(topic, academicLevel);
   };
 
@@ -556,7 +559,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </Card>
             )}
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-2 justify-center sm:justify-end">
+            <div className="mt-8 flex flex-col items-center gap-2 sm:flex-row sm:justify-end">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                 <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
@@ -621,7 +624,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
       {generatedNotes && (
           <>
-            <div className="fixed bottom-[150px] right-6 z-50 md:bottom-24">
+            <div className="fixed bottom-[80px] right-6 z-50 md:bottom-24">
                 <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
                     <MessageCircle className="h-7 w-7"/>
                     <span className="sr-only">AI Deep Dive</span>
