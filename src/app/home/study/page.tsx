@@ -29,13 +29,6 @@ const features = [
       color: "bg-yellow-50 dark:bg-yellow-900/50",
     },
     {
-        title: "AI Deep Dive",
-        description: "Go beyond surface-level answers. Let our AI conduct in-depth research on any topic.",
-        href: "/home/note-generator",
-        iconUrl: "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2FAI%20(1).png?alt=media&token=d1ab08e5-e3ee-4a81-ab42-736b24cc004b",
-        color: "bg-red-50 dark:bg-red-900/50",
-    },
-    {
         title: "Podcast Generation",
         description: "Turn your sources into an engaging podcast-style conversation.",
         href: "/home/study-spaces",
