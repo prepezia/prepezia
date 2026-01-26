@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, Suspense, useCallback, useRef } from "react";
@@ -254,12 +255,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     setPages([]);
     try {
       const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
-      const noteContent = result.notes || "";
-      const notePages = noteContent.split(/\n---\n/);
-      setPages(notePages);
       setGeneratedNotes(result);
-      setCurrentPage(0);
-      onNoteGenerated(currentTopic, currentLevel, noteContent, result.nextStepsPrompt);
+      onNoteGenerated(currentTopic, currentLevel, result.notes, result.nextStepsPrompt);
     } catch (error: any) {
       console.error("Error generating notes:", error);
       toast({
@@ -272,19 +269,21 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   }, [onNoteGenerated, toast]);
   
+  // Effect for generating notes from a topic
   useEffect(() => {
-    if (initialNote) {
-        const noteContent = initialNote.content || "";
-        const notePages = noteContent.split(/\n---\n/);
-        setPages(notePages);
-        setGeneratedNotes({ notes: noteContent, nextStepsPrompt: initialNote.nextStepsPrompt || ""});
-        setTopic(initialNote.topic);
-        setAcademicLevel(initialNote.level);
-        setCurrentPage(0);
-    } else if (initialTopic && !generatedNotes && !isLoading) {
+    if (initialTopic && !initialNote) {
         generate(initialTopic, academicLevel);
     }
-  }, [initialNote, initialTopic, generate, academicLevel, isLoading, generatedNotes]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTopic, initialNote]);
+
+  // Effect for deriving pages from generated or initial notes
+  useEffect(() => {
+    const noteContent = generatedNotes?.notes ?? initialNote?.content ?? "";
+    const notePages = noteContent.split(/\n---\n/);
+    setPages(notePages);
+    setCurrentPage(0);
+  }, [generatedNotes, initialNote]);
 
 
   const handleGenerateClick = () => {
