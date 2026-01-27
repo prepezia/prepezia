@@ -557,8 +557,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             )}
             
             <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-end">
-                <Button variant="ghost" onClick={handleGenerateAnother} className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
-                <Button onClick={() => setIsChatOpen(true)} className="w-full sm:w-auto"><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
+                <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
+                <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
         </>
     );
@@ -580,45 +580,43 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </div>
           ) : (
             <div className="max-w-2xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-                <Card className="p-6 md:p-8">
-                    <CardHeader className="p-0 text-center mb-6">
+                <Card>
+                    <CardHeader className="text-center">
                         <CardTitle className="text-3xl font-headline font-bold">Generate New Study Notes</CardTitle>
                         <CardDescription>Enter any topic and select the academic level to get started.</CardDescription>
                     </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="space-y-4">
-                          <Input 
-                              placeholder="e.g., Photosynthesis, Ghanaian Independence" 
-                              value={topic}
-                              onChange={(e) => setTopic(e.target.value)}
-                              className="h-12 text-base"
-                              onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
-                          />
-                          <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
-                              <SelectTrigger className="h-12 text-base">
-                              <SelectValue placeholder="Select a level" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectGroup>
-                                      <SelectLabel>Proficiency</SelectLabel>
-                                      <SelectItem value="Beginner">Beginner</SelectItem>
-                                      <SelectItem value="Intermediate">Intermediate</SelectItem>
-                                      <SelectItem value="Expert">Expert</SelectItem>
-                                  </SelectGroup>
-                                  <SelectGroup>
-                                      <SelectLabel>Degree Level</SelectLabel>
-                                      <SelectItem value="Secondary">Secondary</SelectItem>
-                                      <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                                      <SelectItem value="Masters">Masters</SelectItem>
-                                      <SelectItem value="PhD">PhD</SelectItem>
-                                  </SelectGroup>
-                              </SelectContent>
-                          </Select>
-                          <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12" size="lg">
-                              <Sparkles className="mr-2 h-5 w-5" />
-                              Generate Notes
-                          </Button>
-                      </div>
+                    <CardContent className="space-y-4">
+                      <Input 
+                          placeholder="e.g., Photosynthesis, Ghanaian Independence" 
+                          value={topic}
+                          onChange={(e) => setTopic(e.target.value)}
+                          className="h-12 text-base"
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
+                      />
+                      <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
+                          <SelectTrigger className="h-12 text-base">
+                          <SelectValue placeholder="Select a level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectGroup>
+                                  <SelectLabel>Proficiency</SelectLabel>
+                                  <SelectItem value="Beginner">Beginner</SelectItem>
+                                  <SelectItem value="Intermediate">Intermediate</SelectItem>
+                                  <SelectItem value="Expert">Expert</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                  <SelectLabel>Degree Level</SelectLabel>
+                                  <SelectItem value="Secondary">Secondary</SelectItem>
+                                  <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                                  <SelectItem value="Masters">Masters</SelectItem>
+                                  <SelectItem value="PhD">PhD</SelectItem>
+                              </SelectGroup>
+                          </SelectContent>
+                      </Select>
+                      <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12" size="lg">
+                          <Sparkles className="mr-2 h-5 w-5" />
+                          Generate Notes
+                      </Button>
                     </CardContent>
                 </Card>
             </div>
@@ -1035,3 +1033,5 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
