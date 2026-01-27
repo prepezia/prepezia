@@ -489,16 +489,14 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                         const child = node.children[0];
                                         if ('tagName' in child && child.tagName === 'a' && child.properties?.href) {
                                             const url = String(child.properties.href);
-                                            if (url) {
-                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                                if (youtubeMatch && youtubeMatch[1]) {
-                                                    const videoId = youtubeMatch[1];
-                                                    return (
-                                                        <div className="my-4 aspect-video">
-                                                            <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
-                                                        </div>
-                                                    );
-                                                }
+                                            const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                            if (youtubeMatch && youtubeMatch[1]) {
+                                                const videoId = youtubeMatch[1];
+                                                return (
+                                                    <div className="my-4 aspect-video">
+                                                        <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                    </div>
+                                                );
                                             }
                                         }
                                     }
@@ -647,7 +645,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
-    const [viewMode, setViewMode = useState<'grid' | 'single'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const { toast } = useToast();
 
