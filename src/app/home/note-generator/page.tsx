@@ -478,8 +478,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col min-w-0">
-                    <div className="flex-1 overflow-auto rounded-md border p-4 md:p-6 bg-secondary/30">
+                <CardContent className="flex-1 flex flex-col">
+                    <div className="flex-1 min-w-0 overflow-auto rounded-md border p-4 md:p-6 bg-secondary/30">
                         <div className="prose dark:prose-invert max-w-none">
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
@@ -1039,4 +1039,3 @@ export default function NoteGeneratorPageWrapper() {
     
 
     
-
