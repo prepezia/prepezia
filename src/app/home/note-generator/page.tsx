@@ -488,8 +488,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                         const { node } = paragraph;
                                         if (node && node.children.length === 1) {
                                             const child = node.children[0];
-                                            if ('tagName' in child && child.tagName === 'a') {
-                                                const url = child.properties?.href || '';
+                                            if ('tagName' in child && child.tagName === 'a' && child.properties?.href) {
+                                                const url = String(child.properties.href);
                                                 const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
                                                 if (youtubeMatch && youtubeMatch[1]) {
                                                     const videoId = youtubeMatch[1];
