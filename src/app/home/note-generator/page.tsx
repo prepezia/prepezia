@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, Suspense, useCallback, useRef } from "react";
@@ -261,8 +260,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const generationStarted = useRef(false);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
-  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
-  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
+  const [isGenerating, setIsGenerating<'flashcards' | 'quiz' | 'deck' | null>(null);
+  const [activeView, setActiveView<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
 
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
     try {
@@ -333,6 +332,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         });
     } finally {
       setIsLoading(false);
+      generationStarted.current = false;
     }
   }, [onNoteGenerated, toast]);
   
@@ -341,7 +341,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         generate(initialTopic, academicLevel);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTopic, initialNote, academicLevel]);
+  }, [initialTopic, initialNote]);
 
   useEffect(() => {
     if (generatedNotes?.notes) {
@@ -367,7 +367,6 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 
   const handleGenerateClick = () => {
-      generationStarted.current = false;
       generate(topic, academicLevel);
   };
 
@@ -480,7 +479,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1">
-                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 bg-secondary/30 min-h-[50vh]">
+                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
                         <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                             components={{
@@ -559,7 +558,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </Card>
             )}
 
-            <div className="mt-8 flex flex-col items-center gap-2 sm:flex-row sm:justify-end">
+            <div className="mt-8 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                 <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
@@ -644,7 +643,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
-    const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
+    const [viewMode, setViewMode<'grid' | 'single'>('grid');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const { toast } = useToast();
 
@@ -760,7 +759,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
-    const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
+    const [quizState, setQuizState<'in-progress' | 'results'>('in-progress');
     const [score, setScore] = useState(0);
     const { toast } = useToast();
 
@@ -968,7 +967,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
 function NoteGeneratorPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [view, setView] = useState<'list' | 'note'>('list');
+    const [view, setView<'list' | 'note'>('list');
     
     const [initialTopic, setInitialTopic] = useState<string | null>(null);
     const [initialNote, setInitialNote] = useState<RecentNote | null>(null);
@@ -1032,3 +1031,5 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
