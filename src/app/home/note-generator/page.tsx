@@ -250,7 +250,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const { toast } = useToast();
   const [topic, setTopic] = useState(initialNote?.topic || initialTopic || "");
   const [academicLevel, setAcademicLevel] = useState(initialNote?.level || "Undergraduate");
-  const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(initialNote ? { notes: initialNote.content, nextStepsPrompt: initialNote.nextStepsPrompt || "" } : null);
+  const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -478,12 +478,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1">
-                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
+                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto overflow-x-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
                         <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                             components={{
-                                table: ({node, ...props}) => <div className="w-full overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
-                                pre: ({node, ...props}) => <div className="w-full overflow-x-auto my-4 bg-white dark:bg-black rounded p-2"><pre {...props} /></div>,
                                 p: (paragraph) => {
                                     const { node } = paragraph;
                                     if (node.children.length === 1 && node.children[0].tagName === 'a') {
@@ -580,49 +578,55 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                 {renderContent()}
               </div>
           ) : (
-              <div className="max-w-2xl mx-auto space-y-4 text-center py-10 px-4 sm:px-6 lg:px-8">
-                  <h1 className="text-3xl font-headline font-bold">Generate New Study Notes</h1>
-                  <p className="text-muted-foreground">Enter any topic and select the academic level to get started.</p>
-                  <div className="space-y-4 pt-4">
-                      <Input 
-                          placeholder="e.g., Photosynthesis, Ghanaian Independence" 
-                          value={topic}
-                          onChange={(e) => setTopic(e.target.value)}
-                          className="h-12 text-base"
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
-                      />
-                      <Select value={academicLevel} onValueChange={setAcademicLevel}>
-                          <SelectTrigger className="h-12 text-base">
-                          <SelectValue placeholder="Select a level" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectGroup>
-                                  <SelectLabel>Proficiency</SelectLabel>
-                                  <SelectItem value="Beginner">Beginner</SelectItem>
-                                  <SelectItem value="Intermediate">Intermediate</SelectItem>
-                                  <SelectItem value="Expert">Expert</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                  <SelectLabel>Degree Level</SelectLabel>
-                                  <SelectItem value="Secondary">Secondary</SelectItem>
-                                  <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                                  <SelectItem value="Masters">Masters</SelectItem>
-                                  <SelectItem value="PhD">PhD</SelectItem>
-                              </SelectGroup>
-                          </SelectContent>
-                      </Select>
-                      <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12" size="lg">
-                          <Sparkles className="mr-2 h-5 w-5" />
-                          Generate Notes
-                      </Button>
-                  </div>
-              </div>
+            <div className="max-w-2xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+                <Card className="p-6 md:p-8">
+                    <CardHeader className="p-0 text-center mb-6">
+                        <CardTitle className="text-3xl font-headline font-bold">Generate New Study Notes</CardTitle>
+                        <CardDescription>Enter any topic and select the academic level to get started.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="space-y-4">
+                          <Input 
+                              placeholder="e.g., Photosynthesis, Ghanaian Independence" 
+                              value={topic}
+                              onChange={(e) => setTopic(e.target.value)}
+                              className="h-12 text-base"
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
+                          />
+                          <Select value={academicLevel} onValueChange={setAcademicLevel}>
+                              <SelectTrigger className="h-12 text-base">
+                              <SelectValue placeholder="Select a level" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectGroup>
+                                      <SelectLabel>Proficiency</SelectLabel>
+                                      <SelectItem value="Beginner">Beginner</SelectItem>
+                                      <SelectItem value="Intermediate">Intermediate</SelectItem>
+                                      <SelectItem value="Expert">Expert</SelectItem>
+                                  </SelectGroup>
+                                  <SelectGroup>
+                                      <SelectLabel>Degree Level</SelectLabel>
+                                      <SelectItem value="Secondary">Secondary</SelectItem>
+                                      <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                                      <SelectItem value="Masters">Masters</SelectItem>
+                                      <SelectItem value="PhD">PhD</SelectItem>
+                                  </SelectGroup>
+                              </SelectContent>
+                          </Select>
+                          <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12" size="lg">
+                              <Sparkles className="mr-2 h-5 w-5" />
+                              Generate Notes
+                          </Button>
+                      </div>
+                    </CardContent>
+                </Card>
+            </div>
           )}
       </div>
 
       {generatedNotes && (
           <>
-            <div className="fixed bottom-[80px] right-6 z-50 md:bottom-24">
+            <div className="fixed bottom-[100px] right-6 z-50 md:bottom-24">
                 <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
                     <MessageCircle className="h-7 w-7"/>
                     <span className="sr-only">AI Deep Dive</span>
