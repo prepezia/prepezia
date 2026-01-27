@@ -261,7 +261,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const generationStarted = useRef(false);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
-  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
+  const [isGenerating, setIsGenerating = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
   const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
 
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
@@ -302,7 +302,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   }, [router]);
 
-  const generate = useCallback(async (currentTopic: string, currentLevel: string) => {
+  const generate = useCallback(async (currentTopic: string, currentLevel: AcademicLevel) => {
     if (!currentTopic.trim()) {
         toast({
             variant: "destructive",
@@ -321,7 +321,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     setActiveView('notes');
     setGeneratedContent({});
     try {
-      const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel as AcademicLevel });
+      const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
       setGeneratedNotes(result);
       onNoteGenerated(currentTopic, currentLevel, result.notes, result.nextStepsPrompt);
     } catch (error: any) {
@@ -478,7 +478,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 min-h-0">
+                <CardContent className="flex-1 min-h-0 min-w-0">
                     <div className="prose dark:prose-invert max-w-none h-full overflow-auto rounded-md border p-4 md:p-6 bg-secondary/30">
                         <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
@@ -556,7 +556,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </Card>
             )}
             
-            <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-end">
+            <div className="mt-8 flex flex-wrap items-center justify-center sm:justify-end gap-4">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                 <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
@@ -645,7 +645,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
-    const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
+    const [viewMode, setViewMode = useState<'grid' | 'single'>('grid');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const { toast } = useToast();
 
