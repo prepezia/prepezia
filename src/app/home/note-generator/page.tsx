@@ -478,9 +478,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 overflow-x-auto">
-                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
-                        <div className="overflow-x-auto">
+                <CardContent className="flex-1 flex min-h-0">
+                    <div className="w-full overflow-auto rounded-md border p-4 md:p-6 bg-secondary/30">
+                        <div className="prose dark:prose-invert max-w-none">
                             <ReactMarkdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={{
