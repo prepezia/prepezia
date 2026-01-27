@@ -260,8 +260,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const generationStarted = useRef(false);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
-  const [isGenerating, setIsGenerating<'flashcards' | 'quiz' | 'deck' | null>(null);
-  const [activeView, setActiveView<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
+  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
+  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
 
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
     try {
@@ -558,7 +558,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </Card>
             )}
 
-            <div className="mt-8 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+            <div className="mt-8 flex justify-center gap-2 sm:justify-end">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                 <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
@@ -577,7 +577,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   <p className="text-sm text-muted-foreground">This may take a moment.</p>
               </div>
           ) : generatedNotes ? (
-              <div className="max-w-4xl mx-auto pb-20">
+              <div className="max-w-4xl mx-auto pb-20 px-4 md:px-6">
                 {renderContent()}
               </div>
           ) : (
@@ -623,7 +623,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
       {generatedNotes && (
           <>
-            <div className="fixed bottom-[80px] right-6 z-50 md:bottom-24">
+            <div className="fixed bottom-[150px] right-6 z-50 md:bottom-24">
                 <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
                     <MessageCircle className="h-7 w-7"/>
                     <span className="sr-only">AI Deep Dive</span>
@@ -643,7 +643,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
-    const [viewMode, setViewMode<'grid' | 'single'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const { toast } = useToast();
 
@@ -759,7 +759,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
-    const [quizState, setQuizState<'in-progress' | 'results'>('in-progress');
+    const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
     const [score, setScore] = useState(0);
     const { toast } = useToast();
 
@@ -967,7 +967,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
 function NoteGeneratorPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [view, setView<'list' | 'note'>('list');
+    const [view, setView] = useState<'list' | 'note'>('list');
     
     const [initialTopic, setInitialTopic] = useState<string | null>(null);
     const [initialNote, setInitialNote] = useState<RecentNote | null>(null);
