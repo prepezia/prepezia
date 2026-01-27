@@ -478,36 +478,34 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 flex min-h-0">
-                    <div className="w-full overflow-auto rounded-md border p-4 md:p-6 bg-secondary/30">
-                        <div className="prose dark:prose-invert max-w-none">
-                            <ReactMarkdown 
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                    p: (paragraph) => {
-                                        const { node } = paragraph;
-                                        if (node && node.children.length === 1) {
-                                            const child = node.children[0];
-                                            if ('tagName' in child && child.tagName === 'a' && child.properties?.href) {
-                                                const url = String(child.properties.href);
-                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                                if (youtubeMatch && youtubeMatch[1]) {
-                                                    const videoId = youtubeMatch[1];
-                                                    return (
-                                                        <div className="my-4 aspect-video">
-                                                            <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
-                                                        </div>
-                                                    );
-                                                }
+                <CardContent className="flex-1 flex flex-col min-w-0">
+                    <div className="prose dark:prose-invert max-w-none overflow-auto rounded-md border p-4 md:p-6 bg-secondary/30 flex-1">
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                p: (paragraph) => {
+                                    const { node } = paragraph;
+                                    if (node && node.children.length === 1) {
+                                        const child = node.children[0];
+                                        if ('tagName' in child && child.tagName === 'a' && child.properties?.href) {
+                                            const url = String(child.properties.href);
+                                            const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                            if (youtubeMatch && youtubeMatch[1]) {
+                                                const videoId = youtubeMatch[1];
+                                                return (
+                                                    <div className="my-4 aspect-video">
+                                                        <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                    </div>
+                                                );
                                             }
                                         }
-                                        return <p>{paragraph.children}</p>;
-                                    },
-                                }}
-                            >
-                                {pages[currentPage]}
-                            </ReactMarkdown>
-                        </div>
+                                    }
+                                    return <p>{paragraph.children}</p>;
+                                },
+                            }}
+                        >
+                            {pages[currentPage]}
+                        </ReactMarkdown>
                     </div>
                 </CardContent>
             </Card>
@@ -558,7 +556,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </Card>
             )}
             
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="mt-8 flex items-center justify-center gap-4 flex-wrap md:justify-end">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                 <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
