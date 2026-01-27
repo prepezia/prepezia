@@ -109,4 +109,14 @@
   .overflow-x-auto::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.7);
   }
+
+  /* ============================================
+     PRINT STYLES (Optional)
+     ============================================ */
+  
+  @media print {
+    .overflow-x-auto {
+      overflow-x: visible !important;
+    }
+  }
 }
