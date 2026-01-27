@@ -261,7 +261,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const generationStarted = useRef(false);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
-  const [isGenerating, setIsGenerating = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
+  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
   const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
 
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
@@ -478,8 +478,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 min-h-0 min-w-0">
-                    <div className="prose dark:prose-invert max-w-none h-full overflow-auto rounded-md border p-4 md:p-6 bg-secondary/30">
+                <CardContent className="flex-1 overflow-auto">
+                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
                         <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                             components={{
@@ -489,14 +489,16 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                         const child = node.children[0];
                                         if ('tagName' in child && child.tagName === 'a' && child.properties?.href) {
                                             const url = String(child.properties.href);
-                                            const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                            if (youtubeMatch && youtubeMatch[1]) {
-                                                const videoId = youtubeMatch[1];
-                                                return (
-                                                    <div className="my-4 aspect-video">
-                                                        <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
-                                                    </div>
-                                                );
+                                            if (url) {
+                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                                if (youtubeMatch && youtubeMatch[1]) {
+                                                    const videoId = youtubeMatch[1];
+                                                    return (
+                                                        <div className="my-4 aspect-video">
+                                                            <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                        </div>
+                                                    );
+                                                }
                                             }
                                         }
                                     }
@@ -556,7 +558,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </Card>
             )}
             
-            <div className="mt-8 flex flex-wrap items-center justify-center sm:justify-end gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                 <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
@@ -1033,5 +1035,7 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
 
     
