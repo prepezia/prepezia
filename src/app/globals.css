@@ -110,6 +110,19 @@
     background: hsl(var(--muted-foreground) / 0.7);
   }
 
+  /* Add responsive styles for AI-generated content */
+  .prose table {
+    @apply block w-full;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .prose pre {
+    @apply max-w-full;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* ============================================
      PRINT STYLES (Optional)
      ============================================ */
