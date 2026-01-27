@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, Suspense, useCallback, useRef } from "react";
@@ -496,49 +497,72 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   }}
 >
 
-                        <div className="prose dark:prose-invert max-w-none">
-                        <ReactMarkdown
+
+
+                            <div className="prose dark:prose-invert max-w-none">
+                            <ReactMarkdown
   remarkPlugins={[remarkGfm]}
   components={{
     table: ({ children }) => (
-      <div className="w-full overflow-x-auto">
-        <table>{children}</table>
+      <div className="w-full max-w-full overflow-x-auto md:overflow-x-visible">
+        <table className="w-full border-collapse">
+          {children}
+        </table>
       </div>
     ),
+
+    thead: ({ children }) => (
+      <thead className="bg-muted/50">
+        {children}
+      </thead>
+    ),
+
+    tr: ({ children }) => (
+      <tr className="border-b last:border-b-0">
+        {children}
+      </tr>
+    ),
+
+    th: ({ children }) => (
+      <th className="px-3 py-2 text-left text-sm font-medium">
+        {children}
+      </th>
+    ),
+
+    td: ({ children }) => (
+      <td className="px-3 py-2 text-sm align-top">
+        {children}
+      </td>
+    ),
+
     pre: ({ children }) => (
-      <div className="w-full overflow-x-auto">
-        <pre>{children}</pre>
+      <div className="w-full max-w-full overflow-x-auto md:overflow-x-visible">
+        <pre className="text-sm">
+          {children}
+        </pre>
       </div>
     ),
-    p: (paragraph) => {
-      const { node } = paragraph;
-      if (node && node.children.length === 1) {
-        const child = node.children[0];
-        if (
-          typeof child === "object" &&
-          "tagName" in child &&
-          child.tagName === "a" &&
-          child.properties?.href
-        ) {
-          const url = String(child.properties.href);
-          const youtubeMatch = url.match(
-            /(?:youtube\.com\/.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-          );
-          if (youtubeMatch?.[1]) {
-            return (
-              <div className="my-4 aspect-video">
-                <iframe
-                  src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
-                  className="w-full h-full rounded-md"
-                  allowFullScreen
-                />
-              </div>
-            );
-          }
-        }
-      }
-      return <p>{paragraph.children}</p>;
-    },
+
+    code: ({ node, inline, className, children, ...props }) =>
+      inline ? (
+        <code className={cn("rounded bg-muted px-1 py-0.5 text-sm", className)} {...props}>
+          {children}
+        </code>
+      ) : (
+        <code className={cn("block", className)} {...props}>
+          {children}
+        </code>
+      ),
+
+    img: ({ src, alt }) => (
+      <div className="w-full max-w-full overflow-x-auto md:overflow-x-visible">
+        <img
+          src={src ?? ""}
+          alt={alt ?? ""}
+          className="max-w-full h-auto rounded-md"
+        />
+      </div>
+    ),
   }}
 >
   {pages[currentPage]}
@@ -1076,3 +1100,4 @@ export default function NoteGeneratorPageWrapper() {
     
 
     
+
