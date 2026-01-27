@@ -24,21 +24,8 @@
     --input: 0 0% 89.8%;
     --ring: 231 48% 48%;
     --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 231 48% 48%;
   }
- 
+
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
@@ -59,22 +46,9 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 231 48% 48%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 10% 3.9%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 231 48% 48%;
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
@@ -85,48 +59,52 @@
   }
 }
 
+/* =========================================
+   AI-GENERATED CONTENT SAFETY (IMPORTANT)
+   ========================================= */
+
 @layer utilities {
+  /* Smooth horizontal scrolling */
   .overflow-x-auto {
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-  }
-
-  /* Custom scrollbar styling */
-  .overflow-x-auto::-webkit-scrollbar {
-    height: 8px;
-    width: 8px;
-  }
-
-  .overflow-x-auto::-webkit-scrollbar-track {
-    background: hsl(var(--muted));
-    border-radius: 4px;
-  }
-
-  .overflow-x-auto::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.5);
-    border-radius: 4px;
-  }
-
-  .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.7);
-  }
-
-  /* Add responsive styles for AI-generated content */
-  .prose table {
-    @apply block w-full;
-    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
+  /* Code blocks */
   .prose pre {
-    @apply max-w-full;
+    max-width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
+    white-space: pre;
+    word-wrap: normal;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* ============================================
-     PRINT STYLES (Optional)
-     ============================================ */
-  
+  .prose code {
+    word-break: break-word;
+  }
+
+  /* Tables */
+  .prose table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    border-collapse: collapse;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .prose thead,
+  .prose tbody {
+    width: max-content;
+  }
+
+  /* Prevent layout break */
+  .prose img,
+  .prose iframe {
+    max-width: 100%;
+  }
+
+  /* Print safety */
   @media print {
     .overflow-x-auto {
       overflow-x: visible !important;
