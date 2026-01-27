@@ -77,7 +77,14 @@ type StudySpace = {
 
 type ViewState = 'list' | 'create' | 'edit';
 
-const mockStudySpaces: Omit<StudySpace, 'sources' | 'generatedContent'> & { sourceCount: number }[] = [
+type MockStudySpace = {
+  id: number;
+  name: string;
+  description: string;
+  sourceCount: number;
+};
+
+const mockStudySpaces: MockStudySpace[] = [
     { id: 1, name: "WASSCE Core Maths Prep", description: "All topics for the WASSCE core mathematics exam.", sourceCount: 12 },
     { id: 2, name: "Ghanaian History 1800-1957", description: "From the Ashanti Empire to Independence.", sourceCount: 7 },
     { id: 3, name: "Final Year Project - AI Tutors", description: "Research and resources for my final project on AI in education.", sourceCount: 23 },
@@ -96,7 +103,7 @@ export default function StudySpacesPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   
   const [selectedStudySpace, setSelectedStudySpace] = useState<StudySpace | null>(null);
-  const [studySpaces, setStudySpaces] = useState<StudySpace[]>(mockStudySpaces.map(s => ({...s, sources: []})));
+  const [studySpaces, setStudySpaces] = useState<StudySpace[]>(mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], generatedContent: {} })));
   const [visibleCount, setVisibleCount] = useState(5);
 
   const [isAddSourcesOpen, setIsAddSourcesOpen] = useState(false);
@@ -276,25 +283,40 @@ export default function StudySpacesPage() {
     setIsGenerating(type);
     setActiveGeneratedView(null);
 
-    const generationMap = {
-      'flashcards': generateFlashcards,
-      'quiz': generateQuiz,
-      'deck': generateSlideDeck,
-      'podcast': generatePodcastFromSources,
-    };
-
     try {
-      const generator = generationMap[type];
-      const result = await generator({
-        context: 'study-space',
-        sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type }))
-      });
+      let result;
+      if (type === 'podcast') {
+        const urls = selectedStudySpace.sources
+            .map(s => s.url)
+            .filter((url): url is string => !!url);
+        
+        if (urls.length === 0) {
+            toast({ variant: 'destructive', title: 'No URL Sources', description: 'Podcast generation requires at least one URL source (Website or YouTube).' });
+            setIsGenerating(null);
+            return;
+        }
+        result = await generatePodcastFromSources({ sources: urls });
+
+      } else {
+        const generationMap: {
+            [K in 'flashcards' | 'quiz' | 'deck']: (input: any) => Promise<any>
+        } = {
+            'flashcards': generateFlashcards,
+            'quiz': generateQuiz,
+            'deck': generateSlideDeck,
+        };
+        const generator = generationMap[type];
+        const input = {
+            context: 'study-space',
+            sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
+        };
+        result = await generator(input);
+      }
       
       setSelectedStudySpace(currentSpace => {
           if (!currentSpace) return null;
 
           const newGeneratedContent = { ...(currentSpace.generatedContent || {}), [type]: result };
-
           const updatedSpace = { ...currentSpace, generatedContent: newGeneratedContent };
 
           if (type !== 'quiz') {

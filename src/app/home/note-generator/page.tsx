@@ -17,11 +17,11 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { generateStudyNotes, GenerateStudyNotesOutput } from "@/ai/flows/generate-study-notes";
+import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput } from "@/ai/flows/generate-study-notes";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
-import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
-import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2 } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
-import { Form, FormControl, FormItem, FormLabel } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
@@ -246,10 +245,12 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
     );
 }
 
+type AcademicLevel = "Beginner" | "Intermediate" | "Expert" | "Secondary" | "Undergraduate" | "Masters" | "PhD";
+
 function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
   const { toast } = useToast();
   const [topic, setTopic] = useState(initialNote?.topic || initialTopic || "");
-  const [academicLevel, setAcademicLevel] = useState(initialNote?.level || "Undergraduate");
+  const [academicLevel, setAcademicLevel] = useState<AcademicLevel>(initialNote?.level as AcademicLevel || "Undergraduate");
   const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -301,7 +302,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   }, [router]);
 
-  const generate = useCallback(async (currentTopic: string, currentLevel: string) => {
+  const generate = useCallback(async (currentTopic: string, currentLevel: AcademicLevel) => {
     if (!currentTopic.trim()) {
         toast({
             variant: "destructive",
@@ -358,7 +359,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setPages(notePages);
         setGeneratedNotes({ notes: noteContent, nextStepsPrompt: initialNote.nextStepsPrompt || ""});
         setTopic(initialNote.topic);
-        setAcademicLevel(initialNote.level);
+        setAcademicLevel(initialNote.level as AcademicLevel);
         setGeneratedContent(initialNote.generatedContent || {});
         setCurrentPage(0);
     }
@@ -477,7 +478,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1">
+                <CardContent className="flex-1 overflow-x-auto">
                     <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
                         <div className="overflow-x-auto">
                             <ReactMarkdown 
@@ -485,10 +486,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                 components={{
                                     p: (paragraph) => {
                                         const { node } = paragraph;
-                                        if (node.children.length === 1 && node.children[0].tagName === 'a') {
-                                            const link = node.children[0] as any;
-                                            if (link && link.properties) {
-                                                const url = link.properties.href || '';
+                                        if (node && node.children.length === 1) {
+                                            const child = node.children[0];
+                                            if ('tagName' in child && child.tagName === 'a') {
+                                                const url = child.properties?.href || '';
                                                 const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
                                                 if (youtubeMatch && youtubeMatch[1]) {
                                                     const videoId = youtubeMatch[1];
@@ -522,7 +523,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             <Card className="mt-8">
               <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
-                  <CardDescription>{generatedNotes.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
+                  <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-4">
                   {nextStepActions.map(item => (
@@ -556,10 +557,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   </CardContent>
               </Card>
             )}
-
-            <div className="mt-8 flex flex-col items-center gap-2 sm:flex-row sm:justify-end">
-                <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
-                <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
+            
+            <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-end">
+                <Button variant="ghost" onClick={handleGenerateAnother} className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
+                <Button onClick={() => setIsChatOpen(true)} className="w-full sm:w-auto"><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
         </>
     );
@@ -595,7 +596,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                               className="h-12 text-base"
                               onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
                           />
-                          <Select value={academicLevel} onValueChange={setAcademicLevel}>
+                          <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
                               <SelectTrigger className="h-12 text-base">
                               <SelectValue placeholder="Select a level" />
                               </SelectTrigger>
@@ -1036,8 +1037,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
-    
-
-    
-
