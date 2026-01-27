@@ -478,33 +478,35 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                     <CardDescription>Academic Level: {academicLevel}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1">
-                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto overflow-x-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
-                        <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                                p: (paragraph) => {
-                                    const { node } = paragraph;
-                                    if (node.children.length === 1 && node.children[0].tagName === 'a') {
-                                        const link = node.children[0] as any;
-                                        if (link && link.properties) {
-                                            const url = link.properties.href || '';
-                                            const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                            if (youtubeMatch && youtubeMatch[1]) {
-                                                const videoId = youtubeMatch[1];
-                                                return (
-                                                    <div className="my-4 aspect-video">
-                                                        <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
-                                                    </div>
-                                                );
+                    <div className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4 md:p-6 bg-secondary/30 min-h-[50vh]">
+                        <div className="overflow-x-auto">
+                            <ReactMarkdown 
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    p: (paragraph) => {
+                                        const { node } = paragraph;
+                                        if (node.children.length === 1 && node.children[0].tagName === 'a') {
+                                            const link = node.children[0] as any;
+                                            if (link && link.properties) {
+                                                const url = link.properties.href || '';
+                                                const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                                if (youtubeMatch && youtubeMatch[1]) {
+                                                    const videoId = youtubeMatch[1];
+                                                    return (
+                                                        <div className="my-4 aspect-video">
+                                                            <iframe src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Embedded YouTube video" className="w-full h-full rounded-md"></iframe>
+                                                        </div>
+                                                    );
+                                                }
                                             }
                                         }
-                                    }
-                                    return <p>{paragraph.children}</p>;
-                                },
-                            }}
-                        >
-                            {pages[currentPage]}
-                        </ReactMarkdown>
+                                        return <p>{paragraph.children}</p>;
+                                    },
+                                }}
+                            >
+                                {pages[currentPage]}
+                            </ReactMarkdown>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -1038,3 +1040,4 @@ export default function NoteGeneratorPageWrapper() {
     
 
     
+

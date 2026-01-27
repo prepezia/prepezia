@@ -84,3 +84,29 @@
     min-height: 100vh;
   }
 }
+
+@layer utilities {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  /* Custom scrollbar styling */
+  .overflow-x-auto::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .overflow-x-auto::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  .overflow-x-auto::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.5);
+    border-radius: 4px;
+  }
+
+  .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.7);
+  }
+}
