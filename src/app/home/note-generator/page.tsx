@@ -340,8 +340,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     if (initialTopic && !initialNote) {
         generate(initialTopic, academicLevel);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTopic, initialNote]);
+  }, [initialTopic, initialNote, generate, academicLevel]);
 
   useEffect(() => {
     if (generatedNotes?.notes) {
@@ -483,8 +482,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                         <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                             components={{
-                                table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
-                                pre: ({node, ...props}) => <div className="overflow-x-auto my-4 bg-white dark:bg-black rounded p-2"><pre {...props} /></div>,
+                                table: ({node, ...props}) => <div className="w-full overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
+                                pre: ({node, ...props}) => <div className="w-full overflow-x-auto my-4 bg-white dark:bg-black rounded p-2"><pre {...props} /></div>,
                                 p: (paragraph) => {
                                     const { node } = paragraph;
                                     if (node.children.length === 1 && node.children[0].tagName === 'a') {
@@ -558,7 +557,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </Card>
             )}
 
-            <div className="mt-8 flex justify-center gap-2 sm:justify-end">
+            <div className="mt-8 flex flex-col items-center gap-2 sm:flex-row sm:justify-end">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
                 <Button onClick={() => setIsChatOpen(true)}><MessageCircle className="mr-2 h-4 w-4"/> AI Deep Dive</Button>
             </div>
@@ -569,19 +568,19 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   return (
     <>
       <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>} />
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 relative">
+      <div className="flex-1 overflow-y-auto space-y-8 relative">
           {isLoading ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-4">
                   <Loader2 className="h-10 w-10 animate-spin text-primary"/>
                   <p className="text-muted-foreground text-lg">Generating notes for "{topic}"...</p>
                   <p className="text-sm text-muted-foreground">This may take a moment.</p>
               </div>
           ) : generatedNotes ? (
-              <div className="max-w-4xl mx-auto pb-20 px-4 md:px-6">
+              <div className="max-w-4xl mx-auto pb-20 px-4 sm:px-6 lg:px-8">
                 {renderContent()}
               </div>
           ) : (
-              <div className="max-w-2xl mx-auto space-y-4 text-center py-10">
+              <div className="max-w-2xl mx-auto space-y-4 text-center py-10 px-4 sm:px-6 lg:px-8">
                   <h1 className="text-3xl font-headline font-bold">Generate New Study Notes</h1>
                   <p className="text-muted-foreground">Enter any topic and select the academic level to get started.</p>
                   <div className="space-y-4 pt-4">
@@ -623,7 +622,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
       {generatedNotes && (
           <>
-            <div className="fixed bottom-[150px] right-6 z-50 md:bottom-24">
+            <div className="fixed bottom-[80px] right-6 z-50 md:bottom-24">
                 <Button size="icon" className="rounded-full h-14 w-14 shadow-lg" onClick={() => setIsChatOpen(true)}>
                     <MessageCircle className="h-7 w-7"/>
                     <span className="sr-only">AI Deep Dive</span>
@@ -1031,5 +1030,7 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
 
     
