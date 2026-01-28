@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -40,7 +41,7 @@ export async function searchWebForSources(input: SearchWebForSourcesInput): Prom
 
   Search Query: {{{query}}}
 
-  Please find 3-5 relevant resources (articles, videos, documentation, etc.). For each resource, provide a title, a valid URL, and a concise snippet.
+  Please find 5-10 relevant resources (articles, videos, documentation, etc.). For each resource, provide a title, a valid URL, and a concise snippet.
   **IMPORTANT: You MUST ensure the URLs are real, active, and lead directly to the relevant content. Do not invent, guess, or provide broken links.**
   `,
     });
