@@ -103,6 +103,16 @@
   .prose iframe {
     max-width: 100%;
   }
+  
+  /* Improve content readability */
+  .prose p,
+  .prose ul,
+  .prose ol,
+  .prose table,
+  .prose pre,
+  .prose blockquote {
+    @apply my-4;
+  }
 
   /* Print safety */
   @media print {
