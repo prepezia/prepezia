@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -306,11 +307,18 @@ export default function StudySpacesPage() {
             'deck': generateSlideDeck,
         };
         const generator = generationMap[type];
-        const input = {
+        const input: GenerateFlashcardsInput | GenerateQuizInput | GenerateSlideDeckInput = {
             context: 'study-space',
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
         };
-        result = await generator(input);
+        const rawResult = await generator(input);
+        if (type === 'flashcards') {
+            result = (rawResult as GenerateFlashcardsOutput).flashcards;
+        } else if (type === 'quiz') {
+            result = (rawResult as GenerateQuizOutput).quiz;
+        } else {
+            result = rawResult;
+        }
       }
       
       setSelectedStudySpace(currentSpace => {
@@ -1265,3 +1273,6 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         </Dialog>
     )
 }
+
+
+    
