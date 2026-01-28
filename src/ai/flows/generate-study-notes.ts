@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { searchWebForSources } from './search-web-for-sources';
 
 const GenerateStudyNotesInputSchema = z.object({
   topic: z.string().describe('The topic for which to generate study notes.'),
@@ -44,7 +45,7 @@ export async function generateStudyNotes(
   The academic level is: {{{academicLevel}}}.
 
   ### Content Requirements:
-  1.  **Well-Structured Text:** Use clear headings, subheadings, bullet points, and bold text to organize the information logically. Ensure good spacing between sections for readability.
+  1.  **Well-Structured Text:** Use clear headings, subheadings, bullet points, and bold text to organize the information logically. Ensure good spacing between sections for readability. Do NOT include any links or URLs in this section.
   2.  **Mandatory Page Breaks:** You MUST break up long content into multiple pages for readability. To do this, insert a horizontal rule (\`---\`) on its own line to indicate a page break. Use this to separate major sections or after every few paragraphs. All generated notes MUST contain at least one page break.
   3.  **Data Tables:** Where appropriate, use Markdown tables to present data or comparisons.
   4.  **Chemical Equations:** Ensure all chemical equations are correctly formatted, using subscripts and superscripts where necessary (e.g., H₂O).
@@ -58,9 +59,39 @@ export async function generateStudyNotes(
         inputSchema: GenerateStudyNotesInputSchema,
         outputSchema: GenerateStudyNotesOutputSchema,
       },
-      async input => {
-        const {output} = await generateStudyNotesPrompt(input);
-        return output!;
+      async (input: GenerateStudyNotesInput) => {
+        // Step 1: Generate the main notes content without links.
+        const {output: notesResult} = await generateStudyNotesPrompt(input);
+        if (!notesResult) {
+            throw new Error("Failed to generate study notes text.");
+        }
+
+        let finalNotes = notesResult.notes;
+        
+        // Step 2: Use the reliable search flow to get verified links.
+        try {
+            const webResults = await searchWebForSources({ 
+                query: `${input.topic} ${input.academicLevel} resources`
+            });
+            
+            // Step 3: Append the links to the notes.
+            if (webResults && webResults.results.length > 0) {
+                const resourcesHeader = "\n\n---\n\n## Additional Resources";
+                const linksMarkdown = webResults.results
+                    .map(result => `\n### [${result.title}](${result.url})\n*${result.snippet}*`)
+                    .join("\n");
+                
+                finalNotes += resourcesHeader + linksMarkdown;
+            }
+        } catch (searchError) {
+            console.error("Could not fetch additional resources:", searchError);
+            // Fail silently - we still have the main notes content.
+        }
+
+        return {
+            notes: finalNotes,
+            nextStepsPrompt: notesResult.nextStepsPrompt,
+        };
       }
     );
   }
