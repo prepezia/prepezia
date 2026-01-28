@@ -483,22 +483,20 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                 <div
   className="
     flex-1
-    min-w-0
-    overflow-y-auto
-    overflow-x-hidden
+    min-h-0
+    w-full
+    max-w-0
+    min-w-full
+    overflow-x-auto
+    md:overflow-x-visible
+    overflow-y-hidden
     rounded-md
     border
     p-4
     md:p-6
     bg-secondary/30
   "
-  style={{
-    maxHeight: "calc(100vh - 220px)"
-  }}
 >
-
-
-
                             <div className="prose dark:prose-invert max-w-none">
                             <ReactMarkdown
   remarkPlugins={[remarkGfm]}
