@@ -22,3 +22,4 @@ import '@/ai/flows/admissions-chat.ts';
 import '@/ai/flows/generate-flashcards.ts';
 import '@/ai/flows/generate-quiz.ts';
 import '@/ai/flows/generate-slide-deck.ts';
+import '@/ai/flows/generate-summary-from-sources.ts';
