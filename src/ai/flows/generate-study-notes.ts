@@ -48,12 +48,8 @@ export async function generateStudyNotes(
   2.  **Mandatory Page Breaks:** You MUST break up long content into multiple pages for readability. To do this, insert a horizontal rule (\`---\`) on its own line to indicate a page break. Use this to separate major sections or after every few paragraphs. All generated notes MUST contain at least one page break.
   3.  **Data Tables:** Where appropriate, use Markdown tables to present data or comparisons.
   4.  **Chemical Equations:** Ensure all chemical equations are correctly formatted, using subscripts and superscripts where necessary (e.g., H₂O).
-  5.  **Visuals & Videos:**
-      *   Include links to relevant infographics or high-quality graphics to illustrate concepts.
-      *   Embed links to relevant YouTube videos for visual explanations.
-      *   **IMPORTANT: You MUST ensure all links are active, valid, and lead to publicly accessible content. Do not invent URLs.**
-  6.  **Accuracy and Clarity:** The notes must be accurate, easy to understand, and tailored to the selected academic level.
-  7.  **Next Steps**: After generating the notes, formulate a question for the user about what they would like to do next. For example: "Would you like me to generate flashcards, a quiz, or a slide deck from these notes?" and place it in the 'nextStepsPrompt' field.`,
+  5.  **Accuracy and Clarity:** The notes must be accurate, easy to understand, and tailored to the selected academic level.
+  6.  **Next Steps**: After generating the notes, formulate a question for the user about what they would like to do next. For example: "Would you like me to generate flashcards, a quiz, or a slide deck from these notes?" and place it in the 'nextStepsPrompt' field.`,
     });
 
     generateStudyNotesFlow = ai.defineFlow(
