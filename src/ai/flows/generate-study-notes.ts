@@ -76,7 +76,7 @@ export async function generateStudyNotes(
             
             // Step 3: Append the links to the notes.
             if (webResults && webResults.results.length > 0) {
-                const resourcesHeader = "\n\n---\n\n## Additional Resources";
+                const resourcesHeader = "\n\n---\n\n# Additional Resources";
                 const linksMarkdown = webResults.results
                     .map(result => `\n### [${result.title}](${result.url})\n*${result.snippet}*`)
                     .join("\n");
