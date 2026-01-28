@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useCallback, useRef } from "react";
+import React, { useState, useEffect, Suspense, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -247,6 +247,14 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
 }
 
 type AcademicLevel = "Beginner" | "Intermediate" | "Expert" | "Secondary" | "Undergraduate" | "Masters" | "PhD";
+
+// Helper function to extract YouTube video ID
+const getYoutubeVideoId = (url: string): string | null => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+};
 
 function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
   const { toast } = useToast();
@@ -541,16 +549,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       </div>
     ),
 
-    code: ({ node, inline, className, children, ...props }) =>
-      inline ? (
-        <code className={cn("rounded bg-muted px-1 py-0.5 text-sm", className)} {...props}>
-          {children}
-        </code>
-      ) : (
-        <code className={cn("block", className)} {...props}>
-          {children}
-        </code>
-      ),
+    code: ({ node, ...props }) => <code {...props} />,
 
     img: ({ src, alt }) => (
       <div className="w-full max-w-full overflow-x-auto md:overflow-x-visible">
@@ -561,6 +560,55 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         />
       </div>
     ),
+    p: ({node, children}) => {
+        const elements: React.ReactNode[] = [];
+        let textBuffer: React.ReactNode[] = [];
+
+        const flushTextBuffer = () => {
+            if (textBuffer.length > 0) {
+                elements.push(<p key={`text-${elements.length}`}>{textBuffer}</p>);
+                textBuffer = [];
+            }
+        };
+
+        React.Children.forEach(children, (child) => {
+            if (typeof child === 'string') {
+                const parts = child.split(/(https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+|https?:\/\/youtu\.be\/[\w-]+)/g);
+                parts.forEach((part) => {
+                    const videoId = getYoutubeVideoId(part);
+                    if (videoId) {
+                        flushTextBuffer();
+                        elements.push(
+                            <div key={`video-${elements.length}`} className="my-6 aspect-video w-full max-w-full overflow-hidden rounded-lg border">
+                                <iframe src={`https://www.youtube.com/embed/${videoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full" />
+                            </div>
+                        );
+                    } else if (part) {
+                        textBuffer.push(part);
+                    }
+                });
+            } else if (React.isValidElement(child) && child.type === 'a') {
+                const href = (child.props as any).href;
+                const videoId = getYoutubeVideoId(href);
+
+                if (videoId) {
+                    flushTextBuffer();
+                    elements.push(
+                         <div key={`video-${elements.length}`} className="my-6 aspect-video w-full max-w-full overflow-hidden rounded-lg border">
+                            <iframe src={`https://www.youtube.com/embed/${videoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full" />
+                        </div>
+                    );
+                } else {
+                    textBuffer.push(React.cloneElement(child, { target: '_blank', rel: 'noopener noreferrer' }));
+                }
+            } else {
+                textBuffer.push(child);
+            }
+        });
+
+        flushTextBuffer();
+        return <>{elements}</>;
+    },
   }}
 >
   {pages[currentPage]}
@@ -1098,4 +1146,5 @@ export default function NoteGeneratorPageWrapper() {
     
 
     
+
 

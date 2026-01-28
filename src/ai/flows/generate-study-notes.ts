@@ -50,7 +50,8 @@ export async function generateStudyNotes(
   4.  **Chemical Equations:** Ensure all chemical equations are correctly formatted, using subscripts and superscripts where necessary (e.g., H₂O).
   5.  **Visuals & Videos:**
       *   Include links to relevant infographics or high-quality graphics to illustrate concepts.
-      *   Embed links to relevant YouTube videos for visual explanations. Provide standard YouTube video URLs.
+      *   Embed links to relevant YouTube videos for visual explanations.
+      *   **IMPORTANT: You MUST ensure all links are active, valid, and lead to publicly accessible content. Do not invent URLs.**
   6.  **Accuracy and Clarity:** The notes must be accurate, easy to understand, and tailored to the selected academic level.
   7.  **Next Steps**: After generating the notes, formulate a question for the user about what they would like to do next. For example: "Would you like me to generate flashcards, a quiz, or a slide deck from these notes?" and place it in the 'nextStepsPrompt' field.`,
     });
