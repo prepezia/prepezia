@@ -37,7 +37,7 @@ export async function searchWebForSources(input: SearchWebForSourcesInput): Prom
       model: 'googleai/gemini-2.5-flash',
       input: {schema: SearchWebForSourcesInputSchema},
       output: {schema: SearchWebForSourcesOutputSchema},
-      prompt: `You are an expert research assistant. Your task is to find relevant and high-quality online resources for a given topic.
+      prompt: `You are an expert research assistant. Your task is to find relevant and high-quality online resources for a given topic. Where possible, prioritize including at least one or two relevant YouTube video resources.
 
   Search Query: {{{query}}}
 

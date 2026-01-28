@@ -64,6 +64,10 @@
    ========================================= */
 
 @layer utilities {
+  .prose a {
+    @apply text-primary hover:underline;
+  }
+  
   /* Smooth horizontal scrolling */
   .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
