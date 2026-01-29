@@ -30,8 +30,9 @@ const GenerateInfographicOutputSchema = z.object({
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
 /**
- * STRATEGY: NotebookLM Style requires structured text blocks.
- * We use Gemini 2.5 Flash to create a "Visual Blueprint" first.
+ * STRATEGY: To improve text legibility, we use a two-step process.
+ * 1. An LLM creates a "Visual Blueprint" with extremely simple text.
+ * 2. This blueprint is used to construct a highly-structured prompt for an image model.
  */
 const infographicSummaryPrompt = ai.definePrompt({
     name: 'infographicSummaryPrompt',
@@ -42,14 +43,14 @@ const infographicSummaryPrompt = ai.definePrompt({
             title: z.string(),
             layout: z.enum(['Vertical List', 'Z-Pattern', 'Grid']),
             modules: z.array(z.object({
-                header: z.string().describe("3-word max bold title"),
-                body: z.string().describe("One very short simple sentence explanation"),
-                icon: z.string().describe("Simple object to represent this (e.g. 'a lightbulb')")
-            })).max(4) // Limiting to 4 modules ensures the text is large enough to be legible
+                header: z.string().describe("A 2-3 word bold title for a module."),
+                body: z.string().describe("A 5-word maximum phrase for the body. This is NOT a full sentence."),
+                icon: z.string().describe("A simple, single object to represent this module (e.g. 'a lightbulb', 'a human kidney').")
+            })).max(4)
         }) 
     },
     prompt: `
-        You are a Professional Educational Illustrator. Your task is to extract the core logic from the source material and design a "NotebookLM-style" infographic layout.
+        You are a Professional Educational Illustrator. Your task is to extract the core logic from the source material and design a "Visual Blueprint" for a simple infographic.
 
         ### SOURCE CONTENT:
         {{#if content}}
@@ -61,9 +62,12 @@ const infographicSummaryPrompt = ai.definePrompt({
         {{/if}}
 
         INSTRUCTIONS:
-        1. Summarize the topic into 4 distinct, logical modules.
-        2. For each module, provide a bold Header and a 1-sentence Explanation.
-        3. Ensure the text is simple enough for an image model to render correctly.
+        1. Summarize the topic into 3 or 4 distinct, logical modules.
+        2. For each module, provide:
+            *   **header**: A 2-3 word bold title.
+            *   **body**: A very short phrase (max 5 words). This must NOT be a full sentence.
+            *   **icon**: A simple, single object for an icon (e.g., 'a human kidney').
+        3. The text MUST be extremely simple and short to ensure an image model can render it legibly.
     `,
 });
 
@@ -83,32 +87,33 @@ async input => {
     const topic = input.topic || blueprint.title;
 
     /**
-     * THE NOTEBOOKLM PROMPT:
-     * - Uses 2D Flat Vector style (prevents 3D distortion).
-     * - Enforces horizontal text.
-     * - Uses white space for professional clarity.
+     * THE NOTEBOOKLM PROMPT (REVISED FOR LEGIBILITY):
+     * - Uses a modular structure to describe each section individually.
+     * - Enforces 2D Flat Vector style and horizontal text.
+     * - Specifies high-contrast colors and generous white space.
      */
     const imagePrompt = `
-        A professional, educational infographic in **Flat Design 2D style**.
+        A professional, educational infographic in a **Flat Design 2D vector style**.
         Topic: "${topic}".
+        The infographic must have a stark white background (#FFFFFF).
         
-        LAYOUT: A clean ${blueprint.layout} on a stark white background (#FFFFFF).
-        
-        STRUCTURE:
-        The image must contain 4 distinct, evenly spaced horizontal modules. 
-        Each module must feature:
-        1. A simple, flat vector icon: ${blueprint.modules.map(m => m.icon).join(", ")}.
-        2. A BOLD HEADER: ${blueprint.modules.map(m => `"${m.header.toUpperCase()}"`).join(", ")}.
-        3. A SHORT EXPLANATION: ${blueprint.modules.map(m => `"${m.body}"`).join(", ")}.
+        The image must contain these ${blueprint.modules.length} distinct, evenly spaced horizontal modules in a clean ${blueprint.layout}:
+
+        ${blueprint.modules.map((m, i) => `
+        Module ${i + 1}:
+        - Icon: A simple, flat vector icon of: ${m.icon}.
+        - Header Text: The BOLD, sans-serif text "${m.header.toUpperCase()}".
+        - Body Text: The smaller, sans-serif text "${m.body}".
+        `).join('\n')}
 
         AESTHETIC RULES:
-        - All text must be rendered in a clean, legible sans-serif font.
-        - Text must be horizontal (no 3D angles).
+        - All text must be perfectly legible, horizontal, and clean. NO distorted or angled text.
         - Use high contrast: Dark charcoal (#333333) text on the white background.
-        - Primary accent colors: Royal Blue and Slate.
-        - NO 3D, NO gradients, NO shadows. Minimalist and spacious.
+        - Use Royal Blue and Slate for minimal color accents on icons only.
+        - ABSOLUTELY NO 3D, NO gradients, NO shadows. The design must be flat and minimalist.
+        - Leave generous white space between modules.
         
-        Branding: A tiny 'Learn with Temi' text label in the bottom corner.
+        Include a tiny 'Learn with Temi' text label in the bottom right corner.
     `;
 
     // 2. Generate the image using the highly structured prompt
