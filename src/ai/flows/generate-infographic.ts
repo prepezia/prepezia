@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow to generate an infographic from content.
@@ -33,14 +34,12 @@ const GenerateInfographicOutputSchema = z.object({
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
-// This is a simplified summary prompt. The full content might be too large.
-// Let's first generate a summary, then generate an infographic from the summary.
 const infographicSummaryPrompt = ai.definePrompt({
     name: 'infographicSummaryPrompt',
     model: 'googleai/gemini-2.5-flash',
     input: { schema: GenerateInfographicInputSchema },
-    output: { schema: z.object({ summary: z.string().describe("A concise summary of the key points, formatted as a list of 5-7 bullet points. Each point should be a short phrase or sentence suitable for an infographic.") }) },
-    prompt: `You are an expert at distilling complex information into key points for an infographic. Based on the source content below, extract the 5 to 7 most important facts, concepts, or data points. Present them as a bulleted list.
+    output: { schema: z.object({ summary: z.string().describe("A concise summary of the key points, formatted as a list of 5-7 very short, actionable phrases or keywords suitable for an infographic.") }) },
+    prompt: `You are an expert at distilling complex information into key points for an infographic. Based on the source content below, extract the 5 to 7 most important facts, concepts, or data points. Present them as a bulleted list of short phrases.
 
 ### SOURCE CONTENT:
 \`\`\`
@@ -71,10 +70,20 @@ const generateInfographicFlow = ai.defineFlow({
     const topic = input.topic || "the provided content";
 
     // 2. Create a detailed prompt for the image generation model
-    const imagePrompt = `A visually appealing, professional infographic about "${topic}". The style should be modern, clean, and educational, using a color palette of deep blue, purple, and light gray. The infographic must visually represent these key points:
+    const imagePrompt = `An ultra-high-quality, professional infographic with a **clean white background**. The style must be modern, minimalist, and use a flat design aesthetic.
+
+The infographic is about: **"${topic}"**.
+
+The infographic must visually represent the following key points using clear icons, simple charts, and diagrams. **Do NOT write full sentences on the image. Use minimal, legible keywords only if absolutely necessary.**
+
+Key Points to Visualize:
 ${summaryOutput.summary}
 
-Use clear icons, charts, and diagrams to illustrate each point. The text should be legible and minimal. The overall layout should be balanced and easy to follow.`;
+Color Palette: Use a professional color scheme with the white background. Use deep blue (#3F51B5) and purple (#9C27B0) as accent colors. Text should be dark gray.
+
+Branding: Place a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
+
+The overall layout must be balanced, uncluttered, and easy to follow.`;
     
     // 3. Generate the image
     const { media } = await ai.generate({
