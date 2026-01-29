@@ -32,7 +32,7 @@ const CitationSchema = z.object({
 });
 
 const InteractiveChatWithSourcesOutputSchema = z.object({
-  answer: z.string().describe("The AI's answer, with citations in the format [1], [2], etc."),
+  answer: z.string().describe("The AI's answer, with citations in the format [0], [1], etc."),
   citations: z.array(CitationSchema).describe("An array of citations corresponding to the markers in the answer."),
 });
 export type InteractiveChatWithSourcesOutput = z.infer<typeof InteractiveChatWithSourcesOutputSchema>;
@@ -46,17 +46,22 @@ export async function interactiveChatWithSources(input: InteractiveChatWithSourc
       model: 'googleai/gemini-2.5-flash',
       input: {schema: InteractiveChatWithSourcesInputSchema},
       output: {schema: InteractiveChatWithSourcesOutputSchema},
-      prompt: `You are TEMI, an expert AI research assistant. Your task is to answer the user's question based *only* on the provided sources.
+      prompt: `You are TEMI, an expert AI research assistant. Your task is to answer the user's question based *only* on the provided sources. You must be extremely precise and follow all rules exactly.
 
 ### Instructions:
-1.  Read the user's question and all the provided sources carefully.
-2.  Formulate a comprehensive answer to the question.
-3.  As you write your answer, you MUST cite the information you use. To do this, insert a citation marker like \`[1]\`, \`[2]\`, etc., directly after the sentence or phrase that comes from a source.
-4.  Each citation marker must contain only a single number (e.g., use \`[3]\`, not \`[2,6,7]\`).
-5.  After the main answer, you will provide a "citations" array. Each object in the array corresponds to a marker in your answer text.
-6.  Each citation object must contain:
-    *   \`sourceIndex\`: The 0-based index of the source from the list below.
-    *   \`text\`: The exact, verbatim quote from the source that backs up your statement.
+1.  **Read and Understand:** Read the user's question and all the provided sources carefully.
+2.  **Formulate Answer:** Formulate a comprehensive, paragraph-based answer to the question.
+3.  **Cite Precisely:** As you write your answer, you MUST cite the information you use.
+    *   To do this, place a citation marker like \`[0]\`, \`[1]\`, etc., *directly* after the specific sentence or phrase that is supported by a source.
+    *   **CRITICAL RULE:** The number inside the marker \`[#]\` MUST correspond to the 0-based index of the citation object in the \`citations\` array you provide. For example, \`[0]\` refers to the first object, \`[1]\` to the second, and so on.
+    *   **CRITICAL RULE:** Your final answer text MUST NOT contain any other bracketed text or multi-number citations (e.g., \`[6, 7]\`).
+4.  **Build Citations Array:** After writing the answer, provide a "citations" array. Each object in this array corresponds to a numbered marker in your answer text.
+5.  **CRITICAL RULE for Citation Content:** Each citation object must contain:
+    *   \`sourceIndex\`: The 0-based index of the source document from the list below.
+    *   \`text\`: The **exact, verbatim quote** from the source document that **directly and specifically supports the information in the sentence you just cited**. Do not use a general quote; find the most relevant one.
+
+### Example:
+If your answer is "Erythropoietin is mainly produced in the kidneys [0].", your \`citations\` array must have its first object (at index 0) containing the exact supporting quote, like "Most EPO is produced by peritubular interstitial cells in the renal cortex."
 
 ### Sources:
 {{#each sources}}
@@ -68,7 +73,7 @@ Content: {{#if dataUri}}{{media url=dataUri contentType=contentType}}{{else if u
 ### User's Question:
 {{{question}}}
 
-Provide your answer and citations now.`, 
+Provide your answer and citations now. Ensure your final answer text is clean and only contains valid, single-number citation markers starting from 0.`, 
     });
 
     interactiveChatWithSourcesFlow = ai.defineFlow(

@@ -280,7 +280,7 @@ export default function StudySpacesPage() {
 
         // For persistence in the main list, we don't save quizzes
         const { quiz, ...contentToSave } = newSpace.generatedContent || {};
-        const spaceToPersist = { ...newSpace, generatedContent: contentToSave as GeneratedContent };
+        const spaceToPersist = { ...newSpace, generatedContent: contentToSave as GeneratedContent, chatHistory: newSpace.chatHistory };
         setStudySpaces(currentSpaces => currentSpaces.map(s => s.id === spaceToPersist.id ? spaceToPersist : s));
         
         return newSpace; // Return the full new space (with quiz if present) for the current view
@@ -310,14 +310,22 @@ export default function StudySpacesPage() {
   };
 
   const parseAnswerWithCitations = (answer: string, citations: any[], sources: Source[]) => {
-    const parts = answer.split(/(\[\d+\])/g);
+    // First, aggressively remove any leftover multi-number citations like [6, 7] or [0, 5, 6, 7].
+    const cleanedAnswer = answer.replace(/\[\d+[, ]\d+.*?\]/g, '');
+
+    const parts = cleanedAnswer.split(/(\[\d+\])/g);
+    
     return parts.map((part, index) => {
         const match = part.match(/\[(\d+)\]/);
         if (match) {
-            const citationIndex = parseInt(match[1], 10) - 1;
+            const citationIndex = parseInt(match[1], 10);
+            
+            // Check if this index is valid for our citations array.
             if (citationIndex >= 0 && citationIndex < citations.length) {
                 const citation = citations[citationIndex];
                 const source = sources[citation.sourceIndex];
+                if (!source) return null; // Safety check if sourceIndex is out of bounds
+
                 return (
                     <Popover key={index}>
                         <PopoverTrigger asChild>
@@ -337,8 +345,9 @@ export default function StudySpacesPage() {
                     </Popover>
                 );
             }
+            return null; // If the citation index is invalid, don't render anything for it.
         }
-        return part.replace(/\[\d+(,\d+)*\]/g, ''); // Remove any leftover non-functional citation markers
+        return part; // This is just plain text.
     });
 };
 
@@ -1400,4 +1409,5 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
