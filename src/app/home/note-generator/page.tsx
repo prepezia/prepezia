@@ -23,7 +23,8 @@ import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sou
 import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2 } from "lucide-react";
+import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -34,12 +35,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import Image from "next/image";
 
 
 type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
+  infographic?: GenerateInfographicOutput;
 };
 
 type RecentNote = {
@@ -188,7 +191,7 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
 
         try {
             const response = await interactiveChatWithSources({
-                sources: [{ type: 'text', dataUri: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(noteContent)))}`, contentType: 'text/plain' }],
+                sources: [{ type: 'text', name: 'Note Content', data: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(noteContent)))}`, contentType: 'text/plain' }],
                 question: currentInput
             });
             const assistantMessage: ChatMessage = { role: 'assistant', content: response.answer };
@@ -270,8 +273,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const generationStarted = useRef(false);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
-  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | null>(null);
-  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck'>('notes');
+  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | 'infographic' | null>(null);
+  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic'>('notes');
 
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
     try {
@@ -462,10 +465,38 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   };
 
+  const handleGenerateInfographic = async () => {
+    if (!generatedNotes) return;
+    setIsGenerating('infographic');
+    try {
+        const result = await generateInfographic({
+            context: 'note-generator',
+            topic: topic,
+            academicLevel: academicLevel,
+            content: generatedNotes.notes,
+        });
+        setGeneratedContent(prev => {
+            const newContent = { ...prev, infographic: result };
+            if (initialNote) {
+                const { quiz, ...contentToSave } = newContent;
+                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+            }
+            return newContent;
+        });
+        setActiveView('infographic');
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to generate infographic', description: e.message });
+    } finally {
+        setIsGenerating(null);
+    }
+  };
+
+
   const nextStepActions = [
       { label: "Flashcards", icon: SquareStack, action: handleGenerateFlashcards, loading: isGenerating === 'flashcards'},
       { label: "Quiz", icon: HelpCircle, action: handleGenerateQuiz, loading: isGenerating === 'quiz'},
       { label: "Slide Deck", icon: Presentation, action: handleGenerateSlideDeck, loading: isGenerating === 'deck'},
+      { label: "Infographic", icon: AreaChart, action: handleGenerateInfographic, loading: isGenerating === 'infographic'},
   ]
 
   const renderContent = () => {
@@ -477,6 +508,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
     if (activeView === 'deck' && generatedContent.deck) {
         return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveView('notes')} />;
+    }
+    if (activeView === 'infographic' && generatedContent.infographic) {
+        return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveView('notes')} topic={topic} />;
     }
 
     // Default to notes view
@@ -642,12 +676,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </CardContent>
             </Card>
 
-            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck) && (
+            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck || generatedContent.infographic) && (
               <Card className="mt-8">
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
                       <CardDescription>
-                          Your generated flashcards and slide decks are saved here. Quizzes are not saved.
+                          Your generated content is saved here. Quizzes are not saved.
                       </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-4">
@@ -659,6 +693,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                       {generatedContent.deck && (
                           <Button variant="secondary" onClick={() => setActiveView('deck')}>
                               <Presentation className="mr-2"/> View Slide Deck
+                          </Button>
+                      )}
+                      {generatedContent.infographic && (
+                          <Button variant="secondary" onClick={() => setActiveView('infographic')}>
+                              <AreaChart className="mr-2"/> View Infographic
                           </Button>
                       )}
                   </CardContent>
@@ -1074,6 +1113,39 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
     );
 }
 
+function InfographicView({ infographic, onBack, topic }: { infographic: GenerateInfographicOutput, onBack: () => void, topic: string }) {
+    const handleDownload = () => {
+        const link = document.createElement('a');
+        link.href = infographic.imageUrl;
+        link.download = `infographic_${topic.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                </div>
+                <CardTitle className="pt-4 flex items-center gap-2"><AreaChart className="text-primary"/> Infographic for "{topic}"</CardTitle>
+                <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-6">
+                <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
+                    <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
+                </div>
+                <details className="w-full max-w-2xl text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">View generation prompt</summary>
+                    <p className="pt-2">{infographic.prompt}</p>
+                </details>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 function NoteGeneratorPage() {
     const router = useRouter();
@@ -1146,5 +1218,6 @@ export default function NoteGeneratorPageWrapper() {
     
 
     
+
 
 

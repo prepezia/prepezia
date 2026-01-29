@@ -27,6 +27,7 @@ import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput }
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
+import { generateInfographic, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
@@ -77,6 +78,7 @@ type GeneratedContent = {
   deck?: GenerateSlideDeckOutput;
   podcast?: { script: string; audio: string };
   summary?: string;
+  infographic?: GenerateInfographicOutput;
 };
 
 type StudySpace = {
@@ -443,14 +445,15 @@ export default function StudySpacesPage() {
 
       } else {
         const generationMap: {
-            [K in 'flashcards' | 'quiz' | 'deck']: (input: any) => Promise<any>
+            [K in 'flashcards' | 'quiz' | 'deck' | 'infographic']: (input: any) => Promise<any>
         } = {
             'flashcards': generateFlashcards,
             'quiz': generateQuiz,
             'deck': generateSlideDeck,
+            'infographic': generateInfographic,
         };
-        const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck'];
-        const input: GenerateFlashcardsInput | GenerateQuizInput | GenerateSlideDeckInput = {
+        const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck' | 'infographic'];
+        const input = {
             context: 'study-space',
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
         };
@@ -508,6 +511,7 @@ export default function StudySpacesPage() {
         { name: "Quiz", icon: HelpCircle, type: "quiz" },
         { name: "Slide Deck", icon: Presentation, type: "deck" },
         { name: "Flashcards", icon: SquareStack, type: "flashcards" },
+        { name: "Infographic", icon: AreaChart, type: "infographic" },
     ];
     
     const renderGeneratedContent = () => {
@@ -523,6 +527,9 @@ export default function StudySpacesPage() {
         }
         if (activeGeneratedView === 'podcast' && generatedContent.podcast) {
             return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveGeneratedView(null)} />
+        }
+        if (activeGeneratedView === 'infographic' && generatedContent.infographic) {
+            return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
         }
         return null;
     }
@@ -723,7 +730,7 @@ export default function StudySpacesPage() {
                                 <CardContent className="space-y-6">
                                     <div>
                                         <h3 className="font-semibold mb-4">Generate New</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                                             {generationOptions.map((option) => (
                                                 <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
                                                     {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
@@ -1357,6 +1364,40 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
     );
 }
 
+function InfographicView({ infographic, onBack, topic }: { infographic: GenerateInfographicOutput, onBack: () => void, topic: string }) {
+    const handleDownload = () => {
+        const link = document.createElement('a');
+        link.href = infographic.imageUrl;
+        link.download = `infographic_${topic.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                </div>
+                <CardTitle className="pt-4 flex items-center gap-2"><AreaChart className="text-primary"/> Infographic for "{topic}"</CardTitle>
+                <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-6">
+                <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
+                    <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
+                </div>
+                <details className="w-full max-w-2xl text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">View generation prompt</summary>
+                    <p className="pt-2">{infographic.prompt}</p>
+                </details>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean; onOpenChange: (open: boolean) => void; onAddSources: (sources: Source[]) => void; }) {
     const [sources, setSources] = useState<Source[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1441,6 +1482,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
