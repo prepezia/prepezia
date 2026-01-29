@@ -673,7 +673,9 @@ export default function StudySpacesPage() {
                                                 ) : (msg.citations && msg.citations.length > 0 && selectedStudySpace) ? (
                                                     <>{parseAnswerWithCitations(msg.content, msg.citations, selectedStudySpace.sources)}</>
                                                 ) : (
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                                    typeof msg.content === 'string'
+                                                        ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                                        : <>{msg.content}</>
                                                 )}
                                             </div>
                                         </div>
@@ -1429,6 +1431,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
