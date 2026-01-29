@@ -104,7 +104,7 @@ export default function StudySpacesPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   
   const [selectedStudySpace, setSelectedStudySpace] = useState<StudySpace | null>(null);
-  const [studySpaces, setStudySpaces] = useState<StudySpace[]>(mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], generatedContent: {} })));
+  const [studySpaces, setStudySpaces] = useState<StudySpace[]>([]);
   const [visibleCount, setVisibleCount] = useState(5);
 
   const [isAddSourcesOpen, setIsAddSourcesOpen] = useState(false);
@@ -117,6 +117,39 @@ export default function StudySpacesPage() {
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
   const [activeGeneratedView, setActiveGeneratedView] = useState<keyof GeneratedContent | null>(null);
+
+  useEffect(() => {
+    try {
+        const savedSpaces = localStorage.getItem('learnwithtemi_study_spaces');
+        if (savedSpaces) {
+            setStudySpaces(JSON.parse(savedSpaces));
+        } else {
+            // First time load: use mock data.
+             const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], generatedContent: {} }));
+            setStudySpaces(initialSpaces);
+        }
+    } catch (error) {
+        console.error("Failed to parse study spaces from localStorage", error);
+        const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], generatedContent: {} }));
+        setStudySpaces(initialSpaces);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+        // Avoid saving the initial empty state before hydration
+        if (studySpaces && studySpaces.length > 0) {
+            localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(studySpaces));
+        }
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "Could not save study spaces",
+            description: "There was an error saving your data locally."
+        });
+        console.error("Failed to save study spaces to localStorage", error);
+    }
+  }, [studySpaces, toast]);
 
 
   useEffect(() => {
@@ -145,6 +178,7 @@ export default function StudySpacesPage() {
         }
     }
     generateSummary();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudySpace]);
 
 
@@ -338,7 +372,7 @@ export default function StudySpacesPage() {
             'quiz': generateQuiz,
             'deck': generateSlideDeck,
         };
-        const generator = generationMap[type];
+        const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck'];
         const input: GenerateFlashcardsInput | GenerateQuizInput | GenerateSlideDeckInput = {
             context: 'study-space',
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
@@ -640,13 +674,13 @@ export default function StudySpacesPage() {
     <>
       <HomeHeader />
       <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-4">
           <div>
               <h1 className="text-3xl font-headline font-bold">Study Spaces</h1>
-              <p className="text-muted-foreground mt-1">Create your personal knowledge hub.</p>
+              <p className="text-muted-foreground mt-1 text-balance">Create your personal knowledge hub.</p>
           </div>
-          <Button onClick={handleShowCreateView}>
-              + Create New
+          <Button onClick={handleShowCreateView} className="shrink-0">
+              <Plus className="mr-2 h-4 w-4" /> Create New
           </Button>
         </div>
         <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
