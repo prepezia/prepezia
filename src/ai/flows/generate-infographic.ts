@@ -1,14 +1,8 @@
 
 'use server';
-/**
- * @fileOverview A flow to generate an infographic from content.
- * - generateInfographic - A function that handles infographic generation.
- * - GenerateInfographicInput - The input type.
- * - GenerateInfographicOutput - The return type.
- */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
 
 const SourceSchema = z.object({
     type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
@@ -19,89 +13,120 @@ const SourceSchema = z.object({
 });
 
 const GenerateInfographicInputSchema = z.object({
-  context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
-  topic: z.string().optional().describe("The topic of the content (used in 'note-generator' context)."),
-  academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
-  content: z.string().optional().describe("The source text content (for note generation)."),
-  sources: z.array(SourceSchema).optional().describe("An array of sources (for study spaces)."),
+    context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
+    topic: z.string().optional().describe("The topic of the content (used in 'note-generator' context)."),
+    academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
+    content: z.string().optional().describe("The source text content (for note generation)."),
+    sources: z.array(SourceSchema).optional().describe("An array of sources (for study spaces)."),
 });
+
 export type GenerateInfographicInput = z.infer<typeof GenerateInfographicInputSchema>;
 
-
 const GenerateInfographicOutputSchema = z.object({
-  imageUrl: z.string().url().describe("The data URI of the generated infographic image."),
-  prompt: z.string().describe("The prompt that was used to generate the image."),
+    imageUrl: z.string().url().describe("The data URI of the generated infographic image."),
+    prompt: z.string().describe("The prompt that was used to generate the image."),
 });
+
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
+/**
+ * STRATEGY: NotebookLM Style requires structured text blocks.
+ * We use Gemini 2.5 Flash to create a "Visual Blueprint" first.
+ */
 const infographicSummaryPrompt = ai.definePrompt({
     name: 'infographicSummaryPrompt',
     model: 'googleai/gemini-2.5-flash',
     input: { schema: GenerateInfographicInputSchema },
-    output: { schema: z.object({ summary: z.string().describe("A concise summary of the key points, formatted as a list of 5-7 very short, actionable phrases or keywords suitable for an infographic.") }) },
-    prompt: `You are an expert at distilling complex information into key points for an infographic. Based on the source content below, extract the 5 to 7 most important facts, concepts, or data points. Present them as a bulleted list of short phrases.
+    output: { 
+        schema: z.object({ 
+            title: z.string(),
+            layout: z.enum(['Vertical List', 'Z-Pattern', 'Grid']),
+            modules: z.array(z.object({
+                header: z.string().describe("3-word max bold title"),
+                body: z.string().describe("One very short simple sentence explanation"),
+                icon: z.string().describe("Simple object to represent this (e.g. 'a lightbulb')")
+            })).max(4) // Limiting to 4 modules ensures the text is large enough to be legible
+        }) 
+    },
+    prompt: `
+        You are a Professional Educational Illustrator. Your task is to extract the core logic from the source material and design a "NotebookLM-style" infographic layout.
 
-### SOURCE CONTENT:
-\`\`\`
-{{#if content}}
-{{{content}}}
-{{else}}
-  {{#each sources}}
-- {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
-  {{/each}}
-{{/if}}
-\`\`\`
-`,
+        ### SOURCE CONTENT:
+        {{#if content}}
+            {{{content}}}
+        {{else}}
+            {{#each sources}}
+- {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{{this.url}}}{{/if}}
+            {{/each}}
+        {{/if}}
+
+        INSTRUCTIONS:
+        1. Summarize the topic into 4 distinct, logical modules.
+        2. For each module, provide a bold Header and a 1-sentence Explanation.
+        3. Ensure the text is simple enough for an image model to render correctly.
+    `,
 });
-
 
 const generateInfographicFlow = ai.defineFlow({
     name: 'generateInfographicFlow',
     inputSchema: GenerateInfographicInputSchema,
     outputSchema: GenerateInfographicOutputSchema,
-  },
-  async input => {
-    // 1. Summarize content into key points for the infographic
-    const { output: summaryOutput } = await infographicSummaryPrompt(input);
-    if (!summaryOutput) {
-        throw new Error("Failed to summarize content for infographic.");
+},
+async input => {
+    // 1. Create the structured data for the image
+    const { output: blueprint } = await infographicSummaryPrompt(input);
+    
+    if (!blueprint) {
+        throw new Error("Failed to generate design blueprint.");
     }
 
-    const topic = input.topic || "the provided content";
+    const topic = input.topic || blueprint.title;
 
-    // 2. Create a detailed prompt for the image generation model
-    const imagePrompt = `An ultra-high-quality, professional infographic with a **clean white background**. The style must be modern, minimalist, and use a flat design aesthetic.
+    /**
+     * THE NOTEBOOKLM PROMPT:
+     * - Uses 2D Flat Vector style (prevents 3D distortion).
+     * - Enforces horizontal text.
+     * - Uses white space for professional clarity.
+     */
+    const imagePrompt = `
+        A professional, educational infographic in **Flat Design 2D style**.
+        Topic: "${topic}".
+        
+        LAYOUT: A clean ${blueprint.layout} on a stark white background (#FFFFFF).
+        
+        STRUCTURE:
+        The image must contain 4 distinct, evenly spaced horizontal modules. 
+        Each module must feature:
+        1. A simple, flat vector icon: ${blueprint.modules.map(m => m.icon).join(", ")}.
+        2. A BOLD HEADER: ${blueprint.modules.map(m => `"${m.header.toUpperCase()}"`).join(", ")}.
+        3. A SHORT EXPLANATION: ${blueprint.modules.map(m => `"${m.body}"`).join(", ")}.
 
-The infographic is about: **"${topic}"**.
+        AESTHETIC RULES:
+        - All text must be rendered in a clean, legible sans-serif font.
+        - Text must be horizontal (no 3D angles).
+        - Use high contrast: Dark charcoal (#333333) text on the white background.
+        - Primary accent colors: Royal Blue and Slate.
+        - NO 3D, NO gradients, NO shadows. Minimalist and spacious.
+        
+        Branding: A tiny 'Learn with Temi' text label in the bottom corner.
+    `;
 
-The infographic must visually represent the following key points using clear icons, simple charts, and diagrams. **Do NOT write full sentences on the image. Use minimal, legible keywords only if absolutely necessary.**
-
-Key Points to Visualize:
-${summaryOutput.summary}
-
-Color Palette: Use a professional color scheme with the white background. Use deep blue (#3F51B5) and purple (#9C27B0) as accent colors. Text should be dark gray.
-
-Branding: Place a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
-
-The overall layout must be balanced, uncluttered, and easy to follow.`;
-    
-    // 3. Generate the image
+    // 2. Generate the image using the highly structured prompt
     const { media } = await ai.generate({
         model: 'googleai/imagen-4.0-fast-generate-001',
         prompt: imagePrompt,
     });
 
     if (!media?.url) {
-        throw new Error('Image generation failed to return an image.');
+        throw new Error('Image generation failed.');
     }
 
     return {
         imageUrl: media.url,
         prompt: imagePrompt,
     };
-  }
-);
+});
 
 export async function generateInfographic(input: GenerateInfographicInput): Promise<GenerateInfographicOutput> {
-  return generateInfographicFlow(input);
+    return generateInfographicFlow(input);
 }
