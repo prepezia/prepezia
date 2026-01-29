@@ -41,6 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 
 const createSpaceSchema = z.object({
@@ -59,7 +60,7 @@ type Source = {
 
 type ChatMessage = {
     role: 'user' | 'assistant';
-    content: string;
+    content: string | React.ReactNode;
 };
 
 type GeneratedContent = {
@@ -310,16 +311,51 @@ export default function StudySpacesPage() {
     });
   };
 
+  const parseAnswerWithCitations = (answer: string, citations: any[], sources: Source[]) => {
+    const parts = answer.split(/(\[\d+\])/g);
+    return parts.map((part, index) => {
+        const match = part.match(/\[(\d+)\]/);
+        if (match) {
+            const citationIndex = parseInt(match[1], 10) - 1;
+            if (citationIndex >= 0 && citationIndex < citations.length) {
+                const citation = citations[citationIndex];
+                const source = sources[citation.sourceIndex];
+                return (
+                    <Popover key={index}>
+                        <PopoverTrigger asChild>
+                            <span className="inline-block align-super text-xs font-bold bg-primary/20 text-primary rounded-full h-5 w-5 text-center leading-5 cursor-pointer mx-0.5">{citationIndex + 1}</span>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                            <div className="space-y-2">
+                                <h4 className="font-semibold text-sm">Source</h4>
+                                <p className="text-xs text-muted-foreground truncate">{source.name}</p>
+                                <Separator />
+                                <h4 className="font-semibold text-sm">Reference</h4>
+                                <blockquote className="text-xs border-l-2 pl-2 italic">
+                                    &quot;{citation.text}&quot;
+                                </blockquote>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                );
+            }
+        }
+        return part;
+    });
+};
+
   async function handleChatSubmit() {
     if (!chatInput.trim() || !selectedStudySpace) return;
     
     const userMessage: ChatMessage = { role: 'user', content: chatInput };
     setChatHistory(prev => [...prev, userMessage]);
     setIsChatLoading(true);
+    const currentInput = chatInput;
     setChatInput("");
 
     try {
         const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
+            name: s.name,
             type: s.type === 'clipboard' ? 'text' : s.type,
             url: s.url,
             dataUri: s.data,
@@ -328,10 +364,12 @@ export default function StudySpacesPage() {
 
         const response = await interactiveChatWithSources({
             sources: sourceInputs,
-            question: chatInput
+            question: currentInput
         });
+        
+        const parsedContent = parseAnswerWithCitations(response.answer, response.citations, selectedStudySpace.sources);
+        const assistantMessage: ChatMessage = { role: 'assistant', content: <>{parsedContent}</> };
 
-        const assistantMessage: ChatMessage = { role: 'assistant', content: response.answer };
         setChatHistory(prev => [...prev, assistantMessage]);
     } catch (e: any) {
         console.error("Chat error", e);
@@ -378,6 +416,7 @@ export default function StudySpacesPage() {
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
         };
         const rawResult = await generator(input);
+        
         if (type === 'flashcards') {
             result = (rawResult as GenerateFlashcardsOutput).flashcards;
         } else if (type === 'quiz') {
@@ -590,8 +629,11 @@ export default function StudySpacesPage() {
                                 )}
                                 {chatHistory.map((msg, i) => (
                                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`p-3 rounded-lg max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                            <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                        <div className={`p-3 rounded-lg max-w-[80%] break-words ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                            {typeof msg.content === 'string' 
+                                                ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                                : <div className="prose prose-sm dark:prose-invert max-w-none">{msg.content}</div>
+                                            }
                                         </div>
                                     </div>
                                 ))}

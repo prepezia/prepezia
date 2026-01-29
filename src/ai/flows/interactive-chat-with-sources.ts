@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -9,11 +10,12 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const InteractiveChatWithSourcesInputSchema = z.object({
   sources: z.array(
     z.object({
+      name: z.string(),
       type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image']),
       url: z.string().optional(),
       dataUri: z.string().optional(),
@@ -24,8 +26,14 @@ const InteractiveChatWithSourcesInputSchema = z.object({
 });
 export type InteractiveChatWithSourcesInput = z.infer<typeof InteractiveChatWithSourcesInputSchema>;
 
+const CitationSchema = z.object({
+  sourceIndex: z.number().describe("The 0-based index of the source in the input array that this citation refers to."),
+  text: z.string().describe("The verbatim quote from the source document that supports the information."),
+});
+
 const InteractiveChatWithSourcesOutputSchema = z.object({
-  answer: z.string().describe('The answer to the question, with citations.'),
+  answer: z.string().describe("The AI's answer, with citations in the format [1], [2], etc."),
+  citations: z.array(CitationSchema).describe("An array of citations corresponding to the markers in the answer."),
 });
 export type InteractiveChatWithSourcesOutput = z.infer<typeof InteractiveChatWithSourcesOutputSchema>;
 
@@ -38,20 +46,28 @@ export async function interactiveChatWithSources(input: InteractiveChatWithSourc
       model: 'googleai/gemini-2.5-flash',
       input: {schema: InteractiveChatWithSourcesInputSchema},
       output: {schema: InteractiveChatWithSourcesOutputSchema},
-      prompt: `You are TEMI, an AI chatbot that answers questions based on the provided sources only.  You must cite your sources.
+      prompt: `You are TEMI, an expert AI research assistant. Your task is to answer the user's question based *only* on the provided sources.
 
-Sources:
+### Instructions:
+1.  Read the user's question and all the provided sources carefully.
+2.  Formulate a comprehensive answer to the question.
+3.  As you write your answer, you MUST cite the information you use. To do this, insert a citation marker like \`[1]\`, \`[2]\`, etc., directly after the sentence or phrase that comes from a source.
+4.  After the main answer, you will provide a "citations" array. Each object in the array corresponds to a marker in your answer text.
+5.  Each citation object must contain:
+    *   \`sourceIndex\`: The 0-based index of the source from the list below.
+    *   \`text\`: The exact, verbatim quote from the source that backs up your statement.
+
+### Sources:
 {{#each sources}}
-  {{#if dataUri}}
-    {{type}}: {{media url=dataUri contentType=contentType}}
-  {{else if url}}
-    {{type}}: {{url}}
-  {{/if}}
+**Source [{{@index}}]**: {{this.name}}
+Content: {{#if dataUri}}{{media url=dataUri contentType=contentType}}{{else if url}}{{url}}{{/if}}
+---
 {{/each}}
 
-Question: {{{question}}}
+### User's Question:
+{{{question}}}
 
-Answer:`, 
+Provide your answer and citations now.`, 
     });
 
     interactiveChatWithSourcesFlow = ai.defineFlow(
