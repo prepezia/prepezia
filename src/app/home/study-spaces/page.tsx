@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save } from "lucide-react";
-import { interactiveChatWithSources, InteractiveChatWithSourcesInput } from "@/ai/flows/interactive-chat-with-sources";
+import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
@@ -65,7 +65,7 @@ type UserChatMessage = {
 type AssistantChatMessage = {
     role: 'assistant';
     content: string;
-    citations?: any[];
+    citations?: InteractiveChatWithSourcesOutput['citations'];
     isError?: boolean;
 };
 type ChatMessage = UserChatMessage | AssistantChatMessage;
@@ -317,7 +317,9 @@ export default function StudySpacesPage() {
     });
   };
 
-  const parseAnswerWithCitations = (answer: string, citations: any[], sources: Source[]) => {
+  const parseAnswerWithCitations = (answer: string, citations: InteractiveChatWithSourcesOutput['citations'], sources: Source[]) => {
+    if (!citations) return answer;
+
     // First, aggressively remove any leftover multi-number citations like [6, 7] or [0, 5, 6, 7].
     const cleanedAnswer = answer.replace(/\[\d+[, ]\d+.*?\]/g, '');
 
@@ -337,7 +339,7 @@ export default function StudySpacesPage() {
                 return (
                     <Popover key={index}>
                         <PopoverTrigger asChild>
-                            <span className="inline-block align-super text-xs font-bold bg-primary/20 text-primary rounded-full h-5 w-5 text-center leading-5 cursor-pointer mx-0.5">{citationIndex + 1}</span>
+                            <span className="inline-block align-super text-xs font-bold bg-primary/20 text-primary rounded-full h-5 w-5 text-center leading-5 cursor-pointer mx-0.5">{citation.sourceIndex + 1}</span>
                         </PopoverTrigger>
                         <PopoverContent className="w-80">
                             <div className="space-y-2">
@@ -355,8 +357,11 @@ export default function StudySpacesPage() {
             }
             return null; // If the citation index is invalid, don't render anything for it.
         }
-        return part; // This is just plain text.
-    });
+        if (typeof part === 'string') {
+            return <ReactMarkdown key={index} remarkPlugins={[remarkGfm]} components={{ p: 'span' }}>{part}</ReactMarkdown>
+        }
+        return part;
+    }).filter(Boolean);
 };
 
   async function handleChatSubmit(e: React.FormEvent) {
@@ -366,7 +371,7 @@ export default function StudySpacesPage() {
 
     if (!currentInput?.trim() || !selectedStudySpace) return;
     
-    const userMessage: ChatMessage = { role: 'user', content: currentInput };
+    const userMessage: UserChatMessage = { role: 'user', content: currentInput };
     
     updateSelectedStudySpace(current => ({
         chatHistory: [...(current.chatHistory || []), userMessage]
@@ -522,6 +527,32 @@ export default function StudySpacesPage() {
         return null;
     }
 
+    const renderChatMessages = (messages: ChatMessage[], sources: Source[]) => {
+      return messages.map((msg, i) => (
+        <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+          {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5"/></div>}
+          <div className={cn("p-3 rounded-lg max-w-[85%] break-words", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              {msg.role === 'user' ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+              ) : msg.isError ? (
+                <p className="text-destructive">{msg.content}</p>
+              ) : (msg.citations && msg.citations.length > 0) ? (
+                <>{parseAnswerWithCitations(msg.content, msg.citations, sources)}</>
+              ) : (
+                typeof msg.content === 'string' ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                ) : (
+                  // This case should ideally not happen if state management is correct
+                  <p className="text-muted-foreground">[Unsupported Content]</p>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      ));
+    };
+
     return (
         <div className="flex flex-col">
             {header}
@@ -596,7 +627,7 @@ export default function StudySpacesPage() {
                                                 <Textarea 
                                                     ref={notesTextareaRef}
                                                     placeholder="Start typing your notes..." 
-                                                    className="flex-1 w-full resize-none border rounded-b-md rounded-t-none focus-visible:ring-1 focus-visible:ring-offset-0"
+                                                    className="flex-1 w-full min-h-[400px] resize-y border rounded-b-md rounded-t-none focus-visible:ring-1 focus-visible:ring-offset-0"
                                                     value={notes}
                                                     onChange={handleNotesChange}
                                                 />
@@ -660,28 +691,7 @@ export default function StudySpacesPage() {
                                             Ask me a question and I will answer based solely on the materials you've provided.
                                         </p>
                                     </div>
-                                ) : (
-                                    (selectedStudySpace.chatHistory || []).map((msg, i) => (
-                                    <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                                        {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5"/></div>}
-                                        <div className={cn("p-3 rounded-lg max-w-[85%] break-words", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                                             <div className="prose prose-sm dark:prose-invert max-w-none">
-                                                {msg.role === 'user' ? (
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                                                ) : msg.isError ? (
-                                                    <p className="text-destructive">{msg.content}</p>
-                                                ) : (msg.citations && msg.citations.length > 0 && selectedStudySpace) ? (
-                                                    <>{parseAnswerWithCitations(msg.content, msg.citations, selectedStudySpace.sources)}</>
-                                                ) : (
-                                                    typeof msg.content === 'string'
-                                                        ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                                                        : <>{msg.content}</>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    ))
-                                )}
+                                ) : renderChatMessages(selectedStudySpace.chatHistory || [], selectedStudySpace.sources)}
                                 {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
                             </CardContent>
                             <div className="p-4 border-t">
@@ -1431,6 +1441,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
