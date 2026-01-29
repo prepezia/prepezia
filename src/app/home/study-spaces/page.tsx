@@ -76,6 +76,7 @@ type StudySpace = {
     name:string;
     description: string;
     sources: Source[];
+    chatHistory?: ChatMessage[];
     generatedContent?: GeneratedContent;
 };
 
@@ -100,8 +101,6 @@ const mockStudySpaces: MockStudySpace[] = [
 
 export default function StudySpacesPage() {
   const [viewState, setViewState] = useState<ViewState>('list');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   
   const [selectedStudySpace, setSelectedStudySpace] = useState<StudySpace | null>(null);
@@ -126,12 +125,12 @@ export default function StudySpacesPage() {
             setStudySpaces(JSON.parse(savedSpaces));
         } else {
             // First time load: use mock data.
-             const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], generatedContent: {} }));
+             const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {} }));
             setStudySpaces(initialSpaces);
         }
     } catch (error) {
         console.error("Failed to parse study spaces from localStorage", error);
-        const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], generatedContent: {} }));
+        const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {} }));
         setStudySpaces(initialSpaces);
     }
   }, []);
@@ -248,7 +247,6 @@ export default function StudySpacesPage() {
   
   const handleSelectStudySpace = (space: StudySpace) => {
     setSelectedStudySpace(space);
-    setChatHistory([]);
     setActiveGeneratedView(null);
     setViewState('edit');
     setIsDirty(false);
@@ -265,11 +263,11 @@ export default function StudySpacesPage() {
         name,
         description,
         sources,
+        chatHistory: [],
         generatedContent: {},
     };
     setStudySpaces(prev => [newSpace, ...prev]);
     setSelectedStudySpace(newSpace);
-    setChatHistory([]);
     setActiveGeneratedView(null);
     setViewState('edit');
   };
@@ -340,18 +338,26 @@ export default function StudySpacesPage() {
                 );
             }
         }
-        return part;
+        return part.replace(/\[\d+(,\d+)*\]/g, ''); // Remove any leftover non-functional citation markers
     });
 };
 
-  async function handleChatSubmit() {
-    if (!chatInput.trim() || !selectedStudySpace) return;
+  async function handleChatSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const chatInputRef = (e.target as HTMLFormElement).querySelector('textarea');
+    const currentInput = chatInputRef?.value;
+
+    if (!currentInput?.trim() || !selectedStudySpace) return;
     
-    const userMessage: ChatMessage = { role: 'user', content: chatInput };
-    setChatHistory(prev => [...prev, userMessage]);
+    const userMessage: ChatMessage = { role: 'user', content: currentInput };
+    
+    // Add user message to history
+    updateSelectedStudySpace(current => ({
+        chatHistory: [...(current.chatHistory || []), userMessage]
+    }));
+
     setIsChatLoading(true);
-    const currentInput = chatInput;
-    setChatInput("");
+    if(chatInputRef) chatInputRef.value = ""; // Clear input immediately
 
     try {
         const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
@@ -370,11 +376,17 @@ export default function StudySpacesPage() {
         const parsedContent = parseAnswerWithCitations(response.answer, response.citations, selectedStudySpace.sources);
         const assistantMessage: ChatMessage = { role: 'assistant', content: <>{parsedContent}</> };
 
-        setChatHistory(prev => [...prev, assistantMessage]);
+        // Add assistant message to history
+        updateSelectedStudySpace(current => ({
+            chatHistory: [...(current.chatHistory || []), assistantMessage]
+        }));
+
     } catch (e: any) {
         console.error("Chat error", e);
         const errorMessage: ChatMessage = { role: 'assistant', content: e.message || "Sorry, I couldn't process that request." };
-        setChatHistory(prev => [...prev, errorMessage]);
+        updateSelectedStudySpace(current => ({
+            chatHistory: [...(current.chatHistory || []), errorMessage]
+        }));
     } finally {
         setIsChatLoading(false);
     }
@@ -614,11 +626,11 @@ export default function StudySpacesPage() {
                         </Card>
                     </TabsContent>
                     
-                    <TabsContent value="chat" className="mt-4">
-                        <Card className="flex flex-col">
+                    <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
+                        <Card className="flex flex-col flex-1">
                             <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
-                            <CardContent className="flex-grow space-y-4 min-h-[50vh]">
-                                {chatHistory.length === 0 && (
+                            <CardContent className="flex-grow space-y-4 min-h-[50vh] overflow-y-auto">
+                                {(selectedStudySpace.chatHistory || []).length === 0 ? (
                                     <div className="text-center text-muted-foreground pt-10 px-6">
                                         <BookOpen className="w-12 h-12 mx-auto text-primary/80 mb-4" />
                                         <h3 className="font-semibold text-foreground text-lg">Chat with Your Sources</h3>
@@ -626,33 +638,36 @@ export default function StudySpacesPage() {
                                             Ask me a question and I will answer based solely on the materials you've provided.
                                         </p>
                                     </div>
-                                )}
-                                {chatHistory.map((msg, i) => (
-                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`p-3 rounded-lg max-w-[80%] break-words ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                ) : (
+                                    (selectedStudySpace.chatHistory || []).map((msg, i) => (
+                                    <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                                        {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5"/></div>}
+                                        <div className={cn("p-3 rounded-lg max-w-[85%] break-words", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
                                             {typeof msg.content === 'string' 
                                                 ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                                 : <div className="prose prose-sm dark:prose-invert max-w-none">{msg.content}</div>
                                             }
                                         </div>
                                     </div>
-                                ))}
+                                    ))
+                                )}
                                 {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
                             </CardContent>
                             <div className="p-4 border-t">
-                                <div className="relative">
-                                    <Textarea
-                                        value={chatInput}
-                                        onChange={(e) => setChatInput(e.target.value)}
-                                        placeholder="Ask a question about your sources..."
-                                        className="pr-12"
-                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); }}}
-                                        disabled={selectedStudySpace.sources.length === 0 || isChatLoading}
-                                    />
-                                    <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleChatSubmit} disabled={selectedStudySpace.sources.length === 0 || isChatLoading}>
-                                        <Send className="h-4 w-4" />
-                                    </Button>
-                                </div>
+                                <form onSubmit={handleChatSubmit}>
+                                    <div className="relative">
+                                        <Textarea
+                                            name="chatInput"
+                                            placeholder="Ask a question about your sources..."
+                                            className="pr-12"
+                                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
+                                            disabled={selectedStudySpace.sources.length === 0 || isChatLoading}
+                                        />
+                                        <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" type="submit" disabled={selectedStudySpace.sources.length === 0 || isChatLoading}>
+                                            <Send className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </form>
                             </div>
                         </Card>
                     </TabsContent>
@@ -1385,3 +1400,4 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+

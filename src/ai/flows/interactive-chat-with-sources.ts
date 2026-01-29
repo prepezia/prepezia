@@ -16,7 +16,7 @@ const InteractiveChatWithSourcesInputSchema = z.object({
   sources: z.array(
     z.object({
       name: z.string(),
-      type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image']),
+      type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
       url: z.string().optional(),
       dataUri: z.string().optional(),
       contentType: z.string().optional(),
@@ -52,8 +52,9 @@ export async function interactiveChatWithSources(input: InteractiveChatWithSourc
 1.  Read the user's question and all the provided sources carefully.
 2.  Formulate a comprehensive answer to the question.
 3.  As you write your answer, you MUST cite the information you use. To do this, insert a citation marker like \`[1]\`, \`[2]\`, etc., directly after the sentence or phrase that comes from a source.
-4.  After the main answer, you will provide a "citations" array. Each object in the array corresponds to a marker in your answer text.
-5.  Each citation object must contain:
+4.  Each citation marker must contain only a single number (e.g., use \`[3]\`, not \`[2,6,7]\`).
+5.  After the main answer, you will provide a "citations" array. Each object in the array corresponds to a marker in your answer text.
+6.  Each citation object must contain:
     *   \`sourceIndex\`: The 0-based index of the source from the list below.
     *   \`text\`: The exact, verbatim quote from the source that backs up your statement.
 
