@@ -58,10 +58,18 @@ type Source = {
     contentType?: string;
 };
 
-type ChatMessage = {
-    role: 'user' | 'assistant';
-    content: string | React.ReactNode;
+type UserChatMessage = {
+    role: 'user';
+    content: string;
 };
+type AssistantChatMessage = {
+    role: 'assistant';
+    content: string;
+    citations?: any[];
+    isError?: boolean;
+};
+type ChatMessage = UserChatMessage | AssistantChatMessage;
+
 
 type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
@@ -360,7 +368,6 @@ export default function StudySpacesPage() {
     
     const userMessage: ChatMessage = { role: 'user', content: currentInput };
     
-    // Add user message to history
     updateSelectedStudySpace(current => ({
         chatHistory: [...(current.chatHistory || []), userMessage]
     }));
@@ -382,17 +389,23 @@ export default function StudySpacesPage() {
             question: currentInput
         });
         
-        const parsedContent = parseAnswerWithCitations(response.answer, response.citations, selectedStudySpace.sources);
-        const assistantMessage: ChatMessage = { role: 'assistant', content: <>{parsedContent}</> };
+        const assistantMessage: AssistantChatMessage = {
+            role: 'assistant',
+            content: response.answer,
+            citations: response.citations
+        };
 
-        // Add assistant message to history
         updateSelectedStudySpace(current => ({
             chatHistory: [...(current.chatHistory || []), assistantMessage]
         }));
 
     } catch (e: any) {
         console.error("Chat error", e);
-        const errorMessage: ChatMessage = { role: 'assistant', content: e.message || "Sorry, I couldn't process that request." };
+        const errorMessage: AssistantChatMessage = {
+            role: 'assistant',
+            content: e.message || "Sorry, I couldn't process that request.",
+            isError: true
+        };
         updateSelectedStudySpace(current => ({
             chatHistory: [...(current.chatHistory || []), errorMessage]
         }));
@@ -652,10 +665,17 @@ export default function StudySpacesPage() {
                                     <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                         {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5"/></div>}
                                         <div className={cn("p-3 rounded-lg max-w-[85%] break-words", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                                            {typeof msg.content === 'string' 
-                                                ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                                                : <div className="prose prose-sm dark:prose-invert max-w-none">{msg.content}</div>
-                                            }
+                                             <div className="prose prose-sm dark:prose-invert max-w-none">
+                                                {msg.role === 'user' ? (
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                                ) : msg.isError ? (
+                                                    <p className="text-destructive">{msg.content}</p>
+                                                ) : (msg.citations && msg.citations.length > 0 && selectedStudySpace) ? (
+                                                    <>{parseAnswerWithCitations(msg.content, msg.citations, selectedStudySpace.sources)}</>
+                                                ) : (
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     ))
@@ -1409,5 +1429,6 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
