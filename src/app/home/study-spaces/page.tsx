@@ -28,6 +28,7 @@ import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { generateInfographic, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
+import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
@@ -79,6 +80,7 @@ type GeneratedContent = {
   podcast?: { script: string; audio: string };
   summary?: string;
   infographic?: GenerateInfographicOutput;
+  mindmap?: GenerateMindMapOutput;
 };
 
 type StudySpace = {
@@ -445,14 +447,15 @@ export default function StudySpacesPage() {
 
       } else {
         const generationMap: {
-            [K in 'flashcards' | 'quiz' | 'deck' | 'infographic']: (input: any) => Promise<any>
+            [K in 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap']: (input: any) => Promise<any>
         } = {
             'flashcards': generateFlashcards,
             'quiz': generateQuiz,
             'deck': generateSlideDeck,
             'infographic': generateInfographic,
+            'mindmap': generateMindMap,
         };
-        const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck' | 'infographic'];
+        const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap'];
         const input = {
             context: 'study-space',
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
@@ -512,6 +515,7 @@ export default function StudySpacesPage() {
         { name: "Slide Deck", icon: Presentation, type: "deck" },
         { name: "Flashcards", icon: SquareStack, type: "flashcards" },
         { name: "Infographic", icon: AreaChart, type: "infographic" },
+        { name: "Mind Map", icon: GitFork, type: "mindmap" },
     ];
     
     const renderGeneratedContent = () => {
@@ -530,6 +534,9 @@ export default function StudySpacesPage() {
         }
         if (activeGeneratedView === 'infographic' && generatedContent.infographic) {
             return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+        }
+        if (activeGeneratedView === 'mindmap' && generatedContent.mindmap) {
+            return <MindMapView mindmap={generatedContent.mindmap} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
         }
         return null;
     }
@@ -730,7 +737,7 @@ export default function StudySpacesPage() {
                                 <CardContent className="space-y-6">
                                     <div>
                                         <h3 className="font-semibold mb-4">Generate New</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
                                                 <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
                                                     {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
@@ -1397,6 +1404,38 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
     );
 }
 
+function MindMapView({ mindmap, onBack, topic }: { mindmap: GenerateMindMapOutput, onBack: () => void, topic: string }) {
+    const handleDownload = () => {
+        const link = document.createElement('a');
+        link.href = mindmap.imageUrl;
+        link.download = `mindmap_${topic.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                </div>
+                <CardTitle className="pt-4 flex items-center gap-2"><GitFork className="text-primary"/> Mind Map for "{topic}"</CardTitle>
+                <CardDescription>An AI-generated mind map of the key concepts.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-6">
+                <div className="relative w-full aspect-video max-w-4xl border rounded-lg overflow-hidden bg-muted">
+                    <Image src={mindmap.imageUrl} alt={`Mind Map for ${topic}`} fill className="object-contain" />
+                </div>
+                <details className="w-full max-w-4xl text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">View generation prompt</summary>
+                    <p className="pt-2">{mindmap.prompt}</p>
+                </details>
+            </CardContent>
+        </Card>
+    );
+}
 
 function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean; onOpenChange: (open: boolean) => void; onAddSources: (sources: Source[]) => void; }) {
     const [sources, setSources] = useState<Source[]>([]);
@@ -1482,6 +1521,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 

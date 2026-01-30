@@ -24,7 +24,8 @@ import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generat
 import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download } from "lucide-react";
+import { generateMindMap, GenerateMindMapOutput, GenerateMindMapInput } from "@/ai/flows/generate-mind-map";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -43,6 +44,7 @@ type GeneratedContent = {
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
   infographic?: GenerateInfographicOutput;
+  mindmap?: GenerateMindMapOutput;
 };
 
 type RecentNote = {
@@ -273,8 +275,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const generationStarted = useRef(false);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
-  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | 'infographic' | null>(null);
-  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic'>('notes');
+  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | null>(null);
+  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap'>('notes');
 
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
     try {
@@ -490,6 +492,32 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setIsGenerating(null);
     }
   };
+  
+  const handleGenerateMindMap = async () => {
+    if (!generatedNotes) return;
+    setIsGenerating('mindmap');
+    try {
+        const result = await generateMindMap({
+            context: 'note-generator',
+            topic: topic,
+            academicLevel: academicLevel,
+            content: generatedNotes.notes,
+        });
+        setGeneratedContent(prev => {
+            const newContent = { ...prev, mindmap: result };
+            if (initialNote) {
+                const { quiz, ...contentToSave } = newContent;
+                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+            }
+            return newContent;
+        });
+        setActiveView('mindmap');
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to generate mind map', description: e.message });
+    } finally {
+        setIsGenerating(null);
+    }
+  };
 
 
   const nextStepActions = [
@@ -497,6 +525,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       { label: "Quiz", icon: HelpCircle, action: handleGenerateQuiz, loading: isGenerating === 'quiz'},
       { label: "Slide Deck", icon: Presentation, action: handleGenerateSlideDeck, loading: isGenerating === 'deck'},
       { label: "Infographic", icon: AreaChart, action: handleGenerateInfographic, loading: isGenerating === 'infographic'},
+      { label: "Mind Map", icon: GitFork, action: handleGenerateMindMap, loading: isGenerating === 'mindmap'},
   ]
 
   const renderContent = () => {
@@ -511,6 +540,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
     if (activeView === 'infographic' && generatedContent.infographic) {
         return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveView('notes')} topic={topic} />;
+    }
+    if (activeView === 'mindmap' && generatedContent.mindmap) {
+        return <MindMapView mindmap={generatedContent.mindmap} onBack={() => setActiveView('notes')} topic={topic} />;
     }
 
     // Default to notes view
@@ -676,7 +708,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </CardContent>
             </Card>
 
-            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck || generatedContent.infographic) && (
+            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck || generatedContent.infographic || generatedContent.mindmap) && (
               <Card className="mt-8">
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
@@ -698,6 +730,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                       {generatedContent.infographic && (
                           <Button variant="secondary" onClick={() => setActiveView('infographic')}>
                               <AreaChart className="mr-2"/> View Infographic
+                          </Button>
+                      )}
+                      {generatedContent.mindmap && (
+                          <Button variant="secondary" onClick={() => setActiveView('mindmap')}>
+                              <GitFork className="mr-2"/> View Mind Map
                           </Button>
                       )}
                   </CardContent>
@@ -1146,6 +1183,39 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
     );
 }
 
+function MindMapView({ mindmap, onBack, topic }: { mindmap: GenerateMindMapOutput, onBack: () => void, topic: string }) {
+    const handleDownload = () => {
+        const link = document.createElement('a');
+        link.href = mindmap.imageUrl;
+        link.download = `mindmap_${topic.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                </div>
+                <CardTitle className="pt-4 flex items-center gap-2"><GitFork className="text-primary"/> Mind Map for "{topic}"</CardTitle>
+                <CardDescription>An AI-generated mind map of the key concepts.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-6">
+                <div className="relative w-full aspect-video max-w-4xl border rounded-lg overflow-hidden bg-muted">
+                    <Image src={mindmap.imageUrl} alt={`Mind Map for ${topic}`} fill className="object-contain" />
+                </div>
+                <details className="w-full max-w-4xl text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">View generation prompt</summary>
+                    <p className="pt-2">{mindmap.prompt}</p>
+                </details>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 function NoteGeneratorPage() {
     const router = useRouter();
@@ -1218,6 +1288,7 @@ export default function NoteGeneratorPageWrapper() {
     
 
     
+
 
 
 
