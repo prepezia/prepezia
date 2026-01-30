@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, GitFork } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 export interface MindMapNodeData {
   id: string;
