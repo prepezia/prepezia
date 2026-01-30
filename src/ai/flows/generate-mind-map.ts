@@ -53,10 +53,11 @@ const generateMindMapDataPrompt = ai.definePrompt({
 
 ### YOUR TASK:
 1.  **Identify Hierarchy:** Read the content and determine the central topic, the main ideas (level 1 branches), and the supporting details (level 2+ sub-branches).
-2.  **Generate JSON:** Output a single JSON object that represents this mind map structure.
+2.  **Generate JSON:** Output a single JSON object that represents this mind map structure. The output must be ONLY the JSON object, with no surrounding text or markdown formatting.
 3.  **JSON Structure Rules:**
     *   The root object represents the central topic of the mind map.
     *   Each node in the mind map must be an object with three properties: \`id\` (a unique string), \`label\` (a concise string for the node's text), and an optional \`children\` array.
+    *   The \`id\` for the root node should be "1". Child node IDs should follow a pattern like "1-1", "1-2", and their children "1-1-1", "1-1-2", etc.
     *   The \`children\` array should contain more node objects, representing the sub-branches.
     *   Keep labels concise and clear. Aim for 2-7 words per label where possible.
     *   Create a meaningful hierarchy. Don't make the mind map too flat or too deep. Aim for 2-4 levels of depth.

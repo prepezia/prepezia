@@ -44,6 +44,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
 
 
 const createSpaceSchema = z.object({
@@ -536,7 +537,7 @@ export default function StudySpacesPage() {
             return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'mindmap' && generatedContent.mindmap) {
-            return <MindMapView mindmap={generatedContent.mindmap} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+             return <InteractiveMindMapWrapper data={generatedContent.mindmap} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
         }
         return null;
     }
@@ -1404,36 +1405,12 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
     );
 }
 
-function MindMapView({ mindmap, onBack, topic }: { mindmap: GenerateMindMapOutput, onBack: () => void, topic: string }) {
-    const handleDownload = () => {
-        const link = document.createElement('a');
-        link.href = mindmap.imageUrl;
-        link.download = `mindmap_${topic.replace(/\s+/g, '_')}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-    
+function InteractiveMindMapWrapper({ data, onBack, topic }: { data: GenerateMindMapOutput, onBack: () => void, topic: string }) {
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
-                    <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
-                </div>
-                <CardTitle className="pt-4 flex items-center gap-2"><GitFork className="text-primary"/> Mind Map for "{topic}"</CardTitle>
-                <CardDescription>An AI-generated mind map of the key concepts.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-6">
-                <div className="relative w-full aspect-video max-w-4xl border rounded-lg overflow-hidden bg-muted">
-                    <Image src={mindmap.imageUrl} alt={`Mind Map for ${topic}`} fill className="object-contain" />
-                </div>
-                <details className="w-full max-w-4xl text-xs text-muted-foreground">
-                    <summary className="cursor-pointer">View generation prompt</summary>
-                    <p className="pt-2">{mindmap.prompt}</p>
-                </details>
-            </CardContent>
-        </Card>
+        <div className="space-y-4">
+             <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+            <InteractiveMindMap data={data} topic={topic} />
+        </div>
     );
 }
 
@@ -1521,6 +1498,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 
