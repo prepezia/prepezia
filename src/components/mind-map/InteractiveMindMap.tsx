@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, GitFork } from 'lucide-react';
+import { Plus, Minus, GitFork, Download } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { toPng } from 'html-to-image';
+import { useToast } from '@/hooks/use-toast';
 
 export interface MindMapNodeData {
   id: string;
@@ -90,6 +92,8 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
       // Initially expand just the root node
       return new Set<string>([data.id]);
   });
+  const mindMapRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const getAllChildIds = useCallback((node: MindMapNodeData): string[] => {
     let ids: string[] = [];
@@ -131,14 +135,40 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
     });
   }, [data, findNode, getAllChildIds]);
 
+  const handleDownload = useCallback(() => {
+    if (mindMapRef.current === null) {
+      return;
+    }
+
+    toast({ title: 'Generating image...', description: 'Please wait a moment.' });
+
+    toPng(mindMapRef.current, { cacheBust: true, backgroundColor: '#ffffff' })
+      .then((dataUrl) => {
+        const link = document.createElement('a');
+        link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.error(err);
+        toast({ variant: 'destructive', title: 'Download failed', description: 'Could not generate the mind map image.' });
+      });
+  }, [mindMapRef, topic, toast]);
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><GitFork className="text-primary"/> Mind Map for "{topic}"</CardTitle>
-        <CardDescription>Click the +/- icons to expand or collapse branches of the mind map.</CardDescription>
+      <CardHeader className="flex-row items-start justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2"><GitFork className="text-primary"/> Mind Map for "{topic}"</CardTitle>
+          <CardDescription>Click the +/- icons to expand or collapse branches of the mind map.</CardDescription>
+        </div>
+        <Button variant="outline" onClick={handleDownload}>
+            <Download className="mr-2 h-4 w-4" />
+            Download
+        </Button>
       </CardHeader>
       <CardContent>
-        <div className="p-4 md:p-6 overflow-x-auto bg-background border rounded-lg">
+        <div ref={mindMapRef} className="p-4 md:p-6 overflow-x-auto bg-background border rounded-lg">
             <Node node={data} isRoot expandedNodes={expandedNodes} toggleNode={toggleNode} />
         </div>
       </CardContent>
