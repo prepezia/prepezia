@@ -17,7 +17,7 @@ const SourceSchema = z.object({
     contentType: z.string().optional(),
 });
 
-export const GenerateMindMapInputSchema = z.object({
+const GenerateMindMapInputSchema = z.object({
   context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
   topic: z.string().optional().describe("The topic of the content (used in 'note-generator' context)."),
   academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
@@ -40,7 +40,7 @@ const MindMapNodeSchema: z.ZodType<MindMapNode> = z.object({
   children: z.array(z.lazy(() => MindMapNodeSchema)).optional().describe("An array of child nodes, representing sub-branches."),
 });
 
-export const GenerateMindMapOutputSchema = MindMapNodeSchema;
+const GenerateMindMapOutputSchema = MindMapNodeSchema;
 export type GenerateMindMapOutput = z.infer<typeof GenerateMindMapOutputSchema>;
 
 
