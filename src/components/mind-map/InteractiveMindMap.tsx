@@ -76,9 +76,9 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
                     <div key={child.id} className="relative">
                         {/* Horizontal line connecting the trunk to this child node */}
                         <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground" />
-                        <Node 
-                            node={child} 
-                            expandedNodes={expandedNodes} 
+                        <Node
+                            node={child}
+                            expandedNodes={expandedNodes}
                             toggleNode={toggleNode}
                         />
                     </div>
@@ -198,7 +198,8 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
         </Button>
       </CardHeader>
       <CardContent>
-        <div ref={mindMapRef} className="p-4 md:p-6 overflow-x-auto bg-background border rounded-lg">
+        <div className="w-full overflow-x-auto border rounded-lg">
+          <div ref={mindMapRef} className="p-4 md:p-6 bg-background">
             <Node
               key={sanitizedData.id}
               node={sanitizedData}
@@ -206,6 +207,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
               expandedNodes={expandedNodes}
               toggleNode={toggleNode}
             />
+          </div>
         </div>
       </CardContent>
     </Card>
