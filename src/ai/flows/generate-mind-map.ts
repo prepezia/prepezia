@@ -1,7 +1,7 @@
 'use server';
 /**
- * @fileOverview A flow to generate a mind map from content.
- * - generateMindMap - A function that handles mind map generation.
+ * @fileOverview A flow to generate a mind map data structure from content.
+ * - generateMindMap - A function that handles mind map data generation.
  * - GenerateMindMapInput - The input type.
  * - GenerateMindMapOutput - The return type.
  */
@@ -17,7 +17,7 @@ const SourceSchema = z.object({
     contentType: z.string().optional(),
 });
 
-const GenerateMindMapInputSchema = z.object({
+export const GenerateMindMapInputSchema = z.object({
   context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
   topic: z.string().optional().describe("The topic of the content (used in 'note-generator' context)."),
   academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
@@ -26,43 +26,68 @@ const GenerateMindMapInputSchema = z.object({
 });
 export type GenerateMindMapInput = z.infer<typeof GenerateMindMapInputSchema>;
 
-const GenerateMindMapOutputSchema = z.object({
-  imageUrl: z.string().describe("The data URI of the generated mind map image."),
-  prompt: z.string().describe("The prompt used to generate the image for debugging purposes.")
+
+// Recursive schema for a tree-like structure
+interface MindMapNode {
+  id: string;
+  label: string;
+  children?: MindMapNode[];
+}
+
+const MindMapNodeSchema: z.ZodType<MindMapNode> = z.object({
+  id: z.string().describe("A unique identifier for the node (e.g., '1', '1-1', '1-1-2')."),
+  label: z.string().describe("The concise text label for this node."),
+  children: z.array(z.lazy(() => MindMapNodeSchema)).optional().describe("An array of child nodes, representing sub-branches."),
 });
+
+export const GenerateMindMapOutputSchema = MindMapNodeSchema;
 export type GenerateMindMapOutput = z.infer<typeof GenerateMindMapOutputSchema>;
 
-const designMindMapMetaPrompt = ai.definePrompt({
-    name: 'designMindMapMetaPrompt',
+
+const generateMindMapDataPrompt = ai.definePrompt({
+    name: 'generateMindMapDataPrompt',
     model: 'googleai/gemini-2.5-flash',
     input: { schema: GenerateMindMapInputSchema },
-    output: {
-        schema: z.object({
-            imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a professional and readable mind map. This prompt should describe the central topic, main branches, sub-branches, colors, and flow of information. It MUST include a CRITICAL INSTRUCTION for the image model to ensure all text is perfectly legible, horizontal, and rendered in a clean, sans-serif font.")
-        })
+    output: { schema: GenerateMindMapOutputSchema },
+    prompt: `You are an AI expert in information architecture and visual learning. Your task is to analyze the provided source content and structure it into a hierarchical mind map format as a JSON object.
+
+### YOUR TASK:
+1.  **Identify Hierarchy:** Read the content and determine the central topic, the main ideas (level 1 branches), and the supporting details (level 2+ sub-branches).
+2.  **Generate JSON:** Output a single JSON object that represents this mind map structure.
+3.  **JSON Structure Rules:**
+    *   The root object represents the central topic of the mind map.
+    *   Each node in the mind map must be an object with three properties: \`id\` (a unique string), \`label\` (a concise string for the node's text), and an optional \`children\` array.
+    *   The \`children\` array should contain more node objects, representing the sub-branches.
+    *   Keep labels concise and clear. Aim for 2-7 words per label where possible.
+    *   Create a meaningful hierarchy. Don't make the mind map too flat or too deep. Aim for 2-4 levels of depth.
+
+### EXAMPLE JSON OUTPUT:
+\`\`\`json
+{
+  "id": "1",
+  "label": "Central Topic",
+  "children": [
+    {
+      "id": "1-1",
+      "label": "Main Branch 1",
+      "children": [
+        {
+          "id": "1-1-1",
+          "label": "Sub-branch 1.1"
+        },
+        {
+          "id": "1-1-2",
+          "label": "Sub-branch 1.2"
+        }
+      ]
     },
-    prompt: `You are an expert in visual learning and information design, specializing in creating clear, effective mind maps. Your task is to analyze the provided source content and generate a "meta-prompt" for a text-to-image AI model (like Imagen 4.0) to create a beautiful and readable mind map.
-
-### YOUR DESIGN PRINCIPLES:
-1.  **HIERARCHY IS KEY:** Identify the central topic, 3-5 main branches (core ideas), and 2-3 sub-branches for each main branch.
-2.  **TEXT CLARITY FIRST:** All text must be concise, high-contrast, horizontal, and use a bold, clean, sans-serif font. Readability is the top priority.
-3.  **ORGANIC FLOW:** The layout should be organic, branching out from a central point. Use curved lines to connect nodes. Use different colors for each main branch to improve clarity.
-4.  **SIMPLE ICONS:** Suggest a simple, relevant icon for each main branch to add visual appeal and aid recall.
-
-### META-PROMPT REQUIREMENTS:
-Analyze the source content and generate a detailed prompt for the image model that follows these rules:
-1.  **Central Topic:** Define the central topic clearly in the center of the mind map, enclosed in a circle.
-2.  **Main Branches:** Define 3-5 main branches radiating from the center. For each branch, specify its color, a simple icon, and its title (2-4 words).
-3.  **Sub-Branches:** For each main branch, specify 2-3 sub-branch nodes with concise text (max 5-7 words).
-4.  **The Most Important Instruction:** The meta-prompt MUST end with the following **CRITICAL INSTRUCTION** section, verbatim. This is non-negotiable.
-
-    "**CRITICAL INSTRUCTION FOR TEXT:** This is the most important part of the prompt. All text on this mind map **MUST** be perfectly legible, clear, and easy to read.
-    -   Use a bold, modern, sans-serif font.
-    -   All text must be perfectly horizontal.
-    -   Ensure high contrast between the text and its background.
-    -   Do not allow any text to be distorted, curved, misspelled, or unreadable.
-    -   Render text as if it were a clean, vector overlay on the image. Prioritize text clarity above all else."
-5.  **Branding:** Include a request for a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
+    {
+      "id": "1-2",
+      "label": "Main Branch 2"
+    }
+  ]
+}
+\`\`\`
 
 ### SOURCE CONTENT:
 {{#if content}}
@@ -73,7 +98,7 @@ Analyze the source content and generate a detailed prompt for the image model th
   {{/each}}
 {{/if}}
 
-Generate the meta-prompt for the mind map now.
+Generate the mind map as a single JSON object now.
 `,
 });
 
@@ -83,27 +108,11 @@ const generateMindMapFlow = ai.defineFlow({
     outputSchema: GenerateMindMapOutputSchema,
 },
 async (input) => {
-    // Step 1: Generate the detailed "meta-prompt" for the image model.
-    const { output } = await designMindMapMetaPrompt(input);
-    if (!output?.imagePrompt) {
-        throw new Error("The AI failed to generate the design prompt for the mind map.");
+    const { output } = await generateMindMapDataPrompt(input);
+    if (!output) {
+        throw new Error("The AI failed to generate the mind map data.");
     }
-    const imagePrompt = output.imagePrompt;
-
-    // Step 2: Use the generated prompt to create the image.
-    const { media } = await ai.generate({
-        model: 'googleai/imagen-4.0-fast-generate-001',
-        prompt: imagePrompt,
-    });
-
-    if (!media?.url) {
-        throw new Error('Image generation failed.');
-    }
-
-    return {
-        imageUrl: media.url,
-        prompt: imagePrompt, // Return the generated prompt for debugging.
-    };
+    return output;
 });
 
 export async function generateMindMap(input: GenerateMindMapInput): Promise<GenerateMindMapOutput> {
