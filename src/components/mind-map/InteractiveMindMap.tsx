@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, GitFork, Download } from 'lucide-react';
@@ -21,6 +21,25 @@ interface MindMapNodeProps {
   expandedNodes: Set<string>;
   toggleNode: (nodeId: string) => void;
 }
+
+// Sanitization function to prevent duplicate IDs from AI
+const sanitizeNodeIds = (node: MindMapNodeData, seenIds: Set<string> = new Set()): MindMapNodeData => {
+    let newId = node.id;
+    let counter = 0;
+    while (seenIds.has(newId)) {
+        counter++;
+        newId = `${node.id}_${counter}`;
+    }
+    seenIds.add(newId);
+
+    const newChildren = node.children?.map(child => sanitizeNodeIds(child, seenIds));
+
+    return {
+        ...node,
+        id: newId,
+        children: newChildren,
+    };
+};
 
 // A recursive component to render each node
 const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, isLast = true, expandedNodes, toggleNode }) => {
@@ -88,9 +107,11 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, isLast = true,
 };
 
 export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string }> = ({ data, topic }) => {
+  const sanitizedData = useMemo(() => sanitizeNodeIds(data), [data]);
+  
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
       // Initially expand just the root node
-      return new Set<string>([data.id]);
+      return new Set<string>([sanitizedData.id]);
   });
   const mindMapRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -121,7 +142,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
       const newSet = new Set(prev);
       if (newSet.has(nodeId)) {
         // If collapsing, find the node and collapse all its descendants
-        const nodeToCollapse = findNode(data, nodeId);
+        const nodeToCollapse = findNode(sanitizedData, nodeId);
         if (nodeToCollapse) {
             const childIds = getAllChildIds(nodeToCollapse);
             newSet.delete(nodeId);
@@ -133,27 +154,48 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
       }
       return newSet;
     });
-  }, [data, findNode, getAllChildIds]);
+  }, [sanitizedData, findNode, getAllChildIds]);
 
   const handleDownload = useCallback(() => {
-    if (mindMapRef.current === null) {
-      return;
-    }
+    const getAllIds = (node: MindMapNodeData): string[] => {
+      let ids = [node.id];
+      if (node.children) {
+        ids = ids.concat(...node.children.map(getAllIds));
+      }
+      return ids;
+    };
 
-    toast({ title: 'Generating image...', description: 'Please wait a moment.' });
+    const allIds = new Set(getAllIds(sanitizedData));
+    const originalExpanded = expandedNodes;
+    setExpandedNodes(allIds);
 
-    toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 })
-      .then((dataUrl) => {
-        const link = document.createElement('a');
-        link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
-        link.href = dataUrl;
-        link.click();
-      })
-      .catch((err) => {
-        console.error(err);
-        toast({ variant: 'destructive', title: 'Download failed', description: 'Could not generate the mind map image.' });
-      });
-  }, [mindMapRef, topic, toast]);
+    toast({ title: 'Preparing download...', description: 'Expanding all nodes.' });
+
+    // Wait for the state to update and the component to re-render
+    setTimeout(() => {
+      if (mindMapRef.current === null) {
+        setExpandedNodes(originalExpanded); // Restore on failure
+        toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find mind map to render.' });
+        return;
+      }
+      
+      toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 })
+        .then((dataUrl) => {
+          const link = document.createElement('a');
+          link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
+          link.href = dataUrl;
+          link.click();
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ variant: 'destructive', title: 'Download failed', description: 'Could not generate the mind map image.' });
+        })
+        .finally(() => {
+          // Restore the original view
+          setExpandedNodes(originalExpanded);
+        });
+    }, 500); // Delay to allow UI to re-render with all nodes expanded
+  }, [sanitizedData, expandedNodes, topic, toast]);
 
   return (
     <Card>
@@ -170,8 +212,8 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
       <CardContent>
         <div ref={mindMapRef} className="p-4 md:p-6 overflow-x-auto bg-background border rounded-lg">
             <Node
-              key={data.id}
-              node={data}
+              key={sanitizedData.id}
+              node={sanitizedData}
               isRoot
               expandedNodes={expandedNodes}
               toggleNode={toggleNode}
