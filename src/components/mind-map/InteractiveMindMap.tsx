@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useRef, useMemo } from 'react';
@@ -42,10 +43,10 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
   const hasChildren = node.children && node.children.length > 0;
 
   return (
-    <div className="flex items-start">
+    <div className="flex items-start min-w-0">
         <div className="flex items-center gap-2 py-2 flex-shrink-0">
             <div className={cn(
-              'flex items-center justify-center rounded-lg border p-2 px-3 shadow-sm text-sm',
+              'flex items-center justify-center rounded-lg border p-2 px-3 shadow-sm text-sm whitespace-nowrap',
               isRoot ? 'bg-primary text-primary-foreground font-bold' : 'bg-secondary'
             )}>
                 {node.label}
@@ -64,17 +65,17 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
         </div>
 
         {isExpanded && hasChildren && (
-            <div className="relative flex flex-col pl-8">
+            <div className="relative flex flex-col pl-6">
                 {/* Vertical trunk line for children */}
-                <div className="absolute left-4 top-0 bottom-0 w-px bg-muted-foreground" />
+                <div className="absolute left-3 top-0 bottom-0 w-px bg-muted-foreground" />
 
                 {/* Horizontal line connecting parent node to the vertical trunk */}
-                <div className="absolute -left-4 top-[23px] h-px w-4 bg-muted-foreground" />
+                <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground" />
 
                 {node.children!.map((child) => (
                     <div key={child.id} className="relative">
                         {/* Horizontal line connecting the trunk to this child node */}
-                        <div className="absolute -left-4 top-[23px] h-px w-4 bg-muted-foreground" />
+                        <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground" />
                         <Node 
                             node={child} 
                             expandedNodes={expandedNodes} 
