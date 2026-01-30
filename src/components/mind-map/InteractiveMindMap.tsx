@@ -142,7 +142,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
 
     toast({ title: 'Generating image...', description: 'Please wait a moment.' });
 
-    toPng(mindMapRef.current, { cacheBust: true, backgroundColor: '#ffffff' })
+    toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 })
       .then((dataUrl) => {
         const link = document.createElement('a');
         link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
