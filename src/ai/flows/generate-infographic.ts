@@ -34,25 +34,28 @@ const infographicSummaryPrompt = ai.definePrompt({
     input: { schema: GenerateInfographicInputSchema },
     output: { 
         schema: z.object({ 
-            mainTitle: z.string().describe("Short, compelling main title for the infographic (max 5 words)."),
+            mainTitle: z.string().describe("A short, compelling main title for the infographic (max 5 words)."),
             keyPoints: z.array(z.object({
-                header: z.string().describe("Extremely short header for a key point (2-3 words)."),
-                body: z.string().describe("A very short body phrase (max 5 words)."),
-                iconName: z.string().describe("A simple, descriptive name for an icon representing this point (e.g., 'DNA Strand', 'Lightbulb').")
-            })).max(4).describe("An array of up to 4 key points."),
-            layoutStyle: z.enum(['grid', 'flow-chart']).describe("The best layout style for this content: 'grid' for distinct points, 'flow-chart' for a process."),
+                title: z.string().describe("A concise title for the key point (3-5 words)."),
+                explanation: z.string().describe("A clear, one-sentence explanation of the point (10-15 words)."),
+                iconDescription: z.string().describe("A detailed description of a relevant icon for this point (e.g., 'A diagram showing red blood cells flowing through a vein', 'A simple icon of a human kidney').")
+            })).max(5).describe("An array of up to 5 key points."),
+            layoutStyle: z.enum(['vertical list', 'two-column grid']).describe("The best layout style for this content: 'vertical list' for sequential steps, 'two-column grid' for distinct but related points."),
         }) 
     },
     prompt: `
         You are a Senior Content Strategist specializing in data visualization. 
-        Your task is to analyze the provided text and distill it into a structured "Visual Blueprint" for an infographic.
+        Your task is to analyze the provided text and distill it into a structured "Visual Blueprint" for an infographic. The goal is maximum clarity and readability.
 
         ### INSTRUCTIONS:
-        1.  **Analyze Content:** Read the source content thoroughly.
-        2.  **Extract Core Ideas:** Identify up to 4 of the most critical concepts or steps.
-        3.  **Aggressively Summarize:** For each concept, create an extremely short header (2-3 words) and a body phrase (max 5 words).
-        4.  **Suggest Icons:** For each concept, suggest a simple, clear icon name.
-        5.  **Choose Layout:** Decide if a 'grid' or a 'flow-chart' layout is more appropriate.
+        1.  **Analyze Content:** Read the source content thoroughly to understand the core message.
+        2.  **Extract Main Title:** Create a short, engaging title for the entire infographic.
+        3.  **Identify Key Points:** Identify up to 5 of the most critical concepts, steps, or facts.
+        4.  **Summarize Points:** For each key point:
+            - Write a concise **title** (3-5 words).
+            - Write a clear, one-sentence **explanation** (10-15 words).
+            - Write a detailed **icon description** that a graphic designer could use to create a relevant and simple visual. Be specific (e.g., "A diagram showing a syringe administering medicine into a red blood cell" instead of just "treatment").
+        5.  **Choose Layout:** Decide if a 'vertical list' or a 'two-column grid' is more appropriate for presenting the information clearly.
 
         ### SOURCE CONTENT:
         {{#if content}}
@@ -74,22 +77,26 @@ async input => {
     const { output: blueprint } = await infographicSummaryPrompt(input);
     if (!blueprint) throw new Error("Visual Blueprint generation failed.");
 
-    const imagePrompt = `
-        A professional, high-quality infographic with the main title "${blueprint.mainTitle}".
-        STYLE: Modern, minimalist, flat 2D design.
-        BACKGROUND: Clean white background (#FFFFFF).
-        BRANDING: Include a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
-        TEXT: All text MUST be perfectly legible, horizontal, and rendered in a clean sans-serif font. NO distorted or unreadable text.
-        COLOR PALETTE: Use a professional palette with Deep Blue (#3F51B5) and Purple (#9C27B0) as primary accent colors against the white background.
-        
-        LAYOUT: A ${blueprint.layoutStyle} layout.
+    const imagePrompt = `Create a professional, high-quality infographic with the main title: "${blueprint.mainTitle}".
 
-        ${blueprint.keyPoints.map((point, index) => `
-        MODULE ${index + 1}:
-        - ICON: A simple, clear icon representing "${point.iconName}".
-        - HEADER: The text "${point.header}".
-        - BODY: The text "${point.body}".
-        `).join('\n')}
+**Design Rules:**
+- STYLE: Clean, modern, minimalist flat design. Use vector-style graphics.
+- BACKGROUND: Solid white background (#FFFFFF).
+- LAYOUT: A well-structured ${blueprint.layoutStyle} with clear separation between points. Each point should be in its own visual module with a colored background or border.
+- COLOR PALETTE: Use a professional and accessible palette. Primary accent colors should be Deep Blue (#3F51B5) and Purple (#9C27B0). Use a dark gray (#333333) for titles and a lighter gray (#666666) for explanation text.
+- TEXT: **CRITICAL**: All text must be perfectly legible, horizontal, and rendered in a clean, sans-serif font. There must be NO distorted, curved, or unreadable text. Ensure sufficient contrast between text and background.
+- BRANDING: Include a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
+
+**Content Modules:**
+
+${blueprint.keyPoints.map((point, index) => `
+---
+**Module ${index + 1}:**
+- **Icon:** Create a clear, simple, and high-quality icon based on this description: "${point.iconDescription}". The icon should be visually distinct and directly relevant to the text.
+- **Title Text:** "${point.title}"
+- **Explanation Text:** "${point.explanation}"
+---
+`).join('\n')}
     `;
 
     const { media } = await ai.generate({
