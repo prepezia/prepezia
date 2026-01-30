@@ -114,8 +114,11 @@ Here are the specific contents for each of the four modules:
 
     // Step 3: Use the generated prompt to create the image.
     const { media } = await ai.generate({
-        model: 'googleai/imagen-4.0-fast-generate-001',
+        model: 'googleai/gemini-2.5-flash-image-preview',
         prompt: imagePrompt,
+        config: {
+            responseModalities: ['TEXT', 'IMAGE'],
+        },
     });
 
     if (!media?.url) {
