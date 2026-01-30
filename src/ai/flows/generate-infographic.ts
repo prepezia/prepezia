@@ -37,22 +37,30 @@ const designInfographicMetaPrompt = ai.definePrompt({
             imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a professional infographic. This prompt should describe the layout, colors, icons, text, and flow of information. It MUST include a CRITICAL INSTRUCTION for the image model to ensure all text is perfectly legible, horizontal, and rendered in a clean, sans-serif font. It should also include a request for a 'Learn with Temi' mark in the bottom-left corner.")
         })
     },
-    prompt: `You are an expert Visual Storyteller and Science Communicator with over 20 years of experience, specializing in creating designs for educational content similar to Google's NotebookLM. Your task is to analyze the provided source material and generate a "meta-prompt" – a detailed set of instructions for a powerful text-to-image AI model (like Imagen 4.0) to create a professional, clear, and visually engaging infographic.
+    prompt: `You are an expert infographic designer with a specialization in ultra-clear educational visuals. Your primary goal is to create a "meta-prompt" for a text-to-image AI model (like Imagen 4.0) that results in a professional, beautiful, and, most importantly, **perfectly readable** infographic. The final output's text clarity is the number one priority.
 
-### YOUR DESIGN PHILOSOPHY:
-1.  **Narrative Flow:** Don't just list facts. Create a visual story that flows logically. Use arrows, connecting lines, or a central metaphor to guide the viewer's eye.
-2.  **Clarity Above All:** Prioritize clear, legible text and simple, relevant icons.
-3.  **Professional Aesthetics:** Use a clean layout, a professional color palette (deep blues, purples, with accents), and a prominent title.
+### YOUR DESIGN PRINCIPLES:
+1.  **TEXT IS PARAMOUNT:** Text is not decoration. It must be treated as a primary design element. It must be high-contrast, horizontal, and use a bold, clean, sans-serif font.
+2.  **MODULAR DESIGN:** Create a layout using clearly separated panels or sections (e.g., a 2x2 grid, a three-column layout). This helps the image model isolate text elements and render them cleanly. Avoid complex, overlapping designs.
+3.  **VISUALS SUPPORT TEXT:** Icons and diagrams must be simple, clean, and directly support the text in their panel. They should not obstruct or compete with the text.
+4.  **MINIMALISM:** Use a clean white background and a simple, professional color palette (e.g., shades of blue, gray, and one accent color). Less is more.
 
 ### META-PROMPT REQUIREMENTS:
-The prompt you generate for the image model MUST include the following instructions:
-1.  A main, overarching title for the infographic.
-2.  A description of the overall layout (e.g., "a central flowing diagram", "a top-to-bottom flowchart", "a comparison table").
-3.  Detailed descriptions for each visual element, its placement, and how it connects to others.
-4.  The **exact, minimal text** to be placed clearly alongside each visual component.
-5.  A **CRITICAL INSTRUCTION** section for the image model, demanding that **ALL TEXT MUST BE PERFECTLY LEGIBLE, HORIZONTAL, and rendered in a clean, sans-serif font like Arial or Helvetica. There must be NO distorted, curved, or unreadable text. Prioritize text clarity above all else.**
-6.  A small, discreet 'Learn with Temi' text mark in the bottom-left corner.
-7.  Specify a clean white background.
+Analyze the source content and generate a prompt for the image model that strictly follows these rules:
+1.  **Layout:** Define a simple, modular layout (e.g., "A 2x2 grid infographic with a main title at the top.").
+2.  **Content per Module:** For each module, specify:
+    -   A very short \`HEADER\` (2-4 words).
+    -   A concise \`BODY\` text (max 10-15 words).
+    -   A description of a \`SIMPLE ICON\` that visually represents the text.
+3.  **The Most Important Instruction:** The meta-prompt MUST end with the following **CRITICAL INSTRUCTION** section, verbatim. This is non-negotiable.
+
+    "**CRITICAL INSTRUCTION FOR TEXT:** This is the most important part of the prompt. All text on this infographic **MUST** be perfectly legible, clear, and easy to read.
+    -   Use a bold, modern, sans-serif font like Arial or Helvetica.
+    -   All text must be perfectly horizontal.
+    -   Ensure high contrast between the text and its background.
+    -   Do not allow any text to be distorted, curved, misspelled, or unreadable.
+    -   Render text as if it were a clean, vector overlay on the image. Prioritize text clarity above absolutely everything else. Failure to render text clearly is a failure of the entire task."
+4.  **Branding:** Include a request for a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
 
 ### SOURCE CONTENT:
 {{#if content}}
