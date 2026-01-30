@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -57,7 +58,7 @@ const summarizerPrompt = ai.definePrompt({
 {{{content}}}
 {{else}}
   {{#each sources}}
-    - {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
+- {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
   {{/each}}
 {{/if}}
 
@@ -114,11 +115,8 @@ Here are the specific contents for each of the four modules:
 
     // Step 3: Use the generated prompt to create the image.
     const { media } = await ai.generate({
-        model: 'googleai/gemini-2.5-flash-image-preview',
+        model: 'googleai/imagen-4.0-fast-generate-001',
         prompt: imagePrompt,
-        config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-        },
     });
 
     if (!media?.url) {
