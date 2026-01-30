@@ -43,7 +43,7 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
   const hasChildren = node.children && node.children.length > 0;
 
   return (
-    <div className="flex items-start min-w-0">
+    <div className="flex items-start min-w-max">
         <div className="flex items-center gap-2 py-2 flex-shrink-0">
             <div className={cn(
               'flex items-center justify-center rounded-lg border p-2 px-3 shadow-sm text-sm whitespace-nowrap',
@@ -187,12 +187,12 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
 
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between">
+      <CardHeader className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <CardTitle className="flex items-center gap-2"><GitFork className="text-primary"/> Mind Map for "{topic}"</CardTitle>
           <CardDescription>Click the +/- icons to expand or collapse branches of the mind map.</CardDescription>
         </div>
-        <Button variant="outline" onClick={handleDownload}>
+        <Button variant="outline" onClick={handleDownload} className="w-full md:w-auto">
             <Download className="mr-2 h-4 w-4" />
             Download
         </Button>
