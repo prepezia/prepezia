@@ -28,30 +28,31 @@ const GenerateInfographicOutputSchema = z.object({
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
-// New, simpler summarizer prompt
-const summarizerPrompt = ai.definePrompt({
-    name: 'infographicSummarizerPrompt',
+const designInfographicMetaPrompt = ai.definePrompt({
+    name: 'designInfographicMetaPrompt',
     model: 'googleai/gemini-2.5-flash',
     input: { schema: GenerateInfographicInputSchema },
-    output: { 
-        schema: z.object({ 
-            title: z.string().describe("The main, overarching title for the infographic."),
-            points: z.array(z.object({
-                heading: z.string().describe("A short, 2-3 word heading for a key point."),
-                explanation: z.string().describe("A concise one-sentence explanation of the key point."),
-                icon_description: z.string().describe("A brief description of a simple, relevant icon for this point (e.g., 'a red blood cell', 'a human kidney').")
-            })).max(4).describe("An array of exactly 4 key summary points.")
-        }) 
+    output: {
+        schema: z.object({
+            imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a professional infographic. This prompt should describe the layout, colors, icons, text, and flow of information. It MUST include a CRITICAL INSTRUCTION for the image model to ensure all text is perfectly legible, horizontal, and rendered in a clean, sans-serif font. It should also include a request for a 'Learn with Temi' mark in the bottom-left corner.")
+        })
     },
-    prompt: `You are an expert research analyst. Your task is to analyze the provided source material and distill it into a title and exactly four essential summary points for an infographic.
+    prompt: `You are an expert Visual Storyteller and Science Communicator with over 20 years of experience, specializing in creating designs for educational content similar to Google's NotebookLM. Your task is to analyze the provided source material and generate a "meta-prompt" – a detailed set of instructions for a powerful text-to-image AI model (like Imagen 4.0) to create a professional, clear, and visually engaging infographic.
 
-### INSTRUCTIONS:
-1.  **Analyze the Core Concepts:** Read all the source material to identify the most critical information.
-2.  **Create a Main Title:** Formulate a concise but descriptive title for the entire topic.
-3.  **Extract Four Key Points:** Identify four distinct, fundamental points. For each point, you must provide:
-    *   A very short **heading** (2-3 words).
-    *   A single, clear **explanation** sentence.
-    *   A simple **icon description** for a relevant visual (e.g., "a human heart with arrows showing blood flow").
+### YOUR DESIGN PHILOSOPHY:
+1.  **Narrative Flow:** Don't just list facts. Create a visual story that flows logically. Use arrows, connecting lines, or a central metaphor to guide the viewer's eye.
+2.  **Clarity Above All:** Prioritize clear, legible text and simple, relevant icons.
+3.  **Professional Aesthetics:** Use a clean layout, a professional color palette (deep blues, purples, with accents), and a prominent title.
+
+### META-PROMPT REQUIREMENTS:
+The prompt you generate for the image model MUST include the following instructions:
+1.  A main, overarching title for the infographic.
+2.  A description of the overall layout (e.g., "a central flowing diagram", "a top-to-bottom flowchart", "a comparison table").
+3.  Detailed descriptions for each visual element, its placement, and how it connects to others.
+4.  The **exact, minimal text** to be placed clearly alongside each visual component.
+5.  A **CRITICAL INSTRUCTION** section for the image model, demanding that **ALL TEXT MUST BE PERFECTLY LEGIBLE, HORIZONTAL, and rendered in a clean, sans-serif font like Arial or Helvetica. There must be NO distorted, curved, or unreadable text. Prioritize text clarity above all else.**
+6.  A small, discreet 'Learn with Temi' text mark in the bottom-left corner.
+7.  Specify a clean white background.
 
 ### SOURCE CONTENT:
 {{#if content}}
@@ -62,9 +63,10 @@ const summarizerPrompt = ai.definePrompt({
   {{/each}}
 {{/if}}
 
-Generate the title and four key points now.
+Generate the meta-prompt now.
 `,
 });
+
 
 const generateInfographicFlow = ai.defineFlow({
     name: 'generateInfographicFlow',
@@ -72,48 +74,14 @@ const generateInfographicFlow = ai.defineFlow({
     outputSchema: GenerateInfographicOutputSchema,
 },
 async (input) => {
-    // Step 1: Generate the structured summary from the source content.
-    const { output: summary } = await summarizerPrompt(input);
-    if (!summary || !summary.points || summary.points.length === 0) {
-        throw new Error("The AI failed to generate summary points for the infographic.");
+    // Step 1: Generate the detailed "meta-prompt" for the image model.
+    const { output } = await designInfographicMetaPrompt(input);
+    if (!output?.imagePrompt) {
+        throw new Error("The AI failed to generate the design prompt for the infographic.");
     }
-    
-    const { title, points } = summary;
+    const imagePrompt = output.imagePrompt;
 
-    // Step 2: Build a highly detailed, prescriptive prompt for the image model.
-    let imagePrompt = `You are an expert infographic designer with over 20 years of experience, known for creating ultra-clear, professional, and visually engaging educational content, similar to the quality of Google's NotebookLM. Your style is minimalist, using a clean white background and a professional color palette.
-
-**CRITICAL INSTRUCTION: ALL TEXT MUST BE PERFECTLY LEGIBLE, HORIZONTAL, and rendered in a clean, sans-serif font like Arial or Helvetica. There must be NO distorted, curved, or unreadable text. Prioritize text clarity above all else.**
-
-Your task is to create a high-quality infographic based on the following content.
-
-The infographic should have the following structure:
-
-1.  **Main Title:** At the top, in a large, bold, black font, display the title: "${title}"
-
-2.  **Content Grid:** Below the title, create a 2x2 grid of four visually distinct modules. Each module must be clearly separated and contain:
-    a. A high-quality, relevant icon or illustration.
-    b. A clear heading in a bold, dark-colored font.
-    c. A short explanation text in a standard, smaller black font.
-
-Here are the specific contents for each of the four modules:
-`;
-
-    points.forEach((point, index) => {
-        imagePrompt += `
-- **Module ${index + 1}:**
-  - **Icon:** Create a clean, relevant icon described as: "${point.icon_description}". The icon should be the main focus of the module.
-  - **Heading:** "${point.heading}"
-  - **Explanation:** "${point.explanation}"
-`;
-    });
-
-    imagePrompt += `
-3.  **Branding:** Include a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
-`;
-
-
-    // Step 3: Use the generated prompt to create the image.
+    // Step 2: Use the generated prompt to create the image.
     const { media } = await ai.generate({
         model: 'googleai/imagen-4.0-fast-generate-001',
         prompt: imagePrompt,
