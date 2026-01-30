@@ -169,7 +169,13 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
       </CardHeader>
       <CardContent>
         <div ref={mindMapRef} className="p-4 md:p-6 overflow-x-auto bg-background border rounded-lg">
-            <Node node={data} isRoot expandedNodes={expandedNodes} toggleNode={toggleNode} />
+            <Node
+              key={data.id}
+              node={data}
+              isRoot
+              expandedNodes={expandedNodes}
+              toggleNode={toggleNode}
+            />
         </div>
       </CardContent>
     </Card>
