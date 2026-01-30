@@ -28,44 +28,44 @@ const GenerateInfographicOutputSchema = z.object({
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
 
-const infographicSummaryPrompt = ai.definePrompt({
-    name: 'infographicSummaryPrompt',
+const visualStorytellerPrompt = ai.definePrompt({
+    name: 'visualStorytellerPrompt',
     model: 'googleai/gemini-2.5-flash',
     input: { schema: GenerateInfographicInputSchema },
     output: { 
         schema: z.object({ 
-            mainTitle: z.string().describe("A short, compelling main title for the infographic (max 5 words)."),
-            keyPoints: z.array(z.object({
-                title: z.string().describe("A concise title for the key point (3-5 words)."),
-                explanation: z.string().describe("A clear, one-sentence explanation of the point (10-15 words)."),
-                iconDescription: z.string().describe("A detailed description of a relevant icon for this point (e.g., 'A diagram showing red blood cells flowing through a vein', 'A simple icon of a human kidney').")
-            })).max(5).describe("An array of up to 5 key points."),
-            layoutStyle: z.enum(['vertical list', 'two-column grid']).describe("The best layout style for this content: 'vertical list' for sequential steps, 'two-column grid' for distinct but related points."),
+            imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a complete infographic."),
         }) 
     },
-    prompt: `
-        You are a Senior Content Strategist specializing in data visualization. 
-        Your task is to analyze the provided text and distill it into a structured "Visual Blueprint" for an infographic. The goal is maximum clarity and readability.
+    prompt: `You are an expert science communicator and graphic designer. Your task is to analyze the provided source material and create a detailed prompt for an image generation AI (like Imagen or Midjourney) to create a high-quality, educational infographic similar to the standards of Google's NotebookLM.
 
-        ### INSTRUCTIONS:
-        1.  **Analyze Content:** Read the source content thoroughly to understand the core message.
-        2.  **Extract Main Title:** Create a short, engaging title for the entire infographic.
-        3.  **Identify Key Points:** Identify up to 5 of the most critical concepts, steps, or facts.
-        4.  **Summarize Points:** For each key point:
-            - Write a concise **title** (3-5 words).
-            - Write a clear, one-sentence **explanation** (10-15 words).
-            - Write a detailed **icon description** that a graphic designer could use to create a relevant and simple visual. Be specific (e.g., "A diagram showing a syringe administering medicine into a red blood cell" instead of just "treatment").
-        5.  **Choose Layout:** Decide if a 'vertical list' or a 'two-column grid' is more appropriate for presenting the information clearly.
+### ANALYSIS & CONCEPTUALIZATION:
+1.  **Identify the Core Narrative:** Read the source material and understand the central process, concept, or story. Is it a lifecycle? A comparison? A cause-and-effect relationship?
+2.  **Design a Visual Metaphor:** Conceptualize a single, cohesive visual that can tie the whole story together. For a biological process, this might be a flowing diagram showing different stages in the body. For a historical event, it might be a timeline with interconnected events. Avoid simple, disconnected boxes.
+3.  **Break Down into Key Visual Elements:** Describe the individual components of your visual metaphor. For each element, specify what it is, where it should be placed, and how it connects to other elements (e.g., "A large, detailed red blood cell is in the center, with arrows pointing from it to show its path.").
+4.  **Integrate Text Clearly:** For each visual element, write the exact, concise text (headings and short descriptions) that should be placed near it. The text must be minimal and support the visual, not dominate it.
+5.  **Data Visualization (if applicable):** If the source contains data, describe a simple chart or graph (e.g., bar chart, gauge) to represent it, including labels and values.
 
-        ### SOURCE CONTENT:
-        {{#if content}}
-            {{{content}}}
-        {{else}}
-            {{#each sources}}
-                - {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
-            {{/each}}
-        {{/if}}
-    `,
+### PROMPT GENERATION RULES:
+Based on your concept, generate a single, comprehensive prompt for the image AI. This prompt MUST include:
+-   **Overall Style:** "A clean, modern, professional educational infographic. Vector art style with realistic detail. White background."
+-   **Visual Flow:** A clear description of the central visual metaphor and the arrangement of all elements.
+-   **Specific Elements:** Detailed descriptions of each icon, diagram, or illustration.
+-   **Text Integration:** The exact text content for each label, heading, and description, and where it should be placed.
+-   **CRITICAL TEXT LEGIBILITY:** A command like: "CRITICAL: All text must be perfectly legible, horizontal, and rendered in a clean, sans-serif font like Arial or Helvetica. Ensure high contrast between text and background. There must be NO distorted, curved, or unreadable text."
+-   **Branding:** "Include a small, discreet 'Learn with Temi' text mark in the bottom-left corner."
+
+### SOURCE CONTENT:
+{{#if content}}
+{{{content}}}
+{{else}}
+  {{#each sources}}
+    - {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
+  {{/each}}
+{{/if}}
+
+Generate the detailed image prompt now.
+`,
 });
 
 const generateInfographicFlow = ai.defineFlow({
@@ -74,41 +74,27 @@ const generateInfographicFlow = ai.defineFlow({
     outputSchema: GenerateInfographicOutputSchema,
 },
 async input => {
-    const { output: blueprint } = await infographicSummaryPrompt(input);
-    if (!blueprint) throw new Error("Visual Blueprint generation failed.");
+    // Step 1: Generate the detailed image prompt from the storyteller AI.
+    const { output } = await visualStorytellerPrompt(input);
+    if (!output?.imagePrompt) {
+        throw new Error("The AI failed to generate a visual concept (image prompt).");
+    }
 
-    const imagePrompt = `Create a professional, high-quality infographic with the main title: "${blueprint.mainTitle}".
+    const imagePrompt = output.imagePrompt;
 
-**Design Rules:**
-- STYLE: Clean, modern, minimalist flat design. Use vector-style graphics.
-- BACKGROUND: Solid white background (#FFFFFF).
-- LAYOUT: A well-structured ${blueprint.layoutStyle} with clear separation between points. Each point should be in its own visual module with a colored background or border.
-- COLOR PALETTE: Use a professional and accessible palette. Primary accent colors should be Deep Blue (#3F51B5) and Purple (#9C27B0). Use a dark gray (#333333) for titles and a lighter gray (#666666) for explanation text.
-- TEXT: **CRITICAL**: All text must be perfectly legible, horizontal, and rendered in a clean, sans-serif font. There must be NO distorted, curved, or unreadable text. Ensure sufficient contrast between text and background.
-- BRANDING: Include a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
-
-**Content Modules:**
-
-${blueprint.keyPoints.map((point, index) => `
----
-**Module ${index + 1}:**
-- **Icon:** Create a clear, simple, and high-quality icon based on this description: "${point.iconDescription}". The icon should be visually distinct and directly relevant to the text.
-- **Title Text:** "${point.title}"
-- **Explanation Text:** "${point.explanation}"
----
-`).join('\n')}
-    `;
-
+    // Step 2: Use the generated prompt to create the image.
     const { media } = await ai.generate({
         model: 'googleai/imagen-4.0-fast-generate-001',
         prompt: imagePrompt,
     });
 
-    if (!media?.url) throw new Error('Image generation failed.');
+    if (!media?.url) {
+        throw new Error('Image generation failed.');
+    }
 
     return {
         imageUrl: media.url,
-        prompt: imagePrompt,
+        prompt: imagePrompt, // Return the generated prompt for debugging.
     };
 });
 
