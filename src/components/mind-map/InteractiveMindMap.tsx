@@ -17,97 +17,84 @@ export interface MindMapNodeData {
 interface MindMapNodeProps {
   node: MindMapNodeData;
   isRoot?: boolean;
-  isLast?: boolean;
   expandedNodes: Set<string>;
   toggleNode: (nodeId: string) => void;
 }
 
-// Sanitization function to prevent duplicate IDs from AI
-const sanitizeNodeIds = (node: MindMapNodeData, seenIds: Set<string> = new Set()): MindMapNodeData => {
-    let newId = node.id;
-    let counter = 0;
-    while (seenIds.has(newId)) {
-        counter++;
-        newId = `${node.id}_${counter}`;
-    }
-    seenIds.add(newId);
-
-    const newChildren = node.children?.map(child => sanitizeNodeIds(child, seenIds));
-
-    return {
-        ...node,
-        id: newId,
-        children: newChildren,
-    };
+// Global counter for ID sanitization
+let idCounter = 0;
+/**
+ * Recursively traverses the node tree and replaces all AI-generated IDs
+ * with a guaranteed unique, sequential ID. This prevents React key errors.
+ */
+const sanitizeNodeIds = (node: MindMapNodeData): MindMapNodeData => {
+  idCounter++;
+  return {
+    ...node,
+    id: `mindmap-node-${idCounter}`, // Overwrite the ID
+    children: node.children?.map(child => sanitizeNodeIds(child)), // Recurse through children
+  };
 };
 
-// A recursive component to render each node
-const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, isLast = true, expandedNodes, toggleNode }) => {
+// A recursive component to render each node and its children horizontally
+const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes, toggleNode }) => {
   const isExpanded = expandedNodes.has(node.id);
   const hasChildren = node.children && node.children.length > 0;
 
   return (
-    <div className={cn("relative flex items-stretch", isRoot ? '' : 'pl-8')}>
-      {/* Connector lines */}
-      {!isRoot && (
-        <>
-          {/* Horizontal line */}
-          <div className="absolute left-0 top-1/2 -translate-y-px w-4 h-px bg-muted-foreground" />
-          {/* Vertical line */}
-          {!isLast && <div className="absolute left-0 top-0 w-px h-full bg-muted-foreground" />}
-        </>
-      )}
-
-      {/* Node content and children */}
-      <div className="flex flex-col items-start gap-2 py-2">
-        <div className="flex items-center gap-2">
-          {/* The node itself */}
-          <div
-            className={cn(
+    <div className="flex items-start">
+        <div className="flex items-center gap-2 py-2 flex-shrink-0">
+            <div className={cn(
               'flex items-center justify-center rounded-lg border p-2 px-3 shadow-sm text-sm',
               isRoot ? 'bg-primary text-primary-foreground font-bold' : 'bg-secondary'
+            )}>
+                {node.label}
+            </div>
+            {hasChildren && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => toggleNode(node.id)}
+                    aria-label={isExpanded ? 'Collapse node' : 'Expand node'}
+                >
+                    {isExpanded ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                </Button>
             )}
-          >
-            {node.label}
-          </div>
-
-          {/* Toggle button */}
-          {hasChildren && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => toggleNode(node.id)}
-              aria-label={isExpanded ? 'Collapse node' : 'Expand node'}
-            >
-              {isExpanded ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            </Button>
-          )}
         </div>
 
-        {/* Children nodes */}
         {isExpanded && hasChildren && (
-          <div className="relative flex flex-col gap-0 pt-2">
-             {/* Vertical line connecting to children */}
-            <div className="absolute left-0 -top-2 w-px h-full bg-muted-foreground" />
-            {node.children!.map((child, index) => (
-              <Node
-                key={child.id}
-                node={child}
-                isLast={index === node.children!.length - 1}
-                expandedNodes={expandedNodes}
-                toggleNode={toggleNode}
-              />
-            ))}
-          </div>
+            <div className="relative flex flex-col pl-8">
+                {/* Vertical trunk line for children */}
+                <div className="absolute left-4 top-0 bottom-0 w-px bg-muted-foreground" />
+
+                {/* Horizontal line connecting parent node to the vertical trunk */}
+                <div className="absolute -left-4 top-[23px] h-px w-4 bg-muted-foreground" />
+
+                {node.children!.map((child) => (
+                    <div key={child.id} className="relative">
+                        {/* Horizontal line connecting the trunk to this child node */}
+                        <div className="absolute -left-4 top-[23px] h-px w-4 bg-muted-foreground" />
+                        <Node 
+                            node={child} 
+                            expandedNodes={expandedNodes} 
+                            toggleNode={toggleNode}
+                        />
+                    </div>
+                ))}
+            </div>
         )}
-      </div>
     </div>
   );
 };
 
+
 export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string }> = ({ data, topic }) => {
-  const sanitizedData = useMemo(() => sanitizeNodeIds(data), [data]);
+  // Sanitize the AI-generated data to ensure all node IDs are unique
+  const sanitizedData = useMemo(() => {
+    idCounter = 0; // Reset counter on each new render/data change
+    return sanitizeNodeIds(data);
+  }, [data]);
   
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
       // Initially expand just the root node
