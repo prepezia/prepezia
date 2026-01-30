@@ -37,7 +37,6 @@ const sanitizeNodeIds = (node: MindMapNodeData): MindMapNodeData => {
   };
 };
 
-// A recursive component to render each node and its children horizontally
 const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes, toggleNode }) => {
   const isExpanded = expandedNodes.has(node.id);
   const hasChildren = node.children && node.children.length > 0;
@@ -67,15 +66,15 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
         {isExpanded && hasChildren && (
             <div className="relative flex flex-col pl-6">
                 {/* Vertical trunk line for children */}
-                <div className="absolute left-3 top-0 bottom-0 w-px bg-muted-foreground" />
+                <div className="absolute left-3 top-0 bottom-0 w-px bg-muted-foreground/50" />
 
                 {/* Horizontal line connecting parent node to the vertical trunk */}
-                <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground" />
+                <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground/50" />
 
                 {node.children!.map((child) => (
                     <div key={child.id} className="relative">
                         {/* Horizontal line connecting the trunk to this child node */}
-                        <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground" />
+                        <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground/50" />
                         <Node
                             node={child}
                             expandedNodes={expandedNodes}
@@ -187,15 +186,24 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
 
   return (
     <Card>
-      <CardHeader className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <CardTitle className="flex items-center gap-2"><GitFork className="text-primary"/> Mind Map for "{topic}"</CardTitle>
-          <CardDescription>Click the +/- icons to expand or collapse branches of the mind map.</CardDescription>
+      <CardHeader>
+        <div className="flex justify-between items-center gap-4">
+            <div className="flex-1 min-w-0">
+                <CardTitle className="flex items-center gap-2">
+                    <GitFork className="h-6 w-6 text-primary shrink-0"/>
+                    <span>Mind Map</span>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground truncate">for &quot;{topic}&quot;</p>
+            </div>
+            
+            <Button variant="outline" onClick={handleDownload} className="shrink-0">
+                <Download className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Download</span>
+            </Button>
         </div>
-        <Button variant="outline" onClick={handleDownload} className="w-full md:w-auto">
-            <Download className="mr-2 h-4 w-4" />
-            Download
-        </Button>
+        <CardDescription className="pt-2 text-balance">
+            Click the +/- icons to expand or collapse branches of the mind map.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto border rounded-lg">
