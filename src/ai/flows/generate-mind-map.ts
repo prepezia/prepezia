@@ -58,6 +58,7 @@ const generateMindMapDataPrompt = ai.definePrompt({
     *   The root object represents the central topic of the mind map.
     *   Each node in the mind map must be an object with three properties: \`id\` (a unique string), \`label\` (a concise string for the node's text), and an optional \`children\` array.
     *   The \`id\` for the root node should be "1". Child node IDs should follow a pattern like "1-1", "1-2", and their children "1-1-1", "1-1-2", etc.
+    *   **CRITICAL RULE:** Every single object in the entire JSON structure, no matter how deeply nested, MUST have a \`label\` property with a non-empty string value. This is the most important rule. Failure to include a valid \`label\` will break the application.
     *   Keep labels concise and clear. Aim for 2-7 words per label where possible.
     *   Create a meaningful hierarchy. Don't make the mind map too flat or too deep. Aim for 2-4 levels of depth.
 
