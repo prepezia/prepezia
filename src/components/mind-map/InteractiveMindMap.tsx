@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, GitFork, Download } from 'lucide-react';
@@ -102,6 +102,9 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
   const mindMapRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  const [isDownloading, setIsDownloading] = useState(false);
+  const originalExpandedNodesRef = useRef<Set<string> | null>(null);
+
   const getAllChildIds = useCallback((node: MindMapNodeData): string[] => {
     let ids: string[] = [];
     if (node.children) {
@@ -151,37 +154,47 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
       return ids;
     };
 
-    const allIds = new Set(getAllIds(sanitizedData));
-    const originalExpanded = expandedNodes;
-    setExpandedNodes(allIds);
-
     toast({ title: 'Preparing download...', description: 'Expanding all nodes.' });
+    originalExpandedNodesRef.current = new Set(expandedNodes); // Store current state
 
-    // Wait for the state to update and the component to re-render
-    setTimeout(() => {
-      if (mindMapRef.current === null) {
-        setExpandedNodes(originalExpanded); // Restore on failure
-        toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find mind map to render.' });
-        return;
-      }
-      
-      toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 })
-        .then((dataUrl) => {
-          const link = document.createElement('a');
-          link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
-          link.href = dataUrl;
-          link.click();
-        })
-        .catch((err) => {
-          console.error(err);
-          toast({ variant: 'destructive', title: 'Download failed', description: 'Could not generate the mind map image.' });
-        })
-        .finally(() => {
-          // Restore the original view
-          setExpandedNodes(originalExpanded);
-        });
-    }, 500); // Delay to allow UI to re-render with all nodes expanded
-  }, [sanitizedData, expandedNodes, topic, toast]);
+    const allIds = new Set(getAllIds(sanitizedData));
+    
+    setExpandedNodes(allIds); // Expand all
+    setIsDownloading(true); // Trigger effect for download
+  }, [expandedNodes, sanitizedData, toast]);
+
+  useEffect(() => {
+    if (!isDownloading) return;
+
+    const performDownload = async () => {
+        if (mindMapRef.current === null) {
+            toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find mind map to render.' });
+        } else {
+            try {
+                const dataUrl = await toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 });
+                const link = document.createElement('a');
+                link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
+                link.href = dataUrl;
+                link.click();
+            } catch (err) {
+                console.error(err);
+                toast({ variant: 'destructive', title: 'Download failed', description: 'Could not generate the mind map image.' });
+            }
+        }
+        
+        // Restore state regardless of success/failure
+        if (originalExpandedNodesRef.current) {
+            setExpandedNodes(originalExpandedNodesRef.current);
+        }
+        setIsDownloading(false);
+        originalExpandedNodesRef.current = null;
+    };
+
+    // Use a timeout to let the browser paint the newly expanded nodes.
+    const timer = setTimeout(performDownload, 500);
+
+    return () => clearTimeout(timer);
+  }, [isDownloading, topic, toast]);
 
   return (
     <Card>
@@ -205,8 +218,8 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="w-full overflow-x-auto border rounded-lg">
-          <div ref={mindMapRef} className="inline-block min-w-full p-4 md:p-6 bg-background">
+        <div className="w-full max-w-0 min-w-full overflow-x-auto border rounded-lg">
+          <div ref={mindMapRef} className="inline-block p-4 md:p-6 bg-background">
             <Node
               key={sanitizedData.id}
               node={sanitizedData}
