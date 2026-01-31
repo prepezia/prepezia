@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, useRef, useMemo } from 'react';
@@ -207,7 +206,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto border rounded-lg">
-          <div ref={mindMapRef} className="p-4 md:p-6 bg-background">
+          <div ref={mindMapRef} className="inline-block min-w-full p-4 md:p-6 bg-background">
             <Node
               key={sanitizedData.id}
               node={sanitizedData}
