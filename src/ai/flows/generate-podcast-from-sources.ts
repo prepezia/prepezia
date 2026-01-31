@@ -1,101 +1,134 @@
 'use server';
 
 /**
- * @fileOverview A podcast generator AI agent that creates a two-person podcast script from uploaded sources.
+ * @fileOverview A podcast generator AI agent that creates a two-person podcast script from various sources.
  *
  * - generatePodcastFromSources - A function that handles the podcast generation process.
- * - GeneratePodcastFromSourcesInput - The input type for the generatePodcastFromSources function.
- * - GeneratePodcastFromSourcesOutput - The return type for the generatePodcastFromSources function.
+ * - GeneratePodcastFromSourcesInput - The input type for the function.
+ * - GeneratePodcastFromSourcesOutput - The return type for the function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import wav from 'wav';
 
-const GeneratePodcastFromSourcesInputSchema = z.object({
-  sources: z
-    .array(z.string())
-    .describe(
-      'An array of source URLs (PDFs, text files, MP3 audio files, Website URLs, YouTube links).' 
-    ),
+const SourceSchema = z.object({
+    type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
+    name: z.string(),
+    url: z.string().optional(),
+    data: z.string().optional(),
+    contentType: z.string().optional(),
 });
-export type GeneratePodcastFromSourcesInput = z.infer<
-  typeof GeneratePodcastFromSourcesInputSchema
->;
+
+const GeneratePodcastFromSourcesInputSchema = z.object({
+  context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
+  content: z.string().optional().describe("The source text content (for note generation)."),
+  sources: z.array(SourceSchema).optional().describe("An array of sources (for study spaces)."),
+});
+
+export type GeneratePodcastFromSourcesInput = z.infer<typeof GeneratePodcastFromSourcesInputSchema>;
 
 const GeneratePodcastFromSourcesOutputSchema = z.object({
-  podcastScript: z.string().describe('The generated podcast script in JSON format.'),
+  podcastScript: z.string().describe('The generated podcast script. It should be a dialog between Temi and Jay.'),
   podcastAudio: z.string().describe('The generated podcast audio in base64 WAV format.'),
 });
-export type GeneratePodcastFromSourcesOutput = z.infer<
-  typeof GeneratePodcastFromSourcesOutputSchema
->;
 
-let generatePodcastFromSourcesFlow: any;
+export type GeneratePodcastFromSourcesOutput = z.infer<typeof GeneratePodcastFromSourcesOutputSchema>;
+
+
+const podcastScriptPrompt = ai.definePrompt({
+    name: 'podcastScriptPrompt',
+    model: 'googleai/gemini-2.5-flash',
+    input: {schema: GeneratePodcastFromSourcesInputSchema},
+    output: {
+        schema: z.object({
+            script: z.string().describe('The full podcast script as a string, with speaker lines clearly marked as "Temi:" or "Jay:".')
+        })
+    },
+    prompt: `You are a scriptwriter for an educational podcast called "Learn with Temi". Your task is to create a conversational script based on the provided source material.
+
+    ### CHARACTERS:
+    - **Temi:** The lead host. Energetic, enthusiastic, and great at making complex topics accessible.
+    - **Jay:** The co-host. Analytical, inquisitive, and provides deeper insights and clarifying questions.
+
+    ### INSTRUCTIONS:
+    1.  Read the source material below.
+    2.  Write a conversational podcast script between Temi and Jay that is approximately 5-7 minutes long.
+    3.  The script should start with Temi saying: "Hey everyone, welcome back to Learn with Temi!"
+    4.  Use banter, analogies, and frequent affirmations (e.g., "Exactly!", "That's a great point, Jay.", "Right, so...").
+    5.  Ensure the conversation flows naturally and covers the key points from the source material.
+    6.  The entire output must be just the script text, with each line prefixed by the speaker's name (e.g., "Temi: ...", "Jay: ...").
+
+    ### SOURCE MATERIAL:
+    {{#if content}}
+    {{{content}}}
+    {{else}}
+      {{#each sources}}
+    - {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
+      {{/each}}
+    {{/if}}
+    `,
+});
+
+const generatePodcastFlow = ai.defineFlow(
+  {
+    name: 'generatePodcastFlow',
+    inputSchema: GeneratePodcastFromSourcesInputSchema,
+    outputSchema: GeneratePodcastFromSourcesOutputSchema,
+  },
+  async input => {
+    // Step 1: Generate the script
+    const {output} = await podcastScriptPrompt(input);
+    const podcastScript = output!.script;
+
+    if (!podcastScript) {
+        throw new Error("Failed to generate podcast script.");
+    }
+
+    // Step 2: Generate the audio from the script
+    const {media} = await ai.generate({
+      model: 'googleai/gemini-2.5-flash-preview-tts',
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              {
+                speaker: 'Temi',
+                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Algenib'}},
+              },
+              {
+                speaker: 'Jay',
+                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}},
+              },
+            ],
+          },
+        },
+      },
+      prompt: podcastScript,
+    });
+
+    if (!media) {
+      throw new Error('Text-to-speech conversion failed.');
+    }
+
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    const podcastAudio = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
+
+    return {
+      podcastScript: podcastScript,
+      podcastAudio: podcastAudio,
+    };
+  }
+);
 
 export async function generatePodcastFromSources(
   input: GeneratePodcastFromSourcesInput
 ): Promise<GeneratePodcastFromSourcesOutput> {
-  if (!generatePodcastFromSourcesFlow) {
-    const podcastScriptPrompt = ai.definePrompt({
-      name: 'podcastScriptPrompt',
-      model: 'googleai/gemini-2.5-flash',
-      input: {schema: GeneratePodcastFromSourcesInputSchema},
-      output: {schema: z.string()},
-      prompt: `Act as two hosts, Temi (energetic, lead) and Jay (analytical, supporting). Turn the following uploaded sources into a 10-minute \"Deep Dive\" conversation. Use banter, analogies, and frequent affirmations like \"Exactly\" or \"Right.\" Start with: \"Hey everyone, welcome back to Learn with Temi!\" Output the script in JSON format with speaker tags.\n\nSources:\n{{#each sources}}- {{{this}}}\n{{/each}}`,
-    });
-
-    generatePodcastFromSourcesFlow = ai.defineFlow(
-      {
-        name: 'generatePodcastFromSourcesFlow',
-        inputSchema: GeneratePodcastFromSourcesInputSchema,
-        outputSchema: GeneratePodcastFromSourcesOutputSchema,
-      },
-      async input => {
-        const {output: podcastScript} = await podcastScriptPrompt(input);
-
-        const ttsPrompt = podcastScript!.toString();
-        const {media} = await ai.generate({
-          model: 'googleai/gemini-2.5-flash-preview-tts',
-          config: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              multiSpeakerVoiceConfig: {
-                speakerVoiceConfigs: [
-                  {
-                    speaker: 'Temi',
-                    voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Algenib'}},
-                  },
-                  {
-                    speaker: 'Jay',
-                    voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}},
-                  },
-                ],
-              },
-            },
-          },
-          prompt: ttsPrompt,
-        });
-
-        if (!media) {
-          throw new Error('no media returned');
-        }
-
-        const audioBuffer = Buffer.from(
-          media.url.substring(media.url.indexOf(',') + 1),
-          'base64'
-        );
-        const podcastAudio = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
-
-        return {
-          podcastScript: podcastScript!,
-          podcastAudio: podcastAudio,
-        };
-      }
-    );
-  }
-
-  return generatePodcastFromSourcesFlow(input);
+  return generatePodcastFlow(input);
 }
 
 async function toWav(

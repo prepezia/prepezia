@@ -60,7 +60,7 @@ const generateMindMapDataPrompt = ai.definePrompt({
     *   The root object represents the central topic of the mind map.
     *   Each node in the mind map must be an object with three properties: \`id\` (a unique string), \`label\` (a concise string for the node's text), and an optional \`children\` array.
     *   The \`id\` for the root node should be "1". Child node IDs should follow a pattern like "1-1", "1-2", and their children "1-1-1", "1-1-2", etc.
-    *   Keep labels concise and clear. Aim for 2-7 words per label where possible.
+    *   Keep labels concise and clear. Aim for 5-10 words per label where possible.
 3.  **Depth & Complexity:**
     *   Create a meaningful hierarchy. Aim for 2-4 levels of depth.
     *   Where appropriate, ensure every Main Branch (Level 1) has at least 2 sub-branches (Level 2) to ensure sufficient depth for academic study.

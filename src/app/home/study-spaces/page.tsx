@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
-import { generatePodcastFromSources } from "@/ai/flows/generate-podcast-from-sources";
+import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
@@ -78,7 +78,7 @@ type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
-  podcast?: { script: string; audio: string };
+  podcast?: GeneratePodcastFromSourcesOutput;
   summary?: string;
   infographic?: GenerateInfographicOutput;
   mindmap?: GenerateMindMapOutput;
@@ -434,18 +434,13 @@ export default function StudySpacesPage() {
 
     try {
       let result;
+      const input = {
+          context: 'study-space',
+          sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
+      } as GeneratePodcastFromSourcesInput | GenerateFlashcardsInput | GenerateQuizInput | GenerateSlideDeckInput;
+      
       if (type === 'podcast') {
-        const urls = selectedStudySpace.sources
-            .map(s => s.url)
-            .filter((url): url is string => !!url);
-        
-        if (urls.length === 0) {
-            toast({ variant: 'destructive', title: 'No URL Sources', description: 'Podcast generation requires at least one URL source (Website or YouTube).' });
-            setIsGenerating(null);
-            return;
-        }
-        result = await generatePodcastFromSources({ sources: urls });
-
+        result = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
       } else {
         const generationMap: {
             [K in 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap']: (input: any) => Promise<any>
@@ -457,10 +452,6 @@ export default function StudySpacesPage() {
             'mindmap': generateMindMap,
         };
         const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap'];
-        const input = {
-            context: 'study-space',
-            sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
-        };
         const rawResult = await generator(input);
         
         if (type === 'flashcards') {
@@ -531,7 +522,7 @@ export default function StudySpacesPage() {
             return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveGeneratedView(null)} />;
         }
         if (activeGeneratedView === 'podcast' && generatedContent.podcast) {
-            return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveGeneratedView(null)} />
+            return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name}/>
         }
         if (activeGeneratedView === 'infographic' && generatedContent.infographic) {
             return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
@@ -1171,21 +1162,22 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     );
 }
 
-function PodcastView({ podcast, onBack }: { podcast: { script: string, audio: string }, onBack: () => void }) {
+function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudio: string }, onBack: () => void, topic: string }) {
     return (
         <Card>
             <CardHeader>
                 <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"><Mic className="text-primary"/> Podcast for "{topic}"</CardTitle>
+                <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <h3 className="text-xl font-headline">Podcast Ready!</h3>
-                <audio controls src={podcast.audio} className="w-full"></audio>
-                <Card className="text-left max-h-80 overflow-y-auto">
-                    <CardHeader><CardTitle>Script</CardTitle></CardHeader>
-                    <CardContent>
-                        <pre className="text-sm whitespace-pre-wrap font-body">{JSON.stringify(JSON.parse(podcast.script), null, 2)}</pre>
-                    </CardContent>
-                </Card>
+                <audio controls src={podcast.podcastAudio} className="w-full"></audio>
+                 <details className="w-full">
+                    <summary className="cursor-pointer text-sm font-medium">View Script</summary>
+                    <div className="mt-2 text-left max-h-80 overflow-y-auto rounded-md border bg-secondary/50 p-4">
+                        <pre className="text-sm whitespace-pre-wrap font-body">{podcast.podcastScript}</pre>
+                    </div>
+                </details>
             </CardContent>
         </Card>
     );
@@ -1498,6 +1490,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
 
 
     
+
 
 
 

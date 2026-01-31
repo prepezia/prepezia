@@ -25,7 +25,8 @@ import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork } from "lucide-react";
+import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -46,6 +47,7 @@ type GeneratedContent = {
   deck?: GenerateSlideDeckOutput;
   infographic?: GenerateInfographicOutput;
   mindmap?: GenerateMindMapOutput;
+  podcast?: GeneratePodcastFromSourcesOutput;
 };
 
 type RecentNote = {
@@ -194,7 +196,7 @@ function ChatWithNoteDialog({ open, onOpenChange, noteContent, topic }: { open: 
 
         try {
             const response = await interactiveChatWithSources({
-                sources: [{ type: 'text', name: 'Note Content', data: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(noteContent)))}`, contentType: 'text/plain' }],
+                sources: [{ type: 'text', name: 'Note Content', dataUri: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(noteContent)))}`, contentType: 'text/plain' }],
                 question: currentInput
             });
             const assistantMessage: ChatMessage = { role: 'assistant', content: response.answer };
@@ -276,8 +278,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const generationStarted = useRef(false);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
-  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | null>(null);
-  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap'>('notes');
+  const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast' | null>(null);
+  const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast'>('notes');
 
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
     try {
@@ -520,6 +522,30 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   };
 
+  const handleGeneratePodcast = async () => {
+    if (!generatedNotes) return;
+    setIsGenerating('podcast');
+    try {
+        const result = await generatePodcastFromSources({
+            context: 'note-generator',
+            content: generatedNotes.notes,
+        });
+        setGeneratedContent(prev => {
+            const newContent = { ...prev, podcast: result };
+            if (initialNote) {
+                const { quiz, ...contentToSave } = newContent;
+                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+            }
+            return newContent;
+        });
+        setActiveView('podcast');
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to generate podcast', description: e.message });
+    } finally {
+        setIsGenerating(null);
+    }
+  };
+
 
   const nextStepActions = [
       { label: "Flashcards", icon: SquareStack, action: handleGenerateFlashcards, loading: isGenerating === 'flashcards'},
@@ -527,6 +553,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       { label: "Slide Deck", icon: Presentation, action: handleGenerateSlideDeck, loading: isGenerating === 'deck'},
       { label: "Infographic", icon: AreaChart, action: handleGenerateInfographic, loading: isGenerating === 'infographic'},
       { label: "Mind Map", icon: GitFork, action: handleGenerateMindMap, loading: isGenerating === 'mindmap'},
+      { label: "Podcast", icon: Mic, action: handleGeneratePodcast, loading: isGenerating === 'podcast'},
   ]
 
   const renderContent = () => {
@@ -544,6 +571,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
     if (activeView === 'mindmap' && generatedContent.mindmap) {
         return <InteractiveMindMap data={generatedContent.mindmap} topic={topic} />;
+    }
+    if (activeView === 'podcast' && generatedContent.podcast) {
+        return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveView('notes')} topic={topic} />;
     }
 
     // Default to notes view
@@ -701,7 +731,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </CardHeader>
               <CardContent className="flex flex-wrap gap-4">
                   {nextStepActions.map(item => (
-                      <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading}>
+                      <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading || isGenerating !== null}>
                           {item.loading ? <Loader2 className="mr-2 animate-spin"/> : <item.icon className="mr-2"/>}
                           {item.label}
                       </Button>
@@ -709,7 +739,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </CardContent>
             </Card>
 
-            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck || generatedContent.infographic || generatedContent.mindmap) && (
+            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck || generatedContent.infographic || generatedContent.mindmap || generatedContent.podcast) && (
               <Card className="mt-8">
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
@@ -736,6 +766,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                       {generatedContent.mindmap && (
                           <Button variant="secondary" onClick={() => setActiveView('mindmap')}>
                               <GitFork className="mr-2"/> View Mind Map
+                          </Button>
+                      )}
+                      {generatedContent.podcast && (
+                          <Button variant="secondary" onClick={() => setActiveView('podcast')}>
+                              <Mic className="mr-2"/> View Podcast
                           </Button>
                       )}
                   </CardContent>
@@ -1184,6 +1219,27 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
     );
 }
 
+function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudio: string }, onBack: () => void, topic: string }) {
+    return (
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"><Mic className="text-primary"/> Podcast for "{topic}"</CardTitle>
+                <CardDescription>Listen to the AI-generated podcast based on your notes.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <audio controls src={podcast.podcastAudio} className="w-full"></audio>
+                <details className="w-full">
+                    <summary className="cursor-pointer text-sm font-medium">View Script</summary>
+                    <div className="mt-2 text-left max-h-80 overflow-y-auto rounded-md border bg-secondary/50 p-4">
+                        <pre className="text-sm whitespace-pre-wrap font-body">{podcast.podcastScript}</pre>
+                    </div>
+                </details>
+            </CardContent>
+        </Card>
+    );
+}
+
 function NoteGeneratorPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -1255,6 +1311,7 @@ export default function NoteGeneratorPageWrapper() {
     
 
     
+
 
 
 
