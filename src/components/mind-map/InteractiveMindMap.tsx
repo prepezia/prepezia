@@ -44,10 +44,10 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
   return (
     // The container for a single node and its children sub-tree
     <div className={cn(
-      "flex min-w-max",
+      "flex min-w-max items-start",
       // On mobile, the root becomes a column, stacking its children vertically below it.
       // On desktop (md), it reverts to a row for the horizontal layout.
-      isRoot ? "flex-col items-start md:flex-row md:items-start" : "flex-row items-start"
+      isRoot ? "flex-col md:flex-row" : "flex-row"
     )}>
         {/* The node itself (label + button) */}
         <div className="flex items-center gap-2 py-2 flex-shrink-0">
@@ -77,7 +77,7 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
                 <div className={cn(
                     "absolute top-0 bottom-0 w-px bg-muted-foreground/50",
                     // For root on mobile, use fixed positioning. For desktop, move it left.
-                    isRoot ? "left-4 md:left-3 md:translate-x-0" : "left-3"
+                    isRoot ? "left-4 md:left-3" : "left-3"
                 )} />
 
                 {/* 2. The line connecting the parent node to its children's trunk */}
@@ -86,7 +86,7 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
                     <div className="absolute left-4 -top-3 h-3 w-px bg-muted-foreground/50 md:hidden" />
                 ) : null}
                 {/* On desktop, this is a short horizontal line. For non-root nodes, it's always horizontal. */}
-                <div className={cn("absolute top-[23px] h-px w-3 bg-muted-foreground/50", isRoot ? "hidden md:block -left-3" : "-left-3")} />
+                <div className={cn("absolute h-px w-3 bg-muted-foreground/50", isRoot ? "hidden md:block top-[23px] -left-3" : "top-[23px] -left-3")} />
                 
                 {/* === CHILDREN NODES === */}
                 {node.children!.map((child) => (
@@ -95,7 +95,7 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
                         <div className={cn(
                             "absolute top-[23px] h-px bg-muted-foreground/50",
                              // For root on mobile, it's a left-aligned horizontal line. For desktop and other nodes, it's a short left-aligned line.
-                            isRoot ? "w-4 left-0 md:w-3 md:left-auto md:-left-3" : "w-3 -left-3"
+                            isRoot ? "w-4 left-0 md:w-3 md:-left-3" : "w-3 -left-3"
                         )} />
                         <Node
                             node={child}
@@ -194,7 +194,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
             toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find mind map to render.' });
         } else {
             try {
-                const dataUrl = await toPng(mindMapfRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 });
+                const dataUrl = await toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 });
                 const link = document.createElement('a');
                 link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
                 link.href = dataUrl;
