@@ -47,7 +47,7 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
       "flex min-w-max items-start",
       // On mobile, the root becomes a column, stacking its children vertically below it.
       // On desktop (md), it reverts to a row for the horizontal layout.
-      isRoot ? "flex-col md:flex-row" : "flex-row"
+      isRoot ? "flex-col items-start md:flex-row" : "flex-row"
     )}>
         {/* The node itself (label + button) */}
         <div className="flex items-center gap-2 py-2 flex-shrink-0">
@@ -67,7 +67,7 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
         {/* The container for all children of this node */}
         {isExpanded && hasChildren && (
             <div className={cn(
-                "relative flex flex-col",
+                "relative", // Removed `flex flex-col` to prevent collapsing issues in deep recursion
                 // On mobile, root's children don't get extra padding. On desktop they do.
                 isRoot ? "pl-0 md:pl-6" : "pl-6"
             )}>
