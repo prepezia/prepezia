@@ -659,7 +659,7 @@ export default function StudySpacesPage() {
                         </Tabs>
                     </TabsContent>
 
-                    <TabsContent value="sources" className="mt-4">
+                    <TabsContent value="sources" className="mt-4 w-full max-w-0 min-w-full">
                         <Card>
                             <CardHeader className="flex-row items-center justify-between">
                                 <CardTitle>Your Sources ({selectedStudySpace.sources.length})</CardTitle>

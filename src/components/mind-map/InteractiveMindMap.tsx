@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
@@ -41,7 +42,14 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
   const hasChildren = node.children && node.children.length > 0;
 
   return (
-    <div className="flex items-start min-w-max">
+    // The container for a single node and its children sub-tree
+    <div className={cn(
+      "flex min-w-max",
+      // On mobile, the root becomes a column, stacking its children vertically below it.
+      // On desktop (md), it reverts to a row for the horizontal layout.
+      isRoot ? "flex-col items-center md:flex-row md:items-start" : "flex-row items-start"
+    )}>
+        {/* The node itself (label + button) */}
         <div className="flex items-center gap-2 py-2 flex-shrink-0">
             <div className={cn(
               'flex items-center justify-center rounded-lg border p-2 px-3 shadow-sm text-sm whitespace-nowrap',
@@ -50,30 +58,45 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
                 {node.label}
             </div>
             {hasChildren && (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => toggleNode(node.id)}
-                    aria-label={isExpanded ? 'Collapse node' : 'Expand node'}
-                >
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleNode(node.id)} aria-label={isExpanded ? 'Collapse node' : 'Expand node'}>
                     {isExpanded ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 </Button>
             )}
         </div>
 
+        {/* The container for all children of this node */}
         {isExpanded && hasChildren && (
-            <div className="relative flex flex-col pl-6">
-                {/* Vertical trunk line for children */}
-                <div className="absolute left-3 top-0 bottom-0 w-px bg-muted-foreground/50" />
+            <div className={cn(
+                "relative flex flex-col",
+                // On mobile, root's children don't get extra padding. On desktop they do.
+                isRoot ? "pl-0 md:pl-6" : "pl-6"
+            )}>
+                {/* === CONNECTOR LINES === */}
+                
+                {/* 1. The main vertical "trunk" line that all children branch from */}
+                <div className={cn(
+                    "absolute top-0 bottom-0 w-px bg-muted-foreground/50",
+                    // For root on mobile, center the trunk. For desktop, move it left.
+                    isRoot ? "left-1/2 -translate-x-1/2 md:left-3 md:translate-x-0" : "left-3"
+                )} />
 
-                {/* Horizontal line connecting parent node to the vertical trunk */}
-                <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground/50" />
-
+                {/* 2. The line connecting the parent node to its children's trunk */}
+                {isRoot ? (
+                    // On mobile, this is a short vertical line pointing down from the parent.
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-3 h-3 w-px bg-muted-foreground/50 md:hidden" />
+                ) : null}
+                {/* On desktop, this is a short horizontal line. For non-root nodes, it's always horizontal. */}
+                <div className={cn("absolute top-[23px] h-px w-3 bg-muted-foreground/50", isRoot ? "hidden md:block -left-3" : "-left-3")} />
+                
+                {/* === CHILDREN NODES === */}
                 {node.children!.map((child) => (
                     <div key={child.id} className="relative">
-                        {/* Horizontal line connecting the trunk to this child node */}
-                        <div className="absolute -left-3 top-[23px] h-px w-3 bg-muted-foreground/50" />
+                        {/* 3. The horizontal line connecting the trunk to this specific child */}
+                        <div className={cn(
+                            "absolute top-[23px] h-px bg-muted-foreground/50",
+                             // For root on mobile, it's a centered horizontal line. For desktop and other nodes, it's a short left-aligned line.
+                            isRoot ? "w-4 left-1/2 -translate-x-1/2 md:w-3 md:left-auto md:-left-3" : "w-3 -left-3"
+                        )} />
                         <Node
                             node={child}
                             expandedNodes={expandedNodes}
@@ -199,7 +222,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center gap-4">
+        <div className="flex justify-between items-start md:items-center gap-4">
             <div className="flex-1 min-w-0">
                 <CardTitle className="flex items-center gap-2">
                     <GitFork className="h-6 w-6 text-primary shrink-0"/>
@@ -218,8 +241,8 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="w-full max-w-0 min-w-full overflow-x-auto border rounded-lg">
-          <div ref={mindMapRef} className="inline-block p-4 md:p-6 bg-background">
+        <div className="w-full max-w-full min-w-0 overflow-x-auto border rounded-lg">
+          <div ref={mindMapRef} className="inline-block p-4 md:p-6 bg-background min-w-full">
             <Node
               key={sanitizedData.id}
               node={sanitizedData}
