@@ -47,7 +47,7 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
       "flex min-w-max",
       // On mobile, the root becomes a column, stacking its children vertically below it.
       // On desktop (md), it reverts to a row for the horizontal layout.
-      isRoot ? "flex-col items-center md:flex-row md:items-start" : "flex-row items-start"
+      isRoot ? "flex-col items-start md:flex-row md:items-start" : "flex-row items-start"
     )}>
         {/* The node itself (label + button) */}
         <div className="flex items-center gap-2 py-2 flex-shrink-0">
@@ -76,14 +76,14 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
                 {/* 1. The main vertical "trunk" line that all children branch from */}
                 <div className={cn(
                     "absolute top-0 bottom-0 w-px bg-muted-foreground/50",
-                    // For root on mobile, center the trunk. For desktop, move it left.
-                    isRoot ? "left-1/2 -translate-x-1/2 md:left-3 md:translate-x-0" : "left-3"
+                    // For root on mobile, use fixed positioning. For desktop, move it left.
+                    isRoot ? "left-4 md:left-3 md:translate-x-0" : "left-3"
                 )} />
 
                 {/* 2. The line connecting the parent node to its children's trunk */}
                 {isRoot ? (
                     // On mobile, this is a short vertical line pointing down from the parent.
-                    <div className="absolute left-1/2 -translate-x-1/2 -top-3 h-3 w-px bg-muted-foreground/50 md:hidden" />
+                    <div className="absolute left-4 -top-3 h-3 w-px bg-muted-foreground/50 md:hidden" />
                 ) : null}
                 {/* On desktop, this is a short horizontal line. For non-root nodes, it's always horizontal. */}
                 <div className={cn("absolute top-[23px] h-px w-3 bg-muted-foreground/50", isRoot ? "hidden md:block -left-3" : "-left-3")} />
@@ -94,8 +94,8 @@ const Node: React.FC<MindMapNodeProps> = ({ node, isRoot = false, expandedNodes,
                         {/* 3. The horizontal line connecting the trunk to this specific child */}
                         <div className={cn(
                             "absolute top-[23px] h-px bg-muted-foreground/50",
-                             // For root on mobile, it's a centered horizontal line. For desktop and other nodes, it's a short left-aligned line.
-                            isRoot ? "w-4 left-1/2 -translate-x-1/2 md:w-3 md:left-auto md:-left-3" : "w-3 -left-3"
+                             // For root on mobile, it's a left-aligned horizontal line. For desktop and other nodes, it's a short left-aligned line.
+                            isRoot ? "w-4 left-0 md:w-3 md:left-auto md:-left-3" : "w-3 -left-3"
                         )} />
                         <Node
                             node={child}
@@ -194,7 +194,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
             toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find mind map to render.' });
         } else {
             try {
-                const dataUrl = await toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 });
+                const dataUrl = await toPng(mindMapfRef.current, { cacheBust: true, backgroundColor: 'hsl(var(--background))', pixelRatio: 2 });
                 const link = document.createElement('a');
                 link.download = `mind-map-${topic.replace(/\s+/g, '_').toLowerCase()}.png`;
                 link.href = dataUrl;
@@ -226,7 +226,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
             <div className="flex-1 min-w-0">
                 <CardTitle className="flex items-center gap-2">
                     <GitFork className="h-6 w-6 text-primary shrink-0"/>
-                    <span>Mind Map</span>
+                    Mind Map
                 </CardTitle>
                 <p className="text-sm text-muted-foreground truncate">for &quot;{topic}&quot;</p>
             </div>
