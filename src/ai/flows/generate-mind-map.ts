@@ -48,19 +48,24 @@ const generateMindMapDataPrompt = ai.definePrompt({
     name: 'generateMindMapDataPrompt',
     model: 'googleai/gemini-2.5-flash',
     input: { schema: GenerateMindMapInputSchema },
-    output: { schema: GenerateMindMapOutputSchema },
+    output: { schema: GenerateMindMapOutputSchema, format: 'json' },
+    config: {
+        maxOutputTokens: 8192, // Increase token limit for potentially large JSON outputs
+    },
     prompt: `You are an AI expert in information architecture and visual learning. Your task is to analyze the provided source content and structure it into a hierarchical mind map format as a JSON object.
 
-### YOUR TASK:
+### YOUR TASK & RULES:
 1.  **Identify Hierarchy:** Read the content and determine the central topic, the main ideas (level 1 branches), and the supporting details (level 2+ sub-branches).
-2.  **Generate JSON:** Output a single JSON object that represents this mind map structure. The output must be ONLY the JSON object, with no surrounding text or markdown formatting.
-3.  **JSON Structure Rules:**
+2.  **JSON Structure Rules:**
     *   The root object represents the central topic of the mind map.
     *   Each node in the mind map must be an object with three properties: \`id\` (a unique string), \`label\` (a concise string for the node's text), and an optional \`children\` array.
     *   The \`id\` for the root node should be "1". Child node IDs should follow a pattern like "1-1", "1-2", and their children "1-1-1", "1-1-2", etc.
-    *   **CRITICAL RULE FOR LABELS:** The most important rule is about labels. Every single object in the JSON, at all levels, MUST have a 'label' property. The value for 'label' MUST be a non-empty string. An empty label (e.g., "label": "") is forbidden and will cause the application to fail.
     *   Keep labels concise and clear. Aim for 2-7 words per label where possible.
-    *   Create a meaningful hierarchy. Don't make the mind map too flat or too deep. Aim for 2-4 levels of depth.
+3.  **Depth & Complexity:**
+    *   Create a meaningful hierarchy. Aim for 2-4 levels of depth.
+    *   Where appropriate, ensure every Main Branch (Level 1) has at least 2 sub-branches (Level 2) to ensure sufficient depth for academic study.
+    *   {{#if academicLevel}}Tailor the complexity, terminology, and depth of the labels to an **{{academicLevel}}** audience.{{/if}}
+4.  **CRITICAL RULE FOR LABELS:** The most important rule is about labels. Every single object in the JSON, at all levels, MUST have a 'label' property. The value for 'label' MUST be a non-empty string. An empty label (e.g., "label": "") is forbidden and will cause the application to fail.
 
 ### EXAMPLE JSON OUTPUT:
 \`\`\`json
@@ -74,23 +79,9 @@ const generateMindMapDataPrompt = ai.definePrompt({
       "children": [
         {
           "id": "1-1-1",
-          "label": "Sub-branch 1.1",
-          "children": [
-            {
-              "id": "1-1-1-1",
-              "label": "Detail 1.1.1"
-            }
-          ]
-        },
-        {
-          "id": "1-1-2",
-          "label": "Sub-branch 1.2"
+          "label": "Sub-branch 1.1"
         }
       ]
-    },
-    {
-      "id": "1-2",
-      "label": "Main Branch 2"
     }
   ]
 }
@@ -105,7 +96,7 @@ const generateMindMapDataPrompt = ai.definePrompt({
   {{/each}}
 {{/if}}
 
-Generate the mind map as a single JSON object now.
+Generate the mind map JSON object now.
 `,
 });
 

@@ -241,7 +241,7 @@ export const InteractiveMindMap: React.FC<{ data: MindMapNodeData, topic: string
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="w-full max-w-full min-w-0 overflow-x-auto border rounded-lg">
+        <div className="w-full max-w-0 min-w-full overflow-x-auto border rounded-lg">
           <div ref={mindMapRef} className="inline-block p-4 md:p-6 bg-background min-w-full">
             <Node
               key={sanitizedData.id}
