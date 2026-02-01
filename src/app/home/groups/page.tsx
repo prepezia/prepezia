@@ -213,7 +213,7 @@ function GroupDetailView({ group, onBack, onEdit, onDelete }: { group: Group, on
                                 <li key={`${item.type}-${item.id}`} className="flex items-center text-sm gap-3 p-3 bg-secondary rounded-md cursor-pointer hover:bg-secondary/80" onClick={() => navigateToItem(item)}>
                                     {item.type === 'note' ? <BookOpen className="w-5 h-5 text-primary shrink-0"/> : <Library className="w-5 h-5 text-primary shrink-0"/>}
                                     <span className="flex-1 min-w-0 break-words font-medium">{item.name}</span>
-                                    <Badge variant={item.type === 'note' ? 'outline' : 'secondary'} className="shrink-0">
+                                    <Badge variant={item.type === 'note' ? 'default' : 'secondary'} className="shrink-0">
                                         {item.type === 'note' ? 'Note' : 'Study Space'}
                                     </Badge>
                                 </li>
