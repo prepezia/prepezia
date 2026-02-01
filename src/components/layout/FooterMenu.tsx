@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -29,16 +30,13 @@ export function FooterMenu() {
           let isActive;
           if (item.label === 'Study') {
             // Study is active for study, study-spaces, and note-generator pages
-            isActive = ['/home/study', '/home/study-spaces', '/home/note-generator'].some(p => pathname.startsWith(p));
+            isActive = ['/home/study', '/home/study-spaces', '/home/note-generator', '/home/past-questions'].some(p => pathname.startsWith(p));
           } else if (item.label === 'More') {
             // More is active for more, career, and admissions pages
             isActive = ['/home/more', '/home/career', '/home/admissions'].some(p => pathname.startsWith(p));
-          } else if (item.label === 'Groups') {
-            isActive = pathname.startsWith('/home/groups') || pathname.startsWith('/home/past-questions');
-          }
-          else {
-            // Other items are active only on their exact path
-            isActive = pathname === item.href;
+          } else {
+            // Other items are active only on their exact path or subpaths
+            isActive = pathname.startsWith(item.href);
           }
 
           return (
