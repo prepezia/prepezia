@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, WandSparkles, History, User, LayoutGrid } from 'lucide-react';
+import { Home, WandSparkles, User, LayoutGrid, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home },
   { href: '/home/study', label: 'Study', icon: WandSparkles },
+  { href: '/home/groups', label: 'Groups', icon: Folder },
   { href: '/home/more', label: 'More', icon: LayoutGrid },
-  { href: '/home/past-questions', label: 'Activities', icon: History },
 ];
 
 export function FooterMenu() {
@@ -29,10 +29,12 @@ export function FooterMenu() {
           let isActive;
           if (item.label === 'Study') {
             // Study is active for study, study-spaces, and note-generator pages
-            isActive = ['/home/study', '/home/study-spaces', '/home/note-generator'].includes(pathname);
+            isActive = ['/home/study', '/home/study-spaces', '/home/note-generator'].some(p => pathname.startsWith(p));
           } else if (item.label === 'More') {
             // More is active for more, career, and admissions pages
             isActive = ['/home/more', '/home/career', '/home/admissions'].some(p => pathname.startsWith(p));
+          } else if (item.label === 'Groups') {
+            isActive = pathname.startsWith('/home/groups') || pathname.startsWith('/home/past-questions');
           }
           else {
             // Other items are active only on their exact path

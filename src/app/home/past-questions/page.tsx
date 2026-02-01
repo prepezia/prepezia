@@ -1,255 +1,409 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { aiAssessmentRevisionRoadmap } from "@/ai/flows/ai-assessment-revision-roadmap";
-import { Loader2, Zap } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import AdBanner from "@/components/ads/AdBanner";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
+import { Folder, Plus, ArrowLeft, BookOpen, Library, Search, Trash2, Edit } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useRouter } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
-const setupSchema = z.object({
-  examType: z.enum(["BECE", "WASSCE", "University"]),
-  university: z.string().optional(),
-  department: z.string().optional(),
-  course: z.string().optional(),
-});
+// Type definitions
+type GroupItem = {
+    type: 'note' | 'studyspace';
+    id: number;
+    name: string;
+};
 
-const mockQuestions = [
-    { id: 'q1', text: 'Which of these is the powerhouse of the cell?', options: ['Nucleus', 'Mitochondria', 'Ribosome', 'Chloroplast'], answer: 'Mitochondria' },
-    { id: 'q2', text: 'What is the capital of Ghana?', options: ['Kumasi', 'Accra', 'Takoradi', 'Tamale'], answer: 'Accra' },
-    { id: 'q3', text: 'Solve for x: 2x + 5 = 15', options: ['5', '10', '2.5', '7.5'], answer: '5' },
-    { id: 'q4', text: 'Who was the first president of Ghana?', options: ['J.B. Danquah', 'Kwame Nkrumah', 'Kofi Annan', 'Jerry Rawlings'], answer: 'Kwame Nkrumah' },
-    { id: 'q5', text: 'What does "www" stand for in a website browser?', options: ['World Wide Web', 'World Web Wide', 'Web World Wide', 'Wide World Web'], answer: 'World Wide Web' },
-];
+type Group = {
+    id: number;
+    name: string;
+    description: string;
+    items: GroupItem[];
+};
 
-type QuizState = "setup" | "quiz" | "results" | "roadmap";
+// Mock types for items to be added
+type RecentNote = { id: number; topic: string; level: string };
+type StudySpace = { id: number; name: string; description: string; };
 
-export default function PastQuestionsPage() {
-  const [quizState, setQuizState] = useState<QuizState>("setup");
-  const [examConfig, setExamConfig] = useState<z.infer<typeof setupSchema> | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [score, setScore] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [roadmap, setRoadmap] = useState<string | null>(null);
-
-  const form = useForm<z.infer<typeof setupSchema>>({
-    resolver: zodResolver(setupSchema),
-    defaultValues: { examType: "WASSCE" },
-  });
-
-  function startQuiz(values: z.infer<typeof setupSchema>) {
-    setExamConfig(values);
-    setQuizState("quiz");
-  }
-
-  function handleAnswerChange(questionId: string, value: string) {
-    setAnswers(prev => ({...prev, [questionId]: value}));
-  }
-
-  function submitQuiz() {
-    let correctAnswers = 0;
-    mockQuestions.forEach(q => {
-        if (answers[q.id] === q.answer) {
-            correctAnswers++;
+function GroupsPage() {
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+    const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    
+    useEffect(() => {
+        try {
+            const savedGroups = localStorage.getItem('learnwithtemi_groups');
+            if (savedGroups) {
+                setGroups(JSON.parse(savedGroups));
+            }
+        } catch (error) {
+            console.error("Failed to load groups from localStorage", error);
         }
-    });
-    setScore(correctAnswers);
-    setQuizState("results");
-  }
-  
-  async function generateRoadmap() {
-    if (!examConfig) return;
-    setIsLoading(true);
-    setRoadmap(null);
-    const examResults = `
-      Student took a mock ${examConfig.examType} exam.
-      Score: ${score} out of ${mockQuestions.length}.
-      Correct answers for questions on: ${mockQuestions.filter(q => answers[q.id] === q.answer).map(q => `'${q.text}'`).join(', ')}.
-      Incorrect answers for questions on: ${mockQuestions.filter(q => answers[q.id] !== q.answer && answers[q.id]).map(q => `'${q.text}'`).join(', ')}.
-    `;
+    }, []);
+
+    const saveGroups = (updatedGroups: Group[]) => {
+        setGroups(updatedGroups);
+        try {
+            localStorage.setItem('learnwithtemi_groups', JSON.stringify(updatedGroups));
+        } catch (error) {
+            console.error("Failed to save groups to localStorage", error);
+        }
+    };
     
-    try {
-        const result = await aiAssessmentRevisionRoadmap({
-            examResults,
-            studentLevel: examConfig.examType,
-            university: examConfig.university,
-            department: examConfig.department,
-            course: examConfig.course
-        });
-        setRoadmap(result.revisionRoadmap);
-        setQuizState("roadmap");
-    } catch(e) {
-        console.error("Failed to generate roadmap", e)
-    } finally {
-        setIsLoading(false);
+    const handleCreateGroup = (newGroupData: Omit<Group, 'id'>) => {
+        const groupWithId = { ...newGroupData, id: Date.now() };
+        const updatedGroups = [groupWithId, ...groups];
+        saveGroups(updatedGroups);
+    };
+
+    const handleUpdateGroup = (updatedGroupData: Group) => {
+        const updatedGroups = groups.map(g => g.id === updatedGroupData.id ? updatedGroupData : g);
+        saveGroups(updatedGroups);
+        if (selectedGroup?.id === updatedGroupData.id) {
+            setSelectedGroup(updatedGroupData);
+        }
+        setEditingGroup(null);
+    };
+
+    const handleDeleteGroup = (groupId: number) => {
+        const updatedGroups = groups.filter(g => g.id !== groupId);
+        saveGroups(updatedGroups);
+        if (selectedGroup?.id === groupId) {
+            setSelectedGroup(null);
+        }
+    };
+    
+    const handleOpenEditor = (group?: Group) => {
+        if (group) {
+            setEditingGroup(group);
+        } else {
+            setEditingGroup(null);
+        }
+        setIsCreateModalOpen(true);
     }
-  }
+    
+    const viewContent = () => {
+        if (selectedGroup) {
+            return <GroupDetailView group={selectedGroup} onBack={() => setSelectedGroup(null)} onEdit={() => handleOpenEditor(selectedGroup)} onDelete={handleDeleteGroup} />;
+        }
+        return <GroupListView groups={groups} onSelectGroup={setSelectedGroup} onCreate={() => handleOpenEditor()} onDelete={handleDeleteGroup} />;
+    };
+
+    return (
+        <>
+            <HomeHeader />
+            <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+                {viewContent()}
+            </div>
+            <GroupEditorDialog 
+                key={editingGroup ? editingGroup.id : 'create'}
+                isOpen={isCreateModalOpen}
+                onClose={() => { setIsCreateModalOpen(false); setEditingGroup(null); }}
+                onCreate={handleCreateGroup}
+                onUpdate={handleUpdateGroup}
+                existingGroup={editingGroup}
+            />
+        </>
+    );
+}
 
 
-  const pageContent = () => {
-    if (quizState === "quiz") {
-        return (
-            <div className="space-y-8">
-                <h1 className="text-3xl font-headline font-bold mb-2">Mock Exam</h1>
-                <p className="text-muted-foreground mb-6">Answer the questions below. (This is a mock-up)</p>
-                <div className="space-y-8">
-                    {mockQuestions.map((q, index) => (
-                        <Card key={q.id}>
-                            <CardHeader><CardTitle>{index + 1}. {q.text}</CardTitle></CardHeader>
-                            <CardContent>
-                                 <RadioGroup onValueChange={(value) => handleAnswerChange(q.id, value)}>
-                                    {q.options.map(option => (
-                                        <div key={option} className="flex items-center space-x-2">
-                                            <RadioGroupItem value={option} id={`${q.id}-${option}`} />
-                                            <label htmlFor={`${q.id}-${option}`}>{option}</label>
-                                        </div>
-                                    ))}
-                                </RadioGroup>
-                            </CardContent>
-                        </Card>
-                    ))}
-                    <Button onClick={submitQuiz}>Submit Exam</Button>
+function GroupListView({ groups, onSelectGroup, onCreate, onDelete }: { groups: Group[], onSelectGroup: (group: Group) => void, onCreate: () => void, onDelete: (groupId: number) => void }) {
+    return (
+        <div>
+            <div className="flex justify-between items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-headline font-bold">Groups</h1>
+                    <p className="text-muted-foreground mt-1">Organize your notes and study spaces into logical groups.</p>
                 </div>
+                <Button onClick={onCreate} className="shrink-0">
+                    <Plus className="mr-2 h-4 w-4" /> Create Group
+                </Button>
             </div>
-        );
-      }
-      
-      if (quizState === "results") {
-        return (
-          <div className="space-y-8 max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl font-headline font-bold">Exam Results</h1>
-            <Card>
-                <CardContent className="pt-6">
-                    <p className="text-6xl font-bold text-primary">{score}<span className="text-2xl text-muted-foreground">/{mockQuestions.length}</span></p>
-                    <p className="text-lg mt-2">You answered {score} out of {mockQuestions.length} questions correctly.</p>
-                </CardContent>
-            </Card>
-            <p>Based on your results, we can generate a personalized revision plan to help you improve.</p>
-            <Button size="lg" onClick={generateRoadmap} disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Zap className="mr-2 h-4 w-4" />}
-                Generate AI Revision Roadmap
-            </Button>
-            <div className="pt-4">
-                <AdBanner />
-            </div>
-          </div>
-        );
-      }
-    
-      if(quizState === "roadmap") {
-        return (
-            <div className="space-y-8">
-                <h1 className="text-3xl font-headline font-bold">Your AI Revision Roadmap</h1>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: roadmap?.replace(/\n/g, '<br />') || "" }} />
-                    </CardContent>
-                </Card>
-                <Button onClick={() => setQuizState("setup")}>Start New Exam</Button>
-            </div>
-        )
-      }
-    
-      return (
-        <div className="space-y-8">
-          <div>
-            <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
-            <p className="text-muted-foreground">Select your exam type to start a timed mock exam.</p>
-          </div>
-    
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle>Exam Setup</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(startQuiz)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="examType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Exam Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select an exam" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="BECE">BECE</SelectItem>
-                            <SelectItem value="WASSCE">WASSCE</SelectItem>
-                            <SelectItem value="University">University</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-    
-                  {form.watch("examType") === "University" && (
-                    <>
-                      {/* In a real app, these would be dynamic selects based on previous choices */}
-                      <FormField control={form.control} name="university" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>University</FormLabel>
-                          <Select onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue placeholder="Select University" /></SelectTrigger></FormControl>
-                            <SelectContent><SelectItem value="UG">University of Ghana</SelectItem><SelectItem value="KNUST">KNUST</SelectItem></SelectContent>
-                          </Select>
-                        </FormItem>
-                      )}/>
-                       <FormField control={form.control} name="department" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Department</FormLabel>
-                          <Select onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger></FormControl>
-                            <SelectContent><SelectItem value="CS">Computer Science</SelectItem></SelectContent>
-                          </Select>
-                        </FormItem>
-                      )}/>
-                       <FormField control={form.control} name="course" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Course</FormLabel>
-                           <Select onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue placeholder="Select Course" /></SelectTrigger></FormControl>
-                            <SelectContent><SelectItem value="DCIT205">DCIT 205</SelectItem></SelectContent>
-                          </Select>
-                        </FormItem>
-                      )}/>
-                    </>
-                  )}
-    
-                  <Button type="submit" className="w-full">Start Mock Exam</Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
-      );
-  }
 
-  return (
-    <>
-        <HomeHeader />
-        <div className="p-4 sm:p-6 lg:p-8">
-            {pageContent()}
+            <div className="mt-8">
+                {groups.length === 0 ? (
+                    <Card className="flex flex-col items-center justify-center p-12 border-dashed">
+                        <Folder className="w-12 h-12 text-muted-foreground mb-4" />
+                        <h3 className="text-xl font-semibold text-muted-foreground">No groups yet.</h3>
+                        <p className="text-muted-foreground mb-4">Click the button above to create your first one!</p>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {groups.map(group => (
+                            <Card key={group.id} className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col" onClick={() => onSelectGroup(group)}>
+                                <CardHeader>
+                                    <CardTitle className="truncate">{group.name}</CardTitle>
+                                    <CardDescription className="line-clamp-2">{group.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow">
+                                    <p className="text-sm font-bold text-primary">{group.items.length} item{group.items.length !== 1 && 's'}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
-    </>
+    );
+}
+
+function GroupDetailView({ group, onBack, onEdit, onDelete }: { group: Group, onBack: () => void, onEdit: () => void, onDelete: (groupId: number) => void }) {
+    const router = useRouter();
+
+    const navigateToItem = (item: GroupItem) => {
+        if (item.type === 'note') {
+            router.push(`/home/note-generator?noteId=${item.id}`);
+        } else if (item.type === 'studyspace') {
+            router.push(`/home/study-spaces?spaceId=${item.id}`);
+        }
+    };
+    
+    return (
+        <div>
+            <Button variant="outline" onClick={onBack} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to All Groups
+            </Button>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-3xl font-headline font-bold">{group.name}</CardTitle>
+                    <CardDescription>{group.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <h3 className="font-semibold mb-4">Items in this Group ({group.items.length})</h3>
+                    {group.items.length > 0 ? (
+                        <ul className="space-y-2">
+                            {group.items.map(item => (
+                                <li key={`${item.type}-${item.id}`} className="flex items-center text-sm gap-2 p-3 bg-secondary rounded-md cursor-pointer hover:bg-secondary/80" onClick={() => navigateToItem(item)}>
+                                    {item.type === 'note' ? <BookOpen className="w-5 h-5 text-primary"/> : <Library className="w-5 h-5 text-primary"/>}
+                                    <span className="flex-1 min-w-0 break-words font-medium">{item.name}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No items have been added to this group yet.</p>
+                    )}
+                </CardContent>
+                 <CardFooter className="justify-between">
+                    <Button variant="outline" onClick={onEdit}><Edit className="mr-2 h-4 w-4"/>Edit Group</Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete Group</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete the "{group.name}" group. The notes and study spaces within it will not be deleted.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(group.id)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardFooter>
+            </Card>
+        </div>
+    );
+}
+
+function GroupEditorDialog({ isOpen, onClose, onCreate, onUpdate, existingGroup }: { 
+    isOpen: boolean; 
+    onClose: () => void; 
+    onCreate: (group: Omit<Group, 'id'>) => void;
+    onUpdate: (group: Group) => void;
+    existingGroup: Group | null;
+}) {
+    const isEditMode = !!existingGroup;
+    const [step, setStep] = useState(1);
+    const [name, setName] = useState("");
+    const [description, setDescription] = useState("");
+    const [notes, setNotes] = useState<RecentNote[]>([]);
+    const [studySpaces, setStudySpaces] = useState<StudySpace[]>([]);
+    const [selectedItems, setSelectedItems] = useState<GroupItem[]>([]);
+    const [search, setSearch] = useState("");
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (isOpen) {
+            // Pre-populate for edit mode
+            if (existingGroup) {
+                setName(existingGroup.name);
+                setDescription(existingGroup.description);
+                setSelectedItems(existingGroup.items);
+            }
+
+            try {
+                const savedNotes = localStorage.getItem('learnwithtemi_recent_notes');
+                const savedSpaces = localStorage.getItem('learnwithtemi_study_spaces');
+                if (savedNotes) setNotes(JSON.parse(savedNotes));
+                if (savedSpaces) setStudySpaces(JSON.parse(savedSpaces));
+            } catch (e) {
+                console.error("Error loading items for group creation", e);
+            }
+        } else {
+            // Reset state on close
+            setStep(1);
+            setName("");
+            setDescription("");
+            setSelectedItems([]);
+            setSearch("");
+        }
+    }, [isOpen, existingGroup]);
+
+    const handleNext = () => {
+        if (name.trim() === "") {
+            toast({ variant: 'destructive', title: 'Group name is required' });
+            return;
+        }
+        setStep(2);
+    };
+
+    const handleItemToggle = (item: GroupItem, checked: boolean) => {
+        setSelectedItems(prev => {
+            if (checked) {
+                return [...prev, item];
+            } else {
+                return prev.filter(i => !(i.id === item.id && i.type === item.type));
+            }
+        });
+    };
+
+    const handleSubmit = () => {
+        if (isEditMode && existingGroup) {
+            onUpdate({ ...existingGroup, name, description, items: selectedItems });
+        } else {
+            onCreate({ name, description, items: selectedItems });
+        }
+        onClose();
+    };
+
+    const filteredNotes = useMemo(() => notes.filter(n => n.topic.toLowerCase().includes(search.toLowerCase())), [notes, search]);
+    const filteredSpaces = useMemo(() => studySpaces.filter(s => s.name.toLowerCase().includes(search.toLowerCase())), [studySpaces, search]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-2xl h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>{isEditMode ? 'Edit Group' : 'Create New Group'}</DialogTitle>
+                    <DialogDescription>Step {step} of 2: {step === 1 ? "Group Details" : "Add Items"}</DialogDescription>
+                </DialogHeader>
+                
+                {step === 1 && (
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-1">
+                            <Label htmlFor="group-name">Group Name</Label>
+                            <Input id="group-name" placeholder="e.g., Microeconomics" value={name} onChange={e => setName(e.target.value)} />
+                        </div>
+                         <div className="space-y-1">
+                            <Label htmlFor="group-desc">Description (optional)</Label>
+                            <Textarea id="group-desc" placeholder="A short description of what this group is about." value={description} onChange={e => setDescription(e.target.value)} />
+                        </div>
+                    </div>
+                )}
+
+                {step === 2 && (
+                    <div className="flex-1 flex flex-col min-h-0">
+                         <div className="relative mb-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search notes and spaces..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+                        </div>
+                        <ScrollArea className="flex-1 -mx-6 px-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="font-semibold mb-2">Study Spaces ({filteredSpaces.length})</h3>
+                                    {filteredSpaces.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {filteredSpaces.map(space => (
+                                                <div key={`space-${space.id}`} className="flex items-center space-x-3 p-2.5 border rounded-md bg-card has-[:checked]:bg-secondary">
+                                                    <Checkbox 
+                                                        id={`space-${space.id}`} 
+                                                        onCheckedChange={(checked) => handleItemToggle({ type: 'studyspace', id: space.id, name: space.name }, !!checked)}
+                                                        checked={selectedItems.some(i => i.type === 'studyspace' && i.id === space.id)}
+                                                    />
+                                                    <label htmlFor={`space-${space.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer">{space.name}</label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : <p className="text-sm text-muted-foreground p-4 text-center">No matching study spaces found.</p>}
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-2">Notes ({filteredNotes.length})</h3>
+                                    {filteredNotes.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {filteredNotes.map(note => (
+                                                <div key={`note-${note.id}`} className="flex items-center space-x-3 p-2.5 border rounded-md bg-card has-[:checked]:bg-secondary">
+                                                    <Checkbox 
+                                                        id={`note-${note.id}`} 
+                                                        onCheckedChange={(checked) => handleItemToggle({ type: 'note', id: note.id, name: note.topic }, !!checked)}
+                                                        checked={selectedItems.some(i => i.type === 'note' && i.id === note.id)}
+                                                    />
+                                                    <label htmlFor={`note-${note.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer">{note.topic}</label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : <p className="text-sm text-muted-foreground p-4 text-center">No matching notes found.</p>}
+                                </div>
+                            </div>
+                        </ScrollArea>
+                    </div>
+                )}
+
+                <DialogFooter>
+                    {step === 1 && <Button onClick={handleNext}>Next</Button>}
+                    {step === 2 && (
+                        <div className="flex justify-between w-full">
+                            <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                            <Button onClick={handleSubmit}>{isEditMode ? 'Update Group' : 'Create Group'}</Button>
+                        </div>
+                    )}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// Wrapper to satisfy Next.js suspense requirement
+export default function GroupsPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+        <GroupsPage />
+    </Suspense>
   )
 }

@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -45,6 +45,7 @@ import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
+import { useSearchParams, useRouter } from "next/navigation";
 
 
 const createSpaceSchema = z.object({
@@ -112,7 +113,10 @@ const mockStudySpaces: MockStudySpace[] = [
 ];
 
 
-export default function StudySpacesPage() {
+function StudySpacesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [viewState, setViewState] = useState<ViewState>('list');
   const [isChatLoading, setIsChatLoading] = useState(false);
   
@@ -148,11 +152,38 @@ export default function StudySpacesPage() {
     }
   }, []);
 
+  // Effect to handle deep linking via URL
+  useEffect(() => {
+    const spaceId = searchParams.get('spaceId');
+    if (spaceId && studySpaces.length > 0) {
+        const space = studySpaces.find(s => s.id.toString() === spaceId);
+        if (space) {
+            handleSelectStudySpace(space);
+            // Clean the URL to avoid re-triggering
+            router.replace('/home/study-spaces');
+        }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studySpaces, searchParams]);
+
   useEffect(() => {
     try {
-        // Avoid saving the initial empty state before hydration
         if (studySpaces && studySpaces.length > 0) {
-            localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(studySpaces));
+            const spacesToSave = studySpaces.map(space => {
+                const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
+                    if (!content) return undefined;
+                    const savable = JSON.parse(JSON.stringify(content));
+                    delete savable.quiz;
+                    if (savable.podcast) savable.podcast.podcastAudio = "";
+                    if (savable.infographic) savable.infographic.imageUrl = "";
+                    return savable;
+                };
+                return {
+                    ...space,
+                    generatedContent: getSavableContent(space.generatedContent),
+                };
+            });
+            localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
         }
     } catch (error) {
         if (error instanceof DOMException && error.name === 'QuotaExceededError') {
@@ -175,7 +206,6 @@ export default function StudySpacesPage() {
 
   useEffect(() => {
     const generateSummary = async () => {
-        // Only run when a space is selected, it has sources, no summary exists yet, and nothing else is generating.
         if (selectedStudySpace && selectedStudySpace.sources.length > 0 && !selectedStudySpace.generatedContent?.summary && !isGenerating) {
             setIsGenerating('summary');
             try {
@@ -276,6 +306,7 @@ export default function StudySpacesPage() {
   const handleBackToList = () => {
     setSelectedStudySpace(null);
     setViewState('list');
+    router.replace('/home/study-spaces');
   };
   
   const handleCreateStudySpace = (name: string, description: string, sources: Source[]) => {
@@ -299,22 +330,7 @@ export default function StudySpacesPage() {
         const changes = typeof update === 'function' ? update(prev) : update;
         const newSpace = { ...prev, ...changes };
 
-        const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
-            if (!content) return undefined;
-            const savable = JSON.parse(JSON.stringify(content));
-            delete savable.quiz;
-            if (savable.podcast) savable.podcast.podcastAudio = "";
-            if (savable.infographic) savable.infographic.imageUrl = "";
-            return savable;
-        };
-
-        const spaceToPersist = {
-            ...newSpace,
-            generatedContent: getSavableContent(newSpace.generatedContent),
-            chatHistory: newSpace.chatHistory,
-        };
-
-        setStudySpaces(currentSpaces => currentSpaces.map(s => s.id === spaceToPersist.id ? spaceToPersist : s));
+        setStudySpaces(currentSpaces => currentSpaces.map(s => s.id === newSpace.id ? newSpace : s));
         
         return newSpace;
     });
@@ -355,7 +371,6 @@ export default function StudySpacesPage() {
         if (match) {
             const citationIndex = parseInt(match[1], 10);
             
-            // Check if this index is valid for our citations array.
             if (citationIndex >= 0 && citationIndex < citations.length) {
                 const citation = citations[citationIndex];
                 const source = sources[citation.sourceIndex];
@@ -380,7 +395,7 @@ export default function StudySpacesPage() {
                     </Popover>
                 );
             }
-            return null; // If the citation index is invalid, don't render anything for it.
+            return null;
         }
         if (typeof part === 'string') {
             return <ReactMarkdown key={index} remarkPlugins={[remarkGfm]} components={{ p: 'span' }}>{part}</ReactMarkdown>
@@ -569,7 +584,6 @@ export default function StudySpacesPage() {
                 typeof msg.content === 'string' ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                 ) : (
-                  // This case should ideally not happen if state management is correct
                   <p className="text-muted-foreground">[Unsupported Content]</p>
                 )
               )}
@@ -856,7 +870,6 @@ export default function StudySpacesPage() {
     </>
   );
 }
-
 
 function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, description: string, sources: Source[]) => void; onBack: () => void; }) {
     const [stage, setStage] = useState<'details' | 'sources'>('details');
@@ -1529,4 +1542,12 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
             </DialogContent>
         </Dialog>
     )
+}
+
+export default function StudySpacesPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin"/></div>}>
+      <StudySpacesPage />
+    </Suspense>
+  )
 }
