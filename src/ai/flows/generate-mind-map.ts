@@ -62,7 +62,7 @@ const generateMindMapDataPrompt = ai.definePrompt({
     *   The \`id\` for the root node should be "1". Child node IDs should follow a pattern like "1-1", "1-2", and their children "1-1-1", "1-1-2", etc.
     *   Keep labels concise and clear. Aim for 5-10 words per label where possible.
 3.  **Depth & Complexity:**
-    *   Create a meaningful hierarchy. Aim for 2-4 levels of depth.
+    *   Create a meaningful hierarchy. Aim for 3-5 levels of depth.
     *   Where appropriate, ensure every Main Branch (Level 1) has at least 2 sub-branches (Level 2) to ensure sufficient depth for academic study.
     *   {{#if academicLevel}}Tailor the complexity, terminology, and depth of the labels to an **{{academicLevel}}** audience.{{/if}}
 4.  **CRITICAL RULE FOR LABELS:** The most important rule is about labels. Every single object in the JSON, at all levels, MUST have a 'label' property. The value for 'label' MUST be a non-empty string. An empty label (e.g., "label": "") is forbidden and will cause the application to fail.

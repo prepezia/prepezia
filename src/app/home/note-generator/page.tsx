@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 type GeneratedContent = {
@@ -292,10 +293,29 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             savedNotes[noteIndex] = updatedNote;
             localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error("Failed to update note in local storage:", e);
+        if (e.name === 'QuotaExceededError' || (e.code && e.code === 22)) { // DOMException code for QuotaExceededError
+             toast({
+                variant: 'destructive',
+                title: 'Storage Limit Reached',
+                description: "Could not save all generated content because your browser's local storage is full. Some content may not be available next time you visit.",
+            });
+        }
     }
-  }, []);
+  }, [toast]);
+
+  const getSavableContent = (content: GeneratedContent): GeneratedContent => {
+    const savable = JSON.parse(JSON.stringify(content));
+    delete savable.quiz; // Quizzes are never saved
+    if (savable.podcast) {
+        savable.podcast.podcastAudio = ""; // Don't save large audio string
+    }
+    if (savable.infographic) {
+        savable.infographic.imageUrl = ""; // Don't save large image data URI
+    }
+    return savable;
+  }
 
   const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
     const newNote: RecentNote = {
@@ -314,7 +334,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
       // Replace URL to reflect the new note ID for saving subsequent generated content
       router.replace(`/home/note-generator?noteId=${newNote.id}`);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to save notes to local storage:", e);
     }
   }, [router]);
@@ -411,8 +431,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setGeneratedContent(prev => {
             const newContent = { ...prev, flashcards: result.flashcards };
             if (initialNote) {
-                const { quiz, ...contentToSave } = newContent;
-                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
             }
             return newContent;
         });
@@ -457,8 +476,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setGeneratedContent(prev => {
             const newContent = { ...prev, deck: result };
             if (initialNote) {
-                const { quiz, ...contentToSave } = newContent;
-                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
             }
             return newContent;
         });
@@ -483,8 +501,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setGeneratedContent(prev => {
             const newContent = { ...prev, infographic: result };
             if (initialNote) {
-                const { quiz, ...contentToSave } = newContent;
-                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
             }
             return newContent;
         });
@@ -509,8 +526,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setGeneratedContent(prev => {
             const newContent = { ...prev, mindmap: result };
             if (initialNote) {
-                const { quiz, ...contentToSave } = newContent;
-                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
             }
             return newContent;
         });
@@ -533,8 +549,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setGeneratedContent(prev => {
             const newContent = { ...prev, podcast: result };
             if (initialNote) {
-                const { quiz, ...contentToSave } = newContent;
-                updateAndSaveNote(initialNote.id, { generatedContent: contentToSave });
+                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
             }
             return newContent;
         });
@@ -744,7 +759,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
                       <CardDescription>
-                          Your generated content is saved here. Quizzes are not saved.
+                          Your generated content is saved here. Quizzes and large media (audio/images) are not saved.
                       </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-4">
@@ -1187,7 +1202,12 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
 }
 
 function InfographicView({ infographic, onBack, topic }: { infographic: GenerateInfographicOutput, onBack: () => void, topic: string }) {
+    const { toast } = useToast();
     const handleDownload = () => {
+        if (!infographic.imageUrl) {
+            toast({ variant: 'destructive', title: 'Image Not Available', description: 'Please regenerate the infographic to download it.' });
+            return;
+        }
         const link = document.createElement('a');
         link.href = infographic.imageUrl;
         link.download = `infographic_${topic.replace(/\s+/g, '_')}.png`;
@@ -1201,15 +1221,24 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
-                    <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                    <Button onClick={handleDownload} variant="ghost" size="icon" disabled={!infographic.imageUrl}><Download className="h-4 w-4"/></Button>
                 </div>
                 <CardTitle className="pt-4 flex items-center gap-2"><AreaChart className="text-primary"/> Infographic for "{topic}"</CardTitle>
                 <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
-                <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
-                    <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
-                </div>
+                {infographic.imageUrl ? (
+                    <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
+                        <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
+                    </div>
+                ) : (
+                    <Alert variant="destructive" className="w-full max-w-2xl">
+                        <AlertTitle>Image Not Available</AlertTitle>
+                        <AlertDescription>
+                            The infographic image is not saved between sessions to save space. Please regenerate it if you'd like to see it again.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <details className="w-full max-w-2xl text-xs text-muted-foreground">
                     <summary className="cursor-pointer">View generation prompt</summary>
                     <p className="pt-2">{infographic.prompt}</p>
@@ -1228,7 +1257,16 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
                 <CardDescription>Listen to the AI-generated podcast based on your notes.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <audio controls src={podcast.podcastAudio} className="w-full"></audio>
+                {podcast.podcastAudio ? (
+                    <audio controls src={podcast.podcastAudio} className="w-full"></audio>
+                ) : (
+                    <Alert variant="destructive">
+                        <AlertTitle>Audio Not Available</AlertTitle>
+                        <AlertDescription>
+                            Podcast audio is not saved between sessions to save space. Please regenerate it if you'd like to listen again.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <details className="w-full">
                     <summary className="cursor-pointer text-sm font-medium">View Script</summary>
                     <div className="mt-2 text-left max-h-80 overflow-y-auto rounded-md border bg-secondary/50 p-4">
@@ -1307,13 +1345,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
-    
-
-    
-
-
-
-
-
-

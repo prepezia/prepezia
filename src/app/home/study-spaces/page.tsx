@@ -155,11 +155,19 @@ export default function StudySpacesPage() {
             localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(studySpaces));
         }
     } catch (error) {
-        toast({
-            variant: "destructive",
-            title: "Could not save study spaces",
-            description: "There was an error saving your data locally."
-        });
+        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+             toast({
+                variant: "destructive",
+                title: "Storage Full",
+                description: "Browser local storage is full. Could not save all Study Spaces.",
+            });
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Could not save study spaces",
+                description: "There was an error saving your data locally."
+            });
+        }
         console.error("Failed to save study spaces to localStorage", error);
     }
   }, [studySpaces, toast]);
@@ -291,12 +299,24 @@ export default function StudySpacesPage() {
         const changes = typeof update === 'function' ? update(prev) : update;
         const newSpace = { ...prev, ...changes };
 
-        // For persistence in the main list, we don't save quizzes
-        const { quiz, ...contentToSave } = newSpace.generatedContent || {};
-        const spaceToPersist = { ...newSpace, generatedContent: contentToSave as GeneratedContent, chatHistory: newSpace.chatHistory };
+        const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
+            if (!content) return undefined;
+            const savable = JSON.parse(JSON.stringify(content));
+            delete savable.quiz;
+            if (savable.podcast) savable.podcast.podcastAudio = "";
+            if (savable.infographic) savable.infographic.imageUrl = "";
+            return savable;
+        };
+
+        const spaceToPersist = {
+            ...newSpace,
+            generatedContent: getSavableContent(newSpace.generatedContent),
+            chatHistory: newSpace.chatHistory,
+        };
+
         setStudySpaces(currentSpaces => currentSpaces.map(s => s.id === spaceToPersist.id ? spaceToPersist : s));
         
-        return newSpace; // Return the full new space (with quiz if present) for the current view
+        return newSpace;
     });
   };
 
@@ -1171,7 +1191,16 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
                 <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <audio controls src={podcast.podcastAudio} className="w-full"></audio>
+                {podcast.podcastAudio ? (
+                    <audio controls src={podcast.podcastAudio} className="w-full"></audio>
+                ) : (
+                    <Alert variant="destructive">
+                        <AlertTitle>Audio Not Available</AlertTitle>
+                        <AlertDescription>
+                            Podcast audio is not saved between sessions to save space. Please regenerate it if you'd like to listen again.
+                        </AlertDescription>
+                    </Alert>
+                )}
                  <details className="w-full">
                     <summary className="cursor-pointer text-sm font-medium">View Script</summary>
                     <div className="mt-2 text-left max-h-80 overflow-y-auto rounded-md border bg-secondary/50 p-4">
@@ -1365,7 +1394,12 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
 }
 
 function InfographicView({ infographic, onBack, topic }: { infographic: GenerateInfographicOutput, onBack: () => void, topic: string }) {
+    const { toast } = useToast();
     const handleDownload = () => {
+        if (!infographic.imageUrl) {
+            toast({ variant: 'destructive', title: 'Image Not Available', description: 'Please regenerate the infographic to download it.' });
+            return;
+        }
         const link = document.createElement('a');
         link.href = infographic.imageUrl;
         link.download = `infographic_${topic.replace(/\s+/g, '_')}.png`;
@@ -1379,15 +1413,24 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
-                    <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                    <Button onClick={handleDownload} variant="ghost" size="icon" disabled={!infographic.imageUrl}><Download className="h-4 w-4"/></Button>
                 </div>
                 <CardTitle className="pt-4 flex items-center gap-2"><AreaChart className="text-primary"/> Infographic for "{topic}"</CardTitle>
                 <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
-                <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
-                    <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
-                </div>
+                 {infographic.imageUrl ? (
+                    <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
+                        <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
+                    </div>
+                ) : (
+                    <Alert variant="destructive" className="w-full max-w-2xl">
+                        <AlertTitle>Image Not Available</AlertTitle>
+                        <AlertDescription>
+                            The infographic image is not saved between sessions to save space. Please regenerate it if you'd like to see it again.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <details className="w-full max-w-2xl text-xs text-muted-foreground">
                     <summary className="cursor-pointer">View generation prompt</summary>
                     <p className="pt-2">{infographic.prompt}</p>
@@ -1487,15 +1530,3 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
         </Dialog>
     )
 }
-
-
-    
-
-
-
-
-
-
-
-
-
