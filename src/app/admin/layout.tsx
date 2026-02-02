@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -111,26 +112,26 @@ export default function AdminLayout({
 
   if (!isMounted) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="hidden md:block fixed top-0 left-0 h-full p-2" style={{ width: 'calc(var(--sidebar-width-icon) + 1rem)' }}>
-          <div className="flex flex-col h-full bg-card rounded-lg shadow p-2 gap-4">
-            <div className="p-2"><Skeleton className="h-7 w-7 rounded-full" /></div>
-            <div className="flex flex-col gap-2">
-              {[...Array(8)].map((_, i) => (
-                <Skeleton key={i} className="h-10 w-10 rounded-lg" />
-              ))}
+      <div className="flex h-screen bg-background">
+         <div className="hidden md:block">
+            <div className="flex h-full flex-col gap-4 border-r bg-card p-2">
+                <div className="p-2"><Skeleton className="h-7 w-7 rounded-full" /></div>
+                <div className="flex flex-col gap-2">
+                {[...Array(8)].map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-10 rounded-lg" />
+                ))}
+                </div>
+                <div className="mt-auto">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                </div>
             </div>
-            <div className="mt-auto">
-              <Skeleton className="h-10 w-10 rounded-lg" />
-            </div>
-          </div>
         </div>
-        <div className="md:ml-[calc(var(--sidebar-width-icon)_+1rem)]">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card px-4">
             <Skeleton className="h-8 w-8 rounded-lg md:hidden" />
             <Skeleton className="h-6 w-32" />
           </header>
-          <main className="p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="max-w-full mx-auto">
               {children}
             </div>
@@ -142,15 +143,15 @@ export default function AdminLayout({
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen bg-background">
+      <div className="flex h-screen bg-background">
         <AdminSidebar />
-        <div className="transition-all duration-300 ease-in-out peer-data-[state=collapsed]:md:ml-[calc(var(--sidebar-width-icon)_+1rem)] peer-data-[state=expanded]:md:ml-[calc(var(--sidebar-width)_+1rem)]">
-          <AdminHeader />
-          <main className="p-4 sm:p-6 md:p-8">
-            <div className="max-w-full mx-auto">
-              {children}
-            </div>
-          </main>
+        <div className="flex flex-1 flex-col overflow-hidden">
+            <AdminHeader />
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+                <div className="max-w-full mx-auto">
+                {children}
+                </div>
+            </main>
         </div>
       </div>
     </SidebarProvider>
