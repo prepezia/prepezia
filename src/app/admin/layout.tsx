@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -47,13 +48,13 @@ function AdminSidebar() {
     <Sidebar variant="floating" collapsible="icon">
       <SidebarHeader className="p-4">
         <Link href="/admin" className="flex items-center gap-2">
-            <Logo className="w-7 h-7 text-primary" />
-            <span className="font-headline text-lg font-semibold text-foreground group-data-[collapsible=icon]:hidden">
-                Temi Admin
-            </span>
+          <Logo className="w-7 h-7 text-primary" />
+          <span className="font-headline text-lg font-semibold text-foreground group-data-[collapsible=icon]:hidden">
+            Temi Admin
+          </span>
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="px-2">
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
@@ -63,7 +64,7 @@ function AdminSidebar() {
                 asChild
               >
                 <Link href={item.href}>
-                  <item.icon />
+                  <item.icon className="w-5 h-5" />
                   <span>{item.label}</span>
                 </Link>
               </SidebarMenuButton>
@@ -73,14 +74,14 @@ function AdminSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip={{ children: "Back to App" }} asChild>
-                     <Link href="/home">
-                        <ArrowLeft />
-                        <span>Back to App</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip={{ children: "Back to App" }} asChild>
+              <Link href="/home">
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to App</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
@@ -88,12 +89,14 @@ function AdminSidebar() {
 }
 
 function AdminHeader() {
-    return (
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-card px-4 md:hidden">
-            <SidebarTrigger />
-            <h1 className="text-lg font-semibold">Admin Panel</h1>
-        </header>
-    )
+  return (
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-4 md:px-6">
+      <div className="flex items-center gap-3">
+        <SidebarTrigger className="md:hidden" />
+        <h1 className="text-lg font-semibold">Admin Panel</h1>
+      </div>
+    </header>
+  )
 }
 
 export default function AdminLayout({
@@ -109,41 +112,48 @@ export default function AdminLayout({
 
   if (!isMounted) {
     return (
-      <div className="bg-muted/40">
-        {/* Static skeleton for server render and initial client render */}
-        <div className="hidden md:block fixed top-0 left-0 h-full p-2" style={{ width: 'calc(var(--sidebar-width-icon) + 2rem)' }}>
+      <div className="min-h-screen bg-background">
+        <div className="hidden md:block fixed top-0 left-0 h-full p-2" style={{ width: 'calc(var(--sidebar-width-icon) + 1rem)' }}>
           <div className="flex flex-col h-full bg-card rounded-lg shadow p-2 gap-4">
-              <div className="p-2"><Skeleton className="h-7 w-7" /></div>
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-8 w-8" />
-                <Skeleton className="h-8 w-8" />
-                <Skeleton className="h-8 w-8" />
-              </div>
-              <div className="mt-auto flex flex-col gap-2">
-                <Skeleton className="h-8 w-8" />
-              </div>
+            <div className="p-2"><Skeleton className="h-7 w-7 rounded-full" /></div>
+            <div className="flex flex-col gap-2">
+              {[...Array(8)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-10 rounded-lg" />
+              ))}
+            </div>
+            <div className="mt-auto">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+            </div>
           </div>
         </div>
-        <div className="h-screen flex flex-col overflow-hidden md:pl-[calc(var(--sidebar-width-icon)_+2rem)]">
-          <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-card px-4 md:hidden">
-            <Skeleton className="h-7 w-7" />
-            <Skeleton className="h-5 w-24" />
+        <div className="flex flex-col h-screen">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card px-4 md:ml-[calc(var(--sidebar-width-icon)_+1rem)]">
+            <Skeleton className="h-8 w-8 rounded-lg md:hidden" />
+            <Skeleton className="h-6 w-32" />
           </header>
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 md:ml-[calc(var(--sidebar-width-icon)_+1rem)]">
+            <div className="max-w-full mx-auto">
+              {children}
+            </div>
+          </main>
         </div>
       </div>
     );
   }
 
   return (
-    <SidebarProvider>
-        <div className="bg-muted/40 min-h-screen">
-            <AdminSidebar />
-            <div className="flex h-screen flex-col overflow-hidden md:pl-[calc(var(--sidebar-width-icon)_+2rem)] peer-data-[state=expanded]:md:pl-[calc(var(--sidebar-width)+1rem)] transition-all duration-300 ease-in-out">
-                <AdminHeader />
-                <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+    <SidebarProvider defaultOpen={false}>
+      <div className="min-h-screen bg-background">
+        <AdminSidebar />
+        <div className="flex flex-col h-screen md:ml-0 transition-all duration-300 ease-in-out peer-data-[state=collapsed]:md:ml-[calc(var(--sidebar-width-icon)_+1rem)] peer-data-[state=expanded]:md:ml-[calc(var(--sidebar-width)_+1rem)]">
+          <AdminHeader />
+          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-full overflow-y-auto">
+            <div className="max-w-full mx-auto">
+              {children}
             </div>
+          </main>
         </div>
+      </div>
     </SidebarProvider>
   );
 }
