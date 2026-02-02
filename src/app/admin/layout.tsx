@@ -104,9 +104,9 @@ export default function AdminLayout({
     <SidebarProvider>
         <div className="bg-muted/40 min-h-screen">
             <AdminSidebar />
-            <div className="md:pl-[calc(var(--sidebar-width-icon)_+2rem)] peer-data-[state=expanded]:md:pl-[calc(var(--sidebar-width)+1rem)] transition-all duration-300 ease-in-out">
+            <div className="flex h-screen flex-col md:pl-[calc(var(--sidebar-width-icon)_+2rem)] peer-data-[state=expanded]:md:pl-[calc(var(--sidebar-width)+1rem)] transition-all duration-300 ease-in-out">
                 <AdminHeader />
-                <main className="flex-1 p-4 sm:p-6">{children}</main>
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
             </div>
         </div>
     </SidebarProvider>
