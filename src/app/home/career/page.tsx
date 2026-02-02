@@ -13,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { improveCv, ImproveCvOutput } from "@/ai/flows/improve-cv";
 import { careerChat } from "@/ai/flows/career-chat";
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { getCareerAdvice, CareerAdviceOutput } from "@/ai/flows/career-advisor";
 import { generateCvTemplate } from "@/ai/flows/generate-cv-template";
 import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow";
@@ -419,8 +420,13 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
   // Chat Tab State
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
   const [isChatting, setIsChatting] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Jobs Tab State
   const [jobResults, setJobResults] = useState<SearchForJobsOutput | null>(null);
@@ -437,6 +443,55 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (chatInputRef.current) {
+          chatInputRef.current.value = transcript;
+          const form = chatInputRef.current.closest('form');
+          if (form) {
+            // Create and dispatch a submit event
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            form.dispatchEvent(submitEvent);
+          }
+        }
+      };
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        toast({ variant: 'destructive', title: 'Speech Error', description: `Could not recognize speech: ${event.error}` });
+      };
+      recognition.onend = () => setIsListening(false);
+      recognitionRef.current = recognition;
+    } else {
+      console.warn("Speech Recognition API not supported in this browser.");
+    }
+  }, [toast]);
+
+  const handleMicClick = () => {
+    if (isAISpeaking && audioRef.current) {
+        audioRef.current.pause();
+        setIsAISpeaking(false);
+        return;
+    }
+    if (!recognitionRef.current) {
+        toast({ variant: 'destructive', title: 'Not Supported', description: 'Speech recognition is not supported by your browser.' });
+        return;
+    }
+    if (isListening) {
+        recognitionRef.current.stop();
+    } else {
+        recognitionRef.current.start();
+        setIsListening(true);
+    }
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -576,13 +631,13 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    const currentInput = chatInputRef.current?.value;
+    if (!currentInput?.trim()) return;
 
-    const userMessage: ChatMessage = { role: 'user', content: chatInput };
+    const userMessage: ChatMessage = { role: 'user', content: currentInput };
     setChatHistory(prev => [...prev, userMessage]);
     setIsChatting(true);
-    const currentInput = chatInput;
-    setChatInput("");
+    if(chatInputRef.current) chatInputRef.current.value = "";
 
     try {
       const result = await careerChat({ 
@@ -592,6 +647,22 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
       });
       const assistantMessage: ChatMessage = { role: 'assistant', content: result.answer };
       setChatHistory(prev => [...prev, assistantMessage]);
+
+      if (voiceMode) {
+        setIsAISpeaking(true);
+        try {
+            const ttsResponse = await textToSpeech({ text: result.answer });
+            if (audioRef.current) {
+                audioRef.current.src = ttsResponse.audio;
+                audioRef.current.play();
+            }
+        } catch (ttsError: any) {
+            console.error("TTS Error:", ttsError);
+            toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.' });
+            setIsAISpeaking(false);
+        }
+      }
+
     } catch(e: any) {
       console.error("Career advice error", e);
       const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I couldn't process that request." };
@@ -852,7 +923,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                 <div className="text-center text-muted-foreground pt-10 px-6 h-full flex flex-col justify-center items-center">
                   <Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" />
                   <h3 className="font-semibold text-foreground text-lg">AI Career Advisor</h3>
-                  <p className="mt-2 text-sm">Ask about career paths, interview tips, or academic choices based on your profile.</p>
+                  <p className="mt-2 text-sm">Ask about career paths or interview tips. Try voice mode for a hands-free chat.</p>
                 </div>
               ) : chatHistory.map((msg, i) => (
                 <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -867,17 +938,22 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             <div className="p-4 border-t bg-background">
               <form onSubmit={handleChatSubmit} className="relative">
                 <Textarea
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
+                  ref={chatInputRef}
                   placeholder="Ask a question..."
-                  className="pr-12"
+                  className="pr-20"
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
                   disabled={isChatting}
                 />
-                <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" type="submit" disabled={isChatting}>
-                  <Send className="h-4 w-4" />
-                </Button>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <Button size="icon" variant={voiceMode ? 'secondary': 'ghost'} className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>
+                        <Mic className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" className="h-8 w-8" type="submit" disabled={isChatting || isListening}>
+                        <Send className="h-4 w-4" />
+                    </Button>
+                </div>
               </form>
+              <audio ref={audioRef} onEnded={() => setIsAISpeaking(false)} className="hidden"/>
             </div>
           </TabsContent>
 
@@ -1017,4 +1093,5 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
     
 
     
+
 

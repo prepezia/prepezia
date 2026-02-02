@@ -29,6 +29,7 @@ import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } fr
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { generateInfographic, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
@@ -118,7 +119,6 @@ function StudySpacesPage() {
   const router = useRouter();
 
   const [viewState, setViewState] = useState<ViewState>('list');
-  const [isChatLoading, setIsChatLoading] = useState(false);
   
   const [selectedStudySpace, setSelectedStudySpace] = useState<StudySpace | null>(null);
   const [studySpaces, setStudySpaces] = useState<StudySpace[]>([]);
@@ -134,6 +134,15 @@ function StudySpacesPage() {
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
   const [activeGeneratedView, setActiveGeneratedView] = useState<keyof GeneratedContent | null>(null);
+
+  // Voice Chat State
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
 
   useEffect(() => {
     try {
@@ -230,6 +239,55 @@ function StudySpacesPage() {
     generateSummary();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudySpace]);
+
+  // Voice Chat Effect
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            if (chatInputRef.current) {
+                chatInputRef.current.value = transcript;
+                const form = chatInputRef.current.closest('form');
+                if (form) {
+                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                    form.dispatchEvent(submitEvent);
+                }
+            }
+        };
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            toast({ variant: 'destructive', title: 'Speech Error', description: `Could not recognize speech: ${event.error}` });
+        };
+        recognition.onend = () => setIsListening(false);
+        recognitionRef.current = recognition;
+    } else {
+        console.warn("Speech Recognition API not supported in this browser.");
+    }
+  }, [toast]);
+
+  const handleMicClick = () => {
+    if (isAISpeaking && audioRef.current) {
+        audioRef.current.pause();
+        setIsAISpeaking(false);
+        return;
+    }
+    if (!recognitionRef.current) {
+        toast({ variant: 'destructive', title: 'Not Supported', description: 'Speech recognition is not supported by your browser.' });
+        return;
+    }
+    if (isListening) {
+        recognitionRef.current.stop();
+    } else {
+        recognitionRef.current.start();
+        setIsListening(true);
+    }
+  };
 
 
   const handleSaveNotes = () => {
@@ -405,8 +463,7 @@ function StudySpacesPage() {
 
   async function handleChatSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const chatInputRef = (e.target as HTMLFormElement).querySelector('textarea');
-    const currentInput = chatInputRef?.value;
+    const currentInput = chatInputRef.current?.value;
 
     if (!currentInput?.trim() || !selectedStudySpace) return;
     
@@ -417,7 +474,7 @@ function StudySpacesPage() {
     }));
 
     setIsChatLoading(true);
-    if(chatInputRef) chatInputRef.value = ""; // Clear input immediately
+    if(chatInputRef.current) chatInputRef.current.value = ""; // Clear input immediately
 
     try {
         const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
@@ -442,6 +499,19 @@ function StudySpacesPage() {
         updateSelectedStudySpace(current => ({
             chatHistory: [...(current.chatHistory || []), assistantMessage]
         }));
+        
+        setIsAISpeaking(true);
+        try {
+            const ttsResponse = await textToSpeech({ text: response.answer });
+            if (audioRef.current) {
+                audioRef.current.src = ttsResponse.audio;
+                audioRef.current.play();
+            }
+        } catch (ttsError: any) {
+            console.error("TTS Error:", ttsError);
+            toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.' });
+            setIsAISpeaking(false);
+        }
 
     } catch (e: any) {
         console.error("Chat error", e);
@@ -749,17 +819,23 @@ function StudySpacesPage() {
                                 <form onSubmit={handleChatSubmit}>
                                     <div className="relative">
                                         <Textarea
-                                            name="chatInput"
+                                            ref={chatInputRef}
                                             placeholder="Ask a question about your sources..."
-                                            className="pr-12"
+                                            className="pr-20"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
-                                            disabled={selectedStudySpace.sources.length === 0 || isChatLoading}
+                                            disabled={selectedStudySpace.sources.length === 0 || isChatLoading || isListening}
                                         />
-                                        <Button size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" type="submit" disabled={selectedStudySpace.sources.length === 0 || isChatLoading}>
-                                            <Send className="h-4 w-4" />
-                                        </Button>
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                            <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatLoading}>
+                                                <Mic className="h-4 w-4" />
+                                            </Button>
+                                            <Button size="icon" className="h-8 w-8" type="submit" disabled={selectedStudySpace.sources.length === 0 || isChatLoading || isListening}>
+                                                <Send className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </form>
+                                 <audio ref={audioRef} onEnded={() => setIsAISpeaking(false)} className="hidden"/>
                             </div>
                         </Card>
                     </TabsContent>
