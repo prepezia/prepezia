@@ -89,7 +89,7 @@ function AdminSidebar() {
 
 function AdminHeader() {
     return (
-        <header className="flex h-14 items-center gap-4 border-b bg-card px-4 md:hidden">
+        <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-card px-4 md:hidden">
             <SidebarTrigger />
             <h1 className="text-lg font-semibold">Admin Panel</h1>
         </header>
@@ -109,10 +109,10 @@ export default function AdminLayout({
 
   if (!isMounted) {
     return (
-      <div className="bg-muted/40 min-h-screen">
+      <div className="bg-muted/40">
         {/* Static skeleton for server render and initial client render */}
         <div className="hidden md:block fixed top-0 left-0 h-full p-2" style={{ width: 'calc(var(--sidebar-width-icon) + 2rem)' }}>
-          <div className="flex flex-col h-full bg-sidebar rounded-lg shadow p-2 gap-4">
+          <div className="flex flex-col h-full bg-card rounded-lg shadow p-2 gap-4">
               <div className="p-2"><Skeleton className="h-7 w-7" /></div>
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-8 w-8" />
@@ -124,8 +124,8 @@ export default function AdminLayout({
               </div>
           </div>
         </div>
-        <div className="h-screen flex flex-col md:pl-[calc(var(--sidebar-width-icon)_+2rem)]">
-          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 md:hidden">
+        <div className="h-screen flex flex-col overflow-hidden md:pl-[calc(var(--sidebar-width-icon)_+2rem)]">
+          <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-card px-4 md:hidden">
             <Skeleton className="h-7 w-7" />
             <Skeleton className="h-5 w-24" />
           </header>
@@ -139,7 +139,7 @@ export default function AdminLayout({
     <SidebarProvider>
         <div className="bg-muted/40 min-h-screen">
             <AdminSidebar />
-            <div className="flex h-screen flex-col md:pl-[calc(var(--sidebar-width-icon)_+2rem)] peer-data-[state=expanded]:md:pl-[calc(var(--sidebar-width)+1rem)] transition-all duration-300 ease-in-out">
+            <div className="flex h-screen flex-col overflow-hidden md:pl-[calc(var(--sidebar-width-icon)_+2rem)] peer-data-[state=expanded]:md:pl-[calc(var(--sidebar-width)+1rem)] transition-all duration-300 ease-in-out">
                 <AdminHeader />
                 <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
             </div>
