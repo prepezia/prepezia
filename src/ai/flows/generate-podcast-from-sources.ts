@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import wav from 'wav';
 
 const SourceSchema = z.object({
@@ -95,11 +95,11 @@ const generatePodcastFlow = ai.defineFlow(
             speakerVoiceConfigs: [
               {
                 speaker: 'Temi',
-                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Algenib'}},
+                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}}, // Female voice
               },
               {
                 speaker: 'Jay',
-                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}},
+                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Algenib'}}, // Male voice
               },
             ],
           },

@@ -166,23 +166,22 @@ function StudySpacesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studySpaces, searchParams]);
 
+  const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
+    if (!content) return undefined;
+    const savable = JSON.parse(JSON.stringify(content));
+    delete savable.quiz;
+    if (savable.podcast) savable.podcast.podcastAudio = "";
+    if (savable.infographic) savable.infographic.imageUrl = "";
+    return savable;
+  };
+
   useEffect(() => {
     try {
         if (studySpaces && studySpaces.length > 0) {
-            const spacesToSave = studySpaces.map(space => {
-                const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
-                    if (!content) return undefined;
-                    const savable = JSON.parse(JSON.stringify(content));
-                    delete savable.quiz;
-                    if (savable.podcast) savable.podcast.podcastAudio = "";
-                    if (savable.infographic) savable.infographic.imageUrl = "";
-                    return savable;
-                };
-                return {
-                    ...space,
-                    generatedContent: getSavableContent(space.generatedContent),
-                };
-            });
+            const spacesToSave = studySpaces.map(space => ({
+                ...space,
+                generatedContent: getSavableContent(space.generatedContent),
+            }));
             localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
         }
     } catch (error) {
@@ -510,6 +509,18 @@ function StudySpacesPage() {
       setIsGenerating(null);
     }
   };
+  
+  const handleDeleteGeneratedContent = (type: keyof GeneratedContent) => {
+    if (!selectedStudySpace) return;
+    
+    updateSelectedStudySpace(current => {
+        const newGeneratedContent = { ...current.generatedContent };
+        delete newGeneratedContent[type];
+        return { generatedContent: newGeneratedContent };
+    });
+
+    toast({ title: 'Content Deleted', description: 'The generated content has been removed.' });
+  };
 
   const handleDeleteStudySpace = (spaceId: number) => {
     setStudySpaces(prev => prev.filter(space => space.id !== spaceId));
@@ -777,20 +788,33 @@ function StudySpacesPage() {
                                         const savedContent = { ...(generatedContent || {}) };
                                         delete savedContent.quiz; // Don't show quiz in saved content
                                         
-                                        return (Object.keys(savedContent).length > 0 && Object.values(savedContent).some(v => v)) && (
+                                        const savedItems = Object.entries(savedContent).filter(([_, value]) => !!value);
+                                        
+                                        return savedItems.length > 0 && (
                                         <div>
                                             <h3 className="font-semibold mb-4">Previously Generated</h3>
                                             <div className="space-y-2">
-                                                {Object.entries(savedContent).map(([type, content]) => {
-                                                    if (!content) return null;
+                                                {savedItems.map(([type]) => {
                                                     const option = generationOptions.find(o => o.type === type);
                                                     if (!option) return null;
                                                     
                                                     return (
-                                                        <Button key={type} variant="secondary" className="w-full justify-start h-12" onClick={() => setActiveGeneratedView(type as keyof GeneratedContent)}>
-                                                            <option.icon className="mr-2 h-5 w-5" />
-                                                            View Generated {option.name}
-                                                        </Button>
+                                                        <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                            <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveGeneratedView(type as keyof GeneratedContent)}>
+                                                                <option.icon className="h-5 w-5 text-muted-foreground" />
+                                                                View Generated {option.name}
+                                                            </Button>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent>
+                                                                    <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                                        <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
                                                     )
                                                 })}
                                             </div>

@@ -282,6 +282,18 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const [isGenerating, setIsGenerating] = useState<'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast' | null>(null);
   const [activeView, setActiveView] = useState<'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast'>('notes');
 
+  const getSavableContent = (content: GeneratedContent): GeneratedContent => {
+    const savable = JSON.parse(JSON.stringify(content));
+    delete savable.quiz; // Quizzes are never saved
+    if (savable.podcast) {
+        savable.podcast.podcastAudio = ""; // Don't save large audio string
+    }
+    if (savable.infographic) {
+        savable.infographic.imageUrl = ""; // Don't save large image data URI
+    }
+    return savable;
+  };
+
   const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
     try {
         const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
@@ -295,27 +307,21 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         }
     } catch (e: any) {
         console.error("Failed to update note in local storage:", e);
-        if (e.name === 'QuotaExceededError' || (e.code && e.code === 22)) { // DOMException code for QuotaExceededError
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
              toast({
                 variant: 'destructive',
                 title: 'Storage Limit Reached',
                 description: "Could not save all generated content because your browser's local storage is full. Some content may not be available next time you visit.",
             });
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Save Failed',
+                description: "Could not save your changes. The browser storage might be full."
+            });
         }
     }
   }, [toast]);
-
-  const getSavableContent = (content: GeneratedContent): GeneratedContent => {
-    const savable = JSON.parse(JSON.stringify(content));
-    delete savable.quiz; // Quizzes are never saved
-    if (savable.podcast) {
-        savable.podcast.podcastAudio = ""; // Don't save large audio string
-    }
-    if (savable.infographic) {
-        savable.infographic.imageUrl = ""; // Don't save large image data URI
-    }
-    return savable;
-  }
 
   const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
     const newNote: RecentNote = {
@@ -401,6 +407,18 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setCurrentPage(0);
     }
   }, [initialNote]);
+
+  const handleDeleteGeneratedContent = (contentType: keyof GeneratedContent) => {
+    setGeneratedContent(prev => {
+        const newContent = { ...prev };
+        delete newContent[contentType];
+        if (initialNote) {
+            updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
+        }
+        return newContent;
+    });
+    toast({ title: 'Content Deleted', description: 'The generated content has been removed.' });
+  };
 
 
   const handleGenerateClick = () => {
@@ -754,43 +772,53 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
               </CardContent>
             </Card>
 
-            {((generatedContent.flashcards && generatedContent.flashcards.length > 0) || generatedContent.deck || generatedContent.infographic || generatedContent.mindmap || generatedContent.podcast) && (
-              <Card className="mt-8">
-                  <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
-                      <CardDescription>
-                          Your generated content is saved here. Quizzes and large media (audio/images) are not saved.
-                      </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-4">
-                      {generatedContent.flashcards && generatedContent.flashcards.length > 0 && (
-                          <Button variant="secondary" onClick={() => setActiveView('flashcards')}>
-                              <SquareStack className="mr-2"/> View Flashcards
-                          </Button>
-                      )}
-                      {generatedContent.deck && (
-                          <Button variant="secondary" onClick={() => setActiveView('deck')}>
-                              <Presentation className="mr-2"/> View Slide Deck
-                          </Button>
-                      )}
-                      {generatedContent.infographic && (
-                          <Button variant="secondary" onClick={() => setActiveView('infographic')}>
-                              <AreaChart className="mr-2"/> View Infographic
-                          </Button>
-                      )}
-                      {generatedContent.mindmap && (
-                          <Button variant="secondary" onClick={() => setActiveView('mindmap')}>
-                              <GitFork className="mr-2"/> View Mind Map
-                          </Button>
-                      )}
-                      {generatedContent.podcast && (
-                          <Button variant="secondary" onClick={() => setActiveView('podcast')}>
-                              <Mic className="mr-2"/> View Podcast
-                          </Button>
-                      )}
-                  </CardContent>
-              </Card>
-            )}
+            {(() => {
+                const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
+                if (saved.length === 0) return null;
+
+                const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
+                    flashcards: { label: "Flashcards", icon: SquareStack },
+                    deck: { label: "Slide Deck", icon: Presentation },
+                    infographic: { label: "Infographic", icon: AreaChart },
+                    mindmap: { label: "Mind Map", icon: GitFork },
+                    podcast: { label: "Podcast", icon: Mic },
+                };
+
+                return (
+                    <Card className="mt-8">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
+                            <CardDescription>
+                                Your generated content is saved here. Quizzes and large media (audio/images) are not saved.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {saved.map(([type]) => {
+                                const option = generationMap[type];
+                                if (!option) return null;
+                                return (
+                                    <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                        <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
+                                            <option.icon className="h-5 w-5 text-muted-foreground"/>
+                                            View Generated {option.label}
+                                        </Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                    <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                )
+                            })}
+                        </CardContent>
+                    </Card>
+                )
+            })()}
             
             <div className="mt-8 flex items-center justify-center gap-4 flex-wrap md:justify-end">
                 <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
