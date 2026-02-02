@@ -41,6 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import Image from "next/image";
 import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 type GeneratedContent = {
@@ -174,7 +175,6 @@ type ChatMessage = {
 
 function ChatView({ 
     topic, 
-    onBack, 
     history, 
     isChatting, 
     onSubmit, 
@@ -183,7 +183,6 @@ function ChatView({
     audioRef
 }: { 
     topic: string; 
-    onBack: () => void; 
     history: ChatMessage[];
     isChatting: boolean;
     onSubmit: (e: React.FormEvent) => void;
@@ -198,10 +197,7 @@ function ChatView({
     return (
         <Card className="flex flex-col h-full">
             <CardHeader>
-                <Button onClick={onBack} variant="outline" className="w-fit">
-                    <ArrowLeft className="mr-2"/> Back to Notes
-                </Button>
-                <CardTitle className="pt-4 flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                     <MessageCircle className="text-primary"/> Chat about "{topic}"
                 </CardTitle>
                 <CardDescription>Ask the AI for more details or explanations about the notes.</CardDescription>
@@ -249,7 +245,7 @@ function ChatView({
 }
 
 type AcademicLevel = "Beginner" | "Intermediate" | "Expert" | "Secondary" | "Undergraduate" | "Masters" | "PhD";
-type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast' | 'chat';
+type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast';
 
 
 // Helper function to extract YouTube video ID
@@ -274,7 +270,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
+  
+  // This state now controls the overall view (tabs vs. full-screen generated content)
   const [activeView, setActiveView] = useState<ActiveView>('notes');
+  // This state controls which tab is active within the main view
+  const [activeTab, setActiveTab] = useState<'notes' | 'chat' | 'generate'>('notes');
+
 
   // Chat State
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -680,10 +681,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       { label: "Infographic", icon: AreaChart, action: handleGenerateInfographic, loading: isGenerating === 'infographic'},
       { label: "Mind Map", icon: GitFork, action: handleGenerateMindMap, loading: isGenerating === 'mindmap'},
       { label: "Podcast", icon: Mic, action: handleGeneratePodcast, loading: isGenerating === 'podcast'},
-      { label: "Chat", icon: MessageCircle, action: () => setActiveView('chat'), loading: false },
   ]
 
-  const renderContent = () => {
+  const renderGeneratedContent = () => {
     if (activeView === 'flashcards' && generatedContent.flashcards) {
         return <FlashcardView flashcards={generatedContent.flashcards} onBack={() => setActiveView('notes')} topic={topic} />;
     }
@@ -702,238 +702,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     if (activeView === 'podcast' && generatedContent.podcast) {
         return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveView('notes')} topic={topic} />;
     }
-    if (activeView === 'chat') {
-        return (
-            <ChatView 
-                topic={topic}
-                onBack={() => setActiveView('notes')}
-                history={chatHistory}
-                isChatting={isChatting}
-                onSubmit={handleChatSubmit}
-                inputRef={chatInputRef}
-                micState={{ isListening, isAISpeaking, handleMicClick }}
-                audioRef={audioRef}
-            />
-        );
-    }
-
-
-    // Default to notes view
-    return (
-        <>
-            <Card className="flex-1 flex flex-col min-w-0">
-                <CardHeader>
-                    <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
-                    <CardDescription>Academic Level: {academicLevel}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                <div
-  className="
-    flex-1
-    min-h-0
-    w-full
-    max-w-0
-    min-w-full
-    overflow-x-auto
-    md:overflow-x-visible
-    overflow-y-hidden
-    rounded-md
-    border
-    p-4
-    md:p-6
-    bg-secondary/30
-  "
->
-                            <div className="prose dark:prose-invert max-w-none">
-                            <ReactMarkdown
-  remarkPlugins={[remarkGfm]}
-  components={{
-    table: ({ children }) => (
-      <div className="w-full max-w-full overflow-x-auto md:overflow-x-visible">
-        <table className="w-full border-collapse">
-          {children}
-        </table>
-      </div>
-    ),
-
-    thead: ({ children }) => (
-      <thead className="bg-muted/50">
-        {children}
-      </thead>
-    ),
-
-    tr: ({ children }) => (
-      <tr className="border-b last:border-b-0">
-        {children}
-      </tr>
-    ),
-
-    th: ({ children }) => (
-      <th className="px-3 py-2 text-left text-sm font-medium">
-        {children}
-      </th>
-    ),
-
-    td: ({ children }) => (
-      <td className="px-3 py-2 text-sm align-top">
-        {children}
-      </td>
-    ),
-
-    pre: ({ children }) => (
-      <div className="w-full max-w-full overflow-x-auto md:overflow-x-visible">
-        <pre className="text-sm">
-          {children}
-        </pre>
-      </div>
-    ),
-
-    code: ({ node, ...props }) => <code {...props} />,
-
-    img: ({ src, alt }) => (
-      <div className="w-full max-w-full overflow-x-auto md:overflow-x-visible">
-        <img
-          src={src ?? ""}
-          alt={alt ?? ""}
-          className="max-w-full h-auto rounded-md"
-        />
-      </div>
-    ),
-    p: ({node, children}) => {
-        const elements: React.ReactNode[] = [];
-        let textBuffer: React.ReactNode[] = [];
-
-        const flushTextBuffer = () => {
-            if (textBuffer.length > 0) {
-                elements.push(<p key={`text-${elements.length}`}>{textBuffer}</p>);
-                textBuffer = [];
-            }
-        };
-
-        React.Children.forEach(children, (child) => {
-            if (typeof child === 'string') {
-                const parts = child.split(/(https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+|https?:\/\/youtu\.be\/[\w-]+)/g);
-                parts.forEach((part) => {
-                    const videoId = getYoutubeVideoId(part);
-                    if (videoId) {
-                        flushTextBuffer();
-                        elements.push(
-                            <div key={`video-${elements.length}`} className="my-6 aspect-video w-full max-w-full overflow-hidden rounded-lg border">
-                                <iframe src={`https://www.youtube.com/embed/${videoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full" />
-                            </div>
-                        );
-                    } else if (part) {
-                        textBuffer.push(part);
-                    }
-                });
-            } else if (React.isValidElement(child) && child.type === 'a') {
-                const href = (child.props as any).href;
-                const videoId = getYoutubeVideoId(href);
-
-                if (videoId) {
-                    flushTextBuffer();
-                    elements.push(
-                         <div key={`video-${elements.length}`} className="my-6 aspect-video w-full max-w-full overflow-hidden rounded-lg border">
-                            <iframe src={`https://www.youtube.com/embed/${videoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full" />
-                        </div>
-                    );
-                } else {
-                    textBuffer.push(React.cloneElement(child, { target: '_blank', rel: 'noopener noreferrer' }));
-                }
-            } else {
-                textBuffer.push(child);
-            }
-        });
-
-        flushTextBuffer();
-        return <>{elements}</>;
-    },
-  }}
->
-  {pages[currentPage]}
-</ReactMarkdown>
-
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            
-            {pages.length > 1 && (
-                <div className="mt-4 flex justify-between items-center">
-                    <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
-                    <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
-                    <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
-                </div>
-            )}
-
-            <Card className="mt-8">
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
-                  <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-4">
-                  {nextStepActions.map(item => (
-                      <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading || isGenerating !== null}>
-                          {item.loading ? <Loader2 className="mr-2 animate-spin"/> : <item.icon className="mr-2"/>}
-                          {item.label}
-                      </Button>
-                  ))}
-              </CardContent>
-            </Card>
-
-            {(() => {
-                const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
-                if (saved.length === 0) return null;
-
-                const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
-                    flashcards: { label: "Flashcards", icon: SquareStack },
-                    deck: { label: "Slide Deck", icon: Presentation },
-                    infographic: { label: "Infographic", icon: AreaChart },
-                    mindmap: { label: "Mind Map", icon: GitFork },
-                    podcast: { label: "Podcast", icon: Mic },
-                };
-
-                return (
-                    <Card className="mt-8">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
-                            <CardDescription>
-                                Your generated content is saved here. Quizzes and large media (audio/images) are not saved.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            {saved.map(([type]) => {
-                                const option = generationMap[type];
-                                if (!option) return null;
-                                return (
-                                    <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                        <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
-                                            <option.icon className="h-5 w-5 text-muted-foreground"/>
-                                            View Generated {option.label}
-                                        </Button>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                                                    <Trash2 className="mr-2 h-4 w-4"/> Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                )
-                            })}
-                        </CardContent>
-                    </Card>
-                )
-            })()}
-            
-            <div className="mt-8 flex items-center justify-center gap-4 flex-wrap md:justify-end">
-                <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
-            </div>
-        </>
-    );
+    
+    // If no specific view matches, fall back to the main notes/tabs view
+    setActiveView('notes');
+    return null;
   }
 
   return (
@@ -947,8 +719,159 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   <p className="text-sm text-muted-foreground">This may take a moment.</p>
               </div>
           ) : generatedNotes ? (
-              <div className="max-w-4xl mx-auto pb-20 px-4 sm:px-6 lg:px-8">
-                {renderContent()}
+              <div className="max-w-4xl mx-auto pb-20 px-4 sm:px-6 lg:px-8 h-full flex flex-col">
+                {activeView !== 'notes' ? (
+                    <div className="mt-8">
+                        {renderGeneratedContent()}
+                    </div>
+                ) : (
+                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="notes"><BookOpen className="mr-2"/>Notes</TabsTrigger>
+                            <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Chat</TabsTrigger>
+                            <TabsTrigger value="generate"><Sparkles className="mr-2"/>Generate</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="notes" className="mt-4 flex-1 flex flex-col relative">
+                            <Card className="flex-1 flex flex-col min-w-0">
+                                <CardHeader>
+                                    <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
+                                    <CardDescription>Academic Level: {academicLevel}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1 flex flex-col">
+                                    <div className="flex-1 min-h-0 w-full max-w-0 min-w-full overflow-x-auto md:overflow-x-visible overflow-y-hidden rounded-md border p-4 md:p-6 bg-secondary/30">
+                                        <div className="prose dark:prose-invert max-w-none">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    table: ({ children }) => (<div className="w-full max-w-full overflow-x-auto md:overflow-x-visible"><table className="w-full border-collapse">{children}</table></div>),
+                                                    thead: ({ children }) => (<thead className="bg-muted/50">{children}</thead>),
+                                                    tr: ({ children }) => (<tr className="border-b last:border-b-0">{children}</tr>),
+                                                    th: ({ children }) => (<th className="px-3 py-2 text-left text-sm font-medium">{children}</th>),
+                                                    td: ({ children }) => (<td className="px-3 py-2 text-sm align-top">{children}</td>),
+                                                    pre: ({ children }) => (<div className="w-full max-w-full overflow-x-auto md:overflow-x-visible"><pre className="text-sm">{children}</pre></div>),
+                                                    code: ({ node, ...props }) => <code {...props} />,
+                                                    img: ({ src, alt }) => (<div className="w-full max-w-full overflow-x-auto md:overflow-x-visible"><img src={src ?? ""} alt={alt ?? ""} className="max-w-full h-auto rounded-md"/></div>),
+                                                    p: ({node, children}) => {
+                                                        const elements: React.ReactNode[] = [];
+                                                        let textBuffer: React.ReactNode[] = [];
+                                                        const flushTextBuffer = () => { if (textBuffer.length > 0) { elements.push(<p key={`text-${elements.length}`}>{textBuffer}</p>); textBuffer = []; } };
+                                                        React.Children.forEach(children, (child) => {
+                                                            if (typeof child === 'string') {
+                                                                const parts = child.split(/(https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+|https?:\/\/youtu\.be\/[\w-]+)/g);
+                                                                parts.forEach((part) => {
+                                                                    const videoId = getYoutubeVideoId(part);
+                                                                    if (videoId) {
+                                                                        flushTextBuffer();
+                                                                        elements.push(<div key={`video-${elements.length}`} className="my-6 aspect-video w-full max-w-full overflow-hidden rounded-lg border"><iframe src={`https://www.youtube.com/embed/${videoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full" /></div>);
+                                                                    } else if (part) { textBuffer.push(part); }
+                                                                });
+                                                            } else if (React.isValidElement(child) && child.type === 'a') {
+                                                                const href = (child.props as any).href;
+                                                                const videoId = getYoutubeVideoId(href);
+                                                                if (videoId) {
+                                                                    flushTextBuffer();
+                                                                    elements.push(<div key={`video-${elements.length}`} className="my-6 aspect-video w-full max-w-full overflow-hidden rounded-lg border"><iframe src={`https://www.youtube.com/embed/${videoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full" /></div>);
+                                                                } else { textBuffer.push(React.cloneElement(child, { target: '_blank', rel: 'noopener noreferrer' })); }
+                                                            } else { textBuffer.push(child); }
+                                                        });
+                                                        flushTextBuffer();
+                                                        return <>{elements}</>;
+                                                    },
+                                                }}
+                                            >
+                                                {pages[currentPage]}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            {pages.length > 1 && (
+                                <div className="mt-4 flex justify-between items-center">
+                                    <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                                    <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
+                                    <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                                </div>
+                            )}
+                             <div className="fixed bottom-24 right-4 z-10 md:right-8">
+                                <Button onClick={() => setActiveTab('chat')} className="rounded-full h-16 w-16 shadow-lg flex flex-col gap-1 items-center justify-center text-xs p-2">
+                                    <MessageCircle className="h-6 w-6"/>
+                                    <span>AI Chat</span>
+                                </Button>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
+                            <ChatView 
+                                topic={topic}
+                                history={chatHistory}
+                                isChatting={isChatting}
+                                onSubmit={handleChatSubmit}
+                                inputRef={chatInputRef}
+                                micState={{ isListening, isAISpeaking, handleMicClick }}
+                                audioRef={audioRef}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="generate" className="mt-4 flex-1 flex flex-col space-y-8">
+                           <Card>
+                              <CardHeader>
+                                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
+                                  <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
+                              </CardHeader>
+                              <CardContent className="flex flex-wrap gap-4">
+                                  {nextStepActions.map(item => (
+                                      <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading || isGenerating !== null}>
+                                          {item.loading ? <Loader2 className="mr-2 animate-spin"/> : <item.icon className="mr-2"/>}
+                                          {item.label}
+                                      </Button>
+                                  ))}
+                              </CardContent>
+                            </Card>
+
+                            {(() => {
+                                const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
+                                if (saved.length === 0) return null;
+                                const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
+                                    flashcards: { label: "Flashcards", icon: SquareStack },
+                                    deck: { label: "Slide Deck", icon: Presentation },
+                                    infographic: { label: "Infographic", icon: AreaChart },
+                                    mindmap: { label: "Mind Map", icon: GitFork },
+                                    podcast: { label: "Podcast", icon: Mic },
+                                };
+                                return (
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
+                                            <CardDescription>Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
+                                            {saved.map(([type]) => {
+                                                const option = generationMap[type];
+                                                if (!option) return null;
+                                                return (
+                                                    <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                        <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
+                                                            <option.icon className="h-5 w-5 text-muted-foreground"/>
+                                                            View Generated {option.label}
+                                                        </Button>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                )
+                                            })}
+                                        </CardContent>
+                                    </Card>
+                                )
+                            })()}
+                        </TabsContent>
+                    </Tabs>
+                )}
+                 <div className="mt-8 flex items-center justify-center gap-4 flex-wrap md:justify-end">
+                    <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
+                </div>
               </div>
           ) : (
             <div className="max-w-2xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
@@ -1464,3 +1387,5 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
