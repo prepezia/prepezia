@@ -59,18 +59,16 @@ function AdminSidebar() {
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} legacyBehavior passHref>
-                <SidebarMenuButton
-                  isActive={pathname === item.href}
-                  tooltip={{ children: item.label }}
-                  asChild
-                >
-                  <a>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </a>
-                </SidebarMenuButton>
-              </Link>
+              <SidebarMenuButton
+                isActive={pathname === item.href}
+                tooltip={{ children: item.label }}
+                asChild
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
@@ -78,11 +76,11 @@ function AdminSidebar() {
       <SidebarFooter className="p-4">
         <SidebarMenu>
             <SidebarMenuItem>
-                <SidebarMenuButton tooltip={{ children: "Back to App" }} onClick={() => router.push('/home')} asChild>
-                     <a>
+                <SidebarMenuButton tooltip={{ children: "Back to App" }} asChild>
+                     <Link href="/home">
                         <ArrowLeft />
                         <span>Back to App</span>
-                    </a>
+                    </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
         </SidebarMenu>
