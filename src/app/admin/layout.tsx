@@ -130,7 +130,7 @@ export default function AdminLayout({
             <Skeleton className="h-8 w-8 rounded-lg md:hidden" />
             <Skeleton className="h-6 w-32" />
           </header>
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+          <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8">
             <div className="mx-auto w-full max-w-full">
               {children}
             </div>
@@ -146,7 +146,7 @@ export default function AdminLayout({
         <AdminSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
             <AdminHeader />
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8">
                 <div className="mx-auto w-full max-w-full">
                 {children}
                 </div>
