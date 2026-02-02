@@ -27,7 +27,7 @@ import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInpu
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -169,6 +169,7 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: Rece
 
 
 type ChatMessage = {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
 };
@@ -180,7 +181,10 @@ function ChatView({
     onSubmit, 
     inputRef, 
     micState,
-    audioRef
+    audioRef,
+    onPlayAudio,
+    generatingAudioId,
+    speakingMessageId,
 }: { 
     topic: string; 
     history: ChatMessage[];
@@ -189,10 +193,12 @@ function ChatView({
     inputRef: React.RefObject<HTMLTextAreaElement>;
     micState: {
         isListening: boolean;
-        isAISpeaking: boolean;
         handleMicClick: () => void;
     };
     audioRef: React.RefObject<HTMLAudioElement>;
+    onPlayAudio: (messageId: string, text: string) => void;
+    generatingAudioId: string | null;
+    speakingMessageId: string | null;
 }) {
     return (
         <Card className="flex flex-col h-full">
@@ -210,11 +216,30 @@ function ChatView({
                         <p className="mt-2 text-sm">Ask me anything about these notes!</p>
                     </div>
                 )}
-                {history.map((msg, i) => (
-                    <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                {history.map((msg) => (
+                    <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                         {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5" /></div>}
                         <div className={cn("p-3 rounded-lg max-w-[85%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
                             <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                            {msg.role === 'assistant' && (
+                                <div className="text-right mt-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
+                                        onClick={() => onPlayAudio(msg.id, msg.content)}
+                                        disabled={isChatting}
+                                    >
+                                        {generatingAudioId === msg.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : speakingMessageId === msg.id ? (
+                                            <Pause className="h-4 w-4" />
+                                        ) : (
+                                            <Volume2 className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -231,14 +256,14 @@ function ChatView({
                     />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                         <Button size="icon" variant="ghost" className={cn("h-8 w-8", micState.isListening && "text-destructive")} onClick={micState.handleMicClick} type="button" disabled={isChatting}>
-                            <Mic className="h-4 w-4" />
+                             {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                         </Button>
                         <Button size="icon" className="h-8 w-8" type="submit" disabled={isChatting || micState.isListening}>
                             <Send className="h-4 w-4" />
                         </Button>
                     </div>
                 </form>
-                <audio ref={audioRef} onEnded={() => micState.handleMicClick()} className="hidden"/>
+                <audio ref={audioRef} onEnded={() => {}} className="hidden"/>
             </div>
         </Card>
     );
@@ -281,10 +306,68 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatting, setIsChatting] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
+    if (speakingMessageId === messageId && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setSpeakingMessageId(null);
+        return;
+    }
+    
+    if (generatingAudioId || (speakingMessageId && speakingMessageId !== messageId)) {
+        if(audioRef.current) audioRef.current.pause();
+    }
+
+    setGeneratingAudioId(messageId);
+    setSpeakingMessageId(null);
+    try {
+        const ttsResponse = await textToSpeech({ text });
+        if (audioRef.current) {
+            audioRef.current.src = ttsResponse.audio;
+            audioRef.current.play();
+            setSpeakingMessageId(messageId);
+        }
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.'});
+    } finally {
+        setGeneratingAudioId(null);
+    }
+  }, [generatingAudioId, speakingMessageId, toast]);
+  
+  const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
+    if (!currentInput?.trim() || isChatting || !generatedNotes?.notes) return;
+
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: currentInput };
+    setChatHistory(prev => [...prev, userMessage]);
+    setIsChatting(true);
+    
+    try {
+        const response = await interactiveChatWithSources({
+            sources: [{ type: 'text', name: 'Note Content', dataUri: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(generatedNotes.notes)))}`, contentType: 'text/plain' }],
+            question: currentInput
+        });
+        
+        const assistantMessageId = `asst-${Date.now()}`;
+        const assistantMessage: ChatMessage = { id: assistantMessageId, role: 'assistant', content: response.answer };
+        setChatHistory(prev => [...prev, assistantMessage]);
+
+        if (isVoiceInput) {
+            await handlePlayAudio(assistantMessageId, response.answer);
+        }
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Chat Error", description: error.message || "The AI failed to respond." });
+        setChatHistory(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, an error occurred." }]);
+    } finally {
+        setIsChatting(false);
+    }
+  }, [generatedNotes, isChatting, toast, handlePlayAudio]);
+
 
   // Setup Speech Recognition
   useEffect(() => {
@@ -297,30 +380,30 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            if (chatInputRef.current) {
-                chatInputRef.current.value = transcript;
-                const form = chatInputRef.current.closest('form');
-                if (form) {
-                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                    form.dispatchEvent(submitEvent);
-                }
-            }
+            submitChat(transcript, true);
         };
         recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
-            toast({ variant: 'destructive', title: 'Speech Error', description: `Could not recognize speech: ${event.error}` });
+            let description = `Could not recognize speech: ${event.error}`;
+            if (event.error === 'network') {
+                description = 'Network error. Please check your internet connection and try again.';
+            } else if (event.error === 'not-allowed') {
+                description = 'Microphone access denied. Please enable it in your browser settings.';
+            }
+            toast({ variant: 'destructive', title: 'Speech Error', description });
         };
         recognition.onend = () => setIsListening(false);
         recognitionRef.current = recognition;
     } else {
         console.warn("Speech Recognition API not supported in this browser.");
     }
-  }, [toast]);
+  }, [toast, submitChat]);
 
   const handleMicClick = () => {
-    if (isAISpeaking && audioRef.current) {
+    if (speakingMessageId && audioRef.current) {
         audioRef.current.pause();
-        setIsAISpeaking(false);
+        audioRef.current.currentTime = 0;
+        setSpeakingMessageId(null);
         return;
     }
     if (!recognitionRef.current) {
@@ -338,40 +421,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentInput = chatInputRef.current?.value;
-    if (!currentInput?.trim() || isChatting || !generatedNotes?.notes) return;
-
-    const userMessage: ChatMessage = { role: 'user', content: currentInput };
-    setChatHistory(prev => [...prev, userMessage]);
-    setIsChatting(true);
+    if (!currentInput?.trim()) return;
+    submitChat(currentInput, false);
     if (chatInputRef.current) chatInputRef.current.value = "";
-
-    try {
-        const response = await interactiveChatWithSources({
-            sources: [{ type: 'text', name: 'Note Content', dataUri: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(generatedNotes.notes)))}`, contentType: 'text/plain' }],
-            question: currentInput
-        });
-        const assistantMessage: ChatMessage = { role: 'assistant', content: response.answer };
-        setChatHistory(prev => [...prev, assistantMessage]);
-
-        setIsAISpeaking(true);
-        try {
-            const ttsResponse = await textToSpeech({ text: response.answer });
-            if (audioRef.current) {
-                audioRef.current.src = ttsResponse.audio;
-                audioRef.current.play();
-            }
-        } catch (ttsError: any) {
-            console.error("TTS Error:", ttsError);
-            toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.' });
-            setIsAISpeaking(false);
-        }
-
-    } catch (error: any) {
-        toast({ variant: "destructive", title: "Chat Error", description: error.message || "The AI failed to respond." });
-        setChatHistory(prev => [...prev, { role: 'assistant', content: "Sorry, an error occurred." }]);
-    } finally {
-        setIsChatting(false);
-    }
   };
 
   const getSavableContent = (content: GeneratedContent): GeneratedContent => {
@@ -808,8 +860,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                 isChatting={isChatting}
                                 onSubmit={handleChatSubmit}
                                 inputRef={chatInputRef}
-                                micState={{ isListening, isAISpeaking, handleMicClick }}
+                                micState={{ isListening, handleMicClick }}
                                 audioRef={audioRef}
+                                onPlayAudio={handlePlayAudio}
+                                generatingAudioId={generatingAudioId}
+                                speakingMessageId={speakingMessageId}
                             />
                         </TabsContent>
 

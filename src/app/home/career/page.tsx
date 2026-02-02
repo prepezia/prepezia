@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic, Volume2, Pause } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,7 @@ type HubTab = "cv" | "chat" | "jobs";
 type OnboardingStep = "intro" | "goals" | "cv";
 
 type ChatMessage = {
+  id: string;
   role: 'user' | 'assistant';
   content: string | React.ReactNode;
 };
@@ -422,8 +424,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatting, setIsChatting] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [isAISpeaking, setIsAISpeaking] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -444,6 +446,72 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
+    if (speakingMessageId === messageId && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setSpeakingMessageId(null);
+        return;
+    }
+
+    if (generatingAudioId || (speakingMessageId && speakingMessageId !== messageId)) {
+        if(audioRef.current) audioRef.current.pause();
+    }
+
+    setGeneratingAudioId(messageId);
+    setSpeakingMessageId(null);
+    try {
+        const ttsResponse = await textToSpeech({ text });
+        if (audioRef.current) {
+            audioRef.current.src = ttsResponse.audio;
+            audioRef.current.play();
+            setSpeakingMessageId(messageId);
+        }
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.'});
+    } finally {
+        setGeneratingAudioId(null);
+    }
+  }, [generatingAudioId, speakingMessageId, toast]);
+
+  const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
+    if (!currentInput?.trim()) return;
+
+    const userMessageId = `user-${Date.now()}`;
+    const userMessage: ChatMessage = { id: userMessageId, role: 'user', content: currentInput };
+    setChatHistory(prev => [...prev, userMessage]);
+    setIsChatting(true);
+
+    try {
+      const result = await careerChat({ 
+        cvContent: cv.content,
+        careerObjectives: careerGoals,
+        question: currentInput,
+      });
+
+      const assistantMessageId = `asst-${Date.now()}`;
+      const assistantMessage: ChatMessage = { id: assistantMessageId, role: 'assistant', content: result.answer };
+      setChatHistory(prev => [...prev, assistantMessage]);
+
+      if (isVoiceInput) {
+        await handlePlayAudio(assistantMessageId, result.answer);
+      }
+
+    } catch(e: any) {
+      console.error("Career advice error", e);
+      const errorId = `err-${Date.now()}`;
+      const errorMessage: ChatMessage = { id: errorId, role: 'assistant', content: "Sorry, I couldn't process that request." };
+      setChatHistory(prev => [...prev, errorMessage]);
+      toast({
+        variant: "destructive",
+        title: "Chat Error",
+        description: e.message || "The AI advisor failed to respond."
+      });
+    } finally {
+      setIsChatting(false);
+    }
+  }, [cv.content, careerGoals, toast, handlePlayAudio]);
+
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -454,31 +522,30 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        if (chatInputRef.current) {
-          chatInputRef.current.value = transcript;
-          const form = chatInputRef.current.closest('form');
-          if (form) {
-            // Create and dispatch a submit event
-            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-            form.dispatchEvent(submitEvent);
-          }
-        }
+        submitChat(transcript, true);
       };
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        toast({ variant: 'destructive', title: 'Speech Error', description: `Could not recognize speech: ${event.error}` });
+        let description = `Could not recognize speech: ${event.error}`;
+        if (event.error === 'network') {
+            description = 'Network error. Please check your internet connection and try again.';
+        } else if (event.error === 'not-allowed') {
+            description = 'Microphone access denied. Please enable it in your browser settings.';
+        }
+        toast({ variant: 'destructive', title: 'Speech Error', description });
       };
       recognition.onend = () => setIsListening(false);
       recognitionRef.current = recognition;
     } else {
       console.warn("Speech Recognition API not supported in this browser.");
     }
-  }, [toast]);
+  }, [toast, submitChat]);
 
   const handleMicClick = () => {
-    if (isAISpeaking && audioRef.current) {
+    if (speakingMessageId && audioRef.current) {
         audioRef.current.pause();
-        setIsAISpeaking(false);
+        audioRef.current.currentTime = 0;
+        setSpeakingMessageId(null);
         return;
     }
     if (!recognitionRef.current) {
@@ -632,49 +699,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentInput = chatInputRef.current?.value;
-    if (!currentInput?.trim()) return;
-
-    const userMessage: ChatMessage = { role: 'user', content: currentInput };
-    setChatHistory(prev => [...prev, userMessage]);
-    setIsChatting(true);
+    submitChat(currentInput || "", false);
     if(chatInputRef.current) chatInputRef.current.value = "";
-
-    try {
-      const result = await careerChat({ 
-        cvContent: cv.content,
-        careerObjectives: careerGoals,
-        question: currentInput,
-      });
-      const assistantMessage: ChatMessage = { role: 'assistant', content: result.answer };
-      setChatHistory(prev => [...prev, assistantMessage]);
-
-      if (voiceMode) {
-        setIsAISpeaking(true);
-        try {
-            const ttsResponse = await textToSpeech({ text: result.answer });
-            if (audioRef.current) {
-                audioRef.current.src = ttsResponse.audio;
-                audioRef.current.play();
-            }
-        } catch (ttsError: any) {
-            console.error("TTS Error:", ttsError);
-            toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.' });
-            setIsAISpeaking(false);
-        }
-      }
-
-    } catch(e: any) {
-      console.error("Career advice error", e);
-      const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I couldn't process that request." };
-      setChatHistory(prev => [...prev, errorMessage]);
-      toast({
-        variant: "destructive",
-        title: "Chat Error",
-        description: e.message || "The AI advisor failed to respond."
-      });
-    } finally {
-      setIsChatting(false);
-    }
   };
   
   const handleJobSearch = async () => {
@@ -925,11 +951,30 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   <h3 className="font-semibold text-foreground text-lg">AI Career Advisor</h3>
                   <p className="mt-2 text-sm">Ask about career paths or interview tips. Try voice mode for a hands-free chat.</p>
                 </div>
-              ) : chatHistory.map((msg, i) => (
-                <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+              ) : chatHistory.map((msg) => (
+                <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                   {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
                   <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
                     {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
+                    {msg.role === 'assistant' && typeof msg.content === 'string' && (
+                        <div className="text-right mt-2">
+                             <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
+                                onClick={() => handlePlayAudio(msg.id, msg.content as string)}
+                                disabled={isChatting}
+                            >
+                                {generatingAudioId === msg.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : speakingMessageId === msg.id ? (
+                                    <Pause className="h-4 w-4" />
+                                ) : (
+                                    <Volume2 className="h-4 w-4" />
+                                )}
+                            </Button>
+                        </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -945,15 +990,15 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   disabled={isChatting}
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <Button size="icon" variant={voiceMode ? 'secondary': 'ghost'} className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>
-                        <Mic className="h-4 w-4" />
+                    <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>
+                        {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                     </Button>
                     <Button size="icon" className="h-8 w-8" type="submit" disabled={isChatting || isListening}>
                         <Send className="h-4 w-4" />
                     </Button>
                 </div>
               </form>
-              <audio ref={audioRef} onEnded={() => setIsAISpeaking(false)} className="hidden"/>
+              <audio ref={audioRef} onEnded={() => setSpeakingMessageId(null)} className="hidden"/>
             </div>
           </TabsContent>
 
@@ -1093,5 +1138,6 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
     
 
     
+
 
 

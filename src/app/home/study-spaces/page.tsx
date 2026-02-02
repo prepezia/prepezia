@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save, Pause, Volume2 } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -64,10 +64,12 @@ type Source = {
 };
 
 type UserChatMessage = {
+    id: string;
     role: 'user';
     content: string;
 };
 type AssistantChatMessage = {
+    id: string;
     role: 'assistant';
     content: string;
     citations?: InteractiveChatWithSourcesOutput['citations'];
@@ -138,7 +140,8 @@ function StudySpacesPage() {
   // Voice Chat State
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -240,6 +243,91 @@ function StudySpacesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudySpace]);
 
+  const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
+    if (speakingMessageId === messageId && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setSpeakingMessageId(null);
+        return;
+    }
+
+    if (generatingAudioId || (speakingMessageId && speakingMessageId !== messageId)) {
+        if(audioRef.current) audioRef.current.pause();
+    }
+
+    setGeneratingAudioId(messageId);
+    setSpeakingMessageId(null);
+    try {
+        const ttsResponse = await textToSpeech({ text });
+        if (audioRef.current) {
+            audioRef.current.src = ttsResponse.audio;
+            audioRef.current.play();
+            setSpeakingMessageId(messageId);
+        }
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.'});
+    } finally {
+        setGeneratingAudioId(null);
+    }
+  }, [generatingAudioId, speakingMessageId, toast]);
+  
+  const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
+    if (!currentInput?.trim() || !selectedStudySpace) return;
+    
+    const userMessage: UserChatMessage = { id: `user-${Date.now()}`, role: 'user', content: currentInput };
+    
+    updateSelectedStudySpace(current => ({
+        chatHistory: [...(current.chatHistory || []), userMessage]
+    }));
+
+    setIsChatLoading(true);
+
+    try {
+        const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
+            name: s.name,
+            type: s.type === 'clipboard' ? 'text' : s.type,
+            url: s.url,
+            dataUri: s.data,
+            contentType: s.contentType,
+        }));
+
+        const response = await interactiveChatWithSources({
+            sources: sourceInputs,
+            question: currentInput
+        });
+        
+        const assistantMessage: AssistantChatMessage = {
+            id: `asst-${Date.now()}`,
+            role: 'assistant',
+            content: response.answer,
+            citations: response.citations
+        };
+
+        updateSelectedStudySpace(current => ({
+            chatHistory: [...(current.chatHistory || []), assistantMessage]
+        }));
+        
+        if (isVoiceInput) {
+            await handlePlayAudio(assistantMessage.id, response.answer);
+        }
+
+    } catch (e: any) {
+        console.error("Chat error", e);
+        const errorMessage: AssistantChatMessage = {
+            id: `err-${Date.now()}`,
+            role: 'assistant',
+            content: e.message || "Sorry, I couldn't process that request.",
+            isError: true
+        };
+        updateSelectedStudySpace(current => ({
+            chatHistory: [...(current.chatHistory || []), errorMessage]
+        }));
+    } finally {
+        setIsChatLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStudySpace, toast, handlePlayAudio]);
+  
   // Voice Chat Effect
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -251,30 +339,30 @@ function StudySpacesPage() {
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            if (chatInputRef.current) {
-                chatInputRef.current.value = transcript;
-                const form = chatInputRef.current.closest('form');
-                if (form) {
-                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                    form.dispatchEvent(submitEvent);
-                }
-            }
+            submitChat(transcript, true);
         };
         recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
-            toast({ variant: 'destructive', title: 'Speech Error', description: `Could not recognize speech: ${event.error}` });
+            let description = `Could not recognize speech: ${event.error}`;
+            if (event.error === 'network') {
+                description = 'Network error. Please check your internet connection and try again.';
+            } else if (event.error === 'not-allowed') {
+                description = 'Microphone access denied. Please enable it in your browser settings.';
+            }
+            toast({ variant: 'destructive', title: 'Speech Error', description });
         };
         recognition.onend = () => setIsListening(false);
         recognitionRef.current = recognition;
     } else {
         console.warn("Speech Recognition API not supported in this browser.");
     }
-  }, [toast]);
+  }, [toast, submitChat]);
 
   const handleMicClick = () => {
-    if (isAISpeaking && audioRef.current) {
+    if (speakingMessageId && audioRef.current) {
         audioRef.current.pause();
-        setIsAISpeaking(false);
+        audioRef.current.currentTime = 0;
+        setSpeakingMessageId(null);
         return;
     }
     if (!recognitionRef.current) {
@@ -464,68 +552,8 @@ function StudySpacesPage() {
   async function handleChatSubmit(e: React.FormEvent) {
     e.preventDefault();
     const currentInput = chatInputRef.current?.value;
-
-    if (!currentInput?.trim() || !selectedStudySpace) return;
-    
-    const userMessage: UserChatMessage = { role: 'user', content: currentInput };
-    
-    updateSelectedStudySpace(current => ({
-        chatHistory: [...(current.chatHistory || []), userMessage]
-    }));
-
-    setIsChatLoading(true);
+    submitChat(currentInput || '', false);
     if(chatInputRef.current) chatInputRef.current.value = ""; // Clear input immediately
-
-    try {
-        const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
-            name: s.name,
-            type: s.type === 'clipboard' ? 'text' : s.type,
-            url: s.url,
-            dataUri: s.data,
-            contentType: s.contentType,
-        }));
-
-        const response = await interactiveChatWithSources({
-            sources: sourceInputs,
-            question: currentInput
-        });
-        
-        const assistantMessage: AssistantChatMessage = {
-            role: 'assistant',
-            content: response.answer,
-            citations: response.citations
-        };
-
-        updateSelectedStudySpace(current => ({
-            chatHistory: [...(current.chatHistory || []), assistantMessage]
-        }));
-        
-        setIsAISpeaking(true);
-        try {
-            const ttsResponse = await textToSpeech({ text: response.answer });
-            if (audioRef.current) {
-                audioRef.current.src = ttsResponse.audio;
-                audioRef.current.play();
-            }
-        } catch (ttsError: any) {
-            console.error("TTS Error:", ttsError);
-            toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.' });
-            setIsAISpeaking(false);
-        }
-
-    } catch (e: any) {
-        console.error("Chat error", e);
-        const errorMessage: AssistantChatMessage = {
-            role: 'assistant',
-            content: e.message || "Sorry, I couldn't process that request.",
-            isError: true
-        };
-        updateSelectedStudySpace(current => ({
-            chatHistory: [...(current.chatHistory || []), errorMessage]
-        }));
-    } finally {
-        setIsChatLoading(false);
-    }
   }
 
   const handleGenerateContent = async (type: keyof GeneratedContent) => {
@@ -650,8 +678,8 @@ function StudySpacesPage() {
     }
 
     const renderChatMessages = (messages: ChatMessage[], sources: Source[]) => {
-      return messages.map((msg, i) => (
-        <div key={i} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+      return messages.map((msg) => (
+        <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
           {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5"/></div>}
           <div className={cn("p-3 rounded-lg max-w-[85%] break-words", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
             <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -659,7 +687,7 @@ function StudySpacesPage() {
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
               ) : msg.isError ? (
                 <p className="text-destructive">{msg.content}</p>
-              ) : (msg.citations && msg.citations.length > 0) ? (
+              ) : msg.citations && msg.citations.length > 0 ? (
                 <>{parseAnswerWithCitations(msg.content, msg.citations, sources)}</>
               ) : (
                 typeof msg.content === 'string' ? (
@@ -669,6 +697,25 @@ function StudySpacesPage() {
                 )
               )}
             </div>
+             {msg.role === 'assistant' && typeof msg.content === 'string' && (
+                <div className="text-right mt-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
+                        onClick={() => handlePlayAudio(msg.id, msg.content)}
+                        disabled={isChatLoading}
+                    >
+                        {generatingAudioId === msg.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : speakingMessageId === msg.id ? (
+                            <Pause className="h-4 w-4" />
+                        ) : (
+                            <Volume2 className="h-4 w-4" />
+                        )}
+                    </Button>
+                </div>
+            )}
           </div>
         </div>
       ));
@@ -827,7 +874,7 @@ function StudySpacesPage() {
                                         />
                                         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                             <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatLoading}>
-                                                <Mic className="h-4 w-4" />
+                                                {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                             </Button>
                                             <Button size="icon" className="h-8 w-8" type="submit" disabled={selectedStudySpace.sources.length === 0 || isChatLoading || isListening}>
                                                 <Send className="h-4 w-4" />
@@ -835,7 +882,7 @@ function StudySpacesPage() {
                                         </div>
                                     </div>
                                 </form>
-                                 <audio ref={audioRef} onEnded={() => setIsAISpeaking(false)} className="hidden"/>
+                                 <audio ref={audioRef} onEnded={() => setSpeakingMessageId(null)} className="hidden"/>
                             </div>
                         </Card>
                     </TabsContent>
