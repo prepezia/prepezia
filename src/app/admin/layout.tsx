@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -131,8 +130,8 @@ export default function AdminLayout({
             <Skeleton className="h-8 w-8 rounded-lg md:hidden" />
             <Skeleton className="h-6 w-32" />
           </header>
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
-            <div className="max-w-full mx-auto">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            <div className="mx-auto w-full max-w-full">
               {children}
             </div>
           </main>
@@ -148,7 +147,7 @@ export default function AdminLayout({
         <div className="flex flex-1 flex-col overflow-hidden">
             <AdminHeader />
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-                <div className="max-w-full mx-auto">
+                <div className="mx-auto w-full max-w-full">
                 {children}
                 </div>
             </main>
