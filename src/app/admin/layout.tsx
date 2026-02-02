@@ -126,12 +126,12 @@ export default function AdminLayout({
             </div>
           </div>
         </div>
-        <div className="flex flex-col h-screen">
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card px-4 md:ml-[calc(var(--sidebar-width-icon)_+1rem)]">
+        <div className="md:ml-[calc(var(--sidebar-width-icon)_+1rem)]">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card px-4">
             <Skeleton className="h-8 w-8 rounded-lg md:hidden" />
             <Skeleton className="h-6 w-32" />
           </header>
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 md:ml-[calc(var(--sidebar-width-icon)_+1rem)]">
+          <main className="p-4 md:p-6">
             <div className="max-w-full mx-auto">
               {children}
             </div>
@@ -145,9 +145,9 @@ export default function AdminLayout({
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen bg-background">
         <AdminSidebar />
-        <div className="flex flex-col h-screen md:ml-0 transition-all duration-300 ease-in-out peer-data-[state=collapsed]:md:ml-[calc(var(--sidebar-width-icon)_+1rem)] peer-data-[state=expanded]:md:ml-[calc(var(--sidebar-width)_+1rem)]">
+        <div className="transition-all duration-300 ease-in-out peer-data-[state=collapsed]:md:ml-[calc(var(--sidebar-width-icon)_+1rem)] peer-data-[state=expanded]:md:ml-[calc(var(--sidebar-width)_+1rem)]">
           <AdminHeader />
-          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-full overflow-y-auto">
+          <main className="p-4 sm:p-6 md:p-8">
             <div className="max-w-full mx-auto">
               {children}
             </div>
