@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
@@ -24,6 +25,7 @@ import {
   Briefcase,
   GraduationCap,
   ArrowLeft,
+  MessageSquareWarning,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/Logo';
@@ -35,6 +37,7 @@ const menuItems = [
   { href: '/admin/settings', label: 'App Settings', icon: Settings },
   { href: '/admin/content', label: 'Legal Content', icon: FileText },
   { href: '/admin/testimonials', label: 'Testimonials', icon: MessageSquareQuote },
+  { href: '/admin/feedback', label: 'Feedback', icon: MessageSquareWarning },
   { href: '/admin/past-questions', label: 'Past Questions', icon: FileQuestion },
   { href: '/admin/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/admin/opportunities', label: 'Opportunities', icon: GraduationCap },
@@ -42,9 +45,13 @@ const menuItems = [
 
 function AdminSidebar() {
   const pathname = usePathname();
+  const { state } = useSidebar();
 
   return (
-    <Sidebar variant="floating" collapsible="icon">
+    <Sidebar
+      variant="floating"
+      collapsible={state === 'expanded' ? 'icon' : 'offcanvas'}
+    >
       <SidebarHeader className="p-4">
         <Link href="/admin" className="flex items-center gap-2">
           <Logo className="w-7 h-7 text-primary" />
@@ -53,7 +60,7 @@ function AdminSidebar() {
           </span>
         </Link>
       </SidebarHeader>
-      <SidebarContent className="px-2">
+      <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
@@ -74,7 +81,7 @@ function AdminSidebar() {
       <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip={{ children: "Back to App" }} asChild>
+            <SidebarMenuButton tooltip={{ children: 'Back to App' }} asChild>
               <Link href="/home">
                 <ArrowLeft className="w-5 h-5" />
                 <span>Back to App</span>
@@ -88,14 +95,20 @@ function AdminSidebar() {
 }
 
 function AdminHeader() {
+  const { state } = useSidebar();
+
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-4 md:px-6">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/60 md:px-6">
+      <div
+        className={`flex items-center gap-3 ${
+          state === 'collapsed' ? 'md:pl-0' : ''
+        }`}
+      >
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-lg font-semibold">Admin Panel</h1>
       </div>
     </header>
-  )
+  );
 }
 
 export default function AdminLayout({
@@ -114,14 +127,14 @@ export default function AdminLayout({
       <div className="flex h-screen bg-background">
          <div className="hidden md:block">
             <div className="flex h-full flex-col gap-4 border-r bg-card p-2">
-                <div className="p-2"><Skeleton className="h-7 w-7 rounded-full" /></div>
-                <div className="flex flex-col gap-2">
-                {[...Array(8)].map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-10 rounded-lg" />
+                <div className="p-2"><Skeleton className="h-7 w-32 rounded-md" /></div>
+                <div className="flex flex-col gap-2 p-2">
+                {[...Array(9)].map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
                 ))}
                 </div>
-                <div className="mt-auto">
-                <Skeleton className="h-10 w-10 rounded-lg" />
+                <div className="mt-auto p-2">
+                <Skeleton className="h-10 w-full rounded-lg" />
                 </div>
             </div>
         </div>
