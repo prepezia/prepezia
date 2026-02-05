@@ -193,7 +193,9 @@ export default function PastQuestionsPage() {
 
         let finalScore = 0;
         questions.forEach((q, index) => {
-            if(finalAnswers[index] === q.correctAnswer) finalScore++;
+            if (finalAnswers[index] === q.correctAnswer) {
+                finalScore++;
+            }
         });
 
         setExamAnswers(finalAnswers);
@@ -275,10 +277,10 @@ export default function PastQuestionsPage() {
             <>
                 <HomeHeader />
                 <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                         <div>
                             <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
-                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an AI-powered revision plan.</p>
+                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an<br className="md:hidden" /> AI-powered revision plan.</p>
                         </div>
                         <div className="flex justify-end md:block">
                             <Button onClick={() => setIsNewExamDialogOpen(true)} className="shrink-0">
@@ -749,5 +751,6 @@ function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[
 }
 
     
+
 
 
