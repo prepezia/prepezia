@@ -26,6 +26,7 @@ import {
   GraduationCap,
   ArrowLeft,
   MessageSquareWarning,
+  PanelLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/Logo';
