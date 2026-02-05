@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/Logo';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -112,53 +111,17 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [isMounted, setIsMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return (
-        <div className="flex h-screen bg-background">
-            <div className="hidden md:block">
-                <div className="flex h-full w-[16rem] flex-col gap-4 border-r bg-card p-2">
-                    <div className="p-2"><Skeleton className="h-7 w-32 rounded-md" /></div>
-                    <div className="flex flex-col gap-2 p-2">
-                    {[...Array(9)].map((_, i) => (
-                        <Skeleton key={i} className="h-10 w-full rounded-lg" />
-                    ))}
-                    </div>
-                    <div className="mt-auto p-2">
-                    <Skeleton className="h-10 w-full rounded-lg" />
-                    </div>
-                </div>
-            </div>
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-card px-4">
-                    <Skeleton className="h-8 w-8 rounded-lg md:hidden" />
-                    <Skeleton className="h-8 w-8 rounded-lg hidden md:block" />
-                    <Skeleton className="h-6 w-32" />
-                </header>
-                <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-                    {children}
-                </main>
-            </div>
-        </div>
-    );
-  }
-
   return (
     <SidebarProvider defaultOpen={true}>
-        <div className="flex h-screen bg-background">
-            <AdminSidebar />
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <AdminHeader />
-                <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-                    {children}
-                </main>
-            </div>
+      <div className="flex h-screen bg-background">
+        <AdminSidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <AdminHeader />
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            {children}
+          </main>
         </div>
+      </div>
     </SidebarProvider>
   );
 }
