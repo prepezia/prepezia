@@ -148,6 +148,7 @@ export default function PastQuestionsPage() {
     };
 
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
+        setViewState('results');
         setIsLoading(true);
         setResults(null);
 
@@ -161,7 +162,6 @@ export default function PastQuestionsPage() {
         try {
             let performanceDetails = questions.map((q, index) => {
                 const isCorrect = finalAnswers[index] === q.correctAnswer;
-                if(isCorrect) score++;
                 return `Q${index+1}: ${q.questionText.substring(0, 30)}... - User Answer: ${finalAnswers[index] || 'Skipped'}, Correct: ${q.correctAnswer}. Status: ${isCorrect ? 'Correct' : 'Incorrect'}.`
             }).join('\n');
 
@@ -179,7 +179,6 @@ export default function PastQuestionsPage() {
                 course: selections.subject
             });
             setResults(revisionPlan);
-            setViewState('results');
         } catch (e: any) {
             toast({ variant: 'destructive', title: 'Failed to get revision plan', description: e.message });
         } finally {
@@ -295,7 +294,7 @@ export default function PastQuestionsPage() {
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center p-12 gap-2">
                             <Loader2 className="w-8 h-8 animate-spin" />
-                            <p className="text-muted-foreground">Generating review...</p>
+                            <p className="text-muted-foreground">Generating your review...</p>
                         </div>
                     ) : (
                         <Card>
@@ -568,3 +567,5 @@ function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[
         </div>
     );
 }
+
+    
