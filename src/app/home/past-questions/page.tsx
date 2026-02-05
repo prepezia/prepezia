@@ -276,50 +276,54 @@ export default function PastQuestionsPage() {
         return (
             <>
                 <HomeHeader />
-                <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                        <div>
-                            <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
-                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an<br className="md:hidden" /> AI-powered revision plan.</p>
-                        </div>
-                        <div className="flex justify-end md:block">
-                            <Button onClick={() => setIsNewExamDialogOpen(true)} className="shrink-0">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Take New Exam
-                            </Button>
-                        </div>
-                    </div>
-
-                    {savedExams.length > 0 ? (
-                        <div className="space-y-4">
-                            <h2 className="text-2xl font-headline font-bold">Saved Exam Sessions</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {savedExams.map(exam => (
-                                    <Card key={exam.id}>
-                                        <CardHeader>
-                                            <CardTitle className="truncate">{exam.selections.subject}</CardTitle>
-                                            <CardDescription>{exam.selections.examBody}{exam.selections.university && ` - ${exam.selections.university}`} - {exam.selections.year}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="text-sm">
-                                            <p>Completed on: {exam.date}</p>
-                                            <p>Score: <span className="font-bold">{exam.examScore} / {exam.questions.length}</span></p>
-                                        </CardContent>
-                                        <CardFooter className="justify-between">
-                                            <Button onClick={() => handleViewSavedExam(exam)}>View Results</Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSavedExam(exam.id)}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                            </Button>
-                                        </CardFooter>
-                                    </Card>
-                                ))}
+                <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                            <div>
+                                <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
+                                <p className="text-muted-foreground mt-1 text-balance">
+                                    Test your knowledge and get an <br className="md:hidden" /> AI-powered revision plan.
+                                </p>
+                            </div>
+                            <div className="flex justify-end md:block">
+                                <Button onClick={() => setIsNewExamDialogOpen(true)} className="shrink-0">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Take New Exam
+                                </Button>
                             </div>
                         </div>
-                    ) : (
-                         <Card className="text-center p-12 border-dashed">
-                             <h3 className="text-xl font-semibold">No Saved Exams</h3>
-                             <p className="text-muted-foreground mt-2">Your completed exam sessions will appear here.</p>
-                        </Card>
-                    )}
+
+                        {savedExams.length > 0 ? (
+                            <div className="space-y-4 mt-8">
+                                <h2 className="text-2xl font-headline font-bold">Saved Exam Sessions</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {savedExams.map(exam => (
+                                        <Card key={exam.id}>
+                                            <CardHeader>
+                                                <CardTitle className="truncate">{exam.selections.subject}</CardTitle>
+                                                <CardDescription>{exam.selections.examBody}{exam.selections.university && ` - ${exam.selections.university}`} - {exam.selections.year}</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="text-sm">
+                                                <p>Completed on: {exam.date}</p>
+                                                <p>Score: <span className="font-bold">{exam.examScore} / {exam.questions.length}</span></p>
+                                            </CardContent>
+                                            <CardFooter className="justify-between">
+                                                <Button onClick={() => handleViewSavedExam(exam)}>View Results</Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteSavedExam(exam.id)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </CardFooter>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <Card className="text-center p-12 border-dashed mt-8">
+                                <h3 className="text-xl font-semibold">No Saved Exams</h3>
+                                <p className="text-muted-foreground mt-2">Your completed exam sessions will appear here.</p>
+                            </Card>
+                        )}
+                    </div>
 
                     <Dialog open={isNewExamDialogOpen} onOpenChange={setIsNewExamDialogOpen}>
                         <DialogContent>
@@ -751,6 +755,7 @@ function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[
 }
 
     
+
 
 
 
