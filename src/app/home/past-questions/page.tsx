@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -31,6 +32,9 @@ import { universities } from "@/lib/ghana-universities";
 import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+
 
 type ViewState = 'select' | 'mode-select' | 'taking' | 'results';
 type ExamMode = 'trial' | 'exam';
@@ -73,6 +77,10 @@ export default function PastQuestionsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [results, setResults] = useState<AiAssessmentRevisionRoadmapOutput | null>(null);
     const { toast } = useToast();
+
+    // State for exam results
+    const [examAnswers, setExamAnswers] = useState<Record<number, string>>({});
+    const [examScore, setExamScore] = useState(0);
 
     const handleExamBodyChange = (value: string) => {
         let newSubjects: string[] = [];
@@ -142,8 +150,15 @@ export default function PastQuestionsPage() {
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
         setResults(null);
+
+        let score = 0;
+        questions.forEach((q, index) => {
+            if(finalAnswers[index] === q.correctAnswer) score++;
+        });
+        setExamAnswers(finalAnswers);
+        setExamScore(score);
+
         try {
-            let score = 0;
             let performanceDetails = questions.map((q, index) => {
                 const isCorrect = finalAnswers[index] === q.correctAnswer;
                 if(isCorrect) score++;
@@ -277,20 +292,92 @@ export default function PastQuestionsPage() {
             <>
                 <HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2 h-4 w-4" />Try Another</Button>} />
                 <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>Your AI Revision Roadmap</CardTitle>
-                            <CardDescription>Based on your performance in the {selections.subject} ({selections.year}) exam.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {isLoading && <div className="flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin" /></div>}
-                            {results && (
-                                <div className="prose dark:prose-invert max-w-none">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{results.revisionRoadmap}</ReactMarkdown>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center p-12 gap-2">
+                            <Loader2 className="w-8 h-8 animate-spin" />
+                            <p className="text-muted-foreground">Generating review...</p>
+                        </div>
+                    ) : (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-3xl font-headline font-bold">Exam Results</CardTitle>
+                                <CardDescription>Your score: <span className="font-bold text-primary">{examScore} / {questions.length}</span></CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Tabs defaultValue="roadmap" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="roadmap">Revision Roadmap</TabsTrigger>
+                                        <TabsTrigger value="corrections">Corrections</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="roadmap" className="mt-4">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>Your AI Revision Roadmap</CardTitle>
+                                                <CardDescription>Based on your performance in the {selections.subject} ({selections.year}) exam.</CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                {results ? (
+                                                    <div className="prose dark:prose-invert max-w-none">
+                                                        <ReactMarkdown 
+                                                            remarkPlugins={[remarkGfm]}
+                                                            components={{
+                                                                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
+                                                            }}
+                                                        >
+                                                            {results.revisionRoadmap}
+                                                        </ReactMarkdown>
+                                                    </div>
+                                                ) : <p className="text-muted-foreground">Could not generate revision roadmap.</p>}
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
+                                    <TabsContent value="corrections" className="mt-4">
+                                        <Card>
+                                             <CardHeader>
+                                                <CardTitle className="flex items-center gap-2"><XCircle className="text-destructive"/>Your Corrections</CardTitle>
+                                                <CardDescription>Here are the questions you got wrong.</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                {questions.filter((q, index) => examAnswers[index] !== q.correctAnswer).length > 0 ? (
+                                                    questions.map((q, index) => {
+                                                        if (examAnswers[index] === q.correctAnswer) return null;
+                                                        return (
+                                                            <Card key={index} className="border-destructive/50">
+                                                                <CardHeader>
+                                                                    <p className="font-semibold">{index + 1}. {q.questionText}</p>
+                                                                </CardHeader>
+                                                                <CardContent className="space-y-2 text-sm">
+                                                                    <p className="text-destructive">Your answer: <span className="font-bold">{examAnswers[index] || "Skipped"}</span></p>
+                                                                    <p className="text-green-600">Correct answer: <span className="font-bold">{q.correctAnswer}</span></p>
+                                                                    <Card className="mt-2 bg-secondary/50">
+                                                                        <CardHeader className="flex-row items-center gap-2 pb-2 pt-4">
+                                                                           <Lightbulb className="w-5 h-5 text-yellow-500" />
+                                                                           <CardTitle className="text-md">Explanation</CardTitle>
+                                                                        </CardHeader>
+                                                                        <CardContent>
+                                                                            <p className="text-sm text-muted-foreground">{q.explanation}</p>
+                                                                        </CardContent>
+                                                                    </Card>
+                                                                </CardContent>
+                                                            </Card>
+                                                        )
+                                                    })
+                                                ) : (
+                                                    <Alert variant="default" className="border-green-500 text-green-700">
+                                                        <CheckCircle className="h-4 w-4 !text-green-700" />
+                                                        <AlertTitle>Excellent Work!</AlertTitle>
+                                                        <AlertDescription>
+                                                            You answered all questions correctly.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
+                                </Tabs>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </>
         );
