@@ -15,14 +15,13 @@ import {
 import {
     Select,
     SelectContent,
-    SelectGroup,
     SelectItem,
-    SelectLabel,
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, BookCopy, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -94,7 +93,11 @@ export default function PastQuestionsPage() {
 
     // State for saved exams
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
-    const [currentExamId, setCurrentExamId] = useState<number>(0); // 0 means new/unsaved exam
+    const [currentExamId, setCurrentExamId] = useState<number>(0);
+
+    // New state for dialogs and pagination
+    const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
+    const [questionsCurrentPage, setQuestionsCurrentPage] = useState(0);
 
     useEffect(() => {
         try {
@@ -151,7 +154,8 @@ export default function PastQuestionsPage() {
             toast({ variant: 'destructive', title: 'Please complete all selections.' });
             return;
         }
-        setCurrentExamId(0); // This is a new exam
+        setCurrentExamId(0);
+        setIsNewExamDialogOpen(false);
         setViewState('mode-select');
     };
     
@@ -229,6 +233,7 @@ export default function PastQuestionsPage() {
         setExamScore(exam.examScore);
         setResults(exam.results);
         setCurrentExamId(exam.id);
+        setQuestionsCurrentPage(0);
         setViewState('results');
     };
 
@@ -270,12 +275,18 @@ export default function PastQuestionsPage() {
             <>
                 <HomeHeader />
                 <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <div className="text-center">
-                        <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
-                        <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
+                            <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
+                        </div>
+                        <Button onClick={() => setIsNewExamDialogOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Take New Exam
+                        </Button>
                     </div>
 
-                    {savedExams.length > 0 && (
+                    {savedExams.length > 0 ? (
                         <div className="space-y-4">
                             <h2 className="text-2xl font-headline font-bold">Saved Exam Sessions</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -299,44 +310,55 @@ export default function PastQuestionsPage() {
                                 ))}
                             </div>
                         </div>
+                    ) : (
+                         <Card className="text-center p-12 border-dashed">
+                             <h3 className="text-xl font-semibold">No Saved Exams</h3>
+                             <p className="text-muted-foreground mt-2">Your completed exam sessions will appear here.</p>
+                        </Card>
                     )}
-                    
-                    <Card>
-                        <CardHeader><CardTitle>Take a New Exam</CardTitle></CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="font-medium">Exam Body</label>
-                                <Select onValueChange={handleExamBodyChange} value={selections.examBody}>
-                                    <SelectTrigger><SelectValue placeholder="Select an exam body..." /></SelectTrigger>
-                                    <SelectContent><SelectItem value="WASSCE">WASSCE</SelectItem><SelectItem value="BECE">BECE</SelectItem><SelectItem value="University">University</SelectItem></SelectContent>
-                                </Select>
-                            </div>
-                            {selections.examBody === 'University' && (
+
+                    <Dialog open={isNewExamDialogOpen} onOpenChange={setIsNewExamDialogOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Take a New Exam</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-6 py-4">
                                 <div className="space-y-2">
-                                    <label className="font-medium">University</label>
-                                    <Select onValueChange={handleUniversityChange} value={selections.university}>
-                                        <SelectTrigger><SelectValue placeholder="Select a university..." /></SelectTrigger>
-                                        <SelectContent className="max-h-[300px]">{universities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}</SelectContent>
+                                    <label className="font-medium">Exam Body</label>
+                                    <Select onValueChange={handleExamBodyChange} value={selections.examBody}>
+                                        <SelectTrigger><SelectValue placeholder="Select an exam body..." /></SelectTrigger>
+                                        <SelectContent><SelectItem value="WASSCE">WASSCE</SelectItem><SelectItem value="BECE">BECE</SelectItem><SelectItem value="University">University</SelectItem></SelectContent>
                                     </Select>
                                 </div>
-                            )}
-                            <div className="space-y-2">
-                                <label className="font-medium">Subject / Course</label>
-                                <Select onValueChange={handleSubjectChange} value={selections.subject} disabled={subjects.length === 0}>
-                                    <SelectTrigger><SelectValue placeholder="Select a subject..." /></SelectTrigger>
-                                    <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                                </Select>
+                                {selections.examBody === 'University' && (
+                                    <div className="space-y-2">
+                                        <label className="font-medium">University</label>
+                                        <Select onValueChange={handleUniversityChange} value={selections.university}>
+                                            <SelectTrigger><SelectValue placeholder="Select a university..." /></SelectTrigger>
+                                            <SelectContent className="max-h-[300px]">{universities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    <label className="font-medium">Subject / Course</label>
+                                    <Select onValueChange={handleSubjectChange} value={selections.subject} disabled={subjects.length === 0}>
+                                        <SelectTrigger><SelectValue placeholder="Select a subject..." /></SelectTrigger>
+                                        <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="space-y-2">
+                                    <label className="font-medium">Year</label>
+                                    <Select onValueChange={(value) => setSelections(prev => ({...prev, year: value}))} value={selections.year} disabled={years.length === 0}>
+                                        <SelectTrigger><SelectValue placeholder="Select a year..." /></SelectTrigger>
+                                        <SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                             <div className="space-y-2">
-                                <label className="font-medium">Year</label>
-                                <Select onValueChange={(value) => setSelections(prev => ({...prev, year: value}))} value={selections.year} disabled={years.length === 0}>
-                                    <SelectTrigger><SelectValue placeholder="Select a year..." /></SelectTrigger>
-                                    <SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
-                        </CardContent>
-                        <CardFooter><Button className="w-full" onClick={handleStart}>Start</Button></CardFooter>
-                    </Card>
+                            <DialogFooter>
+                                <Button className="w-full" onClick={handleStart}>Start</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </>
         );
@@ -393,6 +415,12 @@ export default function PastQuestionsPage() {
     }
 
     if (viewState === 'results') {
+        const questionsPerPage = 5;
+        const totalPages = Math.ceil(questions.length / questionsPerPage);
+        const startIndex = questionsCurrentPage * questionsPerPage;
+        const endIndex = startIndex + questionsPerPage;
+        const currentQuestions = questions.slice(startIndex, endIndex);
+
         return (
             <>
                 <HomeHeader left={<Button variant="outline" onClick={resetToSelection}><ArrowLeft className="mr-2 h-4 w-4" />Back to Exams</Button>} />
@@ -417,10 +445,47 @@ export default function PastQuestionsPage() {
                             </CardHeader>
                             <CardContent>
                                 <Tabs defaultValue="roadmap" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2">
+                                    <TabsList className="grid w-full grid-cols-3">
+                                        <TabsTrigger value="questions">Questions</TabsTrigger>
                                         <TabsTrigger value="roadmap">Revision Roadmap</TabsTrigger>
                                         <TabsTrigger value="corrections">Corrections</TabsTrigger>
                                     </TabsList>
+                                    <TabsContent value="questions" className="mt-4">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Exam Questions</CardTitle>
+                                                <CardDescription>Review all questions from the exam.</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-6">
+                                                {currentQuestions.map((q, i) => {
+                                                    const questionIndex = startIndex + i;
+                                                    const userAnswer = examAnswers[questionIndex];
+                                                    return (
+                                                        <div key={questionIndex} className="space-y-2 border-b pb-4 last:border-b-0 last:pb-0">
+                                                            <p className="font-semibold">{questionIndex + 1}. {q.questionText}</p>
+                                                            <div className="space-y-1">
+                                                                {q.options.map((opt, j) => (
+                                                                    <div key={j} className={cn(
+                                                                        "flex items-center space-x-2 rounded-md p-2 text-sm",
+                                                                        opt === q.correctAnswer && "bg-green-100 dark:bg-green-900/50 font-medium",
+                                                                        opt === userAnswer && opt !== q.correctAnswer && "bg-red-100 dark:bg-red-900/50"
+                                                                    )}>
+                                                                        {opt === q.correctAnswer ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" /> : (opt === userAnswer ? <XCircle className="h-4 w-4 text-destructive shrink-0" /> : <div className="h-4 w-4 shrink-0" />)}
+                                                                        <span>{opt}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </CardContent>
+                                            <CardFooter className="justify-between">
+                                                <Button variant="outline" onClick={() => setQuestionsCurrentPage(p => p - 1)} disabled={questionsCurrentPage === 0}>Previous</Button>
+                                                <span className="text-sm text-muted-foreground">Page {questionsCurrentPage + 1} of {totalPages}</span>
+                                                <Button variant="outline" onClick={() => setQuestionsCurrentPage(p => p + 1)} disabled={questionsCurrentPage >= totalPages - 1}>Next</Button>
+                                            </CardFooter>
+                                        </Card>
+                                    </TabsContent>
                                     <TabsContent value="roadmap" className="mt-4">
                                         <Card>
                                             <CardHeader>
@@ -682,3 +747,4 @@ function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[
 }
 
     
+
