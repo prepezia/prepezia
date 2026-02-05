@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,15 +21,29 @@ import {
     SelectValue,
   } from "@/components/ui/select";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, BookCopy, Calendar, Check, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, BookCopy, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { aiAssessmentRevisionRoadmap, AiAssessmentRevisionRoadmapOutput } from "@/ai/flows/ai-assessment-revision-roadmap";
-import AdBanner from "@/components/ads/AdBanner";
-import { Separator } from "@/components/ui/separator";
+import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
+import { universities } from "@/lib/ghana-universities";
+import { cn } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
 
-type ViewState = 'select' | 'taking' | 'results';
+type ViewState = 'select' | 'mode-select' | 'taking' | 'results';
+type ExamMode = 'trial' | 'exam';
+
+const universityData = {
+    "University of Ghana": {
+        "ECON 101": ["2023 Final", "2023 Mid-Sem", "2022 Final"],
+        "CSIT 101": ["2023 Final", "2022 Final"],
+    },
+    "Kwame Nkrumah University of Science and Technology (KNUST)": {
+        "MATH 151": ["2023 Final"],
+    },
+};
 
 const examData = {
     "WASSCE": {
@@ -42,57 +56,111 @@ const examData = {
         "Integrated Science": ["2023", "2022", "2021"],
         "Social Studies": ["2023", "2022", "2021"],
     },
-    "University": {
-        "Calculus I": ["Midsem 2023", "Finals 2022"],
-        "Organic Chemistry": ["Midsem 2023", "Finals 2022"],
-    }
-}
+    "University": universityData,
+};
+
+type QuizQuestion = GenerateQuizOutput['quiz'][0];
 
 export default function PastQuestionsPage() {
     const [viewState, setViewState] = useState<ViewState>('select');
-    const [selections, setSelections] = useState({ examBody: "", subject: "", year: "" });
+    const [examMode, setExamMode] = useState<ExamMode>('trial');
+    const [selections, setSelections] = useState({ examBody: "", university: "", subject: "", year: "" });
+    
     const [subjects, setSubjects] = useState<string[]>([]);
     const [years, setYears] = useState<string[]>([]);
+    
+    const [questions, setQuestions] = useState<QuizQuestion[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [results, setResults] = useState<AiAssessmentRevisionRoadmapOutput | null>(null);
     const { toast } = useToast();
 
     const handleExamBodyChange = (value: string) => {
-        const newSubjects = Object.keys(examData[value as keyof typeof examData] || {});
-        setSubjects(newSubjects);
-        setSelections({ examBody: value, subject: "", year: "" });
+        let newSubjects: string[] = [];
+        if (value === "University") {
+            setSubjects([]);
+        } else {
+            newSubjects = Object.keys(examData[value as "WASSCE" | "BECE"] || {});
+            setSubjects(newSubjects);
+        }
+        setYears([]);
+        setSelections({ examBody: value, university: "", subject: "", year: "" });
     };
 
+    const handleUniversityChange = (value: string) => {
+        const newSubjects = Object.keys(examData.University[value as keyof typeof examData.University] || {});
+        setSubjects(newSubjects);
+        setYears([]);
+        setSelections(prev => ({ ...prev, university: value, subject: "", year: "" }));
+    }
+
     const handleSubjectChange = (value: string) => {
-        const newYears = examData[selections.examBody as keyof typeof examData]?.[value] || [];
+        let newYears: string[] = [];
+        if (selections.examBody === "University") {
+            newYears = examData.University[selections.university as keyof typeof examData.University]?.[value] || [];
+        } else {
+            newYears = examData[selections.examBody as "WASSCE" | "BECE"]?.[value] || [];
+        }
         setYears(newYears);
         setSelections(prev => ({ ...prev, subject: value, year: "" }));
     };
 
-    const handleStartExam = () => {
-        if (!selections.examBody || !selections.subject || !selections.year) {
+    const handleStart = () => {
+        if (!selections.examBody || !selections.subject || !selections.year || (selections.examBody === 'University' && !selections.university)) {
             toast({ variant: 'destructive', title: 'Please complete all selections.' });
             return;
         }
+        setViewState('mode-select');
+    };
+    
+    const handleSelectMode = async (mode: ExamMode) => {
+        setExamMode(mode);
         setViewState('taking');
+        setIsLoading(true);
+        setQuestions([]);
+        
+        try {
+            const result = await generateQuiz({
+                context: 'note-generator',
+                topic: `${selections.subject} for ${selections.examBody === 'University' ? selections.university : selections.examBody}`,
+                academicLevel: selections.examBody as any,
+                content: `Generate 20 questions for the topic: ${selections.subject}. The exam is ${selections.examBody} ${selections.year}.`
+            });
+
+            if (!result.quiz || result.quiz.length === 0) {
+                throw new Error("The AI could not generate questions for this topic.");
+            }
+            
+            setQuestions(result.quiz.slice(0, 20));
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Failed to generate exam', description: e.message });
+            setViewState('mode-select');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleSubmitForReview = async () => {
+    const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
         setResults(null);
         try {
-            // In a real app, we would process actual exam answers.
-            // Here, we simulate a result to send to the AI.
+            let score = 0;
+            let performanceDetails = questions.map((q, index) => {
+                const isCorrect = finalAnswers[index] === q.correctAnswer;
+                if(isCorrect) score++;
+                return `Q${index+1}: ${q.questionText.substring(0, 30)}... - User Answer: ${finalAnswers[index] || 'Skipped'}, Correct: ${q.correctAnswer}. Status: ${isCorrect ? 'Correct' : 'Incorrect'}.`
+            }).join('\n');
+
             const mockExamResults = `
-                Exam: ${selections.examBody} - ${selections.subject} (${selections.year})
-                Student Performance:
-                - Section A (Multiple Choice): 15/20 correct. Struggled with questions on trigonometry.
-                - Section B (Theory): 25/40 marks. Answers lacked depth, especially on questions related to chemical bonding.
-                - Overall Score: 40/60 (66.7%)
+                Exam: ${selections.examBody} ${selections.university} - ${selections.subject} (${selections.year})
+                Student Performance Summary:
+                - Overall Score: ${score}/${questions.length} (${((score/questions.length)*100).toFixed(1)}%)
+                - Detailed Breakdown:
+                ${performanceDetails}
             `;
             const revisionPlan = await aiAssessmentRevisionRoadmap({
                 examResults: mockExamResults,
                 studentLevel: selections.examBody,
+                university: selections.university,
                 course: selections.subject
             });
             setResults(revisionPlan);
@@ -114,80 +182,97 @@ export default function PastQuestionsPage() {
                         <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
                     </div>
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Select Your Exam</CardTitle>
-                            <CardDescription>Choose the exam, subject, and year you want to practice.</CardDescription>
-                        </CardHeader>
+                        <CardHeader><CardTitle>Select Your Exam</CardTitle></CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 <label className="font-medium">Exam Body</label>
                                 <Select onValueChange={handleExamBodyChange} value={selections.examBody}>
                                     <SelectTrigger><SelectValue placeholder="Select an exam body..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="WASSCE">WASSCE</SelectItem>
-                                        <SelectItem value="BECE">BECE</SelectItem>
-                                        <SelectItem value="University">University</SelectItem>
-                                    </SelectContent>
+                                    <SelectContent><SelectItem value="WASSCE">WASSCE</SelectItem><SelectItem value="BECE">BECE</SelectItem><SelectItem value="University">University</SelectItem></SelectContent>
                                 </Select>
                             </div>
+                            {selections.examBody === 'University' && (
+                                <div className="space-y-2">
+                                    <label className="font-medium">University</label>
+                                    <Select onValueChange={handleUniversityChange} value={selections.university}>
+                                        <SelectTrigger><SelectValue placeholder="Select a university..." /></SelectTrigger>
+                                        <SelectContent className="max-h-[300px]">{universities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                             <div className="space-y-2">
-                                <label className="font-medium">Subject</label>
-                                <Select onValueChange={handleSubjectChange} value={selections.subject} disabled={!selections.examBody}>
+                                <label className="font-medium">Subject / Course</label>
+                                <Select onValueChange={handleSubjectChange} value={selections.subject} disabled={subjects.length === 0}>
                                     <SelectTrigger><SelectValue placeholder="Select a subject..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                    </SelectContent>
+                                    <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                              <div className="space-y-2">
                                 <label className="font-medium">Year</label>
-                                <Select onValueChange={(value) => setSelections(prev => ({...prev, year: value}))} value={selections.year} disabled={!selections.subject}>
+                                <Select onValueChange={(value) => setSelections(prev => ({...prev, year: value}))} value={selections.year} disabled={years.length === 0}>
                                     <SelectTrigger><SelectValue placeholder="Select a year..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                    </SelectContent>
+                                    <SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                         </CardContent>
-                        <CardFooter>
-                            <Button className="w-full" onClick={handleStartExam}>Start Exam</Button>
-                        </CardFooter>
+                        <CardFooter><Button className="w-full" onClick={handleStart}>Start</Button></CardFooter>
                     </Card>
-                    <AdBanner />
                 </div>
             </>
         );
     }
-    
-    if (viewState === 'taking') {
+
+    if (viewState === 'mode-select') {
         return (
-            <>
+             <>
                 <HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>} />
-                <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{selections.subject} - {selections.year}</CardTitle>
-                            <CardDescription>This is a mock exam. Answer the questions to the best of your ability.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-center text-muted-foreground p-8 border rounded-lg border-dashed">
-                                [ Exam Questions Interface Placeholder ]
-                            </p>
-                            <p className="text-xs text-muted-foreground text-center">In a real application, interactive questions would appear here.</p>
-                        </CardContent>
-                        <CardFooter>
-                            <Button className="w-full" onClick={handleSubmitForReview} disabled={isLoading}>
-                                {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Send className="mr-2"/>}
-                                Submit for AI Review
-                            </Button>
-                        </CardFooter>
-                    </Card>
+                <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto flex-1 flex flex-col justify-center">
+                    <div className="text-center">
+                        <h2 className="text-2xl font-headline font-bold">Choose Your Mode</h2>
+                        <p className="text-muted-foreground mt-1">How would you like to practice?</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <Card className="flex flex-col">
+                            <CardHeader><CardTitle>Trial Mode</CardTitle><CardDescription>Practice with AI assistance.</CardDescription></CardHeader>
+                            <CardContent className="flex-1 space-y-2 text-sm text-muted-foreground">
+                                <p className="flex items-start"><Check className="w-4 h-4 mr-2 mt-1 shrink-0"/>One question at a time.</p>
+                                <p className="flex items-start"><Check className="w-4 h-4 mr-2 mt-1 shrink-0"/>Get hints and detailed AI explanations instantly.</p>
+                                <p className="flex items-start"><Check className="w-4 h-4 mr-2 mt-1 shrink-0"/>Perfect for learning and understanding concepts.</p>
+                            </CardContent>
+                            <CardFooter><Button className="w-full" onClick={() => handleSelectMode('trial')}>Start Trial</Button></CardFooter>
+                        </Card>
+                         <Card className="flex flex-col">
+                            <CardHeader><CardTitle>Exam Mode</CardTitle><CardDescription>Simulate the real exam experience.</CardDescription></CardHeader>
+                            <CardContent className="flex-1 space-y-2 text-sm text-muted-foreground">
+                                <p className="flex items-start"><Check className="w-4 h-4 mr-2 mt-1 shrink-0"/>All questions under a time limit.</p>
+                                <p className="flex items-start"><Check className="w-4 h-4 mr-2 mt-1 shrink-0"/>No hints or help during the test.</p>
+                                <p className="flex items-start"><Check className="w-4 h-4 mr-2 mt-1 shrink-0"/>Get a full AI-powered performance review at the end.</p>
+                            </CardContent>
+                            <CardFooter><Button className="w-full" onClick={() => handleSelectMode('exam')}>Start Exam</Button></CardFooter>
+                        </Card>
+                    </div>
                 </div>
             </>
         )
     }
+    
+    if (viewState === 'taking') {
+        const header = <HomeHeader left={<Button variant="outline" onClick={() => setViewState('mode-select')}><ArrowLeft className="mr-2 h-4 w-4" />Change Mode</Button>} />;
+        
+        if (isLoading) {
+             return <>{header}<div className="flex-1 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Generating your exam...</p></div></>;
+        }
 
-     if (viewState === 'results') {
+        if (examMode === 'trial') {
+            return <>{header}<TrialModeView questions={questions} topic={selections.subject} /></>;
+        }
+        
+        if (examMode === 'exam') {
+            return <>{header}<ExamModeView questions={questions} topic={selections.subject} onSubmit={handleSubmitForReview} /></>;
+        }
+    }
+
+    if (viewState === 'results') {
         return (
             <>
                 <HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2 h-4 w-4" />Try Another</Button>} />
@@ -201,17 +286,198 @@ export default function PastQuestionsPage() {
                             {isLoading && <div className="flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin" /></div>}
                             {results && (
                                 <div className="prose dark:prose-invert max-w-none">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {results.revisionRoadmap}
-                                    </ReactMarkdown>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{results.revisionRoadmap}</ReactMarkdown>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
                 </div>
             </>
-        )
+        );
     }
 
     return null;
+}
+
+function Timer({ durationInSeconds }: { durationInSeconds: number }) {
+  const [timeLeft, setTimeLeft] = useState(durationInSeconds);
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const intervalId = setInterval(() => {
+      setTimeLeft((prevTime) => prevTime - 1);
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [timeLeft]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <div className="flex items-center gap-2 font-mono text-lg font-semibold">
+      <Clock className="w-5 h-5"/>
+      <span>{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</span>
+    </div>
+  );
+}
+
+
+function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic: string }) {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+    const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
+    const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
+    const [score, setScore] = useState(0);
+    
+    const currentQuestion = questions[currentQuestionIndex];
+    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
+
+    const handleAnswerSelect = (answer: string) => {
+        if (isAnswered) return;
+        setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
+        setShowExplanation(prev => ({ ...prev, [currentQuestionIndex]: true }));
+    };
+    
+    const handleSeeResults = () => {
+        let finalScore = 0;
+        questions.forEach((q, index) => {
+            if(selectedAnswers[index] === q.correctAnswer) finalScore++;
+        });
+        setScore(finalScore);
+        setQuizState('results');
+    };
+
+    const handleRestart = () => {
+        setCurrentQuestionIndex(0);
+        setSelectedAnswers({});
+        setShowExplanation({});
+        setScore(0);
+        setQuizState('in-progress');
+    };
+    
+    if (quizState === 'results') {
+        return (
+            <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quiz Results for "{topic}"</CardTitle>
+                    <CardDescription>You scored {score} out of {questions.length}</CardDescription>
+                </CardHeader>
+                <CardContent><Progress value={(score / questions.length) * 100} className="w-full mb-4" /><div className="space-y-4">{questions.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
+                <CardFooter><Button onClick={handleRestart}>Take Again</Button></CardFooter>
+            </Card>
+            </div>
+        )
+    }
+
+    return (
+        <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2"><FileQuestion className="text-primary"/> {topic}</CardTitle>
+                    <Timer durationInSeconds={questions.length * 90} />
+                </div>
+                <CardDescription>Question {currentQuestionIndex + 1} of {questions.length}</CardDescription>
+                <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full" />
+            </CardHeader>
+            <CardContent>
+                <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
+                <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswers[currentQuestionIndex]} disabled={isAnswered}>
+                    {currentQuestion.options.map((option, i) => {
+                        const isCorrect = option === currentQuestion.correctAnswer;
+                        const isSelected = selectedAnswers[currentQuestionIndex] === option;
+                        return (
+                            <div key={i} className={cn("flex items-center space-x-3 space-y-0 p-3 rounded-md border cursor-pointer", isAnswered && isCorrect && "bg-green-100 dark:bg-green-900/50 border-green-500", isAnswered && isSelected && !isCorrect && "bg-red-100 dark:bg-red-900/50 border-destructive")} onClick={() => handleAnswerSelect(option)}>
+                                <RadioGroupItem value={option} />
+                                <label className="font-normal flex-1 cursor-pointer">{option}</label>
+                                {isAnswered && isCorrect && <CheckCircle className="text-green-500" />}
+                                {isAnswered && isSelected && !isCorrect && <XCircle className="text-destructive" />}
+                            </div>
+                        )
+                    })}
+                </RadioGroup>
+                
+                {isAnswered && showExplanation[currentQuestionIndex] && (
+                    <Card className="mt-4 bg-secondary/50"><CardHeader className="flex-row items-center gap-2 pb-2"><Lightbulb className="w-5 h-5 text-yellow-500" /><CardTitle className="text-md">Explanation</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p></CardContent></Card>
+                )}
+                 {!isAnswered && currentQuestion.hint && (
+                    <details className="mt-4 text-sm text-muted-foreground"><summary className="cursor-pointer">Need a hint?</summary><p className="pt-1">{currentQuestion.hint}</p></details>
+                )}
+
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}>Previous</Button>
+                {currentQuestionIndex < questions.length - 1 ? (
+                     <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button>
+                ) : (
+                    <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>
+                )}
+            </CardFooter>
+        </Card>
+        </div>
+    );
+}
+
+function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[], topic: string, onSubmit: (answers: Record<number, string>) => void }) {
+    const [currentPage, setCurrentPage] = useState(0);
+    const [answers, setAnswers] = useState<Record<number, string>>({});
+    const questionsPerPage = 5;
+    const totalPages = Math.ceil(questions.length / questionsPerPage);
+    const startIndex = currentPage * questionsPerPage;
+    const endIndex = startIndex + questionsPerPage;
+    const currentQuestions = questions.slice(startIndex, endIndex);
+
+    const handleAnswerChange = (questionIndex: number, answer: string) => {
+        setAnswers(prev => ({ ...prev, [questionIndex]: answer }));
+    };
+
+    return (
+        <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2"><FileQuestion className="text-primary"/> {topic}</CardTitle>
+                    <Timer durationInSeconds={questions.length * 60} />
+                </div>
+                <CardDescription>Page {currentPage + 1} of {totalPages}</CardDescription>
+                <Progress value={((currentPage + 1) / totalPages) * 100} className="w-full" />
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {currentQuestions.map((q, i) => {
+                    const questionIndex = startIndex + i;
+                    return (
+                        <div key={questionIndex}>
+                            <p className="font-semibold mb-2">
+                                {questionIndex + 1}. {q.questionText}
+                            </p>
+                            <RadioGroup 
+                                value={answers[questionIndex]} 
+                                onValueChange={(value) => handleAnswerChange(questionIndex, value)}
+                                className="space-y-1"
+                            >
+                                {q.options.map((opt, j) => (
+                                    <div key={j} className="flex items-center space-x-2">
+                                        <RadioGroupItem value={opt} id={`q${questionIndex}-opt${j}`} />
+                                        <label htmlFor={`q${questionIndex}-opt${j}`} className="font-normal">{opt}</label>
+                                    </div>
+                                ))}
+                            </RadioGroup>
+                        </div>
+                    )
+                })}
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}>Previous Page</Button>
+                {currentPage < totalPages - 1 ? (
+                     <Button onClick={() => setCurrentPage(p => p + 1)}>Next Page</Button>
+                ) : (
+                    <Button onClick={() => onSubmit(answers)}>
+                        <Send className="mr-2"/> Submit for AI Review
+                    </Button>
+                )}
+            </CardFooter>
+        </Card>
+        </div>
+    );
 }
