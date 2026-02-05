@@ -22,7 +22,7 @@ import {
     SelectValue,
   } from "@/components/ui/select";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, BookCopy, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, BookCopy, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -65,6 +65,16 @@ const examData = {
 
 type QuizQuestion = GenerateQuizOutput['quiz'][0];
 
+type SavedExam = {
+    id: number;
+    date: string;
+    selections: { examBody: string; university: string; subject: string; year: string; };
+    questions: QuizQuestion[];
+    examAnswers: Record<number, string>;
+    examScore: number;
+    results: AiAssessmentRevisionRoadmapOutput;
+};
+
 export default function PastQuestionsPage() {
     const [viewState, setViewState] = useState<ViewState>('select');
     const [examMode, setExamMode] = useState<ExamMode>('trial');
@@ -81,6 +91,30 @@ export default function PastQuestionsPage() {
     // State for exam results
     const [examAnswers, setExamAnswers] = useState<Record<number, string>>({});
     const [examScore, setExamScore] = useState(0);
+
+    // State for saved exams
+    const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
+    const [currentExamId, setCurrentExamId] = useState<number>(0); // 0 means new/unsaved exam
+
+    useEffect(() => {
+        try {
+            const data = localStorage.getItem('learnwithtemi_saved_exams');
+            if (data) {
+                setSavedExams(JSON.parse(data));
+            }
+        } catch (e) {
+            console.error("Failed to load saved exams", e);
+        }
+    }, []);
+
+    const saveExamsToStorage = (exams: SavedExam[]) => {
+        try {
+            localStorage.setItem('learnwithtemi_saved_exams', JSON.stringify(exams));
+        } catch (e) {
+            console.error("Failed to save exams", e);
+            toast({ variant: 'destructive', title: 'Could not save exam', description: 'Your browser storage might be full.' });
+        }
+    };
 
     const handleExamBodyChange = (value: string) => {
         let newSubjects: string[] = [];
@@ -117,6 +151,7 @@ export default function PastQuestionsPage() {
             toast({ variant: 'destructive', title: 'Please complete all selections.' });
             return;
         }
+        setCurrentExamId(0); // This is a new exam
         setViewState('mode-select');
     };
     
@@ -152,12 +187,13 @@ export default function PastQuestionsPage() {
         setIsLoading(true);
         setResults(null);
 
-        let score = 0;
+        let finalScore = 0;
         questions.forEach((q, index) => {
-            if(finalAnswers[index] === q.correctAnswer) score++;
+            if(finalAnswers[index] === q.correctAnswer) finalScore++;
         });
+
         setExamAnswers(finalAnswers);
-        setExamScore(score);
+        setExamScore(finalScore);
 
         try {
             let performanceDetails = questions.map((q, index) => {
@@ -168,7 +204,7 @@ export default function PastQuestionsPage() {
             const mockExamResults = `
                 Exam: ${selections.examBody} ${selections.university} - ${selections.subject} (${selections.year})
                 Student Performance Summary:
-                - Overall Score: ${score}/${questions.length} (${((score/questions.length)*100).toFixed(1)}%)
+                - Overall Score: ${finalScore}/${questions.length} (${((finalScore/questions.length)*100).toFixed(1)}%)
                 - Detailed Breakdown:
                 ${performanceDetails}
             `;
@@ -186,17 +222,87 @@ export default function PastQuestionsPage() {
         }
     };
     
+    const handleViewSavedExam = (exam: SavedExam) => {
+        setSelections(exam.selections);
+        setQuestions(exam.questions);
+        setExamAnswers(exam.examAnswers);
+        setExamScore(exam.examScore);
+        setResults(exam.results);
+        setCurrentExamId(exam.id);
+        setViewState('results');
+    };
+
+    const handleDeleteSavedExam = (examId: number) => {
+        const updatedExams = savedExams.filter(exam => exam.id !== examId);
+        setSavedExams(updatedExams);
+        saveExamsToStorage(updatedExams);
+        toast({ title: "Exam Deleted", description: "The saved exam session has been removed." });
+    };
+
+    const handleSaveResults = () => {
+        if (!results) {
+            toast({ variant: 'destructive', title: 'Cannot Save', description: 'Results are not available to save.' });
+            return;
+        }
+        const newExam: SavedExam = {
+            id: Date.now(),
+            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            selections,
+            questions,
+            examAnswers,
+            examScore,
+            results,
+        };
+        const updatedExams = [newExam, ...savedExams];
+        setSavedExams(updatedExams);
+        saveExamsToStorage(updatedExams);
+        setCurrentExamId(newExam.id);
+        toast({ title: 'Exam Saved', description: 'You can view your results anytime.' });
+    };
+
+    const resetToSelection = () => {
+        setViewState('select');
+        setCurrentExamId(0);
+    };
+
     if (viewState === 'select') {
         return (
             <>
                 <HomeHeader />
-                <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-2xl mx-auto">
+                <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
                     <div className="text-center">
                         <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
                         <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
                     </div>
+
+                    {savedExams.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-2xl font-headline font-bold">Saved Exam Sessions</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {savedExams.map(exam => (
+                                    <Card key={exam.id}>
+                                        <CardHeader>
+                                            <CardTitle className="truncate">{exam.selections.subject}</CardTitle>
+                                            <CardDescription>{exam.selections.examBody}{exam.selections.university && ` - ${exam.selections.university}`} - {exam.selections.year}</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="text-sm">
+                                            <p>Completed on: {exam.date}</p>
+                                            <p>Score: <span className="font-bold">{exam.examScore} / {exam.questions.length}</span></p>
+                                        </CardContent>
+                                        <CardFooter className="justify-between">
+                                            <Button onClick={() => handleViewSavedExam(exam)}>View Results</Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSavedExam(exam.id)}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
                     <Card>
-                        <CardHeader><CardTitle>Select Your Exam</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Take a New Exam</CardTitle></CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 <label className="font-medium">Exam Body</label>
@@ -289,7 +395,7 @@ export default function PastQuestionsPage() {
     if (viewState === 'results') {
         return (
             <>
-                <HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2 h-4 w-4" />Try Another</Button>} />
+                <HomeHeader left={<Button variant="outline" onClick={resetToSelection}><ArrowLeft className="mr-2 h-4 w-4" />Back to Exams</Button>} />
                 <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center p-12 gap-2">
@@ -298,9 +404,16 @@ export default function PastQuestionsPage() {
                         </div>
                     ) : (
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="text-3xl font-headline font-bold">Exam Results</CardTitle>
-                                <CardDescription>Your score: <span className="font-bold text-primary">{examScore} / {questions.length}</span></CardDescription>
+                             <CardHeader>
+                                <div className="flex justify-between items-center gap-4">
+                                    <div>
+                                        <CardTitle className="text-3xl font-headline font-bold">Exam Results</CardTitle>
+                                        <CardDescription>Your score: <span className="font-bold text-primary">{examScore} / {questions.length}</span></CardDescription>
+                                    </div>
+                                    {currentExamId === 0 && !isLoading && (
+                                        <Button onClick={handleSaveResults}><Save className="mr-2"/> Save Results</Button>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <Tabs defaultValue="roadmap" className="w-full">
