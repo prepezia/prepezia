@@ -45,9 +45,13 @@ const menuItems = [
 
 function AdminSidebar() {
   const pathname = usePathname();
+  const { isMobile } = useSidebar();
 
   return (
-    <Sidebar>
+    <Sidebar
+      side="left"
+      collapsible={isMobile ? 'offcanvas' : 'icon'}
+    >
       <SidebarHeader className="p-4">
         <Link href="/admin" className="flex items-center gap-2">
           <Logo className="w-7 h-7 text-primary" />
