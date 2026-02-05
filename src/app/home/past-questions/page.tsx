@@ -275,15 +275,17 @@ export default function PastQuestionsPage() {
             <>
                 <HomeHeader />
                 <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
                         <div>
                             <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
-                            <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
+                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an AI-powered revision plan.</p>
                         </div>
-                        <Button onClick={() => setIsNewExamDialogOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Take New Exam
-                        </Button>
+                        <div className="flex justify-end md:block">
+                            <Button onClick={() => setIsNewExamDialogOpen(true)} className="shrink-0">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Take New Exam
+                            </Button>
+                        </div>
                     </div>
 
                     {savedExams.length > 0 ? (
@@ -747,4 +749,5 @@ function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[
 }
 
     
+
 
