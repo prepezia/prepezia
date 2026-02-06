@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
@@ -375,9 +376,10 @@ function GuidedLearningPage() {
                 <div className="flex flex-col h-full">
                     <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
-                            <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                                <h1 className="text-4xl font-headline font-bold text-foreground">What are we learning today?</h1>
-                                <p className="mt-2 text-muted-foreground">Start by typing a topic or question below.</p>
+                            <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
+                                <p className="text-xl text-muted-foreground">Hi, Firstname!</p>
+                                <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
+                                <p className="text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
                         ) : (
                             <div className="space-y-6">
