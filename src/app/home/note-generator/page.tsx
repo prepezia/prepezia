@@ -571,17 +571,6 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       generate(topic, academicLevel);
   };
 
-  const handleGenerateAnother = () => {
-    setGeneratedNotes(null);
-    setPages([]);
-    setCurrentPage(0);
-    setTopic("");
-    setActiveView('notes');
-    setGeneratedContent({});
-    router.push('/home/note-generator?new=true');
-    generationStarted.current = false;
-  }
-  
   const handleGenerateFlashcards = async () => {
     if (!generatedNotes) return;
     setIsGenerating('flashcards');
@@ -924,9 +913,6 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                         </TabsContent>
                     </Tabs>
                 )}
-                 <div className="mt-8 flex items-center justify-center gap-4 flex-wrap md:justify-end">
-                    <Button variant="ghost" onClick={handleGenerateAnother}><Plus className="mr-2 h-4 w-4"/> Generate Another</Button>
-                </div>
               </div>
           ) : (
             <div className="max-w-2xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
