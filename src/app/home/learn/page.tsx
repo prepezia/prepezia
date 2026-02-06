@@ -20,6 +20,9 @@ import Image from 'next/image';
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
 
@@ -386,6 +389,12 @@ function GuidedLearningPage() {
                   </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>Chat History</SheetTitle>
+                    <SheetDescription>
+                        A list of your previous guided learning conversations. You can select a chat to continue it or start a new one.
+                    </SheetDescription>
+                  </SheetHeader>
                   <ChatSidebar isMobile />
               </SheetContent>
           </Sheet>
