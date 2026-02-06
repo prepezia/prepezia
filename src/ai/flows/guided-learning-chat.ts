@@ -14,13 +14,13 @@ const ChatMessageSchema = z.object({
   content: z.string(),
 });
 
-export const GuidedLearningChatInputSchema = z.object({
+const GuidedLearningChatInputSchema = z.object({
   topic: z.string().describe('The main topic of the learning session.'),
   history: z.array(ChatMessageSchema).describe('The history of the conversation so far.'),
 });
 export type GuidedLearningChatInput = z.infer<typeof GuidedLearningChatInputSchema>;
 
-export const GuidedLearningChatOutputSchema = z.object({
+const GuidedLearningChatOutputSchema = z.object({
   answer: z.string().describe("The AI's explanation or response to the user."),
   followUpQuestion: z.string().describe("An engaging follow-up question to guide the user's next step in learning."),
 });
@@ -59,7 +59,7 @@ Now, provide your expert answer and your guiding follow-up question.
 `,
 });
 
-export const guidedLearningChatFlow = ai.defineFlow(
+const guidedLearningChatFlow = ai.defineFlow(
   {
     name: 'guidedLearningChatFlow',
     inputSchema: GuidedLearningChatInputSchema,
