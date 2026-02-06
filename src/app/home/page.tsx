@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react"
@@ -19,7 +20,7 @@ function HomePageSearchForm() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (topic.trim()) {
-            router.push(`/home/note-generator?topic=${encodeURIComponent(topic)}`);
+            router.push(`/home/learn?topic=${encodeURIComponent(topic)}`);
         }
     };
 
@@ -28,7 +29,7 @@ function HomePageSearchForm() {
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
                 type="search"
-                placeholder="Search any topic to generate notes..."
+                placeholder="What would you like to learn about today?"
                 className="h-12 rounded-full border-0 bg-secondary/50 pl-12 pr-5 text-base focus-visible:ring-2 focus-visible:ring-primary"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}

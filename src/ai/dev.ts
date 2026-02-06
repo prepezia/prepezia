@@ -1,3 +1,4 @@
+
 'use server';
 
 import { config } from 'dotenv';
@@ -26,3 +27,4 @@ import '@/ai/flows/generate-summary-from-sources.ts';
 import '@/ai/flows/generate-infographic.ts';
 import '@/ai/flows/generate-mind-map.ts';
 import '@/ai/flows/text-to-speech.ts';
+import '@/ai/flows/guided-learning-chat.ts';
