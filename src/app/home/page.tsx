@@ -3,55 +3,125 @@
 import * as React from "react"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, Search, Camera, FileText, Mic } from "lucide-react";
+import { ArrowRight, Search, Camera, FileText, Mic, X, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { useRouter } from 'next/navigation';
 
+
+type AttachedFile = {
+    name: string;
+    dataUri: string;
+    contentType: string;
+};
 
 function HomePageSearchForm() {
     const router = useRouter();
     const [topic, setTopic] = React.useState('');
+    const [attachedFile, setAttachedFile] = React.useState<AttachedFile | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (topic.trim()) {
-            router.push(`/home/learn?topic=${encodeURIComponent(topic)}`);
-        }
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUri = e.target?.result as string;
+            setAttachedFile({
+                name: file.name,
+                dataUri,
+                contentType: file.type,
+            });
+        };
+        reader.readAsDataURL(file);
     };
 
-    const handleNavigate = (path: string) => {
-        router.push(path);
+    const handleIconClick = (type: 'camera' | 'attachment' | 'mic') => {
+        if (type === 'mic') {
+            router.push('/home/learn?voice=true');
+            return;
+        }
+
+        if (fileInputRef.current) {
+            if (type === 'camera') {
+                fileInputRef.current.accept = 'image/*';
+                fileInputRef.current.setAttribute('capture', 'environment');
+            } else { // attachment
+                fileInputRef.current.accept = '.pdf,.doc,.docx,.txt,image/*';
+                fileInputRef.current.removeAttribute('capture');
+            }
+            fileInputRef.current.click();
+        }
+    };
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!topic.trim() && !attachedFile) return;
+
+        const promptData = {
+            question: topic,
+            media: attachedFile ? {
+                dataUri: attachedFile.dataUri,
+                contentType: attachedFile.contentType,
+                name: attachedFile.name,
+            } : undefined,
+        };
+        
+        sessionStorage.setItem('pending_guided_learning_prompt', JSON.stringify(promptData));
+        router.push('/home/learn');
     };
 
     return (
-        <form onSubmit={handleSubmit} className="relative max-w-xl mx-auto">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-            <Input 
-                type="search"
-                placeholder="Ask or search anything..."
-                className="h-14 rounded-full border-0 bg-secondary/50 pl-14 pr-40 text-base focus-visible:ring-2 focus-visible:ring-primary"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
+        <div className="relative max-w-xl mx-auto">
+            {attachedFile && (
+                <div className="absolute bottom-full left-0 right-0 mb-2 flex justify-center">
+                    <div className="bg-secondary p-2 rounded-lg shadow-md flex items-center gap-2 text-sm">
+                        {attachedFile.contentType.startsWith('image/') ? (
+                            <Image src={attachedFile.dataUri} alt="preview" width={24} height={24} className="rounded-sm object-cover" />
+                        ) : (
+                            <FileText className="w-5 h-5 text-muted-foreground"/>
+                        )}
+                        <span className="text-muted-foreground truncate max-w-xs">{attachedFile.name}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAttachedFile(null)}>
+                            <X className="h-4 w-4"/>
+                        </Button>
+                    </div>
+                </div>
+            )}
+             <form onSubmit={handleSubmit} className="relative">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                <Input 
+                    type="search"
+                    placeholder="Ask or search anything..."
+                    className="h-14 rounded-full border-0 bg-secondary/50 pl-14 pr-40 text-base focus-visible:ring-2 focus-visible:ring-primary"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleIconClick('camera')}>
+                        <Camera className="h-5 w-5" />
+                        <span className="sr-only">Search with image</span>
+                    </Button>
+                    <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleIconClick('attachment')}>
+                        <FileText className="h-5 w-5" />
+                        <span className="sr-only">Search with attachment</span>
+                    </Button>
+                    <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleIconClick('mic')}>
+                        <Mic className="h-5 w-5" />
+                        <span className="sr-only">Search with voice</span>
+                    </Button>
+                </div>
+            </form>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
-                    <Camera className="h-5 w-5" />
-                    <span className="sr-only">Search with image</span>
-                </Button>
-                <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
-                    <FileText className="h-5 w-5" />
-                    <span className="sr-only">Search with attachment</span>
-                </Button>
-                <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/learn')}>
-                    <Mic className="h-5 w-5" />
-                    <span className="sr-only">Search with voice</span>
-                </Button>
-            </div>
-        </form>
+        </div>
     );
 }
 
