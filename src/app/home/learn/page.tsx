@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Types
 type ChatMessage = {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
 };
@@ -66,7 +67,6 @@ function GuidedLearningPage() {
   useEffect(() => {
     const topic = searchParams.get('topic');
     if (topic && !activeChat) {
-      // Check if a chat with this topic already exists
       const existingChat = savedChats.find(c => c.topic.toLowerCase() === topic.toLowerCase());
       if (existingChat) {
         setActiveChat(existingChat);
@@ -74,18 +74,15 @@ function GuidedLearningPage() {
         handleNewChat(topic);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, savedChats]); // Add savedChats to dependency array
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, savedChats]); 
 
   // Save chats to localStorage whenever they change
   useEffect(() => {
-    // Only save if there's something to save, prevents overwriting with empty array on initial load
-    if (savedChats && savedChats.length > 0) {
-        try {
-            localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(savedChats));
-        } catch (e) {
-            console.error("Failed to save chats", e);
-        }
+    try {
+        localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(savedChats));
+    } catch (e) {
+        console.error("Failed to save chats", e);
     }
   }, [savedChats]);
   
@@ -96,8 +93,64 @@ function GuidedLearningPage() {
     }
   }, [activeChat?.history]);
 
+  const submitMessage = useCallback(async (content: string, chatContext: SavedChat, isFirstMessage = false) => {
+    if (!content.trim()) return;
 
-  const handleNewChat = (topic?: string) => {
+    const currentHistory = chatContext.history || [];
+    const userMessage: ChatMessage | null = isFirstMessage ? null : { id: `user-${Date.now()}`, role: 'user', content };
+    const historyWithUser = userMessage ? [...currentHistory, userMessage] : currentHistory;
+
+    // Immediately update UI with user's message
+    if (userMessage) {
+        setActiveChat(prev => prev ? { ...prev, history: historyWithUser } : null);
+    }
+    
+    setIsLoading(true);
+
+    try {
+        const response: GuidedLearningChatOutput = await guidedLearningChat({
+            topic: chatContext.topic,
+            history: historyWithUser,
+        });
+
+        const fullResponseContent = `${response.answer}\n\n**${response.followUpQuestion}**`;
+        const assistantMessage: ChatMessage = {
+            id: `asst-${Date.now()}`,
+            role: 'assistant',
+            content: fullResponseContent,
+        };
+        
+        setActiveChat(prev => {
+            if (!prev) return null;
+            const finalHistory = [...historyWithUser, assistantMessage];
+            const updatedChat = { ...prev, history: finalHistory };
+
+            setSavedChats(allChats => {
+                const chatExists = allChats.some(c => c.id === updatedChat.id);
+                const finalChats = chatExists 
+                    ? allChats.map(c => c.id === updatedChat.id ? updatedChat : c)
+                    : [updatedChat, ...allChats];
+                return finalChats;
+            });
+            
+            return updatedChat;
+        });
+
+    } catch (e: any) {
+        console.error("Guided learning chat error", e);
+        const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again." };
+        setActiveChat(prev => {
+            if(!prev) return null;
+            const historyWithError = [...historyWithUser, errorMessage];
+            return {...prev, history: historyWithError };
+        });
+        toast({ variant: "destructive", title: "AI Error", description: e.message });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
+
+  const handleNewChat = useCallback((topic?: string) => {
     const newChat: SavedChat = {
       id: `chat-${Date.now()}`,
       topic: topic || 'New Chat',
@@ -112,7 +165,7 @@ function GuidedLearningPage() {
     }
     
     router.replace('/home/learn', { scroll: false });
-  };
+  }, [router, submitMessage]);
 
   const handleSelectChat = (chatId: string) => {
     const chat = savedChats.find(c => c.id === chatId);
@@ -126,8 +179,6 @@ function GuidedLearningPage() {
         const newChats = prev.filter(c => c.id !== chatId);
         if (newChats.length === 0) {
             localStorage.removeItem('learnwithtemi_guided_chats');
-        } else {
-            localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(newChats));
         }
         return newChats;
     });
@@ -136,17 +187,6 @@ function GuidedLearningPage() {
     }
   };
   
-  const updateActiveChatHistory = (newHistory: ChatMessage[]) => {
-      if (!activeChat) return;
-
-      const updatedChat = { ...activeChat, history: newHistory };
-      setActiveChat(updatedChat);
-
-      setSavedChats(prev => 
-          prev.map(c => c.id === activeChat.id ? updatedChat : c)
-      );
-  };
-
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {
         audioRef.current.pause();
@@ -173,49 +213,6 @@ function GuidedLearningPage() {
         setGeneratingAudioId(null);
     }
   }, [generatingAudioId, speakingMessageId, toast]);
-
-  const submitMessage = useCallback(async (content: string, chatContext: SavedChat, isFirstMessage = false) => {
-      if (!content.trim()) return;
-      
-      const currentHistory = chatContext.history || [];
-      
-      const userMessage: ChatMessage | null = isFirstMessage ? null : { role: 'user', content };
-      const newHistoryWithUser = userMessage ? [...currentHistory, userMessage] : currentHistory;
-      
-      if(!isFirstMessage) {
-        updateActiveChatHistory(newHistoryWithUser);
-      }
-      
-      setIsLoading(true);
-
-      try {
-          const response: GuidedLearningChatOutput = await guidedLearningChat({
-              topic: chatContext.topic,
-              history: newHistoryWithUser,
-          });
-
-          const fullResponseContent = `${response.answer}\n\n**${response.followUpQuestion}**`;
-
-          const assistantMessage: ChatMessage = {
-              role: 'assistant',
-              content: fullResponseContent,
-          };
-          
-          updateActiveChatHistory([...newHistoryWithUser, assistantMessage]);
-
-      } catch (e: any) {
-          console.error("Guided learning chat error", e);
-          const errorMessage: ChatMessage = {
-              role: 'assistant',
-              content: "Sorry, I encountered an error. Please try again.",
-          };
-          updateActiveChatHistory([...newHistoryWithUser, errorMessage]);
-          toast({ variant: "destructive", title: "AI Error", description: e.message });
-      } finally {
-          setIsLoading(false);
-      }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   
   const handleFormSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -310,7 +307,7 @@ function GuidedLearningPage() {
         </aside>
 
         {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col bg-card">
             {activeChat ? (
                 <div className="flex flex-col h-full">
                     <div className="p-4 border-b">
@@ -318,8 +315,8 @@ function GuidedLearningPage() {
                     </div>
                     <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
                         <div className="space-y-6">
-                            {(activeChat.history || []).map((msg, index) => (
-                                <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                            {(activeChat.history || []).map((msg) => (
+                                <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                     {msg.role === 'assistant' ? <Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/> : <User className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground p-1.5 shrink-0" />}
                                     <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
                                         <div className="prose prose-sm dark:prose-invert max-w-none break-words">
@@ -331,12 +328,12 @@ function GuidedLearningPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
-                                                    onClick={() => handlePlayAudio(`${activeChat.id}-${index}`, msg.content)}
+                                                    onClick={() => handlePlayAudio(msg.id, msg.content)}
                                                     disabled={isLoading}
                                                 >
-                                                    {generatingAudioId === `${activeChat.id}-${index}` ? (
+                                                    {generatingAudioId === msg.id ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : speakingMessageId === `${activeChat.id}-${index}` ? (
+                                                    ) : speakingMessageId === msg.id ? (
                                                         <Pause className="h-4 w-4" />
                                                     ) : (
                                                         <Volume2 className="h-4 w-4" />
