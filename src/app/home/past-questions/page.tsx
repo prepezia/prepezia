@@ -40,11 +40,17 @@ type ExamMode = 'trial' | 'exam';
 
 const universityData = {
     "University of Ghana": {
-        "ECON 101": ["2023 Final", "2023 Mid-Sem", "2022 Final"],
-        "CSIT 101": ["2023 Final", "2022 Final"],
+        "Business School": {
+            "ECON 101": ["2023 Mid-Sem"],
+        },
+        "College of Basic and Applied Sciences": {
+            "CSIT 101": ["2023 Final", "2022 Final"],
+        },
     },
     "Kwame Nkrumah University of Science and Technology (KNUST)": {
-        "MATH 151": ["2023 Final"],
+        "College of Engineering": {
+            "MATH 151": ["2023 Final"],
+        },
     },
 };
 
@@ -67,7 +73,7 @@ type QuizQuestion = GenerateQuizOutput['quiz'][0];
 type SavedExam = {
     id: number;
     date: string;
-    selections: { examBody: string; university: string; subject: string; year: string; };
+    selections: { examBody: string; university: string; schoolFaculty: string; subject: string; year: string; };
     questions: QuizQuestion[];
     examAnswers: Record<number, string>;
     examScore: number;
@@ -77,8 +83,9 @@ type SavedExam = {
 export default function PastQuestionsPage() {
     const [viewState, setViewState] = useState<ViewState>('select');
     const [examMode, setExamMode] = useState<ExamMode>('trial');
-    const [selections, setSelections] = useState({ examBody: "", university: "", subject: "", year: "" });
+    const [selections, setSelections] = useState({ examBody: "", university: "", schoolFaculty: "", subject: "", year: "" });
     
+    const [faculties, setFaculties] = useState<string[]>([]);
     const [subjects, setSubjects] = useState<string[]>([]);
     const [years, setYears] = useState<string[]>([]);
     
@@ -121,6 +128,7 @@ export default function PastQuestionsPage() {
 
     const handleExamBodyChange = (value: string) => {
         let newSubjects: string[] = [];
+        setFaculties([]);
         if (value === "University") {
             setSubjects([]);
         } else {
@@ -128,20 +136,28 @@ export default function PastQuestionsPage() {
             setSubjects(newSubjects);
         }
         setYears([]);
-        setSelections({ examBody: value, university: "", subject: "", year: "" });
+        setSelections({ examBody: value, university: "", schoolFaculty: "", subject: "", year: "" });
     };
 
     const handleUniversityChange = (value: string) => {
-        const newSubjects = Object.keys(examData.University[value as keyof typeof examData.University] || {});
+        const newFaculties = Object.keys(examData.University[value as keyof typeof examData.University] || {});
+        setFaculties(newFaculties);
+        setSubjects([]);
+        setYears([]);
+        setSelections(prev => ({ ...prev, university: value, schoolFaculty: "", subject: "", year: "" }));
+    }
+
+    const handleSchoolFacultyChange = (value: string) => {
+        const newSubjects = Object.keys(examData.University[selections.university as keyof typeof examData.University]?.[value] || {});
         setSubjects(newSubjects);
         setYears([]);
-        setSelections(prev => ({ ...prev, university: value, subject: "", year: "" }));
-    }
+        setSelections(prev => ({ ...prev, schoolFaculty: value, subject: "", year: "" }));
+    };
 
     const handleSubjectChange = (value: string) => {
         let newYears: string[] = [];
         if (selections.examBody === "University") {
-            newYears = examData.University[selections.university as keyof typeof examData.University]?.[value] || [];
+            newYears = examData.University[selections.university as keyof typeof examData.University]?.[selections.schoolFaculty]?.[value] || [];
         } else {
             newYears = examData[selections.examBody as "WASSCE" | "BECE"]?.[value] || [];
         }
@@ -150,7 +166,7 @@ export default function PastQuestionsPage() {
     };
 
     const handleStart = () => {
-        if (!selections.examBody || !selections.subject || !selections.year || (selections.examBody === 'University' && !selections.university)) {
+        if (!selections.examBody || !selections.subject || !selections.year || (selections.examBody === 'University' && (!selections.university || !selections.schoolFaculty))) {
             toast({ variant: 'destructive', title: 'Please complete all selections.' });
             return;
         }
@@ -168,9 +184,9 @@ export default function PastQuestionsPage() {
         try {
             const result = await generateQuiz({
                 context: 'note-generator',
-                topic: `${selections.subject} for ${selections.examBody === 'University' ? selections.university : selections.examBody}`,
+                topic: `${selections.subject} for ${selections.examBody === 'University' ? `${selections.university} ${selections.schoolFaculty}` : selections.examBody}`,
                 academicLevel: selections.examBody as any,
-                content: `Generate 20 questions for the topic: ${selections.subject}. The exam is ${selections.examBody} ${selections.year}.`
+                content: `Generate 20 questions for the topic: ${selections.subject}. The exam is ${selections.examBody} ${selections.year}. The school/faculty is ${selections.schoolFaculty}.`
             });
 
             if (!result.quiz || result.quiz.length === 0) {
@@ -187,8 +203,8 @@ export default function PastQuestionsPage() {
     };
 
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
-        setViewState('results');
         setIsLoading(true);
+        setViewState('results');
         setResults(null);
 
         let finalScore = 0;
@@ -208,7 +224,7 @@ export default function PastQuestionsPage() {
             }).join('\n');
 
             const mockExamResults = `
-                Exam: ${selections.examBody} ${selections.university} - ${selections.subject} (${selections.year})
+                Exam: ${selections.examBody} ${selections.university} ${selections.schoolFaculty} - ${selections.subject} (${selections.year})
                 Student Performance Summary:
                 - Overall Score: ${finalScore}/${questions.length} (${((finalScore/questions.length)*100).toFixed(1)}%)
                 - Detailed Breakdown:
@@ -218,6 +234,7 @@ export default function PastQuestionsPage() {
                 examResults: mockExamResults,
                 studentLevel: selections.examBody,
                 university: selections.university,
+                department: selections.schoolFaculty,
                 course: selections.subject
             });
             setResults(revisionPlan);
@@ -282,7 +299,7 @@ export default function PastQuestionsPage() {
                             <div>
                                 <h1 className="text-3xl font-headline font-bold">Past Questions Hub</h1>
                                 <p className="text-muted-foreground mt-1 text-balance">
-                                    Test your knowledge and get an <br className="md:hidden" /> AI-powered revision plan.
+                                    Test your knowledge and get an AI-powered revision plan.
                                 </p>
                             </div>
                             <div className="flex justify-end md:block">
@@ -301,7 +318,7 @@ export default function PastQuestionsPage() {
                                         <Card key={exam.id}>
                                             <CardHeader>
                                                 <CardTitle className="truncate">{exam.selections.subject}</CardTitle>
-                                                <CardDescription>{exam.selections.examBody}{exam.selections.university && ` - ${exam.selections.university}`} - {exam.selections.year}</CardDescription>
+                                                <CardDescription>{exam.selections.examBody}{exam.selections.university && ` - ${exam.selections.university}`}{exam.selections.schoolFaculty && ` - ${exam.selections.schoolFaculty}`} - {exam.selections.year}</CardDescription>
                                             </CardHeader>
                                             <CardContent className="text-sm">
                                                 <p>Completed on: {exam.date}</p>
@@ -339,13 +356,22 @@ export default function PastQuestionsPage() {
                                     </Select>
                                 </div>
                                 {selections.examBody === 'University' && (
-                                    <div className="space-y-2">
-                                        <label className="font-medium">University</label>
-                                        <Select onValueChange={handleUniversityChange} value={selections.university}>
-                                            <SelectTrigger><SelectValue placeholder="Select a university..." /></SelectTrigger>
-                                            <SelectContent className="max-h-[300px]">{universities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="font-medium">University</label>
+                                            <Select onValueChange={handleUniversityChange} value={selections.university}>
+                                                <SelectTrigger><SelectValue placeholder="Select a university..." /></SelectTrigger>
+                                                <SelectContent className="max-h-[300px]">{universities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <label className="font-medium">School / Faculty</label>
+                                            <Select onValueChange={handleSchoolFacultyChange} value={selections.schoolFaculty} disabled={faculties.length === 0}>
+                                                <SelectTrigger><SelectValue placeholder="Select a school/faculty..." /></SelectTrigger>
+                                                <SelectContent className="max-h-[300px]">{faculties.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                    </>
                                 )}
                                 <div className="space-y-2">
                                     <label className="font-medium">Subject / Course</label>
@@ -498,7 +524,7 @@ export default function PastQuestionsPage() {
                                         <Card>
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>Your AI Revision Roadmap</CardTitle>
-                                                <CardDescription>Based on your performance in the {selections.subject} ({selections.year}) exam.</CardDescription>
+                                                <CardDescription>Based on your performance in the {selections.subject} ({selections.schoolFaculty && `${selections.schoolFaculty} - `}{selections.year}) exam.</CardDescription>
                                             </CardHeader>
                                             <CardContent>
                                                 {results ? (
@@ -753,9 +779,3 @@ function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[
         </div>
     );
 }
-
-    
-
-
-
-
