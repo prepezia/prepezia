@@ -75,10 +75,10 @@ const features = [
         color: "bg-indigo-50 dark:bg-indigo-900/50",
     },
     {
-        title: "Podcast Generation",
-        description: "Turn your sources into an engaging podcast-style conversation.",
-        href: "/home/study-spaces",
-        iconUrl: "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fpodcast.png?alt=media&token=a2db65d9-beea-46e7-a138-efa9ced62e32",
+        title: "Guided Learning",
+        description: "Engage in a conversation with an AI tutor to learn any topic step-by-step.",
+        href: "/home/learn",
+        iconUrl: "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2FTemi%20guided%20learning.png?alt=media&token=dc9b84f1-56ef-4a1d-80ae-973d068fdf00",
         color: "bg-purple-50 dark:bg-purple-900/50",
     }
 ];
