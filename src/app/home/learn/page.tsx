@@ -63,26 +63,18 @@ function GuidedLearningPage() {
   const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
 
 
-  // Load saved chats from localStorage on mount
-  useEffect(() => {
-    try {
-      const storedChats = localStorage.getItem('learnwithtemi_guided_chats');
-      if (storedChats) {
-        setSavedChats(JSON.parse(storedChats));
-      }
-    } catch (e) {
-      console.error("Failed to load chats from localStorage", e);
-    }
-  }, []);
-
   // Save chats to localStorage whenever they change
   useEffect(() => {
     try {
+        // Only save if there are chats to prevent clearing storage on initial render
         if (savedChats.length > 0) {
             localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(savedChats));
         } else {
-            // If all chats are deleted, remove the item from storage
-            localStorage.removeItem('learnwithtemi_guided_chats');
+             // If all chats are deleted, ensure the item is removed from storage
+            const stored = localStorage.getItem('learnwithtemi_guided_chats');
+            if (stored) {
+              localStorage.removeItem('learnwithtemi_guided_chats');
+            }
         }
     } catch (e) {
         console.error("Failed to save chats", e);
@@ -101,7 +93,7 @@ function GuidedLearningPage() {
     chatContext: SavedChat, 
     options?: { media?: PendingPrompt['media'] }
   ) => {
-    if (!content.trim() && !options?.media) return;
+    if ((!content.trim() && !options?.media) || isLoading) return;
 
     const userMessageContent: ChatMessageContent = options?.media
         ? { text: content, media: options.media }
@@ -109,17 +101,23 @@ function GuidedLearningPage() {
 
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
     
-    // Use a functional update to get the latest state
     setActiveChat(prev => {
-        if (!prev) return null;
-        return { ...prev, history: [...prev.history, userMessage] };
+        if (!prev) return null; // Should not happen in normal flow
+        const updatedChat = { ...prev, history: [...prev.history, userMessage] };
+        
+        // This is a temporary update for UI responsiveness. The final save happens below.
+        setSavedChats(allChats => {
+            const chatExists = allChats.some(c => c.id === updatedChat.id);
+            return chatExists ? allChats.map(c => c.id === updatedChat.id ? updatedChat : c) : [updatedChat, ...allChats];
+        });
+        
+        return updatedChat;
     });
     
     setIsLoading(true);
 
     try {
-        // We need the most up-to-date history for the API call
-        const currentHistory = activeChat?.history || chatContext.history || [];
+        const currentHistory = [...(chatContext.history || []), userMessage];
         const response: GuidedLearningChatOutput = await guidedLearningChat({
             question: content,
             history: currentHistory,
@@ -141,11 +139,7 @@ function GuidedLearningPage() {
 
             setSavedChats(allChats => {
                 const chatExists = allChats.some(c => c.id === updatedChat.id);
-                if (chatExists) {
-                    return allChats.map(c => c.id === updatedChat.id ? updatedChat : c)
-                } else {
-                    return [updatedChat, ...allChats];
-                }
+                return chatExists ? allChats.map(c => c.id === updatedChat.id ? updatedChat : c) : [updatedChat, ...allChats];
             });
             
             return updatedChat;
@@ -163,7 +157,7 @@ function GuidedLearningPage() {
     } finally {
         setIsLoading(false);
     }
-  }, [toast, activeChat]);
+  }, [isLoading, toast]);
   
   const startNewChat = useCallback((prompt?: PendingPrompt) => {
     const newChat: SavedChat = {
@@ -172,7 +166,15 @@ function GuidedLearningPage() {
         history: [],
         createdAt: new Date().toISOString(),
     };
-    setActiveChat(newChat);
+    setActiveChat(newChat); // Just set it active
+    
+    // Only add to saved chats if there's an interaction.
+    // The first interaction is handled by submitMessage.
+    if (!prompt) {
+        // If it's an empty new chat, add it to the list right away so it appears in sidebar
+        setSavedChats(prev => [newChat, ...prev]);
+    }
+    
     if(prompt) {
         submitMessage(prompt.question, newChat, { media: prompt.media });
     }
@@ -180,10 +182,20 @@ function GuidedLearningPage() {
   }, [router, submitMessage]);
 
 
-  // Effect to handle selecting a chat on load
+  // Single useEffect to handle all initialization logic on mount
   useEffect(() => {
+    let initialChats: SavedChat[] = [];
+    try {
+        const storedChats = localStorage.getItem('learnwithtemi_guided_chats');
+        if (storedChats) {
+            initialChats = JSON.parse(storedChats);
+            setSavedChats(initialChats);
+        }
+    } catch (e) {
+        console.error("Failed to load chats from localStorage", e);
+    }
+
     const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
-    
     if (pendingPromptJSON) {
         try {
             const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
@@ -198,22 +210,20 @@ function GuidedLearningPage() {
 
     const startWithVoice = searchParams.get('voice') === 'true';
     if (startWithVoice && !voiceInitRef.current) {
-      voiceInitRef.current = true;
-      if (!activeChat || activeChat.history.length > 0) {
+        voiceInitRef.current = true;
         startNewChat();
-      }
-      // Use a timeout to ensure state is updated before triggering mic
-      setTimeout(() => handleMicClick(), 100); 
-      router.replace('/home/learn', { scroll: false });
-      return;
+        setTimeout(() => handleMicClick(), 200); 
+        router.replace('/home/learn', { scroll: false });
+        return;
     }
     
-    if (!activeChat && savedChats.length > 0) {
-        setActiveChat(savedChats[0]);
+    if (initialChats.length > 0) {
+        setActiveChat(initialChats[0]);
+    } else {
+        startNewChat();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedChats]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSelectChat = (chatId: string) => {
     const chat = savedChats.find(c => c.id === chatId);
@@ -226,7 +236,11 @@ function GuidedLearningPage() {
     setSavedChats(prev => prev.filter(c => c.id !== chatId));
     if (activeChat?.id === chatId) {
       const remainingChats = savedChats.filter(c => c.id !== chatId);
-      setActiveChat(remainingChats.length > 0 ? remainingChats[0] : null);
+      if (remainingChats.length > 0) {
+        setActiveChat(remainingChats[0]);
+      } else {
+        startNewChat(); // Start a new one if last one was deleted
+      }
     }
   };
   
@@ -424,11 +438,7 @@ function GuidedLearningPage() {
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <Bot className="h-16 w-16 text-muted-foreground mb-4" />
-                    <h2 className="text-xl font-semibold">Guided Learning Chat</h2>
-                    <p className="text-muted-foreground max-w-md mt-2">
-                        Select a chat from the sidebar or start a new one to begin your learning journey.
-                    </p>
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
             )}
         </main>
