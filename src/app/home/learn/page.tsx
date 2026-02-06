@@ -55,6 +55,7 @@ function GuidedLearningPage() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const voiceInitRef = useRef(false);
 
   // Voice & Audio state
   const [isListening, setIsListening] = useState(false);
@@ -196,7 +197,8 @@ function GuidedLearningPage() {
     }
 
     const startWithVoice = searchParams.get('voice') === 'true';
-    if (startWithVoice) {
+    if (startWithVoice && !voiceInitRef.current) {
+      voiceInitRef.current = true;
       if (!activeChat || activeChat.history.length > 0) {
         startNewChat();
       }
