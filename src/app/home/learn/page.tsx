@@ -15,6 +15,7 @@ import remarkGfm from 'remark-gfm';
 import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
+import { Logo } from '@/components/icons/Logo';
 
 // Types
 type ChatMessageContent = string | {
@@ -66,11 +67,9 @@ function GuidedLearningPage() {
   // Save chats to localStorage whenever they change
   useEffect(() => {
     try {
-        // Only save if there are chats to prevent clearing storage on initial render
         if (savedChats.length > 0) {
             localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(savedChats));
         } else {
-             // If all chats are deleted, ensure the item is removed from storage
             const stored = localStorage.getItem('learnwithtemi_guided_chats');
             if (stored) {
               localStorage.removeItem('learnwithtemi_guided_chats');
@@ -101,26 +100,21 @@ function GuidedLearningPage() {
 
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
     
-    setActiveChat(prev => {
-        if (!prev) return null; // Should not happen in normal flow
-        const updatedChat = { ...prev, history: [...prev.history, userMessage] };
-        
-        // This is a temporary update for UI responsiveness. The final save happens below.
-        setSavedChats(allChats => {
-            const chatExists = allChats.some(c => c.id === updatedChat.id);
-            return chatExists ? allChats.map(c => c.id === updatedChat.id ? updatedChat : c) : [updatedChat, ...allChats];
-        });
-        
-        return updatedChat;
+    const updatedHistory = [...(chatContext.history || []), userMessage];
+    const updatedChatForUI = { ...chatContext, history: updatedHistory };
+
+    setActiveChat(updatedChatForUI);
+    setSavedChats(allChats => {
+        const chatExists = allChats.some(c => c.id === updatedChatForUI.id);
+        return chatExists ? allChats.map(c => c.id === updatedChatForUI.id ? updatedChatForUI : c) : [updatedChatForUI, ...allChats];
     });
     
     setIsLoading(true);
 
     try {
-        const currentHistory = [...(chatContext.history || []), userMessage];
         const response: GuidedLearningChatOutput = await guidedLearningChat({
             question: content,
-            history: currentHistory,
+            history: updatedHistory,
             mediaDataUri: options?.media?.dataUri,
             mediaContentType: options?.media?.contentType
         });
@@ -151,7 +145,11 @@ function GuidedLearningPage() {
         setActiveChat(prev => {
             if(!prev) return null;
             const historyWithError = [...prev.history, errorMessage];
-            return {...prev, history: historyWithError };
+            const finalChatState = { ...prev, history: historyWithError };
+
+            setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
+            
+            return finalChatState;
         });
         toast({ variant: "destructive", title: "AI Error", description: e.message });
     } finally {
@@ -166,17 +164,12 @@ function GuidedLearningPage() {
         history: [],
         createdAt: new Date().toISOString(),
     };
-    setActiveChat(newChat); // Just set it active
-    
-    // Only add to saved chats if there's an interaction.
-    // The first interaction is handled by submitMessage.
-    if (!prompt) {
-        // If it's an empty new chat, add it to the list right away so it appears in sidebar
-        setSavedChats(prev => [newChat, ...prev]);
-    }
     
     if(prompt) {
         submitMessage(prompt.question, newChat, { media: prompt.media });
+    } else {
+        setActiveChat(newChat);
+        setSavedChats(prev => [newChat, ...prev.filter(c => c.id !== newChat.id)]);
     }
     router.replace('/home/learn', { scroll: false });
   }, [router, submitMessage]);
@@ -220,6 +213,7 @@ function GuidedLearningPage() {
     if (initialChats.length > 0) {
         setActiveChat(initialChats[0]);
     } else {
+        // If there are no chats at all, create a new empty one
         startNewChat();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,15 +227,17 @@ function GuidedLearningPage() {
   };
 
   const handleDeleteChat = (chatId: string) => {
-    setSavedChats(prev => prev.filter(c => c.id !== chatId));
-    if (activeChat?.id === chatId) {
-      const remainingChats = savedChats.filter(c => c.id !== chatId);
-      if (remainingChats.length > 0) {
-        setActiveChat(remainingChats[0]);
-      } else {
-        startNewChat(); // Start a new one if last one was deleted
-      }
-    }
+    setSavedChats(prev => {
+        const updatedChats = prev.filter(c => c.id !== chatId);
+        if (activeChat?.id === chatId) {
+            if (updatedChats.length > 0) {
+                setActiveChat(updatedChats[0]);
+            } else {
+                startNewChat();
+            }
+        }
+        return updatedChats;
+    });
   };
   
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
@@ -367,56 +363,63 @@ function GuidedLearningPage() {
         <main className="flex-1 flex flex-col bg-card">
             {activeChat ? (
                 <div className="flex flex-col h-full">
-                    <div className="p-4 border-b">
-                        <h2 className="text-lg font-semibold">{activeChat.topic}</h2>
-                    </div>
                     <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
-                        <div className="space-y-6">
-                            {(activeChat.history || []).map((msg) => (
-                                <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                                    {msg.role === 'assistant' ? <Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/> : <User className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground p-1.5 shrink-0" />}
-                                    <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                                         {typeof msg.content === 'string' ? (
-                                            <div className="prose prose-sm dark:prose-invert max-w-none break-words">
-                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                                            </div>
-                                         ) : (
-                                            <div className="space-y-2">
-                                                {msg.content.media.contentType.startsWith('image/') ? (
-                                                     <Image src={msg.content.media.dataUri} alt={msg.content.media.name} width={200} height={200} className="rounded-md object-cover"/>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 p-2 rounded-md bg-background/50">
-                                                        <FileText className="h-5 w-5 shrink-0"/>
-                                                        <span className="truncate">{msg.content.media.name}</span>
-                                                    </div>
-                                                )}
-                                                {msg.content.text && <p>{msg.content.text}</p>}
-                                            </div>
-                                         )}
-                                         {msg.role === 'assistant' && typeof msg.content === 'string' && (
-                                            <div className="text-right mt-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
-                                                    onClick={() => handlePlayAudio(msg.id, msg.content)}
-                                                    disabled={isLoading}
-                                                >
-                                                    {generatingAudioId === msg.id ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : speakingMessageId === msg.id ? (
-                                                        <Pause className="h-4 w-4" />
-                                                    ) : (
-                                                        <Volume2 className="h-4 w-4" />
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
+                        {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
+                            <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                                <div className="mb-4">
+                                    <Logo className="w-16 h-16 text-primary mx-auto" />
                                 </div>
-                            ))}
-                            {isLoading && <div className="flex justify-start items-center gap-3"><Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
-                        </div>
+                                <h1 className="text-4xl font-headline font-bold text-foreground">What are we learning today?</h1>
+                                <p className="mt-2 text-muted-foreground">Start by typing a topic or question below.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {(activeChat.history || []).map((msg) => (
+                                    <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                                        {msg.role === 'assistant' ? <Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/> : <User className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground p-1.5 shrink-0" />}
+                                        <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                                             {typeof msg.content === 'string' ? (
+                                                <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                                </div>
+                                             ) : (
+                                                <div className="space-y-2">
+                                                    {msg.content.media.contentType.startsWith('image/') ? (
+                                                         <Image src={msg.content.media.dataUri} alt={msg.content.media.name} width={200} height={200} className="rounded-md object-cover"/>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50">
+                                                            <FileText className="h-5 w-5 shrink-0"/>
+                                                            <span className="truncate">{msg.content.media.name}</span>
+                                                        </div>
+                                                    )}
+                                                    {msg.content.text && <p>{msg.content.text}</p>}
+                                                </div>
+                                             )}
+                                             {msg.role === 'assistant' && typeof msg.content === 'string' && (
+                                                <div className="text-right mt-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
+                                                        onClick={() => handlePlayAudio(msg.id, msg.content)}
+                                                        disabled={isLoading}
+                                                    >
+                                                        {generatingAudioId === msg.id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : speakingMessageId === msg.id ? (
+                                                            <Pause className="h-4 w-4" />
+                                                        ) : (
+                                                            <Volume2 className="h-4 w-4" />
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                                {isLoading && <div className="flex justify-start items-center gap-3"><Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
+                            </div>
+                        )}
                     </ScrollArea>
                     <div className="p-4 border-t bg-card">
                         <form onSubmit={handleFormSubmit} className="relative">
