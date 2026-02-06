@@ -3,7 +3,8 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { HomeHeader } from '@/components/layout/HomeHeader';
+import { UserNav } from "@/components/layout/UserNav";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { guidedLearningChat, GuidedLearningChatOutput } from '@/ai/flows/guided-learning-chat';
@@ -50,6 +51,7 @@ function GuidedLearningPage() {
   const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
   const [activeChat, setActiveChat] = useState<SavedChat | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Refs
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -63,6 +65,9 @@ function GuidedLearningPage() {
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Save chats to localStorage whenever they change
   useEffect(() => {
@@ -114,7 +119,10 @@ function GuidedLearningPage() {
     try {
         const response: GuidedLearningChatOutput = await guidedLearningChat({
             question: content,
-            history: updatedHistory,
+            history: updatedHistory.map(h => ({
+                role: h.role,
+                content: typeof h.content === 'string' ? h.content : h.content.text,
+            })),
             mediaDataUri: options?.media?.dataUri,
             mediaContentType: options?.media?.contentType
         });
@@ -210,9 +218,9 @@ function GuidedLearningPage() {
         return;
     }
     
-    if (initialChats.length > 0) {
+    if (initialChats.length > 0 && !activeChat) {
         setActiveChat(initialChats[0]);
-    } else {
+    } else if (initialChats.length === 0 && !activeChat) {
         // If there are no chats at all, create a new empty one
         startNewChat();
     }
@@ -329,7 +337,9 @@ function GuidedLearningPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <HomeHeader />
+      <div className="absolute top-4 right-4 z-50">
+        {isMounted ? <UserNav /> : <Skeleton className="h-10 w-10 rounded-full" />}
+      </div>
       <div className="flex-1 flex min-h-0">
         {/* Left Sidebar */}
         <aside className="w-72 flex-col border-r bg-secondary/50 hidden md:flex">
@@ -366,7 +376,7 @@ function GuidedLearningPage() {
                     <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                                <h1 className="text-4xl font-headline font-normal tracking-tight text-foreground">What are we learning today?</h1>
+                                <h1 className="text-4xl font-headline font-bold text-foreground">What are we learning today?</h1>
                                 <p className="mt-2 text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
                         ) : (
@@ -453,7 +463,6 @@ export default function GuidedLearningPageWrapper() {
     return (
         <Suspense fallback={
             <div className="flex flex-col min-h-screen">
-                <HomeHeader />
                 <div className="flex-1 flex items-center justify-center">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
