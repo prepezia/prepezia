@@ -376,7 +376,7 @@ function GuidedLearningPage() {
                     <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
-                               <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
+                               <h1 className="text-4xl md:text-5xl font-headline font-bold text-foreground">What are we learning today?</h1>
                                 <p className="text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
                         ) : (
