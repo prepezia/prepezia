@@ -848,43 +848,40 @@ function StudySpacesPage() {
                     </TabsContent>
                     
                     <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
-                        <Card className="flex flex-col flex-1">
-                            <CardHeader><CardTitle>Chat with TEMI</CardTitle></CardHeader>
-                            <CardContent className="flex-grow space-y-4 min-h-[50vh] overflow-y-auto">
-                                {(selectedStudySpace.chatHistory || []).length === 0 ? (
-                                    <div className="text-center text-muted-foreground pt-10 px-6">
-                                        <BookOpen className="w-12 h-12 mx-auto text-primary/80 mb-4" />
-                                        <h3 className="font-semibold text-foreground text-lg">Chat with Your Sources</h3>
-                                        <p className="mt-2 text-sm">
-                                            Ask me a question and I will answer based solely on the materials you've provided.
-                                        </p>
-                                    </div>
-                                ) : renderChatMessages(selectedStudySpace.chatHistory || [], selectedStudySpace.sources)}
-                                {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
-                            </CardContent>
-                            <div className="p-4 border-t">
-                                <form onSubmit={handleChatSubmit}>
-                                    <div className="relative">
-                                        <Textarea
-                                            ref={chatInputRef}
-                                            placeholder="Ask a question about your sources..."
-                                            className="pr-20"
-                                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
-                                            disabled={selectedStudySpace.sources.length === 0 || isChatLoading || isListening}
-                                        />
-                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                            <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatLoading}>
-                                                {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                                            </Button>
-                                            <Button size="icon" className="h-8 w-8" type="submit" disabled={selectedStudySpace.sources.length === 0 || isChatLoading || isListening}>
-                                                <Send className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </form>
-                                 <audio ref={audioRef} onEnded={() => setSpeakingMessageId(null)} className="hidden"/>
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {(selectedStudySpace.chatHistory || []).length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
+                                <BookOpen className="w-12 h-12 mx-auto text-primary/80 mb-4" />
+                                <h3 className="font-semibold text-foreground text-lg">Chat with Your Sources</h3>
+                                <p className="mt-2 text-sm">
+                                    Ask me a question and I will answer based solely on the materials you've provided.
+                                </p>
                             </div>
-                        </Card>
+                        ) : renderChatMessages(selectedStudySpace.chatHistory || [], selectedStudySpace.sources)}
+                        {isChatLoading && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
+                      </div>
+                      <div className="p-4 border-t bg-background">
+                        <form onSubmit={handleChatSubmit}>
+                            <div className="relative">
+                                <Textarea
+                                    ref={chatInputRef}
+                                    placeholder="Ask a question about your sources..."
+                                    className="pr-20"
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
+                                    disabled={selectedStudySpace.sources.length === 0 || isChatLoading || isListening}
+                                />
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatLoading}>
+                                        {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                    </Button>
+                                    <Button size="icon" className="h-8 w-8" type="submit" disabled={selectedStudySpace.sources.length === 0 || isChatLoading || isListening}>
+                                        <Send className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </form>
+                         <audio ref={audioRef} onEnded={() => setSpeakingMessageId(null)} className="hidden"/>
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="generate" className="mt-4">
@@ -928,9 +925,7 @@ function StudySpacesPage() {
                                                                 View Generated {option.name}
                                                             </Button>
                                                             <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
-                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                                 <DropdownMenuContent>
                                                                     <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                                                         <Trash2 className="mr-2 h-4 w-4"/> Delete

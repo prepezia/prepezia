@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
@@ -16,7 +17,6 @@ import remarkGfm from 'remark-gfm';
 import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
-import { Logo } from '@/components/icons/Logo';
 
 // Types
 type ChatMessageContent = string | {
@@ -336,7 +336,7 @@ function GuidedLearningPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-full bg-background">
       <div className="absolute top-4 right-4 z-50">
         {isMounted ? <UserNav /> : <Skeleton className="h-10 w-10 rounded-full" />}
       </div>
@@ -372,15 +372,15 @@ function GuidedLearningPage() {
         {/* Main Chat Area */}
         <main className="flex-1 flex flex-col bg-card">
             {activeChat ? (
-                <div className="flex flex-col h-full">
-                    <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
+                <>
+                    <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
-                                <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
+                               <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
                                 <p className="text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
                         ) : (
-                            <div className="space-y-6">
+                            <div className="p-4 space-y-6">
                                 {(activeChat.history || []).map((msg) => (
                                     <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                         {msg.role === 'assistant' ? <Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/> : <User className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground p-1.5 shrink-0" />}
@@ -427,7 +427,7 @@ function GuidedLearningPage() {
                                 {isLoading && <div className="flex justify-start items-center gap-3"><Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
                             </div>
                         )}
-                    </ScrollArea>
+                    </div>
                     <div className="p-4 border-t bg-card">
                         <form onSubmit={handleFormSubmit} className="relative">
                             <Textarea
@@ -445,7 +445,7 @@ function GuidedLearningPage() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </>
             ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -472,5 +472,3 @@ export default function GuidedLearningPageWrapper() {
         </Suspense>
     );
 }
-
-    
