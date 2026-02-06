@@ -4,7 +4,7 @@
 import * as React from "react"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, Search, Briefcase } from "lucide-react";
+import { ArrowRight, Search, Camera, FileText, Mic } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -24,16 +24,34 @@ function HomePageSearchForm() {
         }
     };
 
+    const handleNavigate = (path: string) => {
+        router.push(path);
+    };
+
     return (
         <form onSubmit={handleSubmit} className="relative max-w-xl mx-auto">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
             <Input 
                 type="search"
-                placeholder="What would you like to learn about today?"
-                className="h-12 rounded-full border-0 bg-secondary/50 pl-12 pr-5 text-base focus-visible:ring-2 focus-visible:ring-primary"
+                placeholder="Ask or search anything..."
+                className="h-14 rounded-full border-0 bg-secondary/50 pl-14 pr-40 text-base focus-visible:ring-2 focus-visible:ring-primary"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
             />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
+                    <Camera className="h-5 w-5" />
+                    <span className="sr-only">Search with image</span>
+                </Button>
+                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
+                    <FileText className="h-5 w-5" />
+                    <span className="sr-only">Search with attachment</span>
+                </Button>
+                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/learn')}>
+                    <Mic className="h-5 w-5" />
+                    <span className="sr-only">Search with voice</span>
+                </Button>
+            </div>
         </form>
     );
 }
