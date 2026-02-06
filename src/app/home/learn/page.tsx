@@ -63,20 +63,6 @@ function GuidedLearningPage() {
     }
   }, []);
 
-  // Effect to handle starting a new chat from a URL topic
-  useEffect(() => {
-    const topic = searchParams.get('topic');
-    if (topic && !activeChat) {
-      const existingChat = savedChats.find(c => c.topic.toLowerCase() === topic.toLowerCase());
-      if (existingChat) {
-        setActiveChat(existingChat);
-      } else {
-        handleNewChat(topic);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, savedChats]); 
-
   // Save chats to localStorage whenever they change
   useEffect(() => {
     try {
@@ -99,6 +85,8 @@ function GuidedLearningPage() {
     const currentHistory = chatContext.history || [];
     const userMessage: ChatMessage | null = isFirstMessage ? null : { id: `user-${Date.now()}`, role: 'user', content };
     const historyWithUser = userMessage ? [...currentHistory, userMessage] : currentHistory;
+
+    const tempAssistantId = `temp-${Date.now()}`;
 
     // Immediately update UI with user's message
     if (userMessage) {
@@ -158,7 +146,12 @@ function GuidedLearningPage() {
       createdAt: new Date().toISOString(),
     };
     setActiveChat(newChat);
-    setSavedChats(prev => [newChat, ...prev]);
+    // Add to saved chats, but don't save to localStorage until it has messages
+    setSavedChats(prev => {
+      // Prevent duplicates if called rapidly
+      if (prev.find(c => c.id === newChat.id)) return prev;
+      return [newChat, ...prev];
+    });
 
     if (topic) {
         submitMessage(topic, newChat, true);
@@ -166,6 +159,30 @@ function GuidedLearningPage() {
     
     router.replace('/home/learn', { scroll: false });
   }, [router, submitMessage]);
+
+  // Effect to handle selecting a chat on load (from URL or localStorage)
+  useEffect(() => {
+    const topic = searchParams.get('topic');
+    
+    // If a specific topic is in the URL, prioritize it
+    if (topic) {
+      // Avoid switching if we're already on the correct chat
+      if (activeChat?.topic.toLowerCase() === topic.toLowerCase()) {
+        return;
+      }
+      const existingChat = savedChats.find(c => c.topic.toLowerCase() === topic.toLowerCase());
+      if (existingChat) {
+        setActiveChat(existingChat);
+      } else {
+        handleNewChat(topic);
+      }
+    } 
+    // Otherwise, if no chat is active but we have saved chats, load the most recent one
+    else if (!activeChat && savedChats.length > 0) {
+        setActiveChat(savedChats[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, savedChats]);
 
   const handleSelectChat = (chatId: string) => {
     const chat = savedChats.find(c => c.id === chatId);
@@ -313,7 +330,7 @@ function GuidedLearningPage() {
                     <div className="p-4 border-b">
                         <h2 className="text-lg font-semibold">{activeChat.topic}</h2>
                     </div>
-                    <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
+                    <ScrollArea className="flex-1 p-4 bg-background" ref={chatContainerRef}>
                         <div className="space-y-6">
                             {(activeChat.history || []).map((msg) => (
                                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
