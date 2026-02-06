@@ -6,7 +6,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { HomeHeader } from '@/components/layout/HomeHeader';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { guidedLearningChat, GuidedLearningChatOutput } from '@/ai/flows/guided-learning-chat';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
 import { useToast } from '@/hooks/use-toast';
@@ -322,7 +321,7 @@ function GuidedLearningPage() {
                             {(activeChat.history || []).map((msg, index) => (
                                 <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                     {msg.role === 'assistant' ? <Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/> : <User className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground p-1.5 shrink-0" />}
-                                    <Card className={cn("p-3 max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                                    <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
                                         <div className="prose prose-sm dark:prose-invert max-w-none break-words">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                         </div>
@@ -345,7 +344,7 @@ function GuidedLearningPage() {
                                                 </Button>
                                             </div>
                                         )}
-                                    </Card>
+                                    </div>
                                 </div>
                             ))}
                             {isLoading && <div className="flex justify-start items-center gap-3"><Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
