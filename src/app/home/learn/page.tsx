@@ -14,9 +14,14 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText } from 'lucide-react';
+import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText, Menu } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 // Types
 type ChatMessageContent = string | {
@@ -52,6 +57,7 @@ function GuidedLearningPage() {
   const [activeChat, setActiveChat] = useState<SavedChat | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Refs
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -335,38 +341,63 @@ function GuidedLearningPage() {
     }
   };
 
+  const ChatSidebar = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <>
+        <div className="p-4 border-b">
+            <Button className="w-full" onClick={() => {
+                startNewChat();
+                if (isMobile) setIsSidebarOpen(false);
+            }}>
+                <Plus className="mr-2 h-4 w-4" /> New Chat
+            </Button>
+       </div>
+       <ScrollArea className="flex-1">
+            <div className="p-2 space-y-1">
+                {savedChats.map(chat => (
+                    <div
+                        key={chat.id}
+                        onClick={() => {
+                            handleSelectChat(chat.id);
+                            if (isMobile) setIsSidebarOpen(false);
+                        }}
+                        className={cn(
+                            "group flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-secondary",
+                            activeChat?.id === chat.id && "bg-secondary font-semibold"
+                        )}
+                    >
+                        <p className="text-sm truncate flex-1">{chat.topic}</p>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); handleDeleteChat(chat.id);}}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    </div>
+                ))}
+            </div>
+       </ScrollArea>
+    </>
+  );
+
   return (
     <div className="flex flex-col h-full bg-background">
+      <div className="absolute top-4 left-4 z-50 md:hidden">
+          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+              <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                      <Menu className="h-6 w-6" />
+                  </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
+                  <ChatSidebar isMobile />
+              </SheetContent>
+          </Sheet>
+      </div>
+
       <div className="absolute top-4 right-4 z-50">
         {isMounted ? <UserNav /> : <Skeleton className="h-10 w-10 rounded-full" />}
       </div>
       <div className="flex-1 flex min-h-0">
-        {/* Left Sidebar */}
+        {/* Desktop Sidebar */}
         <aside className="w-72 flex-col border-r bg-secondary/50 hidden md:flex">
-           <div className="p-4 border-b">
-                <Button className="w-full" onClick={() => startNewChat()}>
-                    <Plus className="mr-2 h-4 w-4" /> New Chat
-                </Button>
-           </div>
-           <ScrollArea className="flex-1">
-                <div className="p-2 space-y-1">
-                    {savedChats.map(chat => (
-                        <div
-                            key={chat.id}
-                            onClick={() => handleSelectChat(chat.id)}
-                            className={cn(
-                                "group flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-secondary",
-                                activeChat?.id === chat.id && "bg-secondary font-semibold"
-                            )}
-                        >
-                            <p className="text-sm truncate flex-1">{chat.topic}</p>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); handleDeleteChat(chat.id);}}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                        </div>
-                    ))}
-                </div>
-           </ScrollArea>
+           <ChatSidebar />
         </aside>
 
         {/* Main Chat Area */}
@@ -376,7 +407,7 @@ function GuidedLearningPage() {
                     <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
-                               <h1 className="text-4xl md:text-5xl font-headline font-bold text-foreground">What are we learning today?</h1>
+                               <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we learning today?</h1>
                                 <p className="text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
                         ) : (
