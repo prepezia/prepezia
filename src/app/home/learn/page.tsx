@@ -366,10 +366,7 @@ function GuidedLearningPage() {
                     <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                                <div className="mb-4">
-                                    <Logo className="w-16 h-16 text-primary mx-auto" />
-                                </div>
-                                <h1 className="text-4xl font-headline font-bold text-foreground">What are we learning today?</h1>
+                                <h1 className="text-4xl font-headline font-normal tracking-tight text-foreground">What are we learning today?</h1>
                                 <p className="mt-2 text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
                         ) : (
