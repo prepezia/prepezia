@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react"
@@ -39,15 +38,15 @@ function HomePageSearchForm() {
                 onChange={(e) => setTopic(e.target.value)}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
+                <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
                     <Camera className="h-5 w-5" />
                     <span className="sr-only">Search with image</span>
                 </Button>
-                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
+                <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/study-spaces')}>
                     <FileText className="h-5 w-5" />
                     <span className="sr-only">Search with attachment</span>
                 </Button>
-                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/learn')}>
+                <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleNavigate('/home/learn')}>
                     <Mic className="h-5 w-5" />
                     <span className="sr-only">Search with voice</span>
                 </Button>
