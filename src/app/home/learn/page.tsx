@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
@@ -11,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText, Image as ImageIcon } from 'lucide-react';
+import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 
@@ -78,6 +79,9 @@ function GuidedLearningPage() {
     try {
         if (savedChats.length > 0) {
             localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(savedChats));
+        } else {
+            // If all chats are deleted, remove the item from storage
+            localStorage.removeItem('learnwithtemi_guided_chats');
         }
     } catch (e) {
         console.error("Failed to save chats", e);
@@ -103,17 +107,21 @@ function GuidedLearningPage() {
         : content;
 
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
-    const historyWithUser = [...chatContext.history, userMessage];
-
-    // Immediately update UI with user's message
-    setActiveChat(prev => prev ? { ...prev, history: historyWithUser } : null);
+    
+    // Use a functional update to get the latest state
+    setActiveChat(prev => {
+        if (!prev) return null;
+        return { ...prev, history: [...prev.history, userMessage] };
+    });
     
     setIsLoading(true);
 
     try {
+        // We need the most up-to-date history for the API call
+        const currentHistory = activeChat?.history || chatContext.history || [];
         const response: GuidedLearningChatOutput = await guidedLearningChat({
             question: content,
-            history: chatContext.history, // Send history *without* the current message
+            history: currentHistory,
             mediaDataUri: options?.media?.dataUri,
             mediaContentType: options?.media?.contentType
         });
@@ -127,7 +135,7 @@ function GuidedLearningPage() {
         
         setActiveChat(prev => {
             if (!prev) return null;
-            const finalHistory = [...historyWithUser, assistantMessage];
+            const finalHistory = [...prev.history, assistantMessage];
             const updatedChat = { ...prev, history: finalHistory };
 
             setSavedChats(allChats => {
@@ -147,64 +155,62 @@ function GuidedLearningPage() {
         const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again." };
         setActiveChat(prev => {
             if(!prev) return null;
-            const historyWithError = [...historyWithUser, errorMessage];
+            const historyWithError = [...prev.history, errorMessage];
             return {...prev, history: historyWithError };
         });
         toast({ variant: "destructive", title: "AI Error", description: e.message });
     } finally {
         setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, activeChat]);
   
-  const startNewChat = useCallback((prompt: PendingPrompt) => {
+  const startNewChat = useCallback((prompt?: PendingPrompt) => {
     const newChat: SavedChat = {
         id: `chat-${Date.now()}`,
-        topic: prompt.question || prompt.media?.name || 'New Chat',
+        topic: prompt?.question || prompt?.media?.name || 'New Chat',
         history: [],
         createdAt: new Date().toISOString(),
     };
     setActiveChat(newChat);
-    submitMessage(prompt.question, newChat, { media: prompt.media });
+    if(prompt) {
+        submitMessage(prompt.question, newChat, { media: prompt.media });
+    }
     router.replace('/home/learn', { scroll: false });
   }, [router, submitMessage]);
 
 
-  // Effect to handle selecting a chat on load (from URL or sessionStorage)
+  // Effect to handle selecting a chat on load
   useEffect(() => {
-    // 1. Prioritize pending prompt from homepage
     const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
+    
     if (pendingPromptJSON) {
         try {
             const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
             sessionStorage.removeItem('pending_guided_learning_prompt');
             startNewChat(pendingPrompt);
-            return; // Stop further processing
+            return;
         } catch (e) {
             console.error("Failed to parse pending prompt", e);
             sessionStorage.removeItem('pending_guided_learning_prompt');
         }
     }
 
-    // 2. Handle voice start param
     const startWithVoice = searchParams.get('voice') === 'true';
-    if (startWithVoice && activeChat) {
-        handleMicClick();
-        router.replace('/home/learn', { scroll: false });
-    }
-
-    // 3. Handle topic from URL
-    const topic = searchParams.get('topic');
-    if (topic && activeChat?.topic !== topic) {
-      startNewChat({ question: topic });
+    if (startWithVoice) {
+      if (!activeChat || activeChat.history.length > 0) {
+        startNewChat();
+      }
+      // Use a timeout to ensure state is updated before triggering mic
+      setTimeout(() => handleMicClick(), 100); 
+      router.replace('/home/learn', { scroll: false });
       return;
     }
     
-    // 4. Load most recent chat if no other action is taken
     if (!activeChat && savedChats.length > 0) {
         setActiveChat(savedChats[0]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, savedChats]);
+  }, [savedChats]);
 
 
   const handleSelectChat = (chatId: string) => {
@@ -215,15 +221,10 @@ function GuidedLearningPage() {
   };
 
   const handleDeleteChat = (chatId: string) => {
-    setSavedChats(prev => {
-        const newChats = prev.filter(c => c.id !== chatId);
-        if (newChats.length === 0) {
-            localStorage.removeItem('learnwithtemi_guided_chats');
-        }
-        return newChats;
-    });
+    setSavedChats(prev => prev.filter(c => c.id !== chatId));
     if (activeChat?.id === chatId) {
-      setActiveChat(null);
+      const remainingChats = savedChats.filter(c => c.id !== chatId);
+      setActiveChat(remainingChats.length > 0 ? remainingChats[0] : null);
     }
   };
   
@@ -315,13 +316,13 @@ function GuidedLearningPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen bg-background">
       <HomeHeader />
       <div className="flex-1 flex min-h-0">
         {/* Left Sidebar */}
-        <aside className="w-72 flex-col border-r bg-card hidden md:flex">
+        <aside className="w-72 flex-col border-r bg-secondary/50 hidden md:flex">
            <div className="p-4 border-b">
-                <Button className="w-full" onClick={() => startNewChat({question: 'New Chat'})}>
+                <Button className="w-full" onClick={() => startNewChat()}>
                     <Plus className="mr-2 h-4 w-4" /> New Chat
                 </Button>
            </div>
@@ -333,10 +334,10 @@ function GuidedLearningPage() {
                             onClick={() => handleSelectChat(chat.id)}
                             className={cn(
                                 "group flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-secondary",
-                                activeChat?.id === chat.id && "bg-secondary"
+                                activeChat?.id === chat.id && "bg-secondary font-semibold"
                             )}
                         >
-                            <p className="text-sm font-medium truncate flex-1">{chat.topic}</p>
+                            <p className="text-sm truncate flex-1">{chat.topic}</p>
                             <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); handleDeleteChat(chat.id);}}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -353,7 +354,7 @@ function GuidedLearningPage() {
                     <div className="p-4 border-b">
                         <h2 className="text-lg font-semibold">{activeChat.topic}</h2>
                     </div>
-                    <ScrollArea className="flex-1 p-4 bg-background" ref={chatContainerRef}>
+                    <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
                         <div className="space-y-6">
                             {(activeChat.history || []).map((msg) => (
                                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -401,7 +402,7 @@ function GuidedLearningPage() {
                             {isLoading && <div className="flex justify-start items-center gap-3"><Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
                         </div>
                     </ScrollArea>
-                    <div className="p-4 border-t bg-background">
+                    <div className="p-4 border-t bg-card">
                         <form onSubmit={handleFormSubmit} className="relative">
                             <Textarea
                                 ref={chatInputRef}

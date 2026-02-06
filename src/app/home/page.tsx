@@ -1,14 +1,19 @@
+
 "use client";
 
 import * as React from "react"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, Search, Camera, FileText, Mic, X, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, Search, Camera, FileText, Mic, X } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { useRouter } from 'next/navigation';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
+import { Logo } from "@/components/icons/Logo";
+import Autoplay from "embla-carousel-autoplay";
 
 
 type AttachedFile = {
@@ -172,6 +177,33 @@ const features = [
 
 
 export default function DashboardPage() {
+  const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
+  const carouselImage2 = PlaceHolderImages.find(p => p.id === 'carousel2')!;
+  const carouselImage3 = PlaceHolderImages.find(p => p.id === 'carousel3')!;
+  const carouselImage4 = PlaceHolderImages.find(p => p.id === 'carousel4')!;
+  const carouselImage5 = PlaceHolderImages.find(p => p.id === 'carousel5')!;
+  
+  const [api, setApi] = React.useState<CarouselApi>()
+  const [current, setCurrent] = React.useState(0)
+  const [count, setCount] = React.useState(0)
+
+  const mainCarouselPlugin = React.useRef(
+    Autoplay({ delay: 4000, stopOnInteraction: true })
+  );
+
+  React.useEffect(() => {
+    if (!api) {
+      return
+    }
+
+    setCount(api.scrollSnapList().length)
+    setCurrent(api.selectedScrollSnap())
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap())
+    })
+  }, [api])
+
   return (
     <>
       <HomeHeader />
