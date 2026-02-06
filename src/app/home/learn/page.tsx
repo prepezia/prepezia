@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { guidedLearningChat, GuidedLearningChatOutput } from '@/ai/flows/guided-learning-chat';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
+import { generateChatTitle } from '@/ai/flows/generate-chat-title';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -25,6 +26,7 @@ import {
   SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Logo } from '@/components/icons/Logo';
 
 // Types
 type ChatMessageContent = string | {
@@ -36,6 +38,7 @@ type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   content: ChatMessageContent;
+  isError?: boolean;
 };
 
 type SavedChat = {
@@ -81,18 +84,13 @@ function GuidedLearningPage() {
   // Save chats to localStorage whenever they change
   useEffect(() => {
     try {
-        if (savedChats.length > 0) {
+        if (isMounted) {
             localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(savedChats));
-        } else {
-            const stored = localStorage.getItem('learnwithtemi_guided_chats');
-            if (stored) {
-              localStorage.removeItem('learnwithtemi_guided_chats');
-            }
         }
     } catch (e) {
         console.error("Failed to save chats", e);
     }
-  }, [savedChats]);
+  }, [savedChats, isMounted]);
   
   // Scroll to bottom of chat
   useEffect(() => {
@@ -114,10 +112,11 @@ function GuidedLearningPage() {
 
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
     
-    const updatedHistory = [...(chatContext.history || []), userMessage];
-    const updatedChatForUI = { ...chatContext, history: updatedHistory };
+    const updatedHistoryForRequest = [...(chatContext.history || []), userMessage];
+    const updatedChatForUI = { ...chatContext, history: updatedHistoryForRequest };
 
     setActiveChat(updatedChatForUI);
+    // Temporarily update savedChats to include the user message immediately for better UI feedback
     setSavedChats(allChats => {
         const chatExists = allChats.some(c => c.id === updatedChatForUI.id);
         return chatExists ? allChats.map(c => c.id === updatedChatForUI.id ? updatedChatForUI : c) : [updatedChatForUI, ...allChats];
@@ -128,7 +127,7 @@ function GuidedLearningPage() {
     try {
         const response: GuidedLearningChatOutput = await guidedLearningChat({
             question: content,
-            history: updatedHistory.map(h => ({
+            history: updatedHistoryForRequest.map(h => ({
                 role: h.role,
                 content: typeof h.content === 'string' ? h.content : h.content.text,
             })),
@@ -143,22 +142,40 @@ function GuidedLearningPage() {
             content: fullResponseContent,
         };
         
-        setActiveChat(prev => {
-            if (!prev) return null;
-            const finalHistory = [...prev.history, assistantMessage];
-            const updatedChat = { ...prev, history: finalHistory };
+        const finalHistory = [...updatedHistoryForRequest, assistantMessage];
+        const finalChatState: SavedChat = { ...updatedChatForUI, history: finalHistory };
+        
+        setActiveChat(finalChatState);
+        setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
+        
+        const isFirstAssistantMessage = finalHistory.filter(m => m.role === 'assistant' && !m.isError).length === 1;
 
-            setSavedChats(allChats => {
-                const chatExists = allChats.some(c => c.id === updatedChat.id);
-                return chatExists ? allChats.map(c => c.id === updatedChat.id ? updatedChat : c) : [updatedChat, ...allChats];
-            });
-            
-            return updatedChat;
-        });
+        if (isFirstAssistantMessage) {
+            (async () => {
+                try {
+                    const titleResult = await generateChatTitle({
+                        history: finalHistory.slice(0, 2).map(m => ({ // Send first user & assistant message
+                            role: m.role,
+                            content: typeof m.content === 'string' ? m.content : m.content.text,
+                        }))
+                    });
+                    if (titleResult.title) {
+                        const newTopic = titleResult.title;
+                        setActiveChat(prev => prev ? { ...prev, topic: newTopic } : null);
+                        setSavedChats(allChats => allChats.map(c => 
+                            c.id === finalChatState.id ? { ...c, topic: newTopic } : c
+                        ));
+                    }
+                } catch(e) {
+                    console.error("Failed to generate chat title:", e);
+                }
+            })();
+        }
 
     } catch (e: any) {
         console.error("Guided learning chat error", e);
-        const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again." };
+        const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again.", isError: true };
+        
         setActiveChat(prev => {
             if(!prev) return null;
             const historyWithError = [...prev.history, errorMessage];
@@ -177,16 +194,17 @@ function GuidedLearningPage() {
   const startNewChat = useCallback((prompt?: PendingPrompt) => {
     const newChat: SavedChat = {
         id: `chat-${Date.now()}`,
-        topic: prompt?.question || prompt?.media?.name || 'New Chat',
+        topic: prompt?.question || 'New Chat',
         history: [],
         createdAt: new Date().toISOString(),
     };
     
+    setSavedChats(prev => [newChat, ...prev]);
+
     if(prompt) {
         submitMessage(prompt.question, newChat, { media: prompt.media });
     } else {
         setActiveChat(newChat);
-        setSavedChats(prev => [newChat, ...prev.filter(c => c.id !== newChat.id)]);
     }
     router.replace('/home/learn', { scroll: false });
   }, [router, submitMessage]);
@@ -230,7 +248,6 @@ function GuidedLearningPage() {
     if (initialChats.length > 0 && !activeChat) {
         setActiveChat(initialChats[0]);
     } else if (initialChats.length === 0 && !activeChat) {
-        // If there are no chats at all, create a new empty one
         startNewChat();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -344,7 +361,7 @@ function GuidedLearningPage() {
     }
   };
 
-  const ChatSidebar = ({ isMobile = false }: { isMobile?: boolean }) => (
+  const ChatSidebarContent = ({ isMobile = false }) => (
     <>
         <div className="p-4 border-b">
             <Button className="w-full" onClick={() => {
@@ -389,13 +406,13 @@ function GuidedLearningPage() {
                   </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>Chat History</SheetTitle>
-                    <SheetDescription>
-                        A list of your previous guided learning conversations. You can select a chat to continue it or start a new one.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <ChatSidebar isMobile />
+                    <SheetHeader className="p-4 border-b">
+                      <SheetTitle>My Chats</SheetTitle>
+                      <SheetDescription className="sr-only">
+                          A list of your previous guided learning conversations. You can select a chat to continue it or start a new one.
+                      </SheetDescription>
+                    </SheetHeader>
+                  <ChatSidebarContent isMobile />
               </SheetContent>
           </Sheet>
       </div>
@@ -406,7 +423,10 @@ function GuidedLearningPage() {
       <div className="flex-1 flex min-h-0">
         {/* Desktop Sidebar */}
         <aside className="w-72 flex-col border-r bg-secondary/50 hidden md:flex">
-           <ChatSidebar />
+           <div className="p-4 border-b">
+                <h2 className="text-lg font-semibold">My Chats</h2>
+           </div>
+           <ChatSidebarContent />
         </aside>
 
         {/* Main Chat Area */}
@@ -417,16 +437,16 @@ function GuidedLearningPage() {
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
                                <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we learning today?</h1>
-                                <p className="text-muted-foreground">Start by typing a topic or question below.</p>
+                               <p className="text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
                         ) : (
                             <div className="p-4 space-y-6">
                                 {(activeChat.history || []).map((msg) => (
                                     <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                         {msg.role === 'assistant' ? <Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/> : <User className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground p-1.5 shrink-0" />}
-                                        <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                                        <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : (msg.isError ? 'bg-destructive/10' : 'bg-secondary'))}>
                                              {typeof msg.content === 'string' ? (
-                                                <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                                                <div className={cn("prose prose-sm dark:prose-invert max-w-none break-words", msg.isError && "text-destructive")}>
                                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                                 </div>
                                              ) : (
@@ -442,7 +462,7 @@ function GuidedLearningPage() {
                                                     {msg.content.text && <p>{msg.content.text}</p>}
                                                 </div>
                                              )}
-                                             {msg.role === 'assistant' && typeof msg.content === 'string' && (
+                                             {msg.role === 'assistant' && typeof msg.content === 'string' && !msg.isError && (
                                                 <div className="text-right mt-2">
                                                     <Button
                                                         variant="ghost"
