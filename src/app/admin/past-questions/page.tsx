@@ -46,10 +46,10 @@ import { universities } from "@/lib/ghana-universities";
 
 // Mock data for existing questions
 const mockQuestions = [
-    { id: 1, level: "WASSCE", subject: "Core Mathematics", year: "2023", fileName: "wassce_math_2023.pdf" },
-    { id: 2, level: "BECE", subject: "Integrated Science", year: "2022", fileName: "bece_science_2022.pdf" },
-    { id: 3, level: "University", school: "University of Ghana", subject: "ECON 101", year: "2023 Mid-Sem", fileName: "ug_econ101_midsem.pdf"},
-    { id: 4, level: "WASSCE", subject: "Social Studies", year: "2023", fileName: "wassce_social_studies_2023.pdf" },
+    { id: 1, level: "WASSCE", subject: "Core Mathematics", year: "2023", fileName: "wassce_math_2023.pdf", university: "", schoolFaculty: "" },
+    { id: 2, level: "BECE", subject: "Integrated Science", year: "2022", fileName: "bece_science_2022.pdf", university: "", schoolFaculty: "" },
+    { id: 3, level: "University", university: "University of Ghana", schoolFaculty: "Business School", subject: "ECON 101", year: "2023 Mid-Sem", fileName: "ug_econ101_midsem.pdf"},
+    { id: 4, level: "WASSCE", subject: "Social Studies", year: "2023", fileName: "wassce_social_studies_2023.pdf", university: "", schoolFaculty: "" },
 ];
 
 export default function AdminPastQuestionsPage() {
@@ -59,6 +59,7 @@ export default function AdminPastQuestionsPage() {
     // Form state
     const [level, setLevel] = useState("");
     const [university, setUniversity] = useState("");
+    const [schoolFaculty, setSchoolFaculty] = useState("");
     const [course, setCourse] = useState("");
     const [year, setYear] = useState("");
     const [file, setFile] = useState<File | null>(null);
@@ -68,6 +69,7 @@ export default function AdminPastQuestionsPage() {
     const resetForm = () => {
         setLevel("");
         setUniversity("");
+        setSchoolFaculty("");
         setCourse("");
         setYear("");
         setFile(null);
@@ -88,7 +90,8 @@ export default function AdminPastQuestionsPage() {
         const newQuestion = {
             id: Date.now(),
             level,
-            school: university,
+            university: level === 'University' ? university : "",
+            schoolFaculty: level === 'University' ? schoolFaculty : "",
             subject: course,
             year,
             fileName: file.name
@@ -120,8 +123,7 @@ export default function AdminPastQuestionsPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Level</TableHead>
-                                <TableHead>Subject / Course</TableHead>
+                                <TableHead>Details</TableHead>
                                 <TableHead>Year</TableHead>
                                 <TableHead>File Name</TableHead>
                                 <TableHead className="w-[50px] text-right">Actions</TableHead>
@@ -130,8 +132,14 @@ export default function AdminPastQuestionsPage() {
                         <TableBody>
                             {questions.map((q) => (
                                 <TableRow key={q.id}>
-                                    <TableCell className="font-medium">{q.level}{q.school && ` (${q.school})`}</TableCell>
-                                    <TableCell>{q.subject}</TableCell>
+                                    <TableCell>
+                                        <div className="font-medium">{q.subject}</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {q.level}
+                                            {q.university && ` • ${q.university}`}
+                                            {q.schoolFaculty && ` • ${q.schoolFaculty}`}
+                                        </div>
+                                    </TableCell>
                                     <TableCell>{q.year}</TableCell>
                                     <TableCell className="text-muted-foreground">{q.fileName}</TableCell>
                                     <TableCell className="text-right">
@@ -182,6 +190,13 @@ export default function AdminPastQuestionsPage() {
                                         {universities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        )}
+                        {level === 'University' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="schoolFaculty">School / Faculty (optional)</Label>
+                                <Input id="schoolFaculty" value={schoolFaculty} onChange={(e) => setSchoolFaculty(e.target.value)} placeholder="e.g., Business School, Medical School" />
+                                <p className="text-xs text-muted-foreground">If the school/faculty doesn't exist, it will be created.</p>
                             </div>
                         )}
                         <div className="space-y-2">
