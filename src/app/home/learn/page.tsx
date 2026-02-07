@@ -239,66 +239,41 @@ function GuidedLearningPage() {
         console.error("Failed to load chats from localStorage", e);
     }
 
-    const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
+    setSavedChats(initialChats);
     const startWithVoice = searchParams.get('voice') === 'true';
 
-    // Case 1: Start with a pending prompt from homepage
-    if (pendingPromptJSON) {
-        sessionStorage.removeItem('pending_guided_learning_prompt');
-        try {
-            const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
-            const newChat: SavedChat = {
-                id: `chat-${Date.now()}`,
-                topic: pendingPrompt.question || 'New Chat',
-                history: [],
-                createdAt: new Date().toISOString(),
-            };
-            
-            const updatedChats = [newChat, ...initialChats];
-            setSavedChats(updatedChats);
-            setActiveChat(newChat);
-            
-            submitMessage(pendingPrompt.question, newChat, { media: pendingPrompt.media });
-            router.replace('/home/learn', { scroll: false });
-        } catch (e) {
-             console.error("Failed to parse pending prompt", e);
-             setSavedChats(initialChats);
-             if (initialChats.length > 0) setActiveChat(initialChats[0]);
+    // Router.replace will remove the search param, so we need to check if the action has already run
+    if (!voiceInitRef.current) {
+        const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
+        if (pendingPromptJSON) {
+            sessionStorage.removeItem('pending_guided_learning_prompt');
+            try {
+                const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
+                startNewChat(pendingPrompt);
+            } catch(e) {
+                console.error("Failed to parse pending prompt, loading normally.", e);
+                if (initialChats.length > 0) setActiveChat(initialChats[0]);
+            }
+            return;
         }
-        return;
-    }
-    
-    // Case 2: Start with voice command
-    if (startWithVoice && !voiceInitRef.current) {
-        voiceInitRef.current = true;
-        const newChat: SavedChat = {
-            id: `chat-${Date.now()}`,
-            topic: 'New Chat',
-            history: [],
-            createdAt: new Date().toISOString(),
-        };
-        const updatedChats = [newChat, ...initialChats];
-        setSavedChats(updatedChats);
-        setActiveChat(newChat);
 
-        setTimeout(() => handleMicClick(), 200); 
-        router.replace('/home/learn', { scroll: false });
-        return;
+        if (startWithVoice) {
+            voiceInitRef.current = true;
+            if (initialChats.length > 0) {
+                 setActiveChat(initialChats[0]);
+            } else {
+                startNewChat();
+            }
+            setTimeout(() => handleMicClick(), 200); 
+            router.replace('/home/learn', { scroll: false });
+            return;
+        }
     }
     
-    // Case 3: Default load
-    setSavedChats(initialChats);
     if (initialChats.length > 0) {
         if (!activeChat) setActiveChat(initialChats[0]);
     } else {
-        const newChat: SavedChat = {
-            id: `chat-${Date.now()}`,
-            topic: 'New Chat',
-            history: [],
-            createdAt: new Date().toISOString(),
-        };
-        setSavedChats([newChat]);
-        setActiveChat(newChat);
+        startNewChat();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -440,9 +415,6 @@ function GuidedLearningPage() {
           </Sheet>
       </div>
 
-      <div className="absolute top-4 right-4 z-50">
-        {isMounted ? <UserNav /> : <Skeleton className="h-10 w-10 rounded-full" />}
-      </div>
       <div className="flex-1 flex min-h-0">
         {/* Desktop Sidebar */}
         <aside className="w-72 flex-col border-r bg-secondary/50 hidden md:flex">
@@ -555,4 +527,5 @@ export default function GuidedLearningPageWrapper() {
         </Suspense>
     );
 }
+
 
