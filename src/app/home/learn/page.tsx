@@ -227,6 +227,7 @@ function GuidedLearningPage() {
     router.replace('/home/learn', { scroll: false });
   }, [router, submitMessage]);
 
+  // Load chats on mount and handle initial actions
   useEffect(() => {
     let initialChats: SavedChat[] = [];
     try {
@@ -237,34 +238,67 @@ function GuidedLearningPage() {
     } catch (e) {
         console.error("Failed to load chats from localStorage", e);
     }
-    setSavedChats(initialChats);
-    
+
     const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
-    
+    const startWithVoice = searchParams.get('voice') === 'true';
+
+    // Case 1: Start with a pending prompt from homepage
     if (pendingPromptJSON) {
         sessionStorage.removeItem('pending_guided_learning_prompt');
         try {
             const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
-            startNewChat(pendingPrompt);
-            return;
+            const newChat: SavedChat = {
+                id: `chat-${Date.now()}`,
+                topic: pendingPrompt.question || 'New Chat',
+                history: [],
+                createdAt: new Date().toISOString(),
+            };
+            
+            const updatedChats = [newChat, ...initialChats];
+            setSavedChats(updatedChats);
+            setActiveChat(newChat);
+            
+            submitMessage(pendingPrompt.question, newChat, { media: pendingPrompt.media });
+            router.replace('/home/learn', { scroll: false });
         } catch (e) {
              console.error("Failed to parse pending prompt", e);
+             setSavedChats(initialChats);
+             if (initialChats.length > 0) setActiveChat(initialChats[0]);
         }
+        return;
     }
     
-    const startWithVoice = searchParams.get('voice') === 'true';
+    // Case 2: Start with voice command
     if (startWithVoice && !voiceInitRef.current) {
         voiceInitRef.current = true;
-        startNewChat();
+        const newChat: SavedChat = {
+            id: `chat-${Date.now()}`,
+            topic: 'New Chat',
+            history: [],
+            createdAt: new Date().toISOString(),
+        };
+        const updatedChats = [newChat, ...initialChats];
+        setSavedChats(updatedChats);
+        setActiveChat(newChat);
+
         setTimeout(() => handleMicClick(), 200); 
         router.replace('/home/learn', { scroll: false });
         return;
     }
     
-    if (initialChats.length > 0 && !activeChat) {
-        setActiveChat(initialChats[0]);
-    } else if (initialChats.length === 0 && !activeChat) {
-        startNewChat();
+    // Case 3: Default load
+    setSavedChats(initialChats);
+    if (initialChats.length > 0) {
+        if (!activeChat) setActiveChat(initialChats[0]);
+    } else {
+        const newChat: SavedChat = {
+            id: `chat-${Date.now()}`,
+            topic: 'New Chat',
+            history: [],
+            createdAt: new Date().toISOString(),
+        };
+        setSavedChats([newChat]);
+        setActiveChat(newChat);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -395,7 +429,7 @@ function GuidedLearningPage() {
                   </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
-                    <SheetHeader className="p-4 border-b">
+                    <SheetHeader className="p-4 border-b text-left">
                         <SheetTitle>My Chats</SheetTitle>
                         <SheetDescription className="sr-only">
                             A list of your past conversations.
@@ -521,3 +555,4 @@ export default function GuidedLearningPageWrapper() {
         </Suspense>
     );
 }
+
