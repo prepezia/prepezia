@@ -1,20 +1,34 @@
+
 "use client";
 
 import LandingFooter from "@/components/layout/LandingFooter";
 import LandingHeader from "@/components/layout/LandingHeader";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useFirestore } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function TermsOfUsePage() {
-  const [date, setDate] = useState("");
+  const firestore = useFirestore();
+  const termsRef = useMemo(() => firestore ? doc(firestore, 'legal_content', 'terms_of_use') : null, [firestore]);
+  const { data: termsData, loading: termsLoading } = useDoc(termsRef);
+  const [lastUpdated, setLastUpdated] = useState("");
 
   useEffect(() => {
-    setDate(new Date().toLocaleDateString());
-  }, []);
-  
+    if (termsData?.lastUpdated) {
+      const date = new Date(termsData.lastUpdated.seconds * 1000);
+      setLastUpdated(date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+    } else if (!termsLoading) {
+      setLastUpdated(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+    }
+  }, [termsData, termsLoading]);
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <LandingHeader />
@@ -29,93 +43,24 @@ export default function TermsOfUsePage() {
         </div>
         <div className="max-w-4xl mx-auto">
           <Card>
-            <CardContent className="p-6 md:p-8 space-y-8">
-              <div className="space-y-2">
-                <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Terms of Use for Learn with Temi</h1>
-                <p className="text-sm text-muted-foreground"><strong>Last Updated:</strong> {date}</p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">1. Agreement to Terms</h2>
-                <p className="text-muted-foreground">
-                  By using our application, Learn with Temi, you agree to be bound by these Terms of Use. If you do not agree to these Terms, do not use the application.
+            <CardContent className="p-6 md:p-8">
+              {termsLoading ? (
+                <div className="flex items-center justify-center h-96">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                </div>
+              ) : termsData?.content ? (
+                <div className="prose dark:prose-invert max-w-none">
+                  <div className="not-prose space-y-2 mb-8">
+                      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Terms of Use for Learn with Temi</h1>
+                      <p className="text-sm text-muted-foreground"><strong>Last Updated:</strong> {lastUpdated}</p>
+                  </div>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>{termsData.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground p-12">
+                  The terms of use could not be loaded at this time.
                 </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">2. User Accounts</h2>
-                <p className="text-muted-foreground">
-                  When you create an account with us, you must provide us with information that is accurate, complete, and current at all times. Failure to do so constitutes a breach of the Terms, which may result in immediate termination of your account on our Service. You are responsible for safeguarding the password that you use to access the Service and for any activities or actions under your password.
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">3. User-Provided Content</h2>
-                <p className="text-muted-foreground">
-                  You are solely responsible for the content you upload, including documents, links, and other materials ("User Content"). You retain all rights to your User Content, but you grant us a worldwide, non-exclusive, royalty-free license to use, process, and display this content solely for the purpose of providing the services of the application to you. You represent and warrant that you have all the rights, power, and authority necessary to grant the rights granted herein to any User Content that you submit.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">4. AI-Generated Content</h2>
-                <p className="text-muted-foreground">
-                  The content generated by our AI, including study notes, podcast scripts, and revision roadmaps, is for educational and informational purposes only. While we strive for accuracy, we make no guarantees about the reliability, accuracy, or completeness of any information provided. You should verify any information obtained from the Service before relying on it.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">5. Use of API Keys</h2>
-                <p className="text-muted-foreground">
-                  If you choose to use your personal Gemini API Key, you are responsible for its security and usage. Learn with Temi is not responsible for any charges or issues arising from the use of your personal API key. The key is stored locally on your device and not on our servers.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">6. Monetization and Ads</h2>
-                <p className="text-muted-foreground">
-                  The Service is supported by advertising revenue and may display advertisements and promotions from Google AdSense. Some features may require you to watch a rewarded advertisement. The manner, mode, and extent of advertising by Learn with Temi on the Service are subject to change without specific notice to you.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">7. Prohibited Activities</h2>
-                <p className="text-muted-foreground">
-                  You agree not to use the Service to:
-                </p>
-                <ul className="list-disc pl-6 space-y-3 text-muted-foreground">
-                  <li>Upload any content that is illegal, harmful, or infringes on the rights of others.</li>
-                  <li>Attempt to reverse-engineer, decompile, or otherwise discover the source code of the application.</li>
-                  <li>Use any automated system to access the service in a manner that sends more request messages to our servers than a human can reasonably produce in the same period by using a conventional on-line web browser.</li>
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">8. Termination</h2>
-                <p className="text-muted-foreground">
-                  We may terminate or suspend your account immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">9. Limitation of Liability</h2>
-                <p className="text-muted-foreground">
-                  In no event shall Learn with Temi, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Service.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="font-headline text-2xl font-bold border-b pb-2">10. Contact Us</h2>
-                <p className="text-muted-foreground">
-                  If you have any questions about these Terms, please contact us:
-                </p>
-                <address className="not-italic space-y-1 text-muted-foreground">
-                  <strong>Next Innovation Africa Ltd</strong><br />
-                  <span>K209, Nii Amasa Nikoi, CL, New Adenta, GD - 091 – 8790</span><br />
-                  <a href="tel:0277777155" className="text-primary hover:underline">Phone: 0277777155</a><br />
-                  <a href="mailto:support@learnwithTemi.com" className="text-primary hover:underline">Email: support@learnwithTemi.com</a><br />
-                  <a href="https://www.learnwithTemi.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Website: www.learnwithTemi.com</a>
-                </address>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

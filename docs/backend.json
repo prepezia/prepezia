@@ -26,6 +26,23 @@
         }
       },
       "required": ["name", "email", "createdAt"]
+    },
+    "LegalDocument": {
+      "title": "Legal Document",
+      "description": "Stores the content for legal pages like Terms of Use or Privacy Policy.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The full content of the document in Markdown format."
+        },
+        "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of the last update."
+        }
+      },
+      "required": ["content", "lastUpdated"]
     }
   },
   "auth": {
@@ -37,6 +54,12 @@
         "$ref": "#/entities/UserProfile"
       },
       "description": "Stores public user profile information."
+    },
+    "/legal_content/{documentId}": {
+      "schema": {
+        "$ref": "#/entities/LegalDocument"
+      },
+      "description": "Stores content for legal pages like 'terms_of_use' and 'privacy_policy'."
     }
   }
 }
