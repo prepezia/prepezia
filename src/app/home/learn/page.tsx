@@ -222,7 +222,8 @@ function GuidedLearningPage() {
     } catch (e) {
         console.error("Failed to load chats from localStorage", e);
     }
-
+    setSavedChats(initialChats);
+    
     const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
     
     // CASE 1: There is a pending prompt from the homepage.
@@ -230,103 +231,30 @@ function GuidedLearningPage() {
         sessionStorage.removeItem('pending_guided_learning_prompt');
         try {
             const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
+            const newChatId = `chat-${Date.now()}`;
             
-            const userMessageContent: ChatMessageContent = pendingPrompt.media
-                ? { text: pendingPrompt.question, media: pendingPrompt.media }
-                : pendingPrompt.question;
-
-            const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
-
             const newChat: SavedChat = {
-                id: `chat-${Date.now()}`,
+                id: newChatId,
                 topic: pendingPrompt.question || 'New Chat',
-                history: [userMessage], // Start with the user message included
+                history: [],
                 createdAt: new Date().toISOString(),
             };
-            
-            // Set state for the UI immediately, including the new chat
-            setSavedChats([newChat, ...initialChats]);
+
+            // Add the new (empty) chat to state first
+            setSavedChats(prev => [newChat, ...prev]);
             setActiveChat(newChat);
-            setIsLoading(true);
-
-            // Fetch AI response in a separate async function to avoid race conditions
-            const fetchAiResponse = async () => {
-                try {
-                    const response: GuidedLearningChatOutput = await guidedLearningChat({
-                        question: pendingPrompt.question,
-                        history: newChat.history.map(h => ({
-                            role: h.role,
-                            content: typeof h.content === 'string' ? h.content : h.content.text,
-                        })),
-                        mediaDataUri: pendingPrompt.media?.dataUri,
-                        mediaContentType: pendingPrompt.media?.contentType
-                    });
             
-                    const fullResponseContent = `${response.answer}\n\n**${response.followUpQuestion}**`;
-                    const assistantMessage: ChatMessage = {
-                        id: `asst-${Date.now()}`,
-                        role: 'assistant',
-                        content: fullResponseContent,
-                    };
-                    
-                    const finalChatState: SavedChat = { ...newChat, history: [...newChat.history, assistantMessage] };
-                    
-                    setActiveChat(finalChatState);
-                    setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
-                    
-                    // Generate a title for the new chat
-                    (async () => {
-                        try {
-                            const titleResult = await generateChatTitle({
-                                history: finalChatState.history.slice(0, 2).map(m => ({
-                                    role: m.role,
-                                    content: typeof m.content === 'string' ? m.content : m.content.text,
-                                }))
-                            });
-                            if (titleResult.title) {
-                                const newTopic = titleResult.title;
-                                setActiveChat(prev => prev ? { ...prev, topic: newTopic } : null);
-                                setSavedChats(allChats => allChats.map(c => 
-                                    c.id === finalChatState.id ? { ...c, topic: newTopic } : c
-                                ));
-                            }
-                        } catch(e) {
-                            console.error("Failed to generate chat title:", e);
-                        }
-                    })();
-
-                } catch (e: any) {
-                    console.error("Guided learning chat error", e);
-                    const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again.", isError: true };
-                    setActiveChat(prev => {
-                        if(!prev) return null;
-                        const historyWithError = [...prev.history, errorMessage];
-                        const finalChatState = { ...prev, history: historyWithError };
-                        setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
-                        return finalChatState;
-                    });
-                    toast({ variant: "destructive", title: "AI Error", description: e.message });
-                } finally {
-                    setIsLoading(false);
-                }
-            };
+            // Now, submit the message to this newly created chat instance
+            submitMessage(pendingPrompt.question, newChat, { media: pendingPrompt.media });
             
-            fetchAiResponse();
             router.replace('/home/learn', { scroll: false });
             return;
         } catch (e) {
              console.error("Failed to parse pending prompt", e);
-             setSavedChats(initialChats);
-             if (initialChats.length > 0) {
-               setActiveChat(initialChats[0]);
-             } else {
-               startNewChat();
-             }
         }
     }
     
     // CASE 2: No pending prompt, standard page load.
-    setSavedChats(initialChats);
     const startWithVoice = searchParams.get('voice') === 'true';
     if (startWithVoice && !voiceInitRef.current) {
         voiceInitRef.current = true;
@@ -454,11 +382,11 @@ function GuidedLearningPage() {
 
   const ChatSidebarContent = ({ isMobile = false }) => (
     <>
-        <div className="p-4 border-b">
+        <div className="p-4 border-b text-center">
             <Button onClick={() => {
                 startNewChat();
                 if (isMobile) setIsSidebarOpen(false);
-            }} className="w-full">
+            }}>
                 <Plus className="mr-2 h-4 w-4" /> New Chat
             </Button>
        </div>
@@ -497,9 +425,12 @@ function GuidedLearningPage() {
                   </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
-                    <SheetHeader className="p-4 border-b text-left">
+                    <SheetHeader className="p-4 border-b flex-row items-center justify-between">
                         <SheetTitle>My Chats</SheetTitle>
-                        <SheetDescription className="sr-only">A list of your previous guided learning conversations.</SheetDescription>
+                        <SheetClose>
+                            <X className="h-5 w-5" />
+                            <span className="sr-only">Close</span>
+                        </SheetClose>
                     </SheetHeader>
                   <ChatSidebarContent isMobile />
               </SheetContent>
@@ -621,4 +552,3 @@ export default function GuidedLearningPageWrapper() {
         </Suspense>
     );
 }
-
