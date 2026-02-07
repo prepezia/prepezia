@@ -100,200 +100,19 @@ function GuidedLearningPage() {
     }
   }, [activeChat?.history]);
 
-  const submitMessage = useCallback(async (
-    content: string, 
-    chatContext: SavedChat, 
-    options?: { media?: PendingPrompt['media'] }
-  ) => {
-    if ((!content.trim() && !options?.media) || isLoading) return;
+  const updateActiveChat = useCallback((updates: Partial<SavedChat>) => {
+      setActiveChat(prevActiveChat => {
+          if (!prevActiveChat) return null;
+          const newActiveChat = { ...prevActiveChat, ...updates };
 
-    const userMessageContent: ChatMessageContent = options?.media
-        ? { text: content, media: options.media }
-        : content;
-
-    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
-    
-    const updatedHistoryForRequest = [...(chatContext.history || []), userMessage];
-    const updatedChatForUI = { ...chatContext, history: updatedHistoryForRequest };
-
-    setActiveChat(updatedChatForUI);
-    // Temporarily update savedChats to include the user message immediately for better UI feedback
-    setSavedChats(allChats => {
-        const chatExists = allChats.some(c => c.id === updatedChatForUI.id);
-        return chatExists ? allChats.map(c => c.id === updatedChatForUI.id ? updatedChatForUI : c) : [updatedChatForUI, ...allChats];
-    });
-    
-    setIsLoading(true);
-
-    try {
-        const response: GuidedLearningChatOutput = await guidedLearningChat({
-            question: content,
-            history: updatedHistoryForRequest.map(h => ({
-                role: h.role,
-                content: typeof h.content === 'string' ? h.content : h.content.text,
-            })),
-            mediaDataUri: options?.media?.dataUri,
-            mediaContentType: options?.media?.contentType
-        });
-
-        const fullResponseContent = `${response.answer}\n\n**${response.followUpQuestion}**`;
-        const assistantMessage: ChatMessage = {
-            id: `asst-${Date.now()}`,
-            role: 'assistant',
-            content: fullResponseContent,
-        };
-        
-        const finalHistory = [...updatedHistoryForRequest, assistantMessage];
-        const finalChatState: SavedChat = { ...updatedChatForUI, history: finalHistory };
-        
-        setActiveChat(finalChatState);
-        setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
-        
-        const isFirstAssistantMessage = finalHistory.filter(m => m.role === 'assistant' && !m.isError).length === 1;
-
-        if (isFirstAssistantMessage) {
-            (async () => {
-                try {
-                    const titleResult = await generateChatTitle({
-                        history: finalHistory.slice(0, 2).map(m => ({ // Send first user & assistant message
-                            role: m.role,
-                            content: typeof m.content === 'string' ? m.content : m.content.text,
-                        }))
-                    });
-                    if (titleResult.title) {
-                        const newTopic = titleResult.title;
-                        setActiveChat(prev => prev ? { ...prev, topic: newTopic } : null);
-                        setSavedChats(allChats => allChats.map(c => 
-                            c.id === finalChatState.id ? { ...c, topic: newTopic } : c
-                        ));
-                    }
-                } catch(e) {
-                    console.error("Failed to generate chat title:", e);
-                }
-            })();
-        }
-
-    } catch (e: any) {
-        console.error("Guided learning chat error", e);
-        const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again.", isError: true };
-        
-        setActiveChat(prev => {
-            if(!prev) return null;
-            const historyWithError = [...prev.history, errorMessage];
-            const finalChatState = { ...prev, history: historyWithError };
-
-            setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
-            
-            return finalChatState;
-        });
-        toast({ variant: "destructive", title: "AI Error", description: e.message });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [isLoading, toast]);
-  
-  const startNewChat = useCallback((prompt?: PendingPrompt) => {
-    const newChat: SavedChat = {
-        id: `chat-${Date.now()}`,
-        topic: prompt?.question || 'New Chat',
-        history: [],
-        createdAt: new Date().toISOString(),
-    };
-    
-    if(prompt) {
-        submitMessage(prompt.question, newChat, { media: prompt.media });
-    } else {
-        setActiveChat(newChat);
-    }
-    setSavedChats(prev => [newChat, ...prev]);
-    router.replace('/home/learn', { scroll: false });
-  }, [router, submitMessage]);
-
-
-  // Single useEffect to handle all initialization logic on mount
-  useEffect(() => {
-    let initialChats: SavedChat[] = [];
-    try {
-        const storedChats = localStorage.getItem('learnwithtemi_guided_chats');
-        if (storedChats) {
-            initialChats = JSON.parse(storedChats);
-        }
-    } catch (e) {
-        console.error("Failed to load chats from localStorage", e);
-    }
-    
-    const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
-    
-    // CASE 1: There is a pending prompt from the homepage.
-    if (pendingPromptJSON) {
-        sessionStorage.removeItem('pending_guided_learning_prompt');
-        try {
-            const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
-            const newChatId = `chat-${Date.now()}`;
-            
-            const newChat: SavedChat = {
-                id: newChatId,
-                topic: pendingPrompt.question || 'New Chat',
-                history: [],
-                createdAt: new Date().toISOString(),
-            };
-
-            // Add the new (empty) chat to state first
-            const allChats = [newChat, ...initialChats];
-            setSavedChats(allChats);
-            setActiveChat(newChat);
-            
-            // Now, submit the message to this newly created chat instance
-            submitMessage(pendingPrompt.question, newChat, { media: pendingPrompt.media });
-            
-            router.replace('/home/learn', { scroll: false });
-            return;
-        } catch (e) {
-             console.error("Failed to parse pending prompt", e);
-        }
-    } else {
-      setSavedChats(initialChats);
-    }
-    
-    // CASE 2: No pending prompt, standard page load.
-    const startWithVoice = searchParams.get('voice') === 'true';
-    if (startWithVoice && !voiceInitRef.current) {
-        voiceInitRef.current = true;
-        startNewChat();
-        setTimeout(() => handleMicClick(), 200); 
-        router.replace('/home/learn', { scroll: false });
-        return;
-    }
-    
-    if (initialChats.length > 0 && !activeChat) {
-        setActiveChat(initialChats[0]);
-    } else if (initialChats.length === 0 && !activeChat) {
-        startNewChat();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+          setSavedChats(prevSavedChats => 
+              prevSavedChats.map(c => c.id === newActiveChat.id ? newActiveChat : c)
+          );
+          
+          return newActiveChat;
+      });
   }, []);
 
-  const handleSelectChat = (chatId: string) => {
-    const chat = savedChats.find(c => c.id === chatId);
-    if (chat) {
-      setActiveChat(chat);
-    }
-  };
-
-  const handleDeleteChat = (chatId: string) => {
-    setSavedChats(prev => {
-        const updatedChats = prev.filter(c => c.id !== chatId);
-        if (activeChat?.id === chatId) {
-            if (updatedChats.length > 0) {
-                setActiveChat(updatedChats[0]);
-            } else {
-                startNewChat();
-            }
-        }
-        return updatedChats;
-    });
-  };
-  
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {
         audioRef.current.pause();
@@ -320,6 +139,156 @@ function GuidedLearningPage() {
         setGeneratingAudioId(null);
     }
   }, [generatingAudioId, speakingMessageId, toast]);
+
+  const submitMessage = useCallback(async (
+    content: string, 
+    chatContext: SavedChat, 
+    options?: { media?: PendingPrompt['media'] }
+  ) => {
+    if ((!content.trim() && !options?.media) || isLoading) return;
+
+    const userMessageContent: ChatMessageContent = options?.media
+        ? { text: content, media: options.media }
+        : content;
+
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
+    
+    const updatedHistoryForRequest = [...(chatContext.history || []), userMessage];
+    
+    updateActiveChat({ history: updatedHistoryForRequest });
+    setIsLoading(true);
+
+    try {
+        const response: GuidedLearningChatOutput = await guidedLearningChat({
+            question: content,
+            history: updatedHistoryForRequest.map(h => ({
+                role: h.role,
+                content: typeof h.content === 'string' ? h.content : h.content.text,
+            })),
+            mediaDataUri: options?.media?.dataUri,
+            mediaContentType: options?.media?.contentType
+        });
+
+        const fullResponseContent = `${response.answer}\n\n**${response.followUpQuestion}**`;
+        const assistantMessage: ChatMessage = {
+            id: `asst-${Date.now()}`,
+            role: 'assistant',
+            content: fullResponseContent,
+        };
+        
+        const finalHistory = [...updatedHistoryForRequest, assistantMessage];
+        updateActiveChat({ history: finalHistory });
+        
+        const isFirstAssistantMessage = finalHistory.filter(m => m.role === 'assistant' && !m.isError).length === 1;
+
+        if (isFirstAssistantMessage) {
+            (async () => {
+                try {
+                    const titleResult = await generateChatTitle({
+                        history: finalHistory.slice(0, 2).map(m => ({ // Send first user & assistant message
+                            role: m.role,
+                            content: typeof m.content === 'string' ? m.content : m.content.text,
+                        }))
+                    });
+                    if (titleResult.title) {
+                        updateActiveChat({ topic: titleResult.title });
+                    }
+                } catch(e) {
+                    console.error("Failed to generate chat title:", e);
+                }
+            })();
+        }
+
+    } catch (e: any) {
+        console.error("Guided learning chat error", e);
+        const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again.", isError: true };
+        updateActiveChat({ history: [...updatedHistoryForRequest, errorMessage] });
+        toast({ variant: "destructive", title: "AI Error", description: e.message });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [isLoading, toast, updateActiveChat, handlePlayAudio]);
+  
+  const startNewChat = useCallback((prompt?: PendingPrompt) => {
+    const newChat: SavedChat = {
+        id: `chat-${Date.now()}`,
+        topic: prompt?.question || 'New Chat',
+        history: [],
+        createdAt: new Date().toISOString(),
+    };
+    
+    setSavedChats(prev => [newChat, ...prev]);
+    setActiveChat(newChat);
+    
+    if(prompt) {
+        submitMessage(prompt.question, newChat, { media: prompt.media });
+    }
+    
+    router.replace('/home/learn', { scroll: false });
+  }, [router, submitMessage]);
+
+  useEffect(() => {
+    let initialChats: SavedChat[] = [];
+    try {
+        const storedChats = localStorage.getItem('learnwithtemi_guided_chats');
+        if (storedChats) {
+            initialChats = JSON.parse(storedChats);
+        }
+    } catch (e) {
+        console.error("Failed to load chats from localStorage", e);
+    }
+    setSavedChats(initialChats);
+    
+    const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
+    
+    if (pendingPromptJSON) {
+        sessionStorage.removeItem('pending_guided_learning_prompt');
+        try {
+            const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
+            startNewChat(pendingPrompt);
+            return;
+        } catch (e) {
+             console.error("Failed to parse pending prompt", e);
+        }
+    }
+    
+    const startWithVoice = searchParams.get('voice') === 'true';
+    if (startWithVoice && !voiceInitRef.current) {
+        voiceInitRef.current = true;
+        startNewChat();
+        setTimeout(() => handleMicClick(), 200); 
+        router.replace('/home/learn', { scroll: false });
+        return;
+    }
+    
+    if (initialChats.length > 0 && !activeChat) {
+        setActiveChat(initialChats[0]);
+    } else if (initialChats.length === 0 && !activeChat) {
+        startNewChat();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSelectChat = (chatId: string) => {
+    const chat = savedChats.find(c => c.id === chatId);
+    if (chat) {
+      setActiveChat(chat);
+    }
+  };
+
+  const handleDeleteChat = (chatId: string) => {
+    setSavedChats(prev => {
+        const updatedChats = prev.filter(c => c.id !== chatId);
+        if (activeChat?.id === chatId) {
+            if (updatedChats.length > 0) {
+                setActiveChat(updatedChats[0]);
+            } else {
+                startNewChat();
+            }
+        }
+        return updatedChats;
+    });
+  };
   
   const handleFormSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -384,7 +353,7 @@ function GuidedLearningPage() {
   const ChatSidebarContent = ({ isMobile = false }) => (
     <>
         <div className="p-4 text-center border-b">
-            <Button onClick={() => {
+            <Button className="w-full" onClick={() => {
                 startNewChat();
                 if (isMobile) setIsSidebarOpen(false);
             }}>
