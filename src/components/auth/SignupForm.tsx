@@ -26,7 +26,7 @@ import {
   signInWithPopup,
   User,
   setPersistence,
-  localPersistence,
+  browserLocalPersistence,
   browserSessionPersistence
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -80,7 +80,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
     setIsLoading(true);
 
     try {
-        const persistence = values.keepMeSignedIn ? localPersistence : browserSessionPersistence;
+        const persistence = values.keepMeSignedIn ? browserLocalPersistence : browserSessionPersistence;
         await setPersistence(auth, persistence);
 
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -114,7 +114,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-        await setPersistence(auth, localPersistence);
+        await setPersistence(auth, browserLocalPersistence);
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         

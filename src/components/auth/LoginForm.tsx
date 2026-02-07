@@ -24,7 +24,7 @@ import {
   signInWithPopup,
   setPersistence,
   browserSessionPersistence,
-  localPersistence,
+  browserLocalPersistence,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -69,7 +69,7 @@ export function LoginForm() {
     if (!auth) return;
     setIsLoading(true);
     try {
-      const persistence = values.keepMeSignedIn ? localPersistence : browserSessionPersistence;
+      const persistence = values.keepMeSignedIn ? browserLocalPersistence : browserSessionPersistence;
       await setPersistence(auth, persistence);
       await signInWithEmailAndPassword(auth, values.email, values.password);
       router.push("/home");
@@ -90,7 +90,7 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       // For Google Sign-In, we usually want to keep the user signed in.
-      await setPersistence(auth, localPersistence);
+      await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
