@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText, Menu } from 'lucide-react';
+import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText, Menu, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import {
@@ -25,6 +25,7 @@ import {
   SheetTitle,
   SheetDescription,
   SheetTrigger,
+  SheetClose,
 } from "@/components/ui/sheet";
 import { Logo } from '@/components/icons/Logo';
 
@@ -364,7 +365,7 @@ function GuidedLearningPage() {
   const ChatSidebarContent = ({ isMobile = false }) => (
     <>
         <div className="p-4 border-b">
-            <Button className="w-full" onClick={() => {
+            <Button onClick={() => {
                 startNewChat();
                 if (isMobile) setIsSidebarOpen(false);
             }}>
@@ -406,12 +407,14 @@ function GuidedLearningPage() {
                   </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
-                    <SheetHeader className="p-4 border-b">
-                      <SheetTitle>My Chats</SheetTitle>
-                      <SheetDescription className="sr-only">
-                          A list of your previous guided learning conversations. You can select a chat to continue it or start a new one.
-                      </SheetDescription>
+                    <SheetHeader className="flex flex-row items-center justify-between p-4 border-b">
+                        <SheetTitle>My Chats</SheetTitle>
+                        <SheetClose>
+                            <X className="h-5 w-5" />
+                            <span className="sr-only">Close</span>
+                        </SheetClose>
                     </SheetHeader>
+                    <SheetDescription className="sr-only">A list of your previous guided learning conversations.</SheetDescription>
                   <ChatSidebarContent isMobile />
               </SheetContent>
           </Sheet>
@@ -436,6 +439,7 @@ function GuidedLearningPage() {
                     <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
+                               <p className="text-xl text-muted-foreground">Hi, Firstname!</p>
                                <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we learning today?</h1>
                                <p className="text-muted-foreground">Start by typing a topic or question below.</p>
                             </div>
