@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -96,7 +97,9 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         setIsLoading(false);
         return;
       }
-      const phoneNumber = `${country.dial_code}${values.phone}`;
+      
+      const localPhoneNumber = values.phone.startsWith('0') ? values.phone.substring(1) : values.phone;
+      const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
       
       const appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
@@ -240,3 +243,4 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     </Form>
   );
 }
+
