@@ -165,7 +165,7 @@ export function UserNav() {
             <SheetTitle className="sr-only">User Settings</SheetTitle>
             <SheetDescription className="sr-only">Manage your profile, settings, and more.</SheetDescription>
             <div className="flex flex-col items-center text-center p-6 border-b">
-                <Avatar className="h-24 w-24 mb-3 border-2 border-primary">
+                <Avatar className="h-20 w-20 mb-3 border-2 border-primary">
                 <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028" alt="User avatar" />
                 <AvatarFallback>U</AvatarFallback>
                 </Avatar>
