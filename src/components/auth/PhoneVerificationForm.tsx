@@ -37,7 +37,6 @@ import { countryCodes, Country } from "@/lib/country-codes";
 
 declare global {
   interface Window {
-    recaptchaVerifier?: RecaptchaVerifier;
     confirmationResult?: ConfirmationResult;
   }
 }
@@ -60,6 +59,22 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [isLoading, setIsLoading] = useState(false);
   const [fullPhoneNumber, setFullPhoneNumber] = useState("");
+  const [recaptcha, setRecaptcha] = useState<RecaptchaVerifier | null>(null);
+
+
+  useEffect(() => {
+    if (!auth) return;
+
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible'
+    });
+    setRecaptcha(verifier);
+
+    return () => {
+        verifier.clear();
+    };
+  }, [auth]);
+
 
   const phoneForm = useForm<z.infer<typeof phoneSchema>>({
     resolver: zodResolver(phoneSchema),
@@ -71,18 +86,11 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     defaultValues: { otp: "" },
   });
   
-  // Cleanup effect to clear verifier on component unmount
-  useEffect(() => {
-    return () => {
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-      }
-    };
-  }, []);
-
-
   async function onSendOtp(values: z.infer<typeof phoneSchema>) {
-    if (!auth) return;
+    if (!auth || !recaptcha) {
+        toast({ variant: 'destructive', title: 'reCAPTCHA not ready', description: 'Please wait a moment and try again.' });
+        return;
+    }
     setIsLoading(true);
 
     try {
@@ -97,12 +105,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
       
-      const appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-        'size': 'invisible',
-      });
-      window.recaptchaVerifier = appVerifier;
-
-      const confirmationResult = await linkWithPhoneNumber(user, phoneNumber, appVerifier);
+      const confirmationResult = await linkWithPhoneNumber(user, phoneNumber, recaptcha);
 
       window.confirmationResult = confirmationResult;
 
@@ -118,6 +121,11 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         title: "Failed to Send OTP",
         description: "An unexpected error occurred. Please try again. Ensure your phone number is correct and the reCAPTCHA can load.",
       });
+       if (recaptcha) {
+          recaptcha.clear();
+          const newVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
+          setRecaptcha(newVerifier);
+        }
     } finally {
       setIsLoading(false);
     }
