@@ -7,9 +7,9 @@ import { Firestore } from 'firebase/firestore';
 
 export interface FirebaseProviderProps {
   children: ReactNode;
-  firebaseApp: FirebaseApp;
-  auth: Auth;
-  firestore: Firestore;
+  firebaseApp?: FirebaseApp;
+  auth?: Auth;
+  firestore?: Firestore;
 }
 
 export const FirebaseContext = createContext<Omit<FirebaseProviderProps, 'children'>>({} as Omit<FirebaseProviderProps, 'children'>);
