@@ -14,17 +14,27 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
 import { useAuth, useFirestore } from "@/firebase";
 import { useState } from "react";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  setPersistence,
+  browserSessionPersistence,
+  localPersistence,
+} from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  keepMeSignedIn: z.boolean().default(true).optional(),
 });
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -44,12 +54,14 @@ export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
       password: "",
+      keepMeSignedIn: true,
     },
   });
 
@@ -57,6 +69,8 @@ export function LoginForm() {
     if (!auth) return;
     setIsLoading(true);
     try {
+      const persistence = values.keepMeSignedIn ? localPersistence : browserSessionPersistence;
+      await setPersistence(auth, persistence);
       await signInWithEmailAndPassword(auth, values.email, values.password);
       router.push("/home");
     } catch (error: any) {
@@ -75,6 +89,8 @@ export function LoginForm() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
+      // For Google Sign-In, we usually want to keep the user signed in.
+      await setPersistence(auth, localPersistence);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -99,7 +115,17 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+          {isGoogleLoading ? <Loader2 className="mr-2 animate-spin" /> : <GoogleIcon className="mr-2" />}
+          Continue with Google
+        </Button>
+
+        <div className="relative">
+          <Separator />
+          <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">OR LOGIN WITH EMAIL</p>
+        </div>
+
         <FormField
           control={form.control}
           name="email"
@@ -119,27 +145,51 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
+               <div className="relative">
+                <FormControl>
+                  <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
+                </FormControl>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
         />
+        <div className="flex items-center justify-between">
+          <FormField
+            control={form.control}
+            name="keepMeSignedIn"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Keep me signed in</FormLabel>
+                </div>
+              </FormItem>
+            )}
+          />
+          <Button asChild variant="link" className="p-0 h-auto">
+            <Link href="/auth/forgot-password">Forgot password?</Link>
+          </Button>
+        </div>
         <Button type="submit" className="w-full font-bold" disabled={isLoading || isGoogleLoading}>
           {isLoading && <Loader2 className="mr-2 animate-spin" />}
           Login
         </Button>
 
-        <div className="relative">
-          <Separator />
-          <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">OR</p>
-        </div>
-        
-        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn} disabled={isLoading || isGoogleLoading}>
-          {isGoogleLoading ? <Loader2 className="mr-2 animate-spin" /> : <GoogleIcon className="mr-2" />}
-          Continue with Google
-        </Button>
       </form>
     </Form>
   );

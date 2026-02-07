@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -20,22 +19,29 @@ import Link from "next/link";
 import { useState } from "react";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+  User,
+  setPersistence,
+  localPersistence,
+  browserSessionPersistence
+} from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 
 const formSchema = z.object({
-  name: z.string().min(1, "Full name is required."),
+  firstName: z.string().min(1, "First name is required."),
+  lastName: z.string().min(1, "Last name is required."),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-  confirmPassword: z.string(),
+  keepMeSignedIn: z.boolean().default(true).optional(),
   terms: z.boolean().default(false).refine(val => val === true, {
     message: "You must accept the terms and conditions."
   }),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords do not match.",
-  path: ["confirmPassword"],
 });
 
 
@@ -55,14 +61,16 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
-      confirmPassword: "",
+      keepMeSignedIn: true,
       terms: false,
     },
   });
@@ -72,14 +80,18 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
     setIsLoading(true);
 
     try {
+        const persistence = values.keepMeSignedIn ? localPersistence : browserSessionPersistence;
+        await setPersistence(auth, persistence);
+
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         const user = userCredential.user;
+        const fullName = `${values.firstName} ${values.lastName}`.trim();
 
-        await updateProfile(user, { displayName: values.name });
+        await updateProfile(user, { displayName: fullName });
 
         const userRef = doc(firestore, "users", user.uid);
         await setDoc(userRef, {
-            name: values.name,
+            name: fullName,
             email: values.email,
             createdAt: serverTimestamp()
         });
@@ -102,6 +114,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
+        await setPersistence(auth, localPersistence);
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         
@@ -110,7 +123,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
             name: user.displayName,
             email: user.email,
             createdAt: serverTimestamp()
-        }, { merge: true }); // Merge to avoid overwriting if user already exists
+        }, { merge: true });
 
         onSuccess(user);
     } catch (error: any) {
@@ -127,19 +140,44 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Full Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Ama Serwaa" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+          {isGoogleLoading ? <Loader2 className="mr-2 animate-spin"/> : <GoogleIcon className="mr-2" />}
+          Continue with Google
+        </Button>
+        <div className="relative">
+          <Separator />
+          <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">OR</p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4">
+            <FormField
+              control={form.control}
+              name="firstName"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormLabel>First Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="John" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormLabel>Last Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+        </div>
+
         <FormField
           control={form.control}
           name="email"
@@ -159,64 +197,71 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="terms"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-4">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>
-                  I agree to the 
-                  <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/terms" target="_blank">Terms of Use</Link></Button> and
-                  <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/privacy" target="_blank">Privacy Policy</Link></Button>.
-                </FormLabel>
-                <FormMessage />
+              <div className="relative">
+                <FormControl>
+                    <Input type={showPassword ? "text" : "password"} placeholder="Enter a strong password" {...field} />
+                </FormControl>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
+              <FormMessage />
             </FormItem>
           )}
         />
+        
+        <div className="flex items-center justify-between flex-wrap gap-4">
+            <FormField
+              control={form.control}
+              name="keepMeSignedIn"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Keep me signed in</FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="terms"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      I agree to the 
+                      <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/terms" target="_blank">Terms</Link></Button> & 
+                      <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/privacy" target="_blank">Privacy Policy</Link></Button>.
+                    </FormLabel>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
+        </div>
+
 
         <Button type="submit" className="w-full font-bold" disabled={isLoading || isGoogleLoading}>
           {isLoading && <Loader2 className="mr-2 animate-spin"/>}
           Create Account & Continue
-        </Button>
-
-        <div className="relative">
-          <Separator />
-          <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">OR</p>
-        </div>
-        
-        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn} disabled={isLoading || isGoogleLoading}>
-          {isGoogleLoading && <Loader2 className="mr-2 animate-spin"/>}
-          {!isGoogleLoading && <GoogleIcon className="mr-2" />}
-          Continue with Google
         </Button>
       </form>
     </Form>

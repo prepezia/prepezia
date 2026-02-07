@@ -38,7 +38,7 @@ export default function SignupPage() {
       {step === 'credentials' && (
         <>
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Create an Account</CardTitle>
+            <CardTitle className="font-headline text-2xl">Create your account</CardTitle>
             <CardDescription>
               Step 1/2: Start your smarter learning journey today.
             </CardDescription>
