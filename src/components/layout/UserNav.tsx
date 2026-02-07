@@ -153,8 +153,8 @@ export function UserNav() {
     <>
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" id="account-sheet-trigger" className="rounded-full">
-            <Avatar className="h-9 w-9">
+          <Button variant="ghost" id="account-sheet-trigger" className="rounded-full h-8 w-8 p-0">
+            <Avatar className="h-7 w-7">
               <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028" alt="User avatar" />
               <AvatarFallback>U</AvatarFallback>
             </Avatar>
@@ -383,5 +383,3 @@ export function UserNav() {
     </>
   );
 }
-
-    
