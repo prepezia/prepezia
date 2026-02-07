@@ -85,11 +85,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     if (!auth) return;
     setIsLoading(true);
 
-    // Clear any old verifier instance before creating a new one
-    if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-    }
-
     try {
       const country = countryCodes.find(c => c.code === values.countryCode);
       if (!country) {
@@ -107,10 +102,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       });
       window.recaptchaVerifier = appVerifier;
 
-      // Explicitly render the verifier and then link the phone number.
-      const confirmationResult = await appVerifier.render().then(() => {
-          return linkWithPhoneNumber(user, phoneNumber, appVerifier);
-      });
+      const confirmationResult = await linkWithPhoneNumber(user, phoneNumber, appVerifier);
 
       window.confirmationResult = confirmationResult;
 
@@ -243,4 +235,3 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     </Form>
   );
 }
-
