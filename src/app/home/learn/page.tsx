@@ -387,7 +387,7 @@ function GuidedLearningPage() {
             <Button onClick={() => {
                 startNewChat();
                 if (isMobile) setIsSidebarOpen(false);
-            }} className="w-full">
+            }}>
                 <Plus className="mr-2 h-4 w-4" /> New Chat
             </Button>
        </div>
@@ -428,6 +428,9 @@ function GuidedLearningPage() {
               <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
                     <SheetHeader className="p-4 border-b">
                         <SheetTitle>My Chats</SheetTitle>
+                        <SheetDescription className="sr-only">
+                            A list of your past conversations.
+                        </SheetDescription>
                     </SheetHeader>
                   <ChatSidebarContent isMobile />
               </SheetContent>
