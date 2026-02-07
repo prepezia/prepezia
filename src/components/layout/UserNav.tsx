@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -16,7 +17,6 @@ import {
   Gavel,
   Phone,
   Trash2,
-  Menu,
   Mail,
   Globe,
 } from "lucide-react";
@@ -153,8 +153,11 @@ export function UserNav() {
     <>
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" id="account-sheet-trigger">
-            <Menu className="h-6 w-6" />
+          <Button variant="ghost" size="icon" id="account-sheet-trigger" className="rounded-full">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028" alt="User avatar" />
+              <AvatarFallback>U</AvatarFallback>
+            </Avatar>
           </Button>
         </SheetTrigger>
         <SheetContent className="p-0 flex flex-col w-[80%]" side="right">
@@ -376,7 +379,9 @@ export function UserNav() {
                 </form>
             </Form>
         </DialogContent>
-    </Dialog>
+      </Dialog>
     </>
   );
 }
+
+    
