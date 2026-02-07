@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -55,6 +54,12 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const [fullPhoneNumber, setFullPhoneNumber] = useState("");
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [debugMessages, setDebugMessages] = useState<string[]>([]);
+
+  const addDebugMessage = (message: string) => {
+    console.log(message); // Also log to console for dev tools
+    setDebugMessages(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
+  };
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -77,28 +82,45 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   });
 
   const handleSendOtp = async (values: z.infer<typeof phoneSchema>) => {
-    if (!auth) return;
+    if (!auth) {
+      addDebugMessage("Auth service not available.");
+      return;
+    }
+    setDebugMessages([]); // Clear previous logs
+    addDebugMessage("1. Starting handleSendOtp...");
     setIsLoading(true);
 
     try {
+      addDebugMessage("2. Finding country...");
       const country = countryCodes.find(c => c.code === values.countryCode);
-      if (!country) throw new Error("Invalid country selected.");
+      if (!country) {
+        addDebugMessage("Error: Invalid country selected.");
+        throw new Error("Invalid country selected.");
+      }
 
+      addDebugMessage("3. Formatting phone number...");
       const localPhoneNumber = values.phone.startsWith('0') ? values.phone.substring(1) : values.phone;
       const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
+      addDebugMessage(`4. Full phone number: ${phoneNumber}`);
       
-      const confirmationResult = await sendPhoneOtp(auth, phoneNumber);
+      addDebugMessage("5. Calling sendPhoneOtp utility...");
+      const confirmationResult = await sendPhoneOtp(auth, phoneNumber, addDebugMessage);
+      addDebugMessage("6. sendPhoneOtp call finished.");
       
       setVerificationId(confirmationResult.verificationId);
+      addDebugMessage(`7. Verification ID received: ${confirmationResult.verificationId}`);
       setStep("otp");
       setResendCooldown(30);
       toast({
         title: "OTP Sent",
         description: `A verification code has been sent to ${phoneNumber}.`,
       });
+      addDebugMessage("8. OTP flow successfully initiated.");
+
     } catch (error: any) {
       console.error("OTP Send Error:", error);
+      addDebugMessage(`Error caught: ${error.toString()}`);
       let errorMessage = "Failed to send OTP. Please try again. Ensure your phone number is correct and the reCAPTCHA can load.";
       if (error.code === 'auth/invalid-phone-number') {
         errorMessage = "Invalid phone number format. Please check the number and try again.";
@@ -111,6 +133,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         description: errorMessage,
       });
     } finally {
+      addDebugMessage("9. handleSendOtp finished.");
       setIsLoading(false);
     }
   };
@@ -152,104 +175,112 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     }
   }
 
-  if (step === "otp") {
-    return (
-      <Form {...otpForm}>
-        <div id="recaptcha-container"></div>
-        <form onSubmit={otpForm.handleSubmit(onVerifyOtp)} className="space-y-6">
-          <FormField
-            control={otpForm.control}
-            name="otp"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Verification Code</FormLabel>
-                <FormControl>
-                  <Input placeholder="123456" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+  return (
+    <>
+      {step === "otp" ? (
+         <Form {...otpForm}>
+         <div id="recaptcha-container"></div>
+         <form onSubmit={otpForm.handleSubmit(onVerifyOtp)} className="space-y-6">
+           <FormField
+             control={otpForm.control}
+             name="otp"
+             render={({ field }) => (
+               <FormItem>
+                 <FormLabel>Verification Code</FormLabel>
+                 <FormControl>
+                   <Input placeholder="123456" {...field} />
+                 </FormControl>
+                 <FormMessage />
+               </FormItem>
+             )}
+           />
+           <div className="flex flex-col gap-2">
+             <Button type="submit" className="w-full" disabled={isLoading}>
+               {isLoading && <Loader2 className="mr-2 animate-spin" />}
+               Verify & Finish
+             </Button>
+             <div className="mt-2 text-center">
+                 <p className="text-sm text-muted-foreground">
+                     Didn't receive the code?{" "}
+                     <button
+                         type="button"
+                         onClick={() => phoneForm.handleSubmit(handleSendOtp)()}
+                         disabled={resendCooldown > 0 || isLoading}
+                         className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                         Resend {resendCooldown > 0 && `(${resendCooldown}s)`}
+                     </button>
+                 </p>
+             </div>
+             <Button type="button" variant="link" onClick={() => setStep('phone')}>
+                 Change phone number
+             </Button>
+           </div>
+         </form>
+       </Form>
+      ) : (
+        <Form {...phoneForm}>
+        <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-6">
+          <div className="flex gap-2">
+            <FormField
+              control={phoneForm.control}
+              name="countryCode"
+              render={({ field }) => (
+                <FormItem className="w-1/3">
+                  <FormLabel>Code</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Code" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-[20rem]">
+                      {countryCodes.map((country: Country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.code} ({country.dial_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={phoneForm.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., 244123456" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <div className="flex flex-col gap-2">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 animate-spin" />}
-              Verify & Finish
-            </Button>
-            <div className="mt-2 text-center">
-                <p className="text-sm text-muted-foreground">
-                    Didn't receive the code?{" "}
-                    <button
-                        type="button"
-                        onClick={() => phoneForm.handleSubmit(handleSendOtp)()}
-                        disabled={resendCooldown > 0 || isLoading}
-                        className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Resend {resendCooldown > 0 && `(${resendCooldown}s)`}
-                    </button>
-                </p>
-            </div>
-            <Button type="button" variant="link" onClick={() => setStep('phone')}>
-                Change phone number
-            </Button>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 animate-spin" />}
+                  Send Verification Code
+              </Button>
+              <Button type="button" variant="outline" onClick={onBack}>
+                  Back
+              </Button>
           </div>
         </form>
       </Form>
-    );
-  }
-
-  return (
-    <Form {...phoneForm}>
-      <div id="recaptcha-container"></div>
-      <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-6">
-        <div className="flex gap-2">
-          <FormField
-            control={phoneForm.control}
-            name="countryCode"
-            render={({ field }) => (
-              <FormItem className="w-1/3">
-                <FormLabel>Code</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Code" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="max-h-[20rem]">
-                    {countryCodes.map((country: Country) => (
-                      <SelectItem key={country.code} value={country.code}>
-                        {country.code} ({country.dial_code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={phoneForm.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Phone Number</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., 244123456" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 animate-spin" />}
-                Send Verification Code
-            </Button>
-            <Button type="button" variant="outline" onClick={onBack}>
-                Back
-            </Button>
-        </div>
-      </form>
-    </Form>
+      )}
+       <div id="recaptcha-container"></div>
+       {debugMessages.length > 0 && (
+         <div className="mt-4 p-2 border bg-secondary/50 rounded-md">
+           <h4 className="text-sm font-bold mb-1">Debug Log:</h4>
+           <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+             {debugMessages.join('\n')}
+           </pre>
+         </div>
+       )}
+    </>
   );
 }
