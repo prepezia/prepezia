@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react"
@@ -114,7 +115,7 @@ function HomePageSearchForm() {
                                 <span className="sr-only">More search options</span>
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-2">
+                        <PopoverContent className="w-auto rounded-full p-1">
                             <div className="flex items-center gap-1">
                                 <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleIconClick('camera')}>
                                     <Camera className="h-5 w-5" />
