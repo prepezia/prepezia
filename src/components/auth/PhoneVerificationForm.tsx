@@ -63,7 +63,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
 
   const phoneForm = useForm<z.infer<typeof phoneSchema>>({
     resolver: zodResolver(phoneSchema),
-    defaultValues: { countryCode: "+233", phone: "" },
+    defaultValues: { countryCode: "GH", phone: "" },
   });
 
   const otpForm = useForm<z.infer<typeof otpSchema>>({
@@ -94,7 +94,13 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     if (!auth || !window.recaptchaVerifier) return;
     setIsLoading(true);
 
-    const phoneNumber = `${values.countryCode}${values.phone}`;
+    const country = countryCodes.find(c => c.code === values.countryCode);
+    if (!country) {
+        toast({ variant: 'destructive', title: 'Invalid country code' });
+        setIsLoading(false);
+        return;
+    }
+    const phoneNumber = `${country.dial_code}${values.phone}`;
     setFullPhoneNumber(phoneNumber);
     
     try {
@@ -192,7 +198,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
             render={({ field }) => (
               <FormItem className="w-1/3">
                 <FormLabel>Code</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Code" />
@@ -200,7 +206,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
                   </FormControl>
                   <SelectContent className="max-h-[20rem]">
                     {countryCodes.map((country: Country) => (
-                      <SelectItem key={country.code} value={country.dial_code}>
+                      <SelectItem key={country.code} value={country.code}>
                         {country.code} ({country.dial_code})
                       </SelectItem>
                     ))}
