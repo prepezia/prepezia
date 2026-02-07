@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -14,13 +15,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 
@@ -49,8 +49,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function SignupForm() {
-  const router = useRouter();
+export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -85,7 +84,7 @@ export function SignupForm() {
             createdAt: serverTimestamp()
         });
 
-        router.push("/home");
+        onSuccess(user);
 
     } catch (error: any) {
         toast({
@@ -113,7 +112,7 @@ export function SignupForm() {
             createdAt: serverTimestamp()
         }, { merge: true }); // Merge to avoid overwriting if user already exists
 
-        router.push("/home");
+        onSuccess(user);
     } catch (error: any) {
         toast({
             variant: "destructive",
@@ -206,7 +205,7 @@ export function SignupForm() {
 
         <Button type="submit" className="w-full font-bold" disabled={isLoading || isGoogleLoading}>
           {isLoading && <Loader2 className="mr-2 animate-spin"/>}
-          Create Account
+          Create Account & Continue
         </Button>
 
         <div className="relative">
