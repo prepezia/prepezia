@@ -31,6 +31,8 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Progress } from "../ui/progress";
+import { cn } from "@/lib/utils";
 
 
 const formSchema = z.object({
@@ -74,6 +76,37 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
       terms: false,
     },
   });
+
+  const password = form.watch("password");
+
+  const getStrengthProps = (password: string) => {
+    let score = 0;
+    if (!password) return { value: 0, text: '', className: '' };
+
+    if (password.length >= 8) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^a-zA-Z0-9]/.test(password)) score++;
+
+    const value = (score / 4) * 100;
+    let text = 'Weak';
+    let className = 'bg-red-500';
+
+    if (score === 2) {
+        text = 'Medium';
+        className = 'bg-yellow-500';
+    } else if (score === 3) {
+        text = 'Good';
+        className = 'bg-blue-500';
+    } else if (score === 4) {
+        text = 'Strong';
+        className = 'bg-green-500';
+    }
+    
+    return { value, text, className };
+  };
+
+  const strengthProps = getStrengthProps(password || "");
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth || !firestore) return;
@@ -212,6 +245,12 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
                 </Button>
               </div>
               <FormMessage />
+              {password && (
+                <div className="space-y-2 pt-1">
+                    <Progress value={strengthProps.value} className="h-1.5" indicatorClassName={strengthProps.className} />
+                    <p className="text-xs text-muted-foreground">{strengthProps.text}</p>
+                </div>
+              )}
             </FormItem>
           )}
         />
