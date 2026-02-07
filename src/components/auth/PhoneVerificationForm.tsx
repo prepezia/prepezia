@@ -71,27 +71,8 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     defaultValues: { otp: "" },
   });
 
-  useEffect(() => {
-    if (!auth || window.recaptchaVerifier) return;
-    try {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        "recaptcha-container",
-        {
-          size: "invisible",
-          callback: () => {},
-        }
-      );
-    } catch (error) {
-      console.error("Recaptcha verifier error", error);
-    }
-    return () => {
-      window.recaptchaVerifier?.clear();
-    };
-  }, [auth]);
-
   async function onSendOtp(values: z.infer<typeof phoneSchema>) {
-    if (!auth || !window.recaptchaVerifier) return;
+    if (!auth) return;
     setIsLoading(true);
 
     const country = countryCodes.find(c => c.code === values.countryCode);
@@ -104,11 +85,21 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     setFullPhoneNumber(phoneNumber);
     
     try {
-      window.confirmationResult = await linkWithPhoneNumber(
+      const recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        'size': 'invisible',
+        'callback': (response: any) => {
+          // reCAPTCHA solved, allow signInWithPhoneNumber.
+        }
+      });
+      
+      const confirmationResult = await linkWithPhoneNumber(
         user,
         phoneNumber,
-        window.recaptchaVerifier
+        recaptchaVerifier
       );
+
+      window.confirmationResult = confirmationResult;
+
       setStep("otp");
       toast({
         title: "OTP Sent",
@@ -120,11 +111,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         variant: "destructive",
         title: "Failed to Send OTP",
         description: error.message,
-      });
-      window.recaptchaVerifier.render().then((widgetId) => {
-        if(auth && window.grecaptcha){
-          window.grecaptcha.reset(widgetId);
-        }
       });
     } finally {
       setIsLoading(false);
