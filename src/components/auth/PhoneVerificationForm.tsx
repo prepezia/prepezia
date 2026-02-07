@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -50,6 +50,8 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [isLoading, setIsLoading] = useState(false);
@@ -76,13 +78,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: "" },
   });
-  
-  const setupRecaptcha = () => {
-    if (!auth) return null;
-    return new RecaptchaVerifier(auth, 'recaptcha-container', {
-      'size': 'invisible',
-    });
-  };
 
   const handleSendOtp = async (values: z.infer<typeof phoneSchema>) => {
     if (!auth) return;
@@ -96,8 +91,15 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
       
-      const appVerifier = setupRecaptcha();
-      if (!appVerifier) throw new Error("Could not set up reCAPTCHA.");
+      // Clear previous verifier instance
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.clear();
+      }
+
+      const appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+      });
+      recaptchaVerifierRef.current = appVerifier;
       
       const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
       
@@ -110,7 +112,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       });
     } catch (error: any) {
       console.error("OTP Send Error:", error);
-      let errorMessage = "Failed to send OTP. Please try again.";
+      let errorMessage = "Failed to send OTP. Please try again. Ensure your phone number is correct and the reCAPTCHA can load.";
       if (error.code === 'auth/invalid-phone-number') {
         errorMessage = "Invalid phone number format. Please check the number and try again.";
       } else if (error.code === 'auth/too-many-requests') {
