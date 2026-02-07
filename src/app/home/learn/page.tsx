@@ -230,34 +230,99 @@ function GuidedLearningPage() {
         sessionStorage.removeItem('pending_guided_learning_prompt');
         try {
             const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
+            
+            const userMessageContent: ChatMessageContent = pendingPrompt.media
+                ? { text: pendingPrompt.question, media: pendingPrompt.media }
+                : pendingPrompt.question;
+
+            const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: userMessageContent };
+
             const newChat: SavedChat = {
                 id: `chat-${Date.now()}`,
                 topic: pendingPrompt.question || 'New Chat',
-                history: [],
+                history: [userMessage], // Start with the user message included
                 createdAt: new Date().toISOString(),
             };
             
-            // Set state for the UI immediately
+            // Set state for the UI immediately, including the new chat
             setSavedChats([newChat, ...initialChats]);
             setActiveChat(newChat);
+            setIsLoading(true);
 
-            // Then submit the message to the AI
-            submitMessage(pendingPrompt.question, newChat, { media: pendingPrompt.media });
+            // Fetch AI response in a separate async function to avoid race conditions
+            const fetchAiResponse = async () => {
+                try {
+                    const response: GuidedLearningChatOutput = await guidedLearningChat({
+                        question: pendingPrompt.question,
+                        history: newChat.history.map(h => ({
+                            role: h.role,
+                            content: typeof h.content === 'string' ? h.content : h.content.text,
+                        })),
+                        mediaDataUri: pendingPrompt.media?.dataUri,
+                        mediaContentType: pendingPrompt.media?.contentType
+                    });
             
-            // Clean up URL
-            router.replace('/home/learn', { scroll: false });
+                    const fullResponseContent = `${response.answer}\n\n**${response.followUpQuestion}**`;
+                    const assistantMessage: ChatMessage = {
+                        id: `asst-${Date.now()}`,
+                        role: 'assistant',
+                        content: fullResponseContent,
+                    };
+                    
+                    const finalChatState: SavedChat = { ...newChat, history: [...newChat.history, assistantMessage] };
+                    
+                    setActiveChat(finalChatState);
+                    setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
+                    
+                    // Generate a title for the new chat
+                    (async () => {
+                        try {
+                            const titleResult = await generateChatTitle({
+                                history: finalChatState.history.slice(0, 2).map(m => ({
+                                    role: m.role,
+                                    content: typeof m.content === 'string' ? m.content : m.content.text,
+                                }))
+                            });
+                            if (titleResult.title) {
+                                const newTopic = titleResult.title;
+                                setActiveChat(prev => prev ? { ...prev, topic: newTopic } : null);
+                                setSavedChats(allChats => allChats.map(c => 
+                                    c.id === finalChatState.id ? { ...c, topic: newTopic } : c
+                                ));
+                            }
+                        } catch(e) {
+                            console.error("Failed to generate chat title:", e);
+                        }
+                    })();
 
+                } catch (e: any) {
+                    console.error("Guided learning chat error", e);
+                    const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again.", isError: true };
+                    setActiveChat(prev => {
+                        if(!prev) return null;
+                        const historyWithError = [...prev.history, errorMessage];
+                        const finalChatState = { ...prev, history: historyWithError };
+                        setSavedChats(allChats => allChats.map(c => c.id === finalChatState.id ? finalChatState : c));
+                        return finalChatState;
+                    });
+                    toast({ variant: "destructive", title: "AI Error", description: e.message });
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            
+            fetchAiResponse();
+            router.replace('/home/learn', { scroll: false });
+            return;
         } catch (e) {
-            console.error("Failed to parse pending prompt", e);
-            // If parsing fails, just load the initial chats
-            setSavedChats(initialChats);
-            if (initialChats.length > 0) {
-              setActiveChat(initialChats[0]);
-            } else {
-              startNewChat(); // Start an empty chat if storage was empty/corrupt
-            }
+             console.error("Failed to parse pending prompt", e);
+             setSavedChats(initialChats);
+             if (initialChats.length > 0) {
+               setActiveChat(initialChats[0]);
+             } else {
+               startNewChat();
+             }
         }
-        return; // Initialization is handled.
     }
     
     // CASE 2: No pending prompt, standard page load.
