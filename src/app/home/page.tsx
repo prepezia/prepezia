@@ -115,17 +115,17 @@ function HomePageSearchForm() {
                                 <span className="sr-only">More search options</span>
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto rounded-full p-1">
+                        <PopoverContent className="w-auto rounded-full p-1 bg-secondary">
                             <div className="flex items-center gap-1">
-                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleIconClick('camera')}>
+                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-background hover:bg-background/80" onClick={() => handleIconClick('camera')}>
                                     <Camera className="h-5 w-5" />
                                     <span className="sr-only">Search with image</span>
                                 </Button>
-                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleIconClick('attachment')}>
+                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-background hover:bg-background/80" onClick={() => handleIconClick('attachment')}>
                                     <FileText className="h-5 w-5" />
                                     <span className="sr-only">Search with attachment</span>
                                 </Button>
-                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleIconClick('mic')}>
+                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-background hover:bg-background/80" onClick={() => handleIconClick('mic')}>
                                     <Mic className="h-5 w-5" />
                                     <span className="sr-only">Search with voice</span>
                                 </Button>
