@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -70,9 +69,36 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: "" },
   });
+  
+  const setupRecaptcha = () => {
+    if (!auth) return;
+    // Clean up previous verifier if it exists
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+    }
+    
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+      'size': 'invisible',
+      'callback': (response: any) => {
+        // reCAPTCHA solved.
+      }
+    });
+  };
+
+  useEffect(() => {
+    // Setup reCAPTCHA on component mount
+    if (auth) {
+      setupRecaptcha();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth]);
+
 
   async function onSendOtp(values: z.infer<typeof phoneSchema>) {
-    if (!auth) return;
+    if (!auth || !window.recaptchaVerifier) {
+        toast({ variant: 'destructive', title: 'reCAPTCHA not ready', description: 'Please wait a moment and try again.' });
+        return;
+    }
     setIsLoading(true);
 
     const country = countryCodes.find(c => c.code === values.countryCode);
@@ -84,18 +110,13 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     const phoneNumber = `${country.dial_code}${values.phone}`;
     setFullPhoneNumber(phoneNumber);
     
+    const appVerifier = window.recaptchaVerifier;
+
     try {
-      const recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-        'size': 'invisible',
-        'callback': (response: any) => {
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
-        }
-      });
-      
       const confirmationResult = await linkWithPhoneNumber(
         user,
         phoneNumber,
-        recaptchaVerifier
+        appVerifier
       );
 
       window.confirmationResult = confirmationResult;
@@ -107,6 +128,8 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       });
     } catch (error: any) {
       console.error("OTP send error:", error);
+      // Reset reCAPTCHA for the next attempt
+      setupRecaptcha();
       toast({
         variant: "destructive",
         title: "Failed to Send OTP",
