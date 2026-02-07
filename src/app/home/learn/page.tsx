@@ -218,25 +218,50 @@ function GuidedLearningPage() {
         const storedChats = localStorage.getItem('learnwithtemi_guided_chats');
         if (storedChats) {
             initialChats = JSON.parse(storedChats);
-            setSavedChats(initialChats);
         }
     } catch (e) {
         console.error("Failed to load chats from localStorage", e);
     }
 
     const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
+    
+    // CASE 1: There is a pending prompt from the homepage.
     if (pendingPromptJSON) {
+        sessionStorage.removeItem('pending_guided_learning_prompt');
         try {
             const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
-            sessionStorage.removeItem('pending_guided_learning_prompt');
-            startNewChat(pendingPrompt);
-            return;
+            const newChat: SavedChat = {
+                id: `chat-${Date.now()}`,
+                topic: pendingPrompt.question || 'New Chat',
+                history: [],
+                createdAt: new Date().toISOString(),
+            };
+            
+            // Set state for the UI immediately
+            setSavedChats([newChat, ...initialChats]);
+            setActiveChat(newChat);
+
+            // Then submit the message to the AI
+            submitMessage(pendingPrompt.question, newChat, { media: pendingPrompt.media });
+            
+            // Clean up URL
+            router.replace('/home/learn', { scroll: false });
+
         } catch (e) {
             console.error("Failed to parse pending prompt", e);
-            sessionStorage.removeItem('pending_guided_learning_prompt');
+            // If parsing fails, just load the initial chats
+            setSavedChats(initialChats);
+            if (initialChats.length > 0) {
+              setActiveChat(initialChats[0]);
+            } else {
+              startNewChat(); // Start an empty chat if storage was empty/corrupt
+            }
         }
+        return; // Initialization is handled.
     }
-
+    
+    // CASE 2: No pending prompt, standard page load.
+    setSavedChats(initialChats);
     const startWithVoice = searchParams.get('voice') === 'true';
     if (startWithVoice && !voiceInitRef.current) {
         voiceInitRef.current = true;
@@ -368,7 +393,7 @@ function GuidedLearningPage() {
             <Button onClick={() => {
                 startNewChat();
                 if (isMobile) setIsSidebarOpen(false);
-            }}>
+            }} className="w-full">
                 <Plus className="mr-2 h-4 w-4" /> New Chat
             </Button>
        </div>
@@ -531,3 +556,4 @@ export default function GuidedLearningPageWrapper() {
         </Suspense>
     );
 }
+
