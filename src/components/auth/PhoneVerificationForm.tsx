@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,12 +26,11 @@ import { useRouter } from "next/navigation";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
   PhoneAuthProvider,
   linkWithCredential,
   User,
 } from "firebase/auth";
+import { sendPhoneOtp } from "@/lib/auth-utils";
 import { doc, updateDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { countryCodes, Country } from "@/lib/country-codes";
@@ -51,8 +50,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
-
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [isLoading, setIsLoading] = useState(false);
   const [fullPhoneNumber, setFullPhoneNumber] = useState("");
@@ -91,17 +88,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
       
-      // Clear previous verifier instance
-      if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-      }
-
-      const appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-      });
-      recaptchaVerifierRef.current = appVerifier;
-      
-      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      const confirmationResult = await sendPhoneOtp(auth, phoneNumber);
       
       setVerificationId(confirmationResult.verificationId);
       setStep("otp");
@@ -129,7 +116,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   };
 
   async function onVerifyOtp(values: z.infer<typeof otpSchema>) {
-    if (!verificationId) {
+    if (!verificationId || !user) {
         toast({ variant: "destructive", title: "Verification session expired", description: "Please request a new code." });
         return;
     }
