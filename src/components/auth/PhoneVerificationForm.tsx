@@ -70,54 +70,44 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     defaultValues: { otp: "" },
   });
   
-  const setupRecaptcha = () => {
-    if (!auth) return;
-    // Clean up previous verifier if it exists
-    if (window.recaptchaVerifier) {
-      window.recaptchaVerifier.clear();
-    }
-    
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-      'size': 'invisible',
-      'callback': (response: any) => {
-        // reCAPTCHA solved.
-      }
-    });
-  };
-
+  // Cleanup effect to clear verifier on component unmount
   useEffect(() => {
-    // Setup reCAPTCHA on component mount
-    if (auth) {
-      setupRecaptcha();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth]);
+    return () => {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+      }
+    };
+  }, []);
 
 
   async function onSendOtp(values: z.infer<typeof phoneSchema>) {
-    if (!auth || !window.recaptchaVerifier) {
-        toast({ variant: 'destructive', title: 'reCAPTCHA not ready', description: 'Please wait a moment and try again.' });
-        return;
-    }
+    if (!auth) return;
     setIsLoading(true);
 
-    const country = countryCodes.find(c => c.code === values.countryCode);
-    if (!country) {
+    // Clear any old verifier instance before creating a new one
+    if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+    }
+
+    try {
+      const country = countryCodes.find(c => c.code === values.countryCode);
+      if (!country) {
         toast({ variant: 'destructive', title: 'Invalid country code' });
         setIsLoading(false);
         return;
-    }
-    const phoneNumber = `${country.dial_code}${values.phone}`;
-    setFullPhoneNumber(phoneNumber);
-    
-    const appVerifier = window.recaptchaVerifier;
+      }
+      const phoneNumber = `${country.dial_code}${values.phone}`;
+      setFullPhoneNumber(phoneNumber);
+      
+      const appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        'size': 'invisible',
+      });
+      window.recaptchaVerifier = appVerifier;
 
-    try {
-      const confirmationResult = await linkWithPhoneNumber(
-        user,
-        phoneNumber,
-        appVerifier
-      );
+      // Explicitly render the verifier and then link the phone number.
+      const confirmationResult = await appVerifier.render().then(() => {
+          return linkWithPhoneNumber(user, phoneNumber, appVerifier);
+      });
 
       window.confirmationResult = confirmationResult;
 
@@ -128,12 +118,10 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       });
     } catch (error: any) {
       console.error("OTP send error:", error);
-      // Reset reCAPTCHA for the next attempt
-      setupRecaptcha();
       toast({
         variant: "destructive",
         title: "Failed to Send OTP",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again. Ensure your phone number is correct and the reCAPTCHA can load.",
       });
     } finally {
       setIsLoading(false);
