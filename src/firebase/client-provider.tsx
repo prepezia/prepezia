@@ -1,11 +1,27 @@
 'use client';
 
-import { FirebaseProvider, FirebaseProviderProps } from './provider';
+import { useState, useEffect, ReactNode } from 'react';
+import { FirebaseApp } from 'firebase/app';
+import { Auth } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
+import { FirebaseProvider } from './provider';
+import { initializeFirebase } from '.';
 
-// This provider ensures that Firebase is only initialized on the client side.
-export function FirebaseClientProvider({ children, ...props }: FirebaseProviderProps) {
+interface FirebaseServices {
+  firebaseApp?: FirebaseApp;
+  auth?: Auth;
+  firestore?: Firestore;
+}
+
+export function FirebaseClientProvider({ children }: { children: ReactNode }) {
+  const [services, setServices] = useState<FirebaseServices>({});
+
+  useEffect(() => {
+    setServices(initializeFirebase());
+  }, []);
+
   return (
-    <FirebaseProvider {...props}>
+    <FirebaseProvider {...services}>
       {children}
     </FirebaseProvider>
   );

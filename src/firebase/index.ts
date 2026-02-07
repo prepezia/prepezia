@@ -10,15 +10,17 @@ import { useCollection } from './firestore/use-collection';
 import { useDoc } from './firestore/use-doc';
 
 let firebaseApp: FirebaseApp;
-let auth: Auth;
-let firestore: Firestore;
 
 function initializeFirebase() {
-  if (typeof window !== 'undefined' && !getApps().length) {
+  const apps = getApps();
+  if (apps.length > 0) {
+    firebaseApp = apps[0];
+  } else {
     firebaseApp = initializeApp(firebaseConfig);
-    auth = getAuth(firebaseApp);
-    firestore = getFirestore(firebaseApp);
   }
+  
+  const auth = getAuth(firebaseApp);
+  const firestore = getFirestore(firebaseApp);
   
   return { firebaseApp, auth, firestore };
 }
