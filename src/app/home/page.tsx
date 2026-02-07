@@ -4,7 +4,7 @@
 import * as React from "react"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, Search, Camera, FileText, Mic, X } from "lucide-react";
+import { ArrowRight, Search, Camera, FileText, Mic, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -14,6 +14,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { Logo } from "@/components/icons/Logo";
 import Autoplay from "embla-carousel-autoplay";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 
 type AttachedFile = {
@@ -101,23 +102,35 @@ function HomePageSearchForm() {
                 <Input 
                     type="search"
                     placeholder="Ask or search anything..."
-                    className="h-14 rounded-full border-0 bg-secondary/50 pl-14 pr-40 text-base focus-visible:ring-2 focus-visible:ring-primary"
+                    className="h-14 rounded-full border-0 bg-secondary/50 pl-14 pr-20 text-base focus-visible:ring-2 focus-visible:ring-primary"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleIconClick('camera')}>
-                        <Camera className="h-5 w-5" />
-                        <span className="sr-only">Search with image</span>
-                    </Button>
-                    <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleIconClick('attachment')}>
-                        <FileText className="h-5 w-5" />
-                        <span className="sr-only">Search with attachment</span>
-                    </Button>
-                    <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10" onClick={() => handleIconClick('mic')}>
-                        <Mic className="h-5 w-5" />
-                        <span className="sr-only">Search with voice</span>
-                    </Button>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10">
+                                <Plus className="h-5 w-5" />
+                                <span className="sr-only">More search options</span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-2">
+                            <div className="flex items-center gap-1">
+                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleIconClick('camera')}>
+                                    <Camera className="h-5 w-5" />
+                                    <span className="sr-only">Search with image</span>
+                                </Button>
+                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleIconClick('attachment')}>
+                                    <FileText className="h-5 w-5" />
+                                    <span className="sr-only">Search with attachment</span>
+                                </Button>
+                                <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10" onClick={() => handleIconClick('mic')}>
+                                    <Mic className="h-5 w-5" />
+                                    <span className="sr-only">Search with voice</span>
+                                </Button>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
             </form>
             <input
