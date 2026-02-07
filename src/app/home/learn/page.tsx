@@ -200,13 +200,12 @@ function GuidedLearningPage() {
         createdAt: new Date().toISOString(),
     };
     
-    setSavedChats(prev => [newChat, ...prev]);
-
     if(prompt) {
         submitMessage(prompt.question, newChat, { media: prompt.media });
     } else {
         setActiveChat(newChat);
     }
+    setSavedChats(prev => [newChat, ...prev]);
     router.replace('/home/learn', { scroll: false });
   }, [router, submitMessage]);
 
@@ -222,7 +221,6 @@ function GuidedLearningPage() {
     } catch (e) {
         console.error("Failed to load chats from localStorage", e);
     }
-    setSavedChats(initialChats);
     
     const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
     
@@ -241,7 +239,8 @@ function GuidedLearningPage() {
             };
 
             // Add the new (empty) chat to state first
-            setSavedChats(prev => [newChat, ...prev]);
+            const allChats = [newChat, ...initialChats];
+            setSavedChats(allChats);
             setActiveChat(newChat);
             
             // Now, submit the message to this newly created chat instance
@@ -252,6 +251,8 @@ function GuidedLearningPage() {
         } catch (e) {
              console.error("Failed to parse pending prompt", e);
         }
+    } else {
+      setSavedChats(initialChats);
     }
     
     // CASE 2: No pending prompt, standard page load.
@@ -382,11 +383,11 @@ function GuidedLearningPage() {
 
   const ChatSidebarContent = ({ isMobile = false }) => (
     <>
-        <div className="p-4 border-b text-center">
+        <div className="p-4 text-center border-b">
             <Button onClick={() => {
                 startNewChat();
                 if (isMobile) setIsSidebarOpen(false);
-            }}>
+            }} className="w-full">
                 <Plus className="mr-2 h-4 w-4" /> New Chat
             </Button>
        </div>
@@ -425,12 +426,8 @@ function GuidedLearningPage() {
                   </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
-                    <SheetHeader className="p-4 border-b flex-row items-center justify-between">
+                    <SheetHeader className="p-4 border-b">
                         <SheetTitle>My Chats</SheetTitle>
-                        <SheetClose>
-                            <X className="h-5 w-5" />
-                            <span className="sr-only">Close</span>
-                        </SheetClose>
                     </SheetHeader>
                   <ChatSidebarContent isMobile />
               </SheetContent>
