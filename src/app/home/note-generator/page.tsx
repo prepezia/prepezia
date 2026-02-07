@@ -833,9 +833,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                               </div>
                           )}
                            <div className="fixed bottom-24 right-4 z-10 md:right-8">
-                              <Button onClick={() => setActiveTab('chat')} className="rounded-full h-12 w-12 shadow-lg flex flex-col gap-1 items-center justify-center text-xs p-1">
-                                  <MessageCircle className="h-5 w-5"/>
-                                  <span>AI Chat</span>
+                              <Button onClick={() => setActiveTab('chat')} className="rounded-full h-12 w-12 shadow-lg flex items-center justify-center">
+                                  <Bot className="h-6 w-6"/>
                               </Button>
                           </div>
                       </TabsContent>
