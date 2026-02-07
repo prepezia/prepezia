@@ -15,6 +15,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
+import { useAuth, useFirestore } from "@/firebase";
+import { useState } from "react";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -33,6 +39,11 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function LoginForm() {
   const router = useRouter();
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,15 +53,48 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // TODO: Implement Firebase login
-    router.push("/home");
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) return;
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      router.push("/home");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function onGoogleSignIn() {
-    // TODO: Implement Firebase Google Sign-In
-    router.push("/home");
+  async function onGoogleSignIn() {
+    if (!auth || !firestore) return;
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      const userRef = doc(firestore, "users", user.uid);
+      await setDoc(userRef, {
+        name: user.displayName,
+        email: user.email,
+        createdAt: serverTimestamp(),
+      }, { merge: true });
+
+      router.push("/home");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Google Sign-In Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
   }
 
   return (
@@ -82,7 +126,8 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full font-bold">
+        <Button type="submit" className="w-full font-bold" disabled={isLoading || isGoogleLoading}>
+          {isLoading && <Loader2 className="mr-2 animate-spin" />}
           Login
         </Button>
 
@@ -91,8 +136,8 @@ export function LoginForm() {
           <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">OR</p>
         </div>
         
-        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn}>
-          <GoogleIcon className="mr-2" />
+        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+          {isGoogleLoading ? <Loader2 className="mr-2 animate-spin" /> : <GoogleIcon className="mr-2" />}
           Continue with Google
         </Button>
       </form>

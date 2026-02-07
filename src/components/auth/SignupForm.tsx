@@ -17,9 +17,16 @@ import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
+import { useState } from "react";
+import { useAuth, useFirestore } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
 
 
 const formSchema = z.object({
+  name: z.string().min(1, "Full name is required."),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
   confirmPassword: z.string(),
@@ -44,10 +51,16 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function SignupForm() {
   const router = useRouter();
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -55,20 +68,79 @@ export function SignupForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // TODO: Implement Firebase signup with email/password and send OTP/verification
-    router.push("/home");
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth || !firestore) return;
+    setIsLoading(true);
+
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+        const user = userCredential.user;
+
+        await updateProfile(user, { displayName: values.name });
+
+        const userRef = doc(firestore, "users", user.uid);
+        await setDoc(userRef, {
+            name: values.name,
+            email: values.email,
+            createdAt: serverTimestamp()
+        });
+
+        router.push("/home");
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Sign Up Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
   
-  function onGoogleSignIn() {
-    // TODO: Implement Firebase Google Sign-In
-    router.push("/home");
+  async function onGoogleSignIn() {
+    if (!auth || !firestore) return;
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        const userRef = doc(firestore, "users", user.uid);
+        await setDoc(userRef, {
+            name: user.displayName,
+            email: user.email,
+            createdAt: serverTimestamp()
+        }, { merge: true }); // Merge to avoid overwriting if user already exists
+
+        router.push("/home");
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Google Sign-In Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsGoogleLoading(false);
+    }
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Full Name</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Ama Serwaa" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="email"
@@ -132,7 +204,8 @@ export function SignupForm() {
           )}
         />
 
-        <Button type="submit" className="w-full font-bold">
+        <Button type="submit" className="w-full font-bold" disabled={isLoading || isGoogleLoading}>
+          {isLoading && <Loader2 className="mr-2 animate-spin"/>}
           Create Account
         </Button>
 
@@ -141,8 +214,9 @@ export function SignupForm() {
           <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">OR</p>
         </div>
         
-        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn}>
-          <GoogleIcon className="mr-2" />
+        <Button variant="outline" className="w-full" type="button" onClick={onGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+          {isGoogleLoading && <Loader2 className="mr-2 animate-spin"/>}
+          {!isGoogleLoading && <GoogleIcon className="mr-2" />}
           Continue with Google
         </Button>
       </form>
