@@ -144,6 +144,19 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   
   async function onGoogleSignIn() {
     if (!auth || !firestore) return;
+
+    // Trigger validation for the terms field and check its value
+    const termsAccepted = await form.trigger("terms") && form.getValues("terms");
+
+    if (!termsAccepted) {
+      toast({
+        variant: "destructive",
+        title: "Agreement Required",
+        description: "Please accept the Terms of Use & Privacy Policy before continuing.",
+      });
+      return;
+    }
+
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -255,47 +268,46 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
           )}
         />
         
-        <div className="flex items-center justify-between flex-wrap gap-4">
-            <FormField
-              control={form.control}
-              name="keepMeSignedIn"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Keep me signed in</FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="terms"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      I agree to the 
-                      <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/terms" target="_blank">Terms</Link></Button> & 
-                      <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/privacy" target="_blank">Privacy Policy</Link></Button>.
-                    </FormLabel>
-                    <FormMessage />
-                  </div>
-                </FormItem>
-              )}
-            />
-        </div>
+        <FormField
+            control={form.control}
+            name="keepMeSignedIn"
+            render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                <FormLabel>Keep me signed in</FormLabel>
+                </div>
+            </FormItem>
+            )}
+        />
+
+        <FormField
+            control={form.control}
+            name="terms"
+            render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                <FormLabel>
+                    I agree to the 
+                    <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/terms" target="_blank">Terms of Use</Link></Button> & 
+                    <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/privacy" target="_blank">Privacy Policy</Link></Button>.
+                </FormLabel>
+                <FormMessage />
+                </div>
+            </FormItem>
+            )}
+        />
 
 
         <Button type="submit" className="w-full font-bold" disabled={isLoading || isGoogleLoading}>
