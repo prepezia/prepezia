@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -118,7 +119,8 @@ export function UserNav() {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isVerificationLoading, setIsVerificationLoading] = useState(false);
 
-  const isEmailPasswordProvider = user?.providerData[0]?.providerId === 'password';
+  const isEmailPasswordProvider = user ? user.providerData.some(p => p.providerId === 'password') : false;
+
 
   const feedbackForm = useForm<z.infer<typeof feedbackSchema>>({
     resolver: zodResolver(feedbackSchema),
@@ -355,6 +357,8 @@ export function UserNav() {
             user={user}
             isEmailPasswordProvider={isEmailPasswordProvider}
             firestore={firestore}
+            onSendVerification={handleSendVerification}
+            isVerificationLoading={isVerificationLoading}
           />
       )}
 
@@ -410,7 +414,7 @@ export function UserNav() {
 }
 
 // Edit Profile Dialog Component
-function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore }: any) {
+function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore, onSendVerification, isVerificationLoading }: any) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
