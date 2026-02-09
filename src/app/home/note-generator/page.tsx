@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, Suspense, useCallback, useRef } from "react";
+import React, { useState, useEffect, Suspense, useCallback, useRef, FormEvent } from "react";
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -190,12 +190,12 @@ function ChatView({
     history: ChatMessage[];
     isChatting: boolean;
     onSubmit: (e: React.FormEvent) => void;
-    inputRef: React.RefObject<HTMLTextAreaElement>;
+    inputRef: React.Ref<HTMLTextAreaElement>;
     micState: {
         isListening: boolean;
         handleMicClick: () => void;
     };
-    audioRef: React.RefObject<HTMLAudioElement>;
+    audioRef: React.Ref<HTMLAudioElement>;
     onPlayAudio: (messageId: string, text: string) => void;
     generatingAudioId: string | null;
     speakingMessageId: string | null;
@@ -371,18 +371,18 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
   // Setup Speech Recognition
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
 
-        recognition.onresult = (event) => {
+        recognition.onresult = (event: any) => {
             const transcript = event.results[0][0].transcript;
             submitChat(transcript, true);
         };
-        recognition.onerror = (event) => {
+        recognition.onerror = (event: any) => {
             console.error('Speech recognition error:', event.error);
             let description = `Could not recognize speech: ${event.error}`;
             if (event.error === 'network') {
@@ -812,7 +812,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                                           if (videoId) {
                                                               flushTextBuffer();
                                                               elements.push(<div key={`video-${elements.length}`} className="my-6 aspect-video w-full max-w-full overflow-hidden rounded-lg border"><iframe src={`https://www.youtube.com/embed/${videoId}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full" /></div>);
-                                                          } else { textBuffer.push(React.cloneElement(child, { target: '_blank', rel: 'noopener noreferrer' })); }
+                                                          } else { textBuffer.push(React.cloneElement(child as React.ReactElement<any>, { target: '_blank', rel: 'noopener noreferrer' })); }
                                                       } else { textBuffer.push(child); }
                                                   });
                                                   flushTextBuffer();
@@ -1055,12 +1055,8 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
                      <div>
                         <div className="perspective-1000 mx-auto max-w-lg" onClick={() => handleFlip(currentCardIndex)}>
                             <div className={cn("relative w-full h-80 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[currentCardIndex] && "rotate-y-180")}>
-                                <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center">
-                                    <p className="font-semibold text-xl">{currentCard.front}</p>
-                                </div>
-                                <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center">
-                                    <p>{currentCard.back}</p>
-                                </div>
+                                <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center"><p className="font-semibold text-xl">{currentCard.front}</p></div>
+                                <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center"><p>{currentCard.back}</p></div>
                             </div>
                         </div>
                         <div className="flex justify-between items-center mt-4 max-w-lg mx-auto">

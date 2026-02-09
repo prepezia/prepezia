@@ -132,7 +132,7 @@ export default function PastQuestionsPage() {
         if (value === "University") {
             setSubjects([]);
         } else {
-            newSubjects = Object.keys(examData[value as "WASSCE" | "BECE"] || {});
+            newSubjects = Object.keys((examData as any)[value] || {});
             setSubjects(newSubjects);
         }
         setYears([]);
@@ -140,7 +140,7 @@ export default function PastQuestionsPage() {
     };
 
     const handleUniversityChange = (value: string) => {
-        const newFaculties = Object.keys(examData.University[value as keyof typeof examData.University] || {});
+        const newFaculties = Object.keys((examData.University as any)[value] || {});
         setFaculties(newFaculties);
         setSubjects([]);
         setYears([]);
@@ -148,7 +148,7 @@ export default function PastQuestionsPage() {
     }
 
     const handleSchoolFacultyChange = (value: string) => {
-        const newSubjects = Object.keys(examData.University[selections.university as keyof typeof examData.University]?.[value] || {});
+        const newSubjects = Object.keys((examData.University as any)[selections.university]?.[value] || {});
         setSubjects(newSubjects);
         setYears([]);
         setSelections(prev => ({ ...prev, schoolFaculty: value, subject: "", year: "" }));
@@ -157,9 +157,9 @@ export default function PastQuestionsPage() {
     const handleSubjectChange = (value: string) => {
         let newYears: string[] = [];
         if (selections.examBody === "University") {
-            newYears = examData.University[selections.university as keyof typeof examData.University]?.[selections.schoolFaculty]?.[value] || [];
+            newYears = (examData.University as any)[selections.university]?.[selections.schoolFaculty]?.[value] || [];
         } else {
-            newYears = examData[selections.examBody as "WASSCE" | "BECE"]?.[value] || [];
+            newYears = (examData as any)[selections.examBody]?.[value] || [];
         }
         setYears(newYears);
         setSelections(prev => ({ ...prev, subject: value, year: "" }));

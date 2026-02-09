@@ -428,18 +428,18 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
 
     useEffect(() => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.continuous = false;
             recognition.interimResults = false;
             recognition.lang = 'en-US';
 
-            recognition.onresult = (event) => {
+            recognition.onresult = (event: any) => {
                 const transcript = event.results[0][0].transcript;
                 submitChat(transcript, true);
             };
-            recognition.onerror = (event) => {
+            recognition.onerror = (event: any) => {
                 console.error('Speech recognition error:', event.error);
                 let description = `Could not recognize speech: ${event.error}`;
                 if (event.error === 'network') {
@@ -882,7 +882,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
-                                                    onClick={() => handlePlayAudio(msg.id, msg.content as string)}
+                                                    onClick={() => { if (typeof msg.content === 'string') handlePlayAudio(msg.id, msg.content); }}
                                                     disabled={isChatting}
                                                 >
                                                     {generatingAudioId === msg.id ? (
