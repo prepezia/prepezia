@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -29,11 +29,12 @@ import {
   PhoneAuthProvider,
   linkWithCredential,
   User,
-  RecaptchaVerifier,
+  type ConfirmationResult
 } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { countryCodes, Country } from "@/lib/country-codes";
+import { sendPhoneOtp } from "@/lib/auth-utils";
 
 const phoneSchema = z.object({
   countryCode: z.string().min(1, "Country code is required."),
@@ -56,9 +57,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [debugMessages, setDebugMessages] = useState<string[]>([]);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
-  
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
   const addDebugMessage = (message: string) => {
     console.log(message);
@@ -75,16 +73,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  useEffect(() => {
-    // Cleanup reCAPTCHA when component unmounts
-    return () => {
-      if (recaptchaVerifier) {
-        recaptchaVerifier.clear();
-        setRecaptchaVerifier(null);
-      }
-    };
-  }, [recaptchaVerifier]);
-
   const phoneForm = useForm<z.infer<typeof phoneSchema>>({
     resolver: zodResolver(phoneSchema),
     defaultValues: { countryCode: "GH", phone: "" },
@@ -94,57 +82,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: "" },
   });
-
-  const initializeRecaptcha = async () => {
-    addDebugMessage("Initializing reCAPTCHA...");
-    
-    if (!auth) {
-      addDebugMessage("Error: Auth not available");
-      throw new Error("Authentication service not available");
-    }
-
-    // Clear existing reCAPTCHA if any
-    if (recaptchaVerifier) {
-      recaptchaVerifier.clear();
-      setRecaptchaVerifier(null);
-    }
-
-    // Wait a bit to ensure DOM is ready
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    if (!recaptchaContainerRef.current) {
-      addDebugMessage("Error: reCAPTCHA container not found");
-      throw new Error("reCAPTCHA container not found");
-    }
-
-    // Ensure container is empty
-    recaptchaContainerRef.current.innerHTML = '';
-
-    try {
-      const verifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
-        'size': 'invisible',
-        'callback': (response: any) => {
-          addDebugMessage("reCAPTCHA solved successfully");
-        },
-        'expired-callback': () => {
-          addDebugMessage("reCAPTCHA expired");
-          setRecaptchaVerifier(null);
-        },
-        'error-callback': (error: any) => {
-          addDebugMessage(`reCAPTCHA error: ${error}`);
-          setRecaptchaVerifier(null);
-        }
-      });
-
-      await verifier.verify();
-      setRecaptchaVerifier(verifier);
-      addDebugMessage("reCAPTCHA initialized successfully");
-      return verifier;
-    } catch (error: any) {
-      addDebugMessage(`reCAPTCHA initialization failed: ${error.message}`);
-      throw error;
-    }
-  };
 
   const handleSendOtp = async (values: z.infer<typeof phoneSchema>) => {
     if (!auth) {
@@ -158,79 +95,40 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     }
 
     setDebugMessages([]);
-    addDebugMessage("1. Starting handleSendOtp...");
+    addDebugMessage("Starting OTP process...");
     setIsLoading(true);
 
     try {
-      addDebugMessage("2. Finding country...");
+      addDebugMessage("Formatting phone number...");
       const country = countryCodes.find(c => c.code === values.countryCode);
-      if (!country) {
-        addDebugMessage("Error: Invalid country selected.");
-        throw new Error("Invalid country selected.");
-      }
-
-      addDebugMessage("3. Formatting phone number...");
+      if (!country) throw new Error("Invalid country selected.");
+      
       const localPhoneNumber = values.phone.startsWith('0') ? values.phone.substring(1) : values.phone;
       const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
-      addDebugMessage(`4. Full phone number: ${phoneNumber}`);
+      addDebugMessage(`Full phone number: ${phoneNumber}`);
       
-      addDebugMessage("5. Initializing reCAPTCHA...");
-      const verifier = await initializeRecaptcha();
+      const confirmationResult = await sendPhoneOtp(auth, phoneNumber, addDebugMessage);
       
-      addDebugMessage("6. Calling signInWithPhoneNumber...");
-      import('firebase/auth').then(({ signInWithPhoneNumber }) => {
-        signInWithPhoneNumber(auth, phoneNumber, verifier)
-          .then((confirmationResult) => {
-            addDebugMessage("7. OTP sent successfully");
-            setVerificationId(confirmationResult.verificationId);
-            addDebugMessage(`8. Verification ID: ${confirmationResult.verificationId}`);
-            setStep("otp");
-            setResendCooldown(30);
-            toast({
-              title: "OTP Sent",
-              description: `A verification code has been sent to ${phoneNumber}.`,
-            });
-            setIsLoading(false);
-          })
-          .catch((error) => {
-            addDebugMessage(`Error sending OTP: ${error.code} - ${error.message}`);
-            handleOtpError(error);
-            setIsLoading(false);
-          });
-      }).catch((error) => {
-        addDebugMessage(`Error importing signInWithPhoneNumber: ${error}`);
-        setIsLoading(false);
+      addDebugMessage("OTP process completed in utility.");
+      setVerificationId(confirmationResult.verificationId);
+      setStep("otp");
+      setResendCooldown(30);
+      toast({
+        title: "OTP Sent",
+        description: `A verification code has been sent to ${phoneNumber}.`,
       });
 
     } catch (error: any) {
-      console.error("OTP Send Error:", error);
-      addDebugMessage(`Error caught: ${error.toString()}`);
-      handleOtpError(error);
+      addDebugMessage(`Error caught in component: ${error.message}`);
+      toast({
+        variant: "destructive",
+        title: "OTP Failed",
+        description: error.message || "An unexpected error occurred. Please try again.",
+      });
+    } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleOtpError = (error: any) => {
-    let errorMessage = "Failed to send OTP. Please try again.";
-    
-    if (error.code === 'auth/invalid-phone-number') {
-      errorMessage = "Invalid phone number format. Please check the number and try again.";
-    } else if (error.code === 'auth/too-many-requests') {
-      errorMessage = "Too many attempts. Please try again later.";
-    } else if (error.code === 'auth/quota-exceeded') {
-      errorMessage = "SMS quota exceeded. Please try again later.";
-    } else if (error.code === 'auth/captcha-check-failed') {
-      errorMessage = "reCAPTCHA verification failed. Please refresh the page and try again.";
-    } else if (error.code === 'auth/app-deleted') {
-      errorMessage = "Authentication app deleted. Please refresh the page.";
-    }
-
-    toast({
-      variant: "destructive",
-      title: "OTP Failed",
-      description: errorMessage,
-    });
   };
 
   async function onVerifyOtp(values: z.infer<typeof otpSchema>) {
@@ -260,12 +158,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         title: "Success!", 
         description: "Your phone number has been verified." 
       });
-      
-      // Clean up reCAPTCHA
-      if (recaptchaVerifier) {
-        recaptchaVerifier.clear();
-        setRecaptchaVerifier(null);
-      }
       
       router.push("/home");
 
@@ -303,13 +195,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
 
   return (
     <>
-      {/* Hidden reCAPTCHA container */}
-      <div 
-        ref={recaptchaContainerRef} 
-        id="recaptcha-container"
-        className="hidden"
-      />
-      
       {step === "otp" ? (
         <Form {...otpForm}>
           <form onSubmit={otpForm.handleSubmit(onVerifyOtp)} className="space-y-6">
@@ -434,5 +319,3 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     </>
   );
 }
-
-    
