@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -19,6 +18,10 @@ import {
   Trash2,
   Mail,
   Globe,
+  Settings,
+  Edit,
+  KeyRound,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,7 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -43,6 +46,19 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Textarea } from "../ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
+import { useUser, useAuth } from "@/firebase";
+import {
+  signOut,
+  sendEmailVerification,
+  updateProfile,
+  verifyBeforeUpdateEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from "firebase/auth";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { useFirestore } from "@/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 
 const TwitterIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -67,87 +83,108 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24" {...props}><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
 );
 
+const feedbackSchema = z.object({
+  title: z.string().min(1, "Title is required."),
+  description: z.string().min(1, "Description is required."),
+  file: z.instanceof(File).optional(),
+});
+
+const editProfileSchema = z.object({
+  name: z.string().min(1, "Name cannot be empty."),
+  email: z.string().email("Please enter a valid email."),
+});
+
+const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1, "Current password is required."),
+    newPassword: z.string().min(8, "New password must be at least 8 characters."),
+}).refine(data => data.currentPassword !== data.newPassword, {
+    message: "New password must be different from the current password.",
+    path: ["newPassword"],
+});
+
+
 export function UserNav() {
   const router = useRouter();
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-  const { toast } = useToast();
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isVerificationLoading, setIsVerificationLoading] = useState(false);
 
-  const feedbackSchema = z.object({
-    title: z.string().min(1, "Title is required."),
-    description: z.string().min(1, "Description is required."),
-    file: z.instanceof(File).optional(),
-  });
+  const isEmailPasswordProvider = user?.providerData[0]?.providerId === 'password';
 
   const feedbackForm = useForm<z.infer<typeof feedbackSchema>>({
-      resolver: zodResolver(feedbackSchema),
-      defaultValues: {
-          title: "",
-          description: "",
-          file: undefined,
-      },
+    resolver: zodResolver(feedbackSchema),
+    defaultValues: { title: "", description: "", file: undefined },
   });
 
   function onFeedbackSubmit(values: z.infer<typeof feedbackSchema>) {
-      console.log("Feedback submitted:", values);
-      // In a real app, this would send the data to a backend.
-      feedbackForm.reset();
-      setIsFeedbackOpen(false);
-      toast({
-        title: "Feedback Submitted",
-        description: "Thank you for your feedback!",
-      })
+    console.log("Feedback submitted:", values);
+    feedbackForm.reset();
+    setIsFeedbackOpen(false);
+    toast({ title: "Feedback Submitted", description: "Thank you!" });
   }
 
-
-  const handleLogout = () => {
-    // TODO: Implement Firebase logout
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
     router.push("/");
   };
 
   const handleSaveSettings = () => {
-    // In a real app, save this to localStorage, not state.
     localStorage.setItem("user_gemini_api_key", apiKey);
     setIsSettingsOpen(false);
+    toast({ title: "Settings Saved", description: "Your Gemini API key has been updated." });
   };
 
   const handleDeleteAccount = () => {
-    // TODO: implement account deletion
     setIsDeleteOpen(false);
     handleLogout();
-  }
+  };
+
+  const handleSendVerification = async () => {
+    if (!user) return;
+    setIsVerificationLoading(true);
+    try {
+      await sendEmailVerification(user);
+      toast({
+        title: "Verification Email Sent",
+        description: "Please check your inbox to verify your email address.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error Sending Verification",
+        description: error.message,
+      });
+    } finally {
+        setIsVerificationLoading(false);
+    }
+  };
 
   async function handleShare() {
     const shareData = {
-        title: 'Learn with Temi',
-        text: 'Supercharge your studies with Learn with Temi, an AI-powered learning app for Ghanaian students!',
-        url: "https://www.learnwithtemi.com",
+      title: 'Learn with Temi',
+      text: 'Supercharge your studies with Learn with Temi, an AI-powered learning app for Ghanaian students!',
+      url: "https://www.learnwithtemi.com",
     };
     if (navigator.share && navigator.canShare(shareData)) {
-        try {
-            await navigator.share(shareData);
-        } catch (error) {
-            console.error('Error sharing:', error);
-        }
+      await navigator.share(shareData).catch(error => console.error('Error sharing:', error));
     } else {
-        navigator.clipboard.writeText(shareData.url).then(() => {
-            toast({
-                title: "Link Copied!",
-                description: "The link to our website has been copied to your clipboard.",
-            });
-        }, (err) => {
-          console.error("Failed to copy link:", err);
-          toast({
-            variant: "destructive",
-            title: "Copy Failed",
-            description: "Could not copy link to clipboard.",
-          })
-        });
+      navigator.clipboard.writeText(shareData.url).then(() => {
+        toast({ title: "Link Copied!", description: "Link copied to your clipboard." });
+      }, (err) => {
+        toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy link." });
+      });
     }
   }
-
 
   return (
     <>
@@ -155,8 +192,8 @@ export function UserNav() {
         <SheetTrigger asChild>
           <Button variant="ghost" id="account-sheet-trigger" className="rounded-full h-8 w-8 p-0">
             <Avatar className="h-7 w-7">
-              <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028" alt="User avatar" />
-              <AvatarFallback>U</AvatarFallback>
+              <AvatarImage src={user?.photoURL || "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028"} alt={user?.displayName || "User"} />
+              <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
           </Button>
         </SheetTrigger>
@@ -166,33 +203,92 @@ export function UserNav() {
             <SheetDescription className="sr-only">Manage your profile, settings, and more.</SheetDescription>
             <div className="flex flex-col items-center text-center p-6 border-b">
                 <Avatar className="h-20 w-20 mb-3 border-2 border-primary">
-                <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028" alt="User avatar" />
-                <AvatarFallback>U</AvatarFallback>
+                    <AvatarImage src={user?.photoURL || "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fsimple-avatar.png?alt=media&token=d3bc9b90-d925-42ed-9349-eee7132fd028"} alt={user?.displayName || "User"} />
+                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
-                <h3 className="font-semibold text-xl">Hello, Username!</h3>
+                <h3 className="font-semibold text-xl">{user?.displayName || "User"}</h3>
             </div>
           </SheetHeader>
+          
+          {user && isEmailPasswordProvider && !user.emailVerified && (
+              <div className="p-4 border-b">
+                  <Alert>
+                      <AlertTitle className="font-semibold">Verify Your Email</AlertTitle>
+                      <AlertDescription className="text-sm">
+                          Your email is not verified. Please check your inbox or resend the verification link.
+                          <Button variant="link" className="p-0 h-auto ml-1 text-primary" onClick={handleSendVerification}>Resend Email</Button>
+                      </AlertDescription>
+                  </Alert>
+              </div>
+          )}
+
           <div className="flex-grow overflow-y-auto p-4 space-y-3">
-            <Button variant="outline" className="w-full justify-start text-base p-4 rounded-lg bg-background shadow-sm border h-auto" onClick={() => setIsSettingsOpen(true)}>
-                <User className="mr-3 h-5 w-5" /> Edit Profile
-            </Button>
-            <Button variant="outline" className="w-full justify-start text-base p-4 rounded-lg bg-background shadow-sm border h-auto" onClick={() => setIsFeedbackOpen(true)}>
-                <MessageSquareWarning className="mr-3 h-5 w-5" /> Feedback and Report
-            </Button>
-            
-            <Accordion type="multiple" className="w-full space-y-3">
+            <Accordion type="single" collapsible defaultValue="profile" className="w-full space-y-3">
+                <AccordionItem value="profile" className="border-b-0 bg-background border rounded-lg shadow-sm">
+                    <AccordionTrigger className="hover:no-underline p-4 text-base font-medium flex-1 justify-start">
+                        <User className="mr-3 h-5 w-5" /> Edit Profile & Login
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 px-4 pt-0">
+                        <div className="space-y-3 text-sm">
+                            <Separator />
+                            <div className="pt-2">
+                                <span className="font-semibold">Name:</span>
+                                <span className="text-muted-foreground ml-2">{user?.displayName || "N/A"}</span>
+                            </div>
+                            <div>
+                                <span className="font-semibold">Email:</span>
+                                <div className="text-muted-foreground flex items-center gap-2">
+                                    <span>{user?.email || "N/A"}</span>
+                                    {user?.emailVerified ? (
+                                        <span className="text-xs text-green-600 font-medium">(Verified)</span>
+                                    ) : (
+                                        <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={handleSendVerification} disabled={isVerificationLoading}>
+                                            {isVerificationLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : null}
+                                            Verify
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <span className="font-semibold">Phone:</span>
+                                <span className="text-muted-foreground ml-2">{user?.phoneNumber || "N/A"}</span>
+                            </div>
+                             <div>
+                                <span className="font-semibold">Gender:</span>
+                                <span className="text-muted-foreground ml-2">{"N/A"}</span>
+                            </div>
+                            <Separator />
+                            <div className="flex flex-wrap gap-2 pt-2">
+                                <Button size="sm" variant="outline" onClick={() => setIsEditProfileOpen(true)}><Edit className="mr-2 h-4 w-4"/> Edit</Button>
+                                {isEmailPasswordProvider && <Button size="sm" variant="outline" onClick={() => setIsChangePasswordOpen(true)}><KeyRound className="mr-2 h-4 w-4"/>Change Password</Button>}
+                            </div>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+                 <AccordionItem value="settings" className="border-b-0 bg-background border rounded-lg shadow-sm">
+                    <AccordionTrigger className="hover:no-underline p-4 text-base font-medium flex-1 justify-start">
+                        <Settings className="mr-3 h-5 w-5" /> App Settings
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 px-4 pt-0">
+                       <div className="space-y-2 pt-2">
+                            <Label htmlFor="api-key" className="text-sm font-medium">Gemini API Key</Label>
+                            <Input id="api-key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Enter your Google Student AI key" />
+                            <p className="text-xs text-muted-foreground">If you have a Google Student account, you can use your own free Gemini API key here.</p>
+                            <Button size="sm" onClick={handleSaveSettings}>Save Settings</Button>
+                       </div>
+                    </AccordionContent>
+                </AccordionItem>
+
               <AccordionItem value="invite" className="border-b-0 bg-background border rounded-lg shadow-sm">
                 <AccordionTrigger className="hover:no-underline p-4 text-base font-medium flex-1 justify-start">
                     <Share2 className="mr-3 h-5 w-5" /> Invite Friends
                 </AccordionTrigger>
                 <AccordionContent className="pb-4 px-4 pt-0">
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">Share the joy of learning. Invite your friends and family to join Learn with Temi.</p>
+                  <div className="space-y-4 pt-2">
+                    <p className="text-sm text-muted-foreground">Share the joy of learning. Invite your friends to join Learn with Temi.</p>
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" asChild><a href="https://wa.me/?text=Check%20out%20Learn%20with%20Temi%2C%20an%20AI-powered%20learning%20app%20for%20Ghanaian%20students!%20https%3A%2F%2Fwww.learnwithtemi.com" target="_blank" rel="noopener noreferrer">WhatsApp</a></Button>
                       <Button variant="outline" asChild><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.learnwithtemi.com" target="_blank" rel="noopener noreferrer">Facebook</a></Button>
-                      <Button variant="outline" asChild><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fwww.learnwithtemi.com&text=Check%20out%20Learn%20with%20Temi%2C%20an%20AI-powered%20learning%20app!" target="_blank" rel="noopener noreferrer">X</a></Button>
-                      <Button variant="outline" asChild><a href="mailto:?subject=Invitation%20to%20Learn%20with%20Temi&body=Check%20out%20Learn%20with%20Temi%2C%20an%20AI-powered%20learning%20app%20for%20Ghanaian%20students!%20https%3A%2F%2Fwww.learnwithtemi.com">Email</a></Button>
                     </div>
                     <Button className="w-full" onClick={handleShare}>More ways to share...</Button>
                   </div>
@@ -215,20 +311,11 @@ export function UserNav() {
                     <Phone className="mr-3 h-5 w-5" /> Contact Us
                  </AccordionTrigger>
                  <AccordionContent className="text-sm text-muted-foreground space-y-2 pb-4 px-4 pt-0">
-                    <p className="text-sm text-muted-foreground mb-4">Have questions? We are here to help.</p>
+                    <p className="text-sm text-muted-foreground mb-4 pt-2">Have questions? We are here to help.</p>
                     <div className="flex justify-around mb-4 text-center">
-                        <a href="tel:0277777155" className="flex flex-col items-center gap-1 text-primary hover:underline">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Phone className="w-5 h-5"/></div>
-                            <span className="text-xs">Call Us</span>
-                        </a>
-                        <a href="mailto:support@learnwithTemi.com" className="flex flex-col items-center gap-1 text-primary hover:underline">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Mail className="w-5 h-5"/></div>
-                            <span className="text-xs">Email Us</span>
-                        </a>
-                        <a href="https://www.learnwithtemi.com" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 text-primary hover:underline">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Globe className="w-5 h-5"/></div>
-                            <span className="text-xs">Website</span>
-                        </a>
+                        <a href="tel:0277777155" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Phone className="w-5 h-5"/></div><span className="text-xs">Call Us</span></a>
+                        <a href="mailto:support@learnwithTemi.com" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Mail className="w-5 h-5"/></div><span className="text-xs">Email Us</span></a>
+                        <a href="https://www.learnwithtemi.com" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Globe className="w-5 h-5"/></div><span className="text-xs">Website</span></a>
                     </div>
                     <Separator className="my-4 bg-border/50" />
                     <h4 className="font-semibold mb-4 text-center text-sm pt-2">Follow Us</h4>
@@ -253,44 +340,33 @@ export function UserNav() {
                 <span>Delete Account</span>
             </Button>
             <div className="text-center text-xs text-muted-foreground pt-4">
-                <p>v1.00</p>
+                <p>v1.0.0</p>
                 <p>&copy; {new Date().getFullYear()} Next Innovation Africa Ltd</p>
             </div>
           </div>
         </SheetContent>
       </Sheet>
 
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Profile & Settings</DialogTitle>
-            <DialogDescriptionComponent>
-              Manage your account and API settings.
-            </DialogDescriptionComponent>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="api-key" className="text-right col-span-4 text-left">
-                Gemini API Key
-              </Label>
-              <Input
-                id="api-key"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your Google Student AI key"
-                className="col-span-4"
-              />
-              <p className="col-span-4 text-sm text-muted-foreground">
-                If you have a Google Student account, you can use your own free Gemini API key here.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleSaveSettings}>Save changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Edit Profile Dialog */}
+      {user && (
+          <EditProfileDialog
+            open={isEditProfileOpen}
+            onOpenChange={setIsEditProfileOpen}
+            user={user}
+            isEmailPasswordProvider={isEmailPasswordProvider}
+            firestore={firestore}
+          />
+      )}
+
+      {/* Change Password Dialog */}
+      {user && isEmailPasswordProvider && (
+          <ChangePasswordDialog
+            open={isChangePasswordOpen}
+            onOpenChange={setIsChangePasswordOpen}
+            user={user}
+            auth={auth}
+          />
+      )}
       
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent>
@@ -310,76 +386,138 @@ export function UserNav() {
       <Dialog open={isFeedbackOpen} onOpenChange={setIsFeedbackOpen}>
         <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                    <MessageSquareWarning className="h-5 w-5" />
-                    Feedback and Report
-                </DialogTitle>
-                <DialogDescriptionComponent>
-                  Spotted a bug or have a suggestion? We'd love to hear from you.
-                </DialogDescriptionComponent>
+                <DialogTitle className="flex items-center gap-2"><MessageSquareWarning className="h-5 w-5" />Feedback and Report</DialogTitle>
+                <DialogDescriptionComponent>Spotted a bug or have a suggestion? We'd love to hear from you.</DialogDescriptionComponent>
             </DialogHeader>
             <Form {...feedbackForm}>
                 <form onSubmit={feedbackForm.handleSubmit(onFeedbackSubmit)} className="space-y-4 pt-4">
-                    <FormField
-                        control={feedbackForm.control}
-                        name="title"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Title *</FormLabel>
-                            <FormControl>
-                            <Input placeholder="e.g., 'Bug in Note Generator'" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={feedbackForm.control}
-                        name="description"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Description *</FormLabel>
-                            <FormControl>
-                            <Textarea
-                                placeholder="Please describe the issue or your feedback in detail."
-                                rows={4}
-                                {...field}
-                            />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={feedbackForm.control}
-                        name="file"
-                        render={({ field: { onChange, onBlur, name, ref } }) => (
-                            <FormItem>
-                                <FormLabel>Attach File (optional)</FormLabel>
-                                <FormControl>
-                                <Input 
-                                    type="file" 
-                                    onChange={(e) => onChange(e.target.files ? e.target.files[0] : undefined)} 
-                                    onBlur={onBlur}
-                                    name={name}
-                                    ref={ref}
-                                    accept="image/*,.pdf"
-                                />
-                                </FormControl>
-                                <FormDescription className="text-xs">
-                                    Supported: Images, PDF (Max 5MB)
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <DialogFooter>
-                        <Button type="submit">Submit Feedback</Button>
-                    </DialogFooter>
+                    <FormField control={feedbackForm.control} name="title" render={({ field }) => (
+                        <FormItem><FormLabel>Title *</FormLabel><FormControl><Input placeholder="e.g., 'Bug in Note Generator'" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={feedbackForm.control} name="description" render={({ field }) => (
+                        <FormItem><FormLabel>Description *</FormLabel><FormControl><Textarea placeholder="Please describe the issue or your feedback in detail." rows={4} {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={feedbackForm.control} name="file" render={({ field: { onChange, onBlur, name, ref } }) => (
+                        <FormItem><FormLabel>Attach File (optional)</FormLabel><FormControl><Input type="file" onChange={(e) => onChange(e.target.files ? e.target.files[0] : undefined)} onBlur={onBlur} name={name} ref={ref} accept="image/*,.pdf" /></FormControl><FormDescription className="text-xs">Supported: Images, PDF (Max 5MB)</FormDescription><FormMessage /></FormItem>
+                    )}/>
+                    <DialogFooter><Button type="submit">Submit Feedback</Button></DialogFooter>
                 </form>
             </Form>
         </DialogContent>
       </Dialog>
     </>
   );
+}
+
+// Edit Profile Dialog Component
+function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore }: any) {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const form = useForm<z.infer<typeof editProfileSchema>>({
+        resolver: zodResolver(editProfileSchema),
+        defaultValues: {
+            name: user?.displayName || "",
+            email: user?.email || "",
+        },
+    });
+
+    useEffect(() => {
+        if(user) {
+            form.reset({
+                name: user.displayName || "",
+                email: user.email || "",
+            });
+        }
+    }, [user, form]);
+
+    async function onSubmit(values: z.infer<typeof editProfileSchema>) {
+        if (!user || !firestore) return;
+        setIsLoading(true);
+        
+        try {
+            // Update display name if it has changed
+            if (values.name !== user.displayName) {
+                await updateProfile(user, { displayName: values.name });
+                const userDocRef = doc(firestore, "users", user.uid);
+                await updateDoc(userDocRef, { name: values.name });
+                toast({ title: "Success", description: "Your name has been updated." });
+            }
+
+            // Update email if it has changed (and is allowed)
+            if (isEmailPasswordProvider && values.email !== user.email) {
+                await verifyBeforeUpdateEmail(user, values.email);
+                toast({
+                    title: "Verification Required",
+                    description: `A verification link has been sent to ${values.email}. Please verify to complete the change.`,
+                });
+            }
+            onOpenChange(false);
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Update Failed", description: error.message });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent><DialogHeader><DialogTitle>Edit Your Information</DialogTitle></DialogHeader>
+                <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="name" render={({ field }) => (
+                        <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input {...field} disabled={!isEmailPasswordProvider} /></FormControl><FormDescription>{!isEmailPasswordProvider && "You cannot change your email when signed in with Google."}</FormDescription><FormMessage /></FormItem>
+                    )}/>
+                    <DialogFooter><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Save Changes</Button></DialogFooter>
+                </form></Form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// Change Password Dialog Component
+function ChangePasswordDialog({ open, onOpenChange, user, auth }: any) {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const form = useForm<z.infer<typeof changePasswordSchema>>({
+        resolver: zodResolver(changePasswordSchema),
+        defaultValues: { currentPassword: "", newPassword: "" },
+    });
+    
+    async function onSubmit(values: z.infer<typeof changePasswordSchema>) {
+        if (!user?.email || !auth) return;
+        setIsLoading(true);
+
+        try {
+            const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
+            await reauthenticateWithCredential(user, credential);
+            await updatePassword(user, values.newPassword);
+            toast({ title: "Success", description: "Your password has been changed." });
+            onOpenChange(false);
+            form.reset();
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Failed to Change Password", description: error.code === 'auth/wrong-password' ? 'Incorrect current password.' : error.message });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent><DialogHeader><DialogTitle>Change Your Password</DialogTitle></DialogHeader>
+                <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="currentPassword" render={({ field }) => (
+                        <FormItem><FormLabel>Current Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="newPassword" render={({ field }) => (
+                        <FormItem><FormLabel>New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <DialogFooter><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Change Password</Button></DialogFooter>
+                </form></Form>
+            </DialogContent>
+        </Dialog>
+    )
 }
