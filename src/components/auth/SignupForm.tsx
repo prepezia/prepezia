@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -145,15 +146,9 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   async function onGoogleSignIn() {
     if (!auth || !firestore) return;
 
-    // Trigger validation for the terms field and check its value
-    const termsAccepted = await form.trigger("terms") && form.getValues("terms");
-
-    if (!termsAccepted) {
-      toast({
-        variant: "destructive",
-        title: "Agreement Required",
-        description: "Please accept the Terms of Use & Privacy Policy before continuing.",
-      });
+    // Perform a synchronous check. If not accepted, trigger the validation UI and stop.
+    if (!form.getValues("terms")) {
+      form.trigger("terms");
       return;
     }
 
@@ -173,11 +168,14 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
 
         onSuccess(user);
     } catch (error: any) {
-        toast({
-            variant: "destructive",
-            title: "Google Sign-In Failed",
-            description: error.message,
-        });
+        // Do not show an error toast if the user simply closes the popup.
+        if (error.code !== 'auth/popup-closed-by-user') {
+            toast({
+                variant: "destructive",
+                title: "Google Sign-In Failed",
+                description: error.message,
+            });
+        }
     } finally {
         setIsGoogleLoading(false);
     }
@@ -318,3 +316,5 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
     </Form>
   );
 }
+
+    
