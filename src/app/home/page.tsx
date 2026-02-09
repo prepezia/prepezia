@@ -17,6 +17,10 @@ import { Logo } from "@/components/icons/Logo";
 import Autoplay from "embla-carousel-autoplay";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { useUser } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+import { sendEmailVerification } from "firebase/auth";
 
 
 type AttachedFile = {
@@ -192,6 +196,49 @@ const features = [
 
 
 export default function DashboardPage() {
+  const { user, loading } = useUser();
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    const showVerificationToast = () => {
+      if (loading || !user || user.emailVerified) return;
+
+      const isEmailPasswordUser = user.providerData.some(p => p.providerId === 'password');
+      if (!isEmailPasswordUser) return;
+      
+      const toastShown = sessionStorage.getItem('verificationToastShown');
+      if (toastShown) return;
+
+      const handleResend = async () => {
+        try {
+          await sendEmailVerification(user);
+          toast({
+            title: "Verification Email Sent",
+            description: "Please check your inbox to verify your email address.",
+          });
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "Error Sending Verification",
+            description: error.message,
+          });
+        }
+      };
+
+      toast({
+        title: "Verify Your Email",
+        description: "Please check your inbox to verify your email address.",
+        duration: 20000,
+        action: <ToastAction altText="Resend" onClick={handleResend}>Resend Email</ToastAction>,
+      });
+
+      sessionStorage.setItem('verificationToastShown', 'true');
+    };
+
+    showVerificationToast();
+  }, [user, loading, toast]);
+
+
   const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
   const carouselImage2 = PlaceHolderImages.find(p => p.id === 'carousel2')!;
   const carouselImage3 = PlaceHolderImages.find(p => p.id === 'carousel3')!;
@@ -224,7 +271,7 @@ export default function DashboardPage() {
       <HomeHeader />
       <div className="p-4 sm:p-6 lg:p-8 space-y-12">
           <div className="text-center space-y-4 pt-10">
-              <p className="text-xl text-muted-foreground">Hi, Firstname!</p>
+              <p className="text-xl text-muted-foreground">Hi, {user?.displayName?.split(' ')[0] || 'there'}!</p>
               <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
               <HomePageSearchForm />
           </div>

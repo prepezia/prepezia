@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -211,18 +210,6 @@ export function UserNav() {
                 <h3 className="font-semibold text-xl">{user?.displayName || "User"}</h3>
             </div>
           </SheetHeader>
-          
-          {user && isEmailPasswordProvider && !user.emailVerified && (
-              <div className="p-4 border-b">
-                  <Alert>
-                      <AlertTitle className="font-semibold">Verify Your Email</AlertTitle>
-                      <AlertDescription className="text-sm">
-                          Your email is not verified. Please check your inbox or resend the verification link.
-                          <Button variant="link" className="p-0 h-auto ml-1 text-primary" onClick={handleSendVerification}>Resend Email</Button>
-                      </AlertDescription>
-                  </Alert>
-              </div>
-          )}
 
           <div className="flex-grow overflow-y-auto p-4 space-y-3">
             <Accordion type="single" collapsible defaultValue="profile" className="w-full space-y-3">
@@ -241,13 +228,17 @@ export function UserNav() {
                                 <span className="font-semibold">Email:</span>
                                 <div className="text-muted-foreground flex items-center gap-2">
                                     <span>{user?.email || "N/A"}</span>
-                                    {user?.emailVerified ? (
-                                        <span className="text-xs text-green-600 font-medium">(Verified)</span>
+                                    {isEmailPasswordProvider ? (
+                                        user?.emailVerified ? (
+                                            <span className="text-xs text-green-600 font-medium">(Verified)</span>
+                                        ) : (
+                                            <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={handleSendVerification} disabled={isVerificationLoading}>
+                                                {isVerificationLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : null}
+                                                Verify
+                                            </Button>
+                                        )
                                     ) : (
-                                        <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={handleSendVerification} disabled={isVerificationLoading}>
-                                            {isVerificationLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : null}
-                                            Verify
-                                        </Button>
+                                        user?.emailVerified && <span className="text-xs text-green-600 font-medium">(Verified)</span>
                                     )}
                                 </div>
                             </div>
@@ -357,8 +348,6 @@ export function UserNav() {
             user={user}
             isEmailPasswordProvider={isEmailPasswordProvider}
             firestore={firestore}
-            onSendVerification={handleSendVerification}
-            isVerificationLoading={isVerificationLoading}
           />
       )}
 
@@ -414,7 +403,7 @@ export function UserNav() {
 }
 
 // Edit Profile Dialog Component
-function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore, onSendVerification, isVerificationLoading }: any) {
+function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore }: any) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
