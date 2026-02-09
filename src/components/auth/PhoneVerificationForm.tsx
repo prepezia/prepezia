@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -28,8 +29,8 @@ import {
   PhoneAuthProvider,
   linkWithCredential,
   User,
+  RecaptchaVerifier,
 } from "firebase/auth";
-import { sendPhoneOtp } from "@/lib/auth-utils";
 import { doc, updateDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { countryCodes, Country } from "@/lib/country-codes";
@@ -55,9 +56,12 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [debugMessages, setDebugMessages] = useState<string[]>([]);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
   const addDebugMessage = (message: string) => {
-    console.log(message); // Also log to console for dev tools
+    console.log(message);
     setDebugMessages(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
   };
 
@@ -71,6 +75,16 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
+  useEffect(() => {
+    // Cleanup reCAPTCHA when component unmounts
+    return () => {
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear();
+        setRecaptchaVerifier(null);
+      }
+    };
+  }, [recaptchaVerifier]);
+
   const phoneForm = useForm<z.infer<typeof phoneSchema>>({
     resolver: zodResolver(phoneSchema),
     defaultValues: { countryCode: "GH", phone: "" },
@@ -81,12 +95,69 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     defaultValues: { otp: "" },
   });
 
+  const initializeRecaptcha = async () => {
+    addDebugMessage("Initializing reCAPTCHA...");
+    
+    if (!auth) {
+      addDebugMessage("Error: Auth not available");
+      throw new Error("Authentication service not available");
+    }
+
+    // Clear existing reCAPTCHA if any
+    if (recaptchaVerifier) {
+      recaptchaVerifier.clear();
+      setRecaptchaVerifier(null);
+    }
+
+    // Wait a bit to ensure DOM is ready
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    if (!recaptchaContainerRef.current) {
+      addDebugMessage("Error: reCAPTCHA container not found");
+      throw new Error("reCAPTCHA container not found");
+    }
+
+    // Ensure container is empty
+    recaptchaContainerRef.current.innerHTML = '';
+
+    try {
+      const verifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
+        'size': 'invisible',
+        'callback': (response: any) => {
+          addDebugMessage("reCAPTCHA solved successfully");
+        },
+        'expired-callback': () => {
+          addDebugMessage("reCAPTCHA expired");
+          setRecaptchaVerifier(null);
+        },
+        'error-callback': (error: any) => {
+          addDebugMessage(`reCAPTCHA error: ${error}`);
+          setRecaptchaVerifier(null);
+        }
+      });
+
+      await verifier.verify();
+      setRecaptchaVerifier(verifier);
+      addDebugMessage("reCAPTCHA initialized successfully");
+      return verifier;
+    } catch (error: any) {
+      addDebugMessage(`reCAPTCHA initialization failed: ${error.message}`);
+      throw error;
+    }
+  };
+
   const handleSendOtp = async (values: z.infer<typeof phoneSchema>) => {
     if (!auth) {
       addDebugMessage("Auth service not available.");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Authentication service not available.",
+      });
       return;
     }
-    setDebugMessages([]); // Clear previous logs
+
+    setDebugMessages([]);
     addDebugMessage("1. Starting handleSendOtp...");
     setIsLoading(true);
 
@@ -104,45 +175,74 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       setFullPhoneNumber(phoneNumber);
       addDebugMessage(`4. Full phone number: ${phoneNumber}`);
       
-      addDebugMessage("5. Calling sendPhoneOtp utility...");
-      const confirmationResult = await sendPhoneOtp(auth, phoneNumber, addDebugMessage);
-      addDebugMessage("6. sendPhoneOtp call finished.");
+      addDebugMessage("5. Initializing reCAPTCHA...");
+      const verifier = await initializeRecaptcha();
       
-      setVerificationId(confirmationResult.verificationId);
-      addDebugMessage(`7. Verification ID received: ${confirmationResult.verificationId}`);
-      setStep("otp");
-      setResendCooldown(30);
-      toast({
-        title: "OTP Sent",
-        description: `A verification code has been sent to ${phoneNumber}.`,
+      addDebugMessage("6. Calling signInWithPhoneNumber...");
+      import('firebase/auth').then(({ signInWithPhoneNumber }) => {
+        signInWithPhoneNumber(auth, phoneNumber, verifier)
+          .then((confirmationResult) => {
+            addDebugMessage("7. OTP sent successfully");
+            setVerificationId(confirmationResult.verificationId);
+            addDebugMessage(`8. Verification ID: ${confirmationResult.verificationId}`);
+            setStep("otp");
+            setResendCooldown(30);
+            toast({
+              title: "OTP Sent",
+              description: `A verification code has been sent to ${phoneNumber}.`,
+            });
+            setIsLoading(false);
+          })
+          .catch((error) => {
+            addDebugMessage(`Error sending OTP: ${error.code} - ${error.message}`);
+            handleOtpError(error);
+            setIsLoading(false);
+          });
+      }).catch((error) => {
+        addDebugMessage(`Error importing signInWithPhoneNumber: ${error}`);
+        setIsLoading(false);
       });
-      addDebugMessage("8. OTP flow successfully initiated.");
 
     } catch (error: any) {
       console.error("OTP Send Error:", error);
       addDebugMessage(`Error caught: ${error.toString()}`);
-      let errorMessage = "Failed to send OTP. Please try again. Ensure your phone number is correct and the reCAPTCHA can load.";
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = "Invalid phone number format. Please check the number and try again.";
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = "Too many attempts. Please try again later.";
-      }
-      toast({
-        variant: "destructive",
-        title: "OTP Failed",
-        description: errorMessage,
-      });
-    } finally {
-      addDebugMessage("9. handleSendOtp finished.");
+      handleOtpError(error);
       setIsLoading(false);
     }
   };
 
+  const handleOtpError = (error: any) => {
+    let errorMessage = "Failed to send OTP. Please try again.";
+    
+    if (error.code === 'auth/invalid-phone-number') {
+      errorMessage = "Invalid phone number format. Please check the number and try again.";
+    } else if (error.code === 'auth/too-many-requests') {
+      errorMessage = "Too many attempts. Please try again later.";
+    } else if (error.code === 'auth/quota-exceeded') {
+      errorMessage = "SMS quota exceeded. Please try again later.";
+    } else if (error.code === 'auth/captcha-check-failed') {
+      errorMessage = "reCAPTCHA verification failed. Please refresh the page and try again.";
+    } else if (error.code === 'auth/app-deleted') {
+      errorMessage = "Authentication app deleted. Please refresh the page.";
+    }
+
+    toast({
+      variant: "destructive",
+      title: "OTP Failed",
+      description: errorMessage,
+    });
+  };
+
   async function onVerifyOtp(values: z.infer<typeof otpSchema>) {
     if (!verificationId || !user) {
-        toast({ variant: "destructive", title: "Verification session expired", description: "Please request a new code." });
-        return;
+      toast({ 
+        variant: "destructive", 
+        title: "Verification session expired", 
+        description: "Please request a new code." 
+      });
+      return;
     }
+    
     setIsLoading(true);
     try {
       const credential = PhoneAuthProvider.credential(verificationId, values.otp);
@@ -150,137 +250,189 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       
       if (firestore) {
         const userRef = doc(firestore, "users", user.uid);
-        await updateDoc(userRef, { phoneNumber: fullPhoneNumber });
+        await updateDoc(userRef, { 
+          phoneNumber: fullPhoneNumber,
+          phoneVerified: true 
+        });
       }
 
-      toast({ title: "Success!", description: "Your phone number is verified." });
+      toast({ 
+        title: "Success!", 
+        description: "Your phone number has been verified." 
+      });
+      
+      // Clean up reCAPTCHA
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear();
+        setRecaptchaVerifier(null);
+      }
+      
       router.push("/home");
 
     } catch (error: any) {
-       let errorMessage = "Failed to verify OTP. Please try again.";
-        if (error.code === 'auth/invalid-verification-code') {
-            errorMessage = "Invalid verification code.";
-        } else if (error.code === 'auth/code-expired') {
-            errorMessage = "Verification code has expired. Please request a new one.";
-        } else if (error.code === 'auth/credential-already-in-use') {
-            errorMessage = "This phone number is already in use by another account.";
-        }
-        toast({
-            variant: "destructive",
-            title: "Verification Failed",
-            description: errorMessage,
-        });
+      let errorMessage = "Failed to verify OTP. Please try again.";
+      if (error.code === 'auth/invalid-verification-code') {
+        errorMessage = "Invalid verification code. Please check and try again.";
+      } else if (error.code === 'auth/code-expired') {
+        errorMessage = "Verification code has expired. Please request a new one.";
+      } else if (error.code === 'auth/credential-already-in-use') {
+        errorMessage = "This phone number is already in use by another account.";
+      } else if (error.code === 'auth/invalid-credential') {
+        errorMessage = "Invalid verification. Please request a new code.";
+      }
+      
+      toast({
+        variant: "destructive",
+        title: "Verification Failed",
+        description: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }
   }
 
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    
+    try {
+      await phoneForm.handleSubmit(handleSendOtp)();
+    } catch (error) {
+      console.error("Resend OTP error:", error);
+    }
+  };
+
   return (
     <>
+      {/* Hidden reCAPTCHA container */}
+      <div 
+        ref={recaptchaContainerRef} 
+        id="recaptcha-container"
+        className="hidden"
+      />
+      
       {step === "otp" ? (
-         <Form {...otpForm}>
-         <div id="recaptcha-container"></div>
-         <form onSubmit={otpForm.handleSubmit(onVerifyOtp)} className="space-y-6">
-           <FormField
-             control={otpForm.control}
-             name="otp"
-             render={({ field }) => (
-               <FormItem>
-                 <FormLabel>Verification Code</FormLabel>
-                 <FormControl>
-                   <Input placeholder="123456" {...field} />
-                 </FormControl>
-                 <FormMessage />
-               </FormItem>
-             )}
-           />
-           <div className="flex flex-col gap-2">
-             <Button type="submit" className="w-full" disabled={isLoading}>
-               {isLoading && <Loader2 className="mr-2 animate-spin" />}
-               Verify & Finish
-             </Button>
-             <div className="mt-2 text-center">
-                 <p className="text-sm text-muted-foreground">
-                     Didn't receive the code?{" "}
-                     <button
-                         type="button"
-                         onClick={() => phoneForm.handleSubmit(handleSendOtp)()}
-                         disabled={resendCooldown > 0 || isLoading}
-                         className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                     >
-                         Resend {resendCooldown > 0 && `(${resendCooldown}s)`}
-                     </button>
-                 </p>
-             </div>
-             <Button type="button" variant="link" onClick={() => setStep('phone')}>
-                 Change phone number
-             </Button>
-           </div>
-         </form>
-       </Form>
-      ) : (
-        <Form {...phoneForm}>
-        <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-6">
-          <div className="flex gap-2">
+        <Form {...otpForm}>
+          <form onSubmit={otpForm.handleSubmit(onVerifyOtp)} className="space-y-6">
             <FormField
-              control={phoneForm.control}
-              name="countryCode"
+              control={otpForm.control}
+              name="otp"
               render={({ field }) => (
-                <FormItem className="w-1/3">
-                  <FormLabel>Code</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Code" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="max-h-[20rem]">
-                      {countryCodes.map((country: Country) => (
-                        <SelectItem key={country.code} value={country.code}>
-                          {country.code} ({country.dial_code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={phoneForm.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormLabel>Phone Number</FormLabel>
+                <FormItem>
+                  <FormLabel>Verification Code</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., 244123456" {...field} />
+                    <Input 
+                      placeholder="123456" 
+                      {...field} 
+                      maxLength={6}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
-          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 animate-spin" />}
-                  Send Verification Code
+                {isLoading && <Loader2 className="mr-2 animate-spin" />}
+                Verify & Finish
+              </Button>
+              <div className="mt-2 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Didn't receive the code?{" "}
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={resendCooldown > 0 || isLoading}
+                    className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Resend {resendCooldown > 0 && `(${resendCooldown}s)`}
+                  </button>
+                </p>
+              </div>
+              <Button 
+                type="button" 
+                variant="link" 
+                onClick={() => {
+                  setStep('phone');
+                  setVerificationId(null);
+                }}
+                disabled={isLoading}
+              >
+                Change phone number
+              </Button>
+            </div>
+          </form>
+        </Form>
+      ) : (
+        <Form {...phoneForm}>
+          <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-6">
+            <div className="flex gap-2">
+              <FormField
+                control={phoneForm.control}
+                name="countryCode"
+                render={({ field }) => (
+                  <FormItem className="w-1/3">
+                    <FormLabel>Country</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-[20rem]">
+                        {countryCodes.map((country: Country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            {country.code} ({country.dial_code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={phoneForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., 244123456" 
+                        {...field} 
+                        inputMode="tel"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 animate-spin" />}
+                Send Verification Code
               </Button>
               <Button type="button" variant="outline" onClick={onBack}>
-                  Back
+                Back
               </Button>
-          </div>
-        </form>
-      </Form>
+            </div>
+          </form>
+        </Form>
       )}
-       <div id="recaptcha-container"></div>
-       {debugMessages.length > 0 && (
-         <div className="mt-4 p-2 border bg-secondary/50 rounded-md">
-           <h4 className="text-sm font-bold mb-1">Debug Log:</h4>
-           <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-             {debugMessages.join('\n')}
-           </pre>
-         </div>
-       )}
+      
+      {debugMessages.length > 0 && (
+        <div className="mt-4 p-2 border bg-secondary/50 rounded-md">
+          <h4 className="text-sm font-bold mb-1">Debug Log:</h4>
+          <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+            {debugMessages.join('\n')}
+          </pre>
+        </div>
+      )}
     </>
   );
 }
+
+    
