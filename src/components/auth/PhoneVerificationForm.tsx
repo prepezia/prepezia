@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -56,12 +55,23 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const [fullPhoneNumber, setFullPhoneNumber] = useState("");
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [debugMessages, setDebugMessages] = useState<string[]>([]);
+  const [isResending, setIsResending] = useState(false);
+  
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
-  const addDebugMessage = (message: string) => {
-    console.log(message);
-    setDebugMessages(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
-  };
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        delete window.recaptchaVerifier;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -85,7 +95,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
 
   const handleSendOtp = async (values: z.infer<typeof phoneSchema>) => {
     if (!auth) {
-      addDebugMessage("Auth service not available.");
       toast({
         variant: "destructive",
         title: "Error",
@@ -94,40 +103,73 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       return;
     }
 
-    setDebugMessages([]);
-    addDebugMessage("Starting OTP process...");
     setIsLoading(true);
 
     try {
-      addDebugMessage("Formatting phone number...");
       const country = countryCodes.find(c => c.code === values.countryCode);
       if (!country) throw new Error("Invalid country selected.");
       
-      const localPhoneNumber = values.phone.startsWith('0') ? values.phone.substring(1) : values.phone;
+      // Clean phone number: remove all non-digit characters except leading +
+      const cleanedPhone = values.phone.replace(/\D/g, '');
+      
+      // Remove leading 0 if present (for Ghana numbers)
+      const localPhoneNumber = cleanedPhone.replace(/^0+/, '');
+      
+      // Ensure we have digits
+      if (!localPhoneNumber) {
+        throw new Error("Please enter a valid phone number.");
+      }
+      
       const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
-      addDebugMessage(`Full phone number: ${phoneNumber}`);
       
-      const confirmationResult = await sendPhoneOtp(auth, phoneNumber, addDebugMessage);
+      const confirmationResult = await sendPhoneOtp(auth, phoneNumber);
       
-      addDebugMessage("OTP process completed in utility.");
       setVerificationId(confirmationResult.verificationId);
       setStep("otp");
       setResendCooldown(30);
+      
       toast({
-        title: "OTP Sent",
-        description: `A verification code has been sent to ${phoneNumber}.`,
+        title: "OTP Sent Successfully!",
+        description: `A 6-digit verification code has been sent to ${phoneNumber}.`,
       });
 
     } catch (error: any) {
-      addDebugMessage(`Error caught in component: ${error.message}`);
       toast({
         variant: "destructive",
-        title: "OTP Failed",
+        title: "Failed to Send OTP",
         description: error.message || "An unexpected error occurred. Please try again.",
       });
+      
+      // Reset reCAPTCHA on error
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        delete window.recaptchaVerifier;
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isResending) return;
+    
+    setIsResending(true);
+    
+    try {
+      await phoneForm.handleSubmit(handleSendOtp)();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Resend Failed",
+        description: error.message || "Failed to resend OTP. Please try again.",
+      });
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -143,26 +185,44 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     
     setIsLoading(true);
     try {
-      const credential = PhoneAuthProvider.credential(verificationId, values.otp);
+      // Clean OTP: remove any spaces or non-digit characters
+      const cleanOtp = values.otp.replace(/\D/g, '');
+      
+      const credential = PhoneAuthProvider.credential(verificationId, cleanOtp);
       await linkWithCredential(user, credential);
       
       if (firestore) {
         const userRef = doc(firestore, "users", user.uid);
         await updateDoc(userRef, { 
           phoneNumber: fullPhoneNumber,
-          phoneVerified: true 
+          phoneVerified: true,
+          phoneVerifiedAt: new Date().toISOString()
         });
       }
 
+      // Clean up reCAPTCHA
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        delete window.recaptchaVerifier;
+      }
+      
       toast({ 
         title: "Success!", 
-        description: "Your phone number has been verified." 
+        description: "Your phone number has been verified successfully." 
       });
       
-      router.push("/home");
+      // Small delay before redirect
+      setTimeout(() => {
+        router.push("/home");
+      }, 1000);
 
     } catch (error: any) {
       let errorMessage = "Failed to verify OTP. Please try again.";
+      
       if (error.code === 'auth/invalid-verification-code') {
         errorMessage = "Invalid verification code. Please check and try again.";
       } else if (error.code === 'auth/code-expired') {
@@ -171,6 +231,14 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         errorMessage = "This phone number is already in use by another account.";
       } else if (error.code === 'auth/invalid-credential') {
         errorMessage = "Invalid verification. Please request a new code.";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Too many verification attempts. Please try again later.";
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = "This account has been disabled. Please contact support.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = "Phone verification is not enabled. Please contact support.";
+      } else if (error.message.includes('-39') || error.code === 'auth/invalid-app-credential') {
+        errorMessage = "Authentication configuration issue. Please try again or contact support.";
       }
       
       toast({
@@ -183,40 +251,42 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     }
   }
 
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0) return;
-    
-    try {
-      await phoneForm.handleSubmit(handleSendOtp)();
-    } catch (error) {
-      console.error("Resend OTP error:", error);
-    }
-  };
-
   return (
     <>
+      <div id="recaptcha-container" ref={recaptchaContainerRef} />
+      
       {step === "otp" ? (
         <Form {...otpForm}>
           <form onSubmit={otpForm.handleSubmit(onVerifyOtp)} className="space-y-6">
-            <FormField
-              control={otpForm.control}
-              name="otp"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Verification Code</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="123456" 
-                      {...field} 
-                      maxLength={6}
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Enter the 6-digit code sent to {fullPhoneNumber}
+              </p>
+              <FormField
+                control={otpForm.control}
+                name="otp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Verification Code</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter 6-digit code" 
+                        {...field}
+                        onChange={(e) => {
+                          // Only allow numbers
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          field.onChange(value);
+                        }}
+                        maxLength={6}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 animate-spin" />}
@@ -228,10 +298,10 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
                   <button
                     type="button"
                     onClick={handleResendOtp}
-                    disabled={resendCooldown > 0 || isLoading}
+                    disabled={resendCooldown > 0 || isLoading || isResending}
                     className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Resend {resendCooldown > 0 && `(${resendCooldown}s)`}
+                    {isResending ? "Resending..." : `Resend ${resendCooldown > 0 ? `(${resendCooldown}s)` : ''}`}
                   </button>
                 </p>
               </div>
@@ -241,8 +311,10 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
                 onClick={() => {
                   setStep('phone');
                   setVerificationId(null);
+                  setResendCooldown(0);
                 }}
-                disabled={isLoading}
+                disabled={isLoading || isResending}
+                className="mt-2"
               >
                 Change phone number
               </Button>
@@ -252,69 +324,80 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       ) : (
         <Form {...phoneForm}>
           <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-6">
-            <div className="flex gap-2">
-              <FormField
-                control={phoneForm.control}
-                name="countryCode"
-                render={({ field }) => (
-                  <FormItem className="w-1/3">
-                    <FormLabel>Country</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <FormField
+                  control={phoneForm.control}
+                  name="countryCode"
+                  render={({ field }) => (
+                    <FormItem className="w-1/3">
+                      <FormLabel>Country</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        disabled={isLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-[20rem]">
+                          {countryCodes.map((country: Country) => (
+                            <SelectItem key={country.code} value={country.code}>
+                              {country.code} ({country.dial_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={phoneForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Country" />
-                        </SelectTrigger>
+                        <Input 
+                          placeholder="e.g., 244123456" 
+                          {...field}
+                          onChange={(e) => {
+                            // Only allow numbers
+                            const value = e.target.value.replace(/\D/g, '');
+                            field.onChange(value);
+                          }}
+                          disabled={isLoading}
+                          inputMode="tel"
+                        />
                       </FormControl>
-                      <SelectContent className="max-h-[20rem]">
-                        {countryCodes.map((country: Country) => (
-                          <SelectItem key={country.code} value={country.code}>
-                            {country.code} ({country.dial_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={phoneForm.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormLabel>Phone Number</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g., 244123456" 
-                        {...field} 
-                        inputMode="tel"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Enter your phone number without the country code
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
             <div className="flex flex-col gap-2">
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 animate-spin" />}
                 Send Verification Code
               </Button>
-              <Button type="button" variant="outline" onClick={onBack}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onBack}
+                disabled={isLoading}
+              >
                 Back
               </Button>
             </div>
           </form>
         </Form>
-      )}
-      
-      {debugMessages.length > 0 && (
-        <div className="mt-4 p-2 border bg-secondary/50 rounded-md">
-          <h4 className="text-sm font-bold mb-1">Debug Log:</h4>
-          <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-            {debugMessages.join('\n')}
-          </pre>
-        </div>
       )}
     </>
   );
