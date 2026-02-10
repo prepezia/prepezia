@@ -180,6 +180,13 @@ export default function AdminLoginPage() {
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Sign In
                         </Button>
+                        <div className="text-center">
+                            <Button asChild variant="link" size="sm">
+                                <Link href="/auth/forgot-password">
+                                    Forgot password?
+                                </Link>
+                            </Button>
+                        </div>
                     </form>
                 </Form>
             ) : (
@@ -208,3 +215,6 @@ export default function AdminLoginPage() {
     </div>
   )
 }
+
+
+    
