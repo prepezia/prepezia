@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useRef } from "react"
@@ -22,12 +23,12 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useAuth } from "@/firebase"
+import { useAuth, useFirestore } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/icons/Logo"
 import Link from "next/link"
-import { ConfirmationResult, signInWithEmailAndPassword, User } from "firebase/auth"
+import { ConfirmationResult, signInWithEmailAndPassword, User, updateDoc, doc } from "firebase/auth"
 import { sendPhoneOtp } from "@/lib/auth-utils"
 
 const credentialsSchema = z.object({
@@ -44,6 +45,7 @@ const ADMIN_EMAIL = 'nextinnovationafrica@gmail.com';
 export default function AdminLoginPage() {
   const router = useRouter()
   const auth = useAuth()
+  const firestore = useFirestore();
   const { toast } = useToast()
   
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
@@ -64,7 +66,7 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleCredentialSubmit = async (values: z.infer<typeof credentialsSchema>) => {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     setIsLoading(true);
 
     try {
@@ -77,6 +79,11 @@ export default function AdminLoginPage() {
         await auth.signOut();
         throw new Error("Access Denied. This account does not have admin privileges.");
       }
+      
+      // Ensure isAdmin is set in firestore
+      const userRef = doc(firestore, "users", user.uid);
+      await updateDoc(userRef, { isAdmin: true });
+
 
       // Step 3: Check if the admin has a verified phone number
       if (!user.phoneNumber) {
@@ -152,7 +159,7 @@ export default function AdminLoginPage() {
           </CardHeader>
           <CardContent>
             {step === 'credentials' ? (
-                <Form {...credentialsForm}>
+                <Form {...credentialsForm} key="credentials-form">
                     <form onSubmit={credentialsForm.handleSubmit(handleCredentialSubmit)} className="space-y-6">
                         <FormField control={credentialsForm.control} name="email" render={({ field }) => (
                             <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="admin@example.com" {...field} /></FormControl><FormMessage /></FormItem>
@@ -175,7 +182,7 @@ export default function AdminLoginPage() {
                     </form>
                 </Form>
             ) : (
-                 <Form {...otpForm}>
+                 <Form {...otpForm} key="otp-form">
                     <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-6">
                          <FormField control={otpForm.control} name="otp" render={({ field }) => (
                             <FormItem>
