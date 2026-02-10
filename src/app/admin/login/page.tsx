@@ -28,7 +28,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/icons/Logo"
 import Link from "next/link"
-import { ConfirmationResult, signInWithEmailAndPassword, User, updateDoc, doc } from "firebase/auth"
+import { ConfirmationResult, signInWithEmailAndPassword, User } from "firebase/auth"
+import { doc, updateDoc } from "firebase/firestore"
 import { sendPhoneOtp } from "@/lib/auth-utils"
 
 const credentialsSchema = z.object({
