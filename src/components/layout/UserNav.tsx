@@ -23,6 +23,8 @@ import {
   Edit,
   KeyRound,
   Loader2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -59,7 +61,8 @@ import {
 } from "firebase/auth";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { useFirestore } from "@/firebase";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { Progress } from "../ui/progress";
 
 
 const TwitterIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -244,12 +247,12 @@ export function UserNav() {
                             <Separator />
                             <div className="pt-2">
                                 <span className="font-semibold">Name:</span>
-                                <span className="text-muted-foreground ml-2">{user?.displayName || "N/A"}</span>
+                                <span className="text-muted-foreground ml-2">{firestoreUser?.name || user?.displayName || "N/A"}</span>
                             </div>
                             <div>
                                 <span className="font-semibold">Email:</span>
                                 <div className="text-muted-foreground flex items-center gap-2">
-                                    <span>{user?.email || "N/A"}</span>
+                                    <span>{firestoreUser?.email || user?.email || "N/A"}</span>
                                     {isEmailPasswordProvider ? (
                                         firestoreUser?.emailVerified ? (
                                             <span className="text-xs text-green-600 font-medium">(Verified)</span>
@@ -370,6 +373,7 @@ export function UserNav() {
             user={user}
             isEmailPasswordProvider={isEmailPasswordProvider}
             firestore={firestore}
+            userDocRef={userDocRef}
           />
       )}
 
@@ -425,7 +429,7 @@ export function UserNav() {
 }
 
 // Edit Profile Dialog Component
-function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore }: any) {
+function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore, userDocRef }: any) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
@@ -447,14 +451,13 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
     }, [user, form]);
 
     async function onSubmit(values: z.infer<typeof editProfileSchema>) {
-        if (!user || !firestore) return;
+        if (!user || !firestore || !userDocRef) return;
         setIsLoading(true);
         
         try {
             // Update display name if it has changed
             if (values.name !== user.displayName) {
                 await updateProfile(user, { displayName: values.name });
-                const userDocRef = doc(firestore, "users", user.uid);
                 await updateDoc(userDocRef, { name: values.name });
                 toast({ title: "Success", description: "Your name has been updated." });
             }
@@ -462,9 +465,16 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
             // Update email if it has changed (and is allowed)
             if (isEmailPasswordProvider && values.email !== user.email) {
                 await verifyBeforeUpdateEmail(user, values.email);
+                 // Optimistically update Firestore, will be reverted if user doesn't verify
+                await updateDoc(userDocRef, { 
+                    email: values.email,
+                    emailVerified: false,
+                    emailVerifiedAt: deleteField()
+                });
                 toast({
                     title: "Verification Required",
-                    description: `A verification link has been sent to ${values.email}. Please verify to complete the change.`,
+                    description: `A verification link has been sent to ${values.email}. Please check your inbox to complete the change.`,
+                    duration: 10000,
                 });
             }
             onOpenChange(false);
@@ -496,12 +506,38 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
 function ChangePasswordDialog({ open, onOpenChange, user, auth }: any) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
 
     const form = useForm<z.infer<typeof changePasswordSchema>>({
         resolver: zodResolver(changePasswordSchema),
         defaultValues: { currentPassword: "", newPassword: "" },
     });
     
+    const newPassword = form.watch("newPassword");
+    
+    const getStrengthProps = (password: string) => {
+        let score = 0;
+        if (!password) return { value: 0, text: '', className: '' };
+
+        if (password.length >= 8) score++;
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+        if (/[0-9]/.test(password)) score++;
+        if (/[^a-zA-Z0-9]/.test(password)) score++;
+
+        const value = (score / 4) * 100;
+        let text = 'Weak';
+        let className = 'bg-red-500';
+
+        if (score === 2) { text = 'Medium'; className = 'bg-yellow-500'; } 
+        else if (score === 3) { text = 'Good'; className = 'bg-blue-500'; } 
+        else if (score === 4) { text = 'Strong'; className = 'bg-green-500'; }
+        
+        return { value, text, className };
+    };
+
+    const strengthProps = getStrengthProps(newPassword || "");
+
     async function onSubmit(values: z.infer<typeof changePasswordSchema>) {
         if (!user?.email || !auth) return;
         setIsLoading(true);
@@ -525,10 +561,32 @@ function ChangePasswordDialog({ open, onOpenChange, user, auth }: any) {
             <DialogContent><DialogHeader><DialogTitle>Change Your Password</DialogTitle></DialogHeader>
                 <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <FormField control={form.control} name="currentPassword" render={({ field }) => (
-                        <FormItem><FormLabel>Current Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Current Password</FormLabel>
+                            <div className="relative">
+                                <FormControl><Input type={showCurrentPassword ? "text" : "password"} {...field} /></FormControl>
+                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                            <FormMessage />
+                        </FormItem>
                     )}/>
                     <FormField control={form.control} name="newPassword" render={({ field }) => (
-                        <FormItem><FormLabel>New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>New Password</FormLabel>
+                            <div className="relative">
+                                <FormControl><Input type={showNewPassword ? "text" : "password"} {...field} /></FormControl>
+                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPassword(!showNewPassword)}>
+                                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                            <FormMessage />
+                             {newPassword && (
+                                <div className="space-y-2 pt-1">
+                                    <Progress value={strengthProps.value} className="h-1.5" indicatorClassName={strengthProps.className} />
+                                    <p className="text-xs text-muted-foreground">{strengthProps.text}</p>
+                                </div>
+                            )}
+                        </FormItem>
                     )}/>
                     <DialogFooter><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Change Password</Button></DialogFooter>
                 </form></Form>
@@ -536,3 +594,5 @@ function ChangePasswordDialog({ open, onOpenChange, user, auth }: any) {
         </Dialog>
     )
 }
+
+    
