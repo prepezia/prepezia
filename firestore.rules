@@ -1,15 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read and write their own profile
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    function isAppAdmin() {
+      // Check if the requesting user's document has the isAdmin flag set to true.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Legal content can be read and written only by authenticated users.
-    // The admin panel should be protected by application logic.
+    match /users/{userId} {
+      // An admin can read any user document. A regular user can only read their own.
+      allow get: if request.auth != null && (request.auth.uid == userId || isAppAdmin());
+      // An admin can list all users.
+      allow list: if request.auth != null && isAppAdmin();
+      // Any authenticated user can create or update their own document.
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Legal content can be read by any authenticated user.
+    // Legal content can only be written by an admin.
     match /legal_content/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAppAdmin();
     }
   }
 }
