@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
@@ -16,11 +16,13 @@ import {
   ArrowLeft,
   MessageSquareWarning,
   Menu,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/Logo';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUser } from '@/firebase';
 
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -94,6 +96,26 @@ export default function AdminLayout({
 }) {
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
     const isMobile = useIsMobile();
+    const { user, loading, isAdmin } = useUser();
+    const router = useRouter();
+
+    React.useEffect(() => {
+        if (loading) return; // Wait until loading is false
+
+        if (!user) {
+            router.replace('/auth/login');
+        } else if (!isAdmin) {
+            router.replace('/home');
+        }
+    }, [user, loading, isAdmin, router]);
+    
+    if (loading || !isAdmin) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -113,7 +135,7 @@ export default function AdminLayout({
             >
               <div 
                 className={cn(
-                    "fixed inset-y-0 left-0 h-full w-72 bg-card z-50 flex flex-col transition-transform transform", 
+                    "fixed inset-y-0 left-0 h-full w-full max-w-sm flex-col bg-card z-50 flex transition-transform transform", 
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 )} 
                 onClick={(e) => e.stopPropagation()}
