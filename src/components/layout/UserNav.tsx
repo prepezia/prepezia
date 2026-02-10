@@ -251,7 +251,7 @@ export function UserNav() {
                                 <div className="text-muted-foreground flex items-center gap-2">
                                     <span>{user?.email || "N/A"}</span>
                                     {isEmailPasswordProvider ? (
-                                        user?.emailVerified ? (
+                                        firestoreUser?.emailVerified ? (
                                             <span className="text-xs text-green-600 font-medium">(Verified)</span>
                                         ) : (
                                             <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={handleSendVerification} disabled={isVerificationLoading}>
