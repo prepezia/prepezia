@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -188,7 +187,7 @@ export function UserNav() {
       toast({
         variant: "destructive",
         title: "Error Sending Verification",
-        description: "Could not send verification email. Please try again later.",
+        description: error.message,
       });
     } finally {
         setIsVerificationLoading(false);
@@ -223,7 +222,7 @@ export function UserNav() {
             </Avatar>
           </Button>
         </SheetTrigger>
-        <SheetContent className="p-0 flex flex-col w-[80%]" side="right">
+        <SheetContent className="p-0 flex flex-col w-full" side="right">
           <SheetHeader className="p-0">
             <SheetTitle className="sr-only">User Settings</SheetTitle>
             <SheetDescription className="sr-only">Manage your profile, settings, and more.</SheetDescription>
@@ -594,5 +593,3 @@ function ChangePasswordDialog({ open, onOpenChange, user, auth }: any) {
         </Dialog>
     )
 }
-
-    
