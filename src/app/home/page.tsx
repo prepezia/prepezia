@@ -207,21 +207,18 @@ export default function DashboardPage() {
     const handleResend = async () => {
       if (!user) return;
       try {
-        console.log("Toast Resend: Attempting to send verification email to:", user.email);
         await sendEmailVerification(user);
         toast({
             title: "Verification Email Sent",
             description: `Please check the inbox (and spam folder) for ${user.email}.`,
         });
       } catch (error: any) {
-        // --- DEBUG CODE ADDED ---
-        console.error("Toast Resend: Full verification error:", error);
+        console.error("Resend verification error:", error);
         toast({
             variant: "destructive",
             title: "Error Sending Verification",
-            description: `Could not send email. Please try again later. Code: ${error.code || 'UNKNOWN'}`,
+            description: "Could not send verification email. Please try again later.",
         });
-        // --- END DEBUG CODE ---
       }
     };
 

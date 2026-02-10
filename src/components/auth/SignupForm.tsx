@@ -128,16 +128,11 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
         });
         
         try {
-            console.log("Attempting to send initial verification email to:", user.email);
             await sendEmailVerification(user);
         } catch (verificationError: any) {
             console.error("Initial verification email failed:", verificationError);
-            toast({
-                variant: "destructive",
-                title: "Could Not Send Verification Email",
-                description: `Your account was created, but we failed to send a verification email. You can request another one from your account page. Error: ${verificationError.code}`,
-                duration: 15000,
-            });
+            // Non-critical error, so we don't block the UI. 
+            // The user will be prompted on the home page.
         }
 
         onSuccess(user);
