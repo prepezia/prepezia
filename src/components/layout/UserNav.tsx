@@ -154,16 +154,18 @@ export function UserNav() {
     if (!user) return;
     setIsVerificationLoading(true);
     try {
+      console.log("Re-sending verification email to:", user.email);
       await sendEmailVerification(user);
       toast({
         title: "Verification Email Sent",
-        description: "Please check your inbox to verify your email address.",
+        description: `Please check the inbox (and spam folder) for ${user.email}.`,
       });
     } catch (error: any) {
+      console.error("Full verification resend error:", error);
       toast({
         variant: "destructive",
         title: "Error Sending Verification",
-        description: error.message,
+        description: `Could not send email. Please try again later. Code: ${error.code || 'UNKNOWN'}`,
       });
     } finally {
         setIsVerificationLoading(false);

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -28,13 +27,13 @@ import {
   User,
   setPersistence,
   browserLocalPersistence,
-  browserSessionPersistence
+  browserSessionPersistence,
+  sendEmailVerification
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Progress } from "../ui/progress";
 import { cn } from "@/lib/utils";
-
 
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required."),
@@ -47,7 +46,6 @@ const formSchema = z.object({
   }),
 });
 
-
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
       <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
@@ -56,7 +54,6 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
       <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.022,35.617,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
     </svg>
 );
-
 
 export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   const auth = useAuth();
@@ -120,7 +117,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         const user = userCredential.user;
         const fullName = `${values.firstName} ${values.lastName}`.trim();
-
+        
         await updateProfile(user, { displayName: fullName });
 
         const userRef = doc(firestore, "users", user.uid);
@@ -129,6 +126,19 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
             email: values.email,
             createdAt: serverTimestamp()
         });
+        
+        try {
+            console.log("Attempting to send initial verification email to:", user.email);
+            await sendEmailVerification(user);
+        } catch (verificationError: any) {
+            console.error("Initial verification email failed:", verificationError);
+            toast({
+                variant: "destructive",
+                title: "Could Not Send Verification Email",
+                description: `Your account was created, but we failed to send a verification email. You can request another one from your account page. Error: ${verificationError.code}`,
+                duration: 15000,
+            });
+        }
 
         onSuccess(user);
 
@@ -146,7 +156,6 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   async function onGoogleSignIn() {
     if (!auth || !firestore) return;
 
-    // Perform a synchronous check. If not accepted, trigger the validation UI and stop.
     if (!form.getValues("terms")) {
       form.trigger("terms");
       return;
@@ -163,12 +172,12 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
         await setDoc(userRef, {
             name: user.displayName,
             email: user.email,
+            emailVerified: user.emailVerified,
             createdAt: serverTimestamp()
         }, { merge: true });
 
         onSuccess(user);
     } catch (error: any) {
-        // Do not show an error toast if the user simply closes the popup.
         if (error.code !== 'auth/popup-closed-by-user') {
             toast({
                 variant: "destructive",
@@ -307,7 +316,6 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
             )}
         />
 
-
         <Button type="submit" className="w-full font-bold" disabled={isLoading || isGoogleLoading}>
           {isLoading && <Loader2 className="mr-2 animate-spin"/>}
           Create Account & Continue
@@ -316,5 +324,3 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
     </Form>
   );
 }
-
-    

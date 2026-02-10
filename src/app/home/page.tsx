@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import * as React from "react"
@@ -21,7 +19,6 @@ import { useUser } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { sendEmailVerification } from "firebase/auth";
-
 
 type AttachedFile = {
     name: string;
@@ -116,7 +113,7 @@ function HomePageSearchForm() {
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button type="button" size="icon" variant="secondary" className="rounded-full h-10 w-10">
-                                <Plus className="h-5 w-5" />
+                                <Plus className="h-5 h-5" />
                                 <span className="sr-only">More search options</span>
                             </Button>
                         </PopoverTrigger>
@@ -194,50 +191,49 @@ const features = [
     }
 ];
 
-
 export default function DashboardPage() {
   const { user, loading } = useUser();
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const showVerificationToast = () => {
-      if (loading || !user || user.emailVerified) return;
+    if (loading || !user) return;
 
-      const isEmailPasswordUser = user.providerData.some(p => p.providerId === 'password');
-      if (!isEmailPasswordUser) return;
-      
-      const toastShown = sessionStorage.getItem('verificationToastShown');
-      if (toastShown) return;
+    const isEmailPasswordUser = user.providerData.some(p => p.providerId === 'password');
+    if (!isEmailPasswordUser || user.emailVerified) return;
 
-      const handleResend = async () => {
-        try {
-          await sendEmailVerification(user);
-          toast({
+    const verificationToastShown = sessionStorage.getItem('verificationToastShown');
+    if (verificationToastShown) return;
+
+    const handleResend = async () => {
+      if (!user) return;
+      try {
+        console.log("Toast Resend: Attempting to send verification email to:", user.email);
+        await sendEmailVerification(user);
+        toast({
             title: "Verification Email Sent",
-            description: "Please check your inbox to verify your email address.",
-          });
-        } catch (error: any) {
-          toast({
+            description: `Please check the inbox (and spam folder) for ${user.email}.`,
+        });
+      } catch (error: any) {
+        // --- DEBUG CODE ADDED ---
+        console.error("Toast Resend: Full verification error:", error);
+        toast({
             variant: "destructive",
             title: "Error Sending Verification",
-            description: error.message,
-          });
-        }
-      };
-
-      toast({
-        title: "Verify Your Email",
-        description: "Please check your inbox to verify your email address.",
-        duration: 20000,
-        action: <ToastAction altText="Resend" onClick={handleResend}>Resend Email</ToastAction>,
-      });
-
-      sessionStorage.setItem('verificationToastShown', 'true');
+            description: `Could not send email. Please try again later. Code: ${error.code || 'UNKNOWN'}`,
+        });
+        // --- END DEBUG CODE ---
+      }
     };
 
-    showVerificationToast();
-  }, [user, loading, toast]);
+    toast({
+      title: "Verify Your Email Address",
+      description: "Please check your inbox to verify your email. This unlocks all features.",
+      duration: 20000,
+      action: <ToastAction altText="Resend" onClick={handleResend}>Resend Email</ToastAction>,
+    });
 
+    sessionStorage.setItem('verificationToastShown', 'true');
+  }, [user, loading, toast]);
 
   const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
   const carouselImage2 = PlaceHolderImages.find(p => p.id === 'carousel2')!;
