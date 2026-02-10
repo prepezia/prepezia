@@ -23,6 +23,24 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the user account was created."
+        },
+        "emailVerified": {
+            "type": "boolean",
+            "description": "Whether the user's email has been verified."
+        },
+        "emailVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the email was verified."
+        },
+        "phoneVerified": {
+            "type": "boolean",
+            "description": "Whether the user's phone has been verified."
+        },
+        "phoneVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the phone was verified."
         }
       },
       "required": ["name", "email", "createdAt"]

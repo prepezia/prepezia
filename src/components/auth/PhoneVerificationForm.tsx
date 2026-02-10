@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -30,7 +31,7 @@ import {
   User,
   type ConfirmationResult
 } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { countryCodes, Country } from "@/lib/country-codes";
 import { sendPhoneOtp } from "@/lib/auth-utils";
@@ -109,13 +110,9 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       const country = countryCodes.find(c => c.code === values.countryCode);
       if (!country) throw new Error("Invalid country selected.");
       
-      // Clean phone number: remove all non-digit characters except leading +
       const cleanedPhone = values.phone.replace(/\D/g, '');
-      
-      // Remove leading 0 if present (for Ghana numbers)
       const localPhoneNumber = cleanedPhone.replace(/^0+/, '');
       
-      // Ensure we have digits
       if (!localPhoneNumber) {
         throw new Error("Please enter a valid phone number.");
       }
@@ -141,7 +138,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         description: error.message || "An unexpected error occurred. Please try again.",
       });
       
-      // Reset reCAPTCHA on error
       if (window.recaptchaVerifier) {
         try {
           window.recaptchaVerifier.clear();
@@ -185,7 +181,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     
     setIsLoading(true);
     try {
-      // Clean OTP: remove any spaces or non-digit characters
       const cleanOtp = values.otp.replace(/\D/g, '');
       
       const credential = PhoneAuthProvider.credential(verificationId, cleanOtp);
@@ -196,11 +191,10 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         await updateDoc(userRef, { 
           phoneNumber: fullPhoneNumber,
           phoneVerified: true,
-          phoneVerifiedAt: new Date().toISOString()
+          phoneVerifiedAt: serverTimestamp()
         });
       }
 
-      // Clean up reCAPTCHA
       if (window.recaptchaVerifier) {
         try {
           window.recaptchaVerifier.clear();
@@ -215,7 +209,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         description: "Your phone number has been verified successfully." 
       });
       
-      // Small delay before redirect
       setTimeout(() => {
         router.push("/home");
       }, 1000);
@@ -233,12 +226,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
         errorMessage = "Invalid verification. Please request a new code.";
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = "Too many verification attempts. Please try again later.";
-      } else if (error.code === 'auth/user-disabled') {
-        errorMessage = "This account has been disabled. Please contact support.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = "Phone verification is not enabled. Please contact support.";
-      } else if (error.message.includes('-39') || error.code === 'auth/invalid-app-credential') {
-        errorMessage = "Authentication configuration issue. Please try again or contact support.";
       }
       
       toast({
@@ -273,7 +260,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
                         placeholder="Enter 6-digit code" 
                         {...field}
                         onChange={(e) => {
-                          // Only allow numbers
                           const value = e.target.value.replace(/\D/g, '').slice(0, 6);
                           field.onChange(value);
                         }}
@@ -365,7 +351,6 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
                           placeholder="e.g., 244123456" 
                           {...field}
                           onChange={(e) => {
-                            // Only allow numbers
                             const value = e.target.value.replace(/\D/g, '');
                             field.onChange(value);
                           }}

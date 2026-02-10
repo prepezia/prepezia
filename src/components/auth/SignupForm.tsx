@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -124,15 +125,14 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
         await setDoc(userRef, {
             name: fullName,
             email: values.email,
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            emailVerified: user.emailVerified,
         });
         
         try {
             await sendEmailVerification(user);
         } catch (verificationError: any) {
             console.error("Initial verification email failed:", verificationError);
-            // Non-critical error, so we don't block the UI. 
-            // The user will be prompted on the home page.
         }
 
         onSuccess(user);
@@ -149,12 +149,12 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
   }
   
   async function onGoogleSignIn() {
-    if (!auth || !firestore) return;
-
     if (!form.getValues("terms")) {
       form.trigger("terms");
       return;
     }
+
+    if (!auth || !firestore) return;
 
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();

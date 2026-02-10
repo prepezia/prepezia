@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -38,7 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,7 +47,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Textarea } from "../ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
-import { useUser, useAuth } from "@/firebase";
+import { useUser, useAuth, useDoc } from "@/firebase";
 import {
   signOut,
   sendEmailVerification,
@@ -58,7 +59,7 @@ import {
 } from "firebase/auth";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { useFirestore } from "@/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 
 const TwitterIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -119,6 +120,26 @@ export function UserNav() {
   const [isVerificationLoading, setIsVerificationLoading] = useState(false);
 
   const isEmailPasswordProvider = user ? user.providerData.some(p => p.providerId === 'password') : false;
+
+  const userDocRef = useMemo(() => {
+    if (user && firestore) {
+      return doc(firestore, 'users', user.uid);
+    }
+    return null;
+  }, [user, firestore]);
+
+  const { data: firestoreUser } = useDoc(userDocRef);
+
+  useEffect(() => {
+    if (user?.emailVerified && firestoreUser && firestoreUser.emailVerified !== true && userDocRef) {
+      updateDoc(userDocRef, {
+        emailVerified: true,
+        emailVerifiedAt: serverTimestamp(),
+      }).catch(err => {
+        console.error("Failed to update email verification status in Firestore:", err);
+      });
+    }
+  }, [user, firestoreUser, userDocRef]);
 
 
   const feedbackForm = useForm<z.infer<typeof feedbackSchema>>({
