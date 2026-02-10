@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useRef } from "react"
@@ -25,23 +24,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/icons/Logo"
 import Link from "next/link"
-import { ConfirmationResult } from "firebase/auth"
+import { ConfirmationResult, signInWithEmailAndPassword, User } from "firebase/auth"
 import { sendPhoneOtp } from "@/lib/auth-utils"
-import { countryCodes, Country } from "@/lib/country-codes"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-  } from "@/components/ui/select";
 
-const phoneSchema = z.object({
-    countryCode: z.string().min(1, "Country code is required."),
-    phone: z.string().min(5, "Phone number is required."),
+const credentialsSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email." }),
+  password: z.string().min(1, "Password is required."),
 });
 
 const otpSchema = z.object({
@@ -55,14 +46,14 @@ export default function AdminLoginPage() {
   const auth = useAuth()
   const { toast } = useToast()
   
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [fullPhoneNumber, setFullPhoneNumber] = useState("");
-  
-  const phoneForm = useForm<z.infer<typeof phoneSchema>>({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: { countryCode: "GH", phone: "" },
+  const [userCache, setUserCache] = useState<User | null>(null);
+
+  const credentialsForm = useForm<z.infer<typeof credentialsSchema>>({
+    resolver: zodResolver(credentialsSchema),
+    defaultValues: { email: "", password: "" },
   });
 
   const otpForm = useForm<z.infer<typeof otpSchema>>({
@@ -70,56 +61,60 @@ export default function AdminLoginPage() {
     defaultValues: { otp: "" },
   });
 
-  const handleSendOtp = async (values: z.infer<typeof phoneSchema>) => {
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleCredentialSubmit = async (values: z.infer<typeof credentialsSchema>) => {
     if (!auth) return;
     setIsLoading(true);
 
     try {
-        const country = countryCodes.find(c => c.code === values.countryCode);
-        if (!country) throw new Error("Invalid country selected.");
-        
-        const cleanedPhone = values.phone.replace(/\D/g, '');
-        const localPhoneNumber = cleanedPhone.replace(/^0+/, '');
-        const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
-        setFullPhoneNumber(phoneNumber);
-        
-        const result = await sendPhoneOtp(auth, phoneNumber);
-        
-        setConfirmationResult(result);
-        setStep("otp");
-        toast({
-            title: "Code Sent",
-            description: `A 6-digit verification code has been sent to ${phoneNumber}.`,
-        });
+      // Step 1: Authenticate with email and password
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Step 2: Check if the user is the designated admin
+      if (user.email !== ADMIN_EMAIL) {
+        await auth.signOut();
+        throw new Error("Access Denied. This account does not have admin privileges.");
+      }
+
+      // Step 3: Check if the admin has a verified phone number
+      if (!user.phoneNumber) {
+        await auth.signOut();
+        throw new Error("Admin account is not configured for OTP. Please contact support.");
+      }
+
+      // Step 4: Send OTP to the admin's phone number
+      const otpConfirmation = await sendPhoneOtp(auth, user.phoneNumber);
+      
+      setUserCache(user); // Cache user object for the next step
+      setConfirmationResult(otpConfirmation);
+      setStep("otp");
+      toast({
+          title: "OTP Sent",
+          description: `A verification code has been sent to the registered phone number.`,
+      });
 
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Failed to Send Code", description: error.message });
+        toast({ variant: "destructive", title: "Login Failed", description: error.message });
     } finally {
         setIsLoading(false);
     }
   };
 
   const handleVerifyOtp = async (values: z.infer<typeof otpSchema>) => {
-    if (!confirmationResult) {
+    if (!confirmationResult || !userCache) {
         toast({ variant: "destructive", title: "Verification session expired." });
         return;
     }
     setIsLoading(true);
     try {
-        const result = await confirmationResult.confirm(values.otp);
-        const user = result.user;
+        // Confirm the OTP. This re-authenticates and completes the sign-in.
+        await confirmationResult.confirm(values.otp);
+        
+        // The user is now fully authenticated.
+        router.push("/admin");
 
-        if (user.email === ADMIN_EMAIL) {
-            router.push("/admin");
-        } else {
-            await auth?.signOut();
-            toast({
-                variant: "destructive",
-                title: "Access Denied",
-                description: "This phone number is not associated with an admin account.",
-            });
-            setStep("phone");
-        }
     } catch (error: any) {
         toast({
             variant: "destructive",
@@ -130,7 +125,6 @@ export default function AdminLoginPage() {
         setIsLoading(false);
     }
   };
-
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-secondary/50 p-4">
@@ -150,36 +144,33 @@ export default function AdminLoginPage() {
               Admin Panel Login
             </CardTitle>
             <CardDescription>
-                {step === 'phone' 
-                    ? "Enter the phone number associated with your admin account." 
-                    : `Enter the code sent to ${fullPhoneNumber}.`
+                {step === 'credentials' 
+                    ? "Enter your admin credentials." 
+                    : `Enter the code sent to the registered phone number for ${userCache?.email}.`
                 }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {step === 'phone' ? (
-                <Form {...phoneForm}>
-                    <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-6">
-                        <div className="flex gap-2">
-                            <FormField control={phoneForm.control} name="countryCode" render={({ field }) => (
-                                <FormItem className="w-1/3"><FormLabel>Country</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Country" /></SelectTrigger></FormControl>
-                                    <SelectContent className="max-h-[20rem]">{countryCodes.map((c: Country) => (<SelectItem key={c.code} value={c.code}>{c.code} ({c.dial_code})</SelectItem>))}</SelectContent>
-                                </Select>
+            {step === 'credentials' ? (
+                <Form {...credentialsForm}>
+                    <form onSubmit={credentialsForm.handleSubmit(handleCredentialSubmit)} className="space-y-6">
+                        <FormField control={credentialsForm.control} name="email" render={({ field }) => (
+                            <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="admin@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={credentialsForm.control} name="password" render={({ field }) => (
+                           <FormItem><FormLabel>Password</FormLabel>
+                                <div className="relative">
+                                    <FormControl><Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} /></FormControl>
+                                    <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                </div>
                                 <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <FormField control={phoneForm.control} name="phone" render={({ field }) => (
-                                <FormItem className="flex-1"><FormLabel>Phone Number</FormLabel>
-                                <FormControl><Input placeholder="e.g., 244123456" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} disabled={isLoading} inputMode="tel"/></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}/>
-                        </div>
+                           </FormItem>
+                        )}/>
                         <Button type="submit" className="w-full" disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Send Verification Code
+                            Sign In
                         </Button>
                     </form>
                 </Form>
@@ -198,7 +189,7 @@ export default function AdminLoginPage() {
                                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Verify & Login
                             </Button>
-                            <Button type="button" variant="link" onClick={() => setStep('phone')} disabled={isLoading}>Change phone number</Button>
+                            <Button type="button" variant="link" onClick={() => { setStep('credentials'); setUserCache(null); }} disabled={isLoading}>Use different credentials</Button>
                         </div>
                     </form>
                 </Form>

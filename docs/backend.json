@@ -41,6 +41,10 @@
             "type": "string",
             "format": "date-time",
             "description": "The timestamp when the phone was verified."
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Whether the user has admin privileges."
         }
       },
       "required": ["name", "email", "createdAt"]
