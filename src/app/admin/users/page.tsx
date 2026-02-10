@@ -1,5 +1,9 @@
 "use client";
 
+import { useMemo } from 'react';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection, DocumentData } from 'firebase/firestore';
+import { format } from 'date-fns';
 import {
   Card,
   CardHeader,
@@ -22,19 +26,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Trash2, UserCog } from "lucide-react";
+import { MoreHorizontal, Trash2, UserCog, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-// Mock data
-const users = [
-    { id: "usr_1", name: "Ama Serwaa", email: "ama.s@example.com", role: "Student", joined: "2024-07-21" },
-    { id: "usr_2", name: "Kofi Mensah", email: "k.mensah@example.com", role: "Student", joined: "2024-07-20" },
-    { id: "usr_3", name: "Admin User", email: "admin@learnwithtemi.com", role: "Admin", joined: "2024-05-10" },
-    { id: "usr_4", name: "Adwoa Agyapong", email: "adwoa.a@example.com", role: "Student", joined: "2024-07-19" },
-    { id: "usr_5", name: "Yaw Boateng", email: "yaw.b@example.com", role: "Student", joined: "2024-07-18" },
-];
+interface UserProfile extends DocumentData {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: { seconds: number; nanoseconds: number };
+  isAdmin?: boolean;
+}
 
 export default function AdminUsersPage() {
+  const firestore = useFirestore();
+  const usersRef = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const { data: users, loading } = useCollection<UserProfile>(usersRef);
+
   return (
     <Card>
       <CardHeader>
@@ -42,44 +49,54 @@ export default function AdminUsersPage() {
         <CardDescription>View and manage all registered users.</CardDescription>
       </CardHeader>
       <CardContent>
-      <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="w-[50px] text-right">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {users.map((user) => (
-                    <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                        <TableCell>
-                            <Badge variant={user.role === 'Admin' ? 'destructive' : 'secondary'}>
-                                {user.role}
-                            </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{user.joined}</TableCell>
-                        <TableCell className="text-right">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem><UserCog className="mr-2 h-4 w-4"/> Edit role</DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete user</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
+        {loading ? (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+        ) : !users || users.length === 0 ? (
+            <p className="text-center text-muted-foreground py-12">No users found.</p>
+        ) : (
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead className="w-[50px] text-right">Actions</TableHead>
                     </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                </TableHeader>
+                <TableBody>
+                    {users.map((user) => (
+                        <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.name}</TableCell>
+                            <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                            <TableCell>
+                                <Badge variant={user.isAdmin ? 'destructive' : 'secondary'}>
+                                    {user.isAdmin ? 'Admin' : 'Student'}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                                {user.createdAt ? format(new Date(user.createdAt.seconds * 1000), 'PPP') : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem><UserCog className="mr-2 h-4 w-4"/> Edit role</DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete user</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        )}
       </CardContent>
     </Card>
   );
