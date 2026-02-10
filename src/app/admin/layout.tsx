@@ -78,6 +78,13 @@ function AdminSidebar() {
 }
 
 function AdminHeader({ onMenuClick }: { onMenuClick: () => void }) {
+    const pathname = usePathname();
+    const isLoginPage = pathname === '/admin/login';
+    
+    if (isLoginPage) {
+      return null;
+    }
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
@@ -98,24 +105,40 @@ export default function AdminLayout({
     const isMobile = useIsMobile();
     const { user, loading, isAdmin } = useUser();
     const router = useRouter();
+    const pathname = usePathname();
+    const isLoginPage = pathname === '/admin/login';
+
 
     React.useEffect(() => {
-        if (loading) return; // Wait until loading is false
+        if (loading || isLoginPage) return;
 
         if (!user) {
-            router.replace('/auth/login');
+            router.replace('/admin/login');
         } else if (!isAdmin) {
             router.replace('/home');
         }
-    }, [user, loading, isAdmin, router]);
+    }, [user, loading, isAdmin, router, isLoginPage]);
     
-    if (loading || !isAdmin) {
+    if (loading && !isLoginPage) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         );
     }
+
+    if (isLoginPage) {
+        return <>{children}</>;
+    }
+    
+    if (!isAdmin && !loading) {
+      return (
+          <div className="flex h-screen w-full items-center justify-center bg-background">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+      );
+    }
+
 
   return (
     <div className="flex h-screen bg-background text-foreground">
