@@ -197,7 +197,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
           <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">OR</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-row gap-4">
             <FormField
               control={form.control}
               name="firstName"
@@ -303,7 +303,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
                 <FormLabel>
                     I agree to the 
                     <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/terms" target="_blank">Terms of Use</Link></Button> & 
-                    <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/privacy" target="_blank">Privacy Policy</Link></Button>.
+                    <Button variant="link" asChild className="p-0 h-auto ml-1"><Link href="/privacy" target="_blank">Privacy Policy</Link></Button>
                 </FormLabel>
                 <FormMessage />
                 </div>
