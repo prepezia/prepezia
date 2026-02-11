@@ -45,6 +45,18 @@
         "isAdmin": {
           "type": "boolean",
           "description": "Whether the user has admin privileges."
+        },
+        "educationalLevel": {
+            "type": "string",
+            "description": "The user's current educational level.",
+            "enum": [
+                "Junior High (JHS/BECE)",
+                "Senior High (SHS/WASSCE)",
+                "Undergraduate",
+                "Postgraduate (Masters/PhD)",
+                "Professional",
+                "Other"
+            ]
         }
       },
       "required": ["name", "email", "createdAt"]

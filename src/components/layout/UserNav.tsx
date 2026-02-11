@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -271,8 +272,8 @@ export function UserNav() {
                                 <span className="text-muted-foreground ml-2">{user?.phoneNumber || "N/A"}</span>
                             </div>
                              <div>
-                                <span className="font-semibold">Gender:</span>
-                                <span className="text-muted-foreground ml-2">{"N/A"}</span>
+                                <span className="font-semibold">Educational Level:</span>
+                                <span className="text-muted-foreground ml-2">{firestoreUser?.educationalLevel || "N/A"}</span>
                             </div>
                             <Separator />
                             <div className="flex flex-wrap gap-2 pt-2">
