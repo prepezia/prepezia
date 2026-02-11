@@ -24,7 +24,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   User,
   setPersistence,
   browserLocalPersistence,
@@ -154,35 +154,19 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
       return;
     }
 
-    if (!auth || !firestore) return;
+    if (!auth) return;
 
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-    try {
-        await setPersistence(auth, browserLocalPersistence);
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        const userRef = doc(firestore, "users", user.uid);
-        await setDoc(userRef, {
-            name: user.displayName,
-            email: user.email,
-            emailVerified: user.emailVerified,
-            createdAt: serverTimestamp()
-        }, { merge: true });
-
-        onSuccess(user);
-    } catch (error: any) {
-        if (error.code !== 'auth/popup-closed-by-user') {
-            toast({
-                variant: "destructive",
-                title: "Google Sign-In Failed",
-                description: error.message,
-            });
-        }
-    } finally {
+    // This will redirect the user. The result is handled on the page component.
+    await signInWithRedirect(auth, provider).catch(error => {
+        toast({
+            variant: "destructive",
+            title: "Google Sign-In Failed",
+            description: error.message,
+        });
         setIsGoogleLoading(false);
-    }
+    });
   }
 
   return (
@@ -197,7 +181,7 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
           <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">OR</p>
         </div>
         
-        <div className="flex flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
             <FormField
               control={form.control}
               name="firstName"

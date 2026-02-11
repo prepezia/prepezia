@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState } from 'react';
-import { User } from 'firebase/auth';
+import { useState, useEffect } from 'react';
+import { User, getRedirectResult } from 'firebase/auth';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { PhoneVerificationForm } from '@/components/auth/PhoneVerificationForm';
 import {
@@ -15,12 +15,55 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 export default function SignupPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
+  const { toast } = useToast();
   const [step, setStep] = useState<'credentials' | 'phone'>('credentials');
   const [user, setUser] = useState<User | null>(null);
+  const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
+
+  useEffect(() => {
+    if (!auth || !firestore) {
+      setIsProcessingRedirect(false);
+      return;
+    };
+
+    const processRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          // User has successfully signed in with Google.
+          const user = result.user;
+          const userRef = doc(firestore, "users", user.uid);
+          await setDoc(userRef, {
+              name: user.displayName,
+              email: user.email,
+              emailVerified: user.emailVerified,
+              createdAt: serverTimestamp()
+          }, { merge: true });
+
+          // Now move to the phone verification step
+          handleSignupSuccess(user);
+        }
+      } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Google Sign-In Failed",
+            description: error.message,
+        });
+      } finally {
+        setIsProcessingRedirect(false);
+      }
+    };
+
+    processRedirect();
+  }, [auth, firestore, toast]);
 
   const handleSignupSuccess = (newUser: User) => {
     setUser(newUser);
@@ -32,6 +75,17 @@ export default function SignupPage() {
     setStep('credentials');
     setUser(null);
   };
+
+  if (isProcessingRedirect) {
+    return (
+        <Card>
+            <CardContent className="flex flex-col items-center justify-center p-12 gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Processing Sign-In...</p>
+            </CardContent>
+        </Card>
+    );
+  }
 
   return (
     <Card>
