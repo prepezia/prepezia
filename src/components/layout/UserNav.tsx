@@ -63,6 +63,8 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { useFirestore } from "@/firebase";
 import { doc, updateDoc, serverTimestamp, deleteField } from "firebase/firestore";
 import { Progress } from "../ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { educationalLevels } from "@/lib/education-levels";
 
 
 const TwitterIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -96,6 +98,7 @@ const feedbackSchema = z.object({
 const editProfileSchema = z.object({
   name: z.string().min(1, "Name cannot be empty."),
   email: z.string().email("Please enter a valid email."),
+  educationalLevel: z.string().optional(),
 });
 
 const changePasswordSchema = z.object({
@@ -374,6 +377,7 @@ export function UserNav() {
             isEmailPasswordProvider={isEmailPasswordProvider}
             firestore={firestore}
             userDocRef={userDocRef}
+            firestoreUser={firestoreUser}
           />
       )}
 
@@ -429,7 +433,7 @@ export function UserNav() {
 }
 
 // Edit Profile Dialog Component
-function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore, userDocRef }: any) {
+function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, firestore, userDocRef, firestoreUser }: any) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
@@ -438,6 +442,7 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
         defaultValues: {
             name: user?.displayName || "",
             email: user?.email || "",
+            educationalLevel: "",
         },
     });
 
@@ -446,26 +451,40 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
             form.reset({
                 name: user.displayName || "",
                 email: user.email || "",
+                educationalLevel: firestoreUser?.educationalLevel || "",
             });
         }
-    }, [user, form]);
+    }, [user, firestoreUser, form]);
 
     async function onSubmit(values: z.infer<typeof editProfileSchema>) {
         if (!user || !firestore || !userDocRef) return;
         setIsLoading(true);
         
+        let hasChanges = false;
         try {
-            // Update display name if it has changed
+            const firestoreUpdates: { name?: string, educationalLevel?: string } = {};
+
+            // Check for name change
             if (values.name !== user.displayName) {
                 await updateProfile(user, { displayName: values.name });
-                await updateDoc(userDocRef, { name: values.name });
-                toast({ title: "Success", description: "Your name has been updated." });
+                firestoreUpdates.name = values.name;
+                hasChanges = true;
+            }
+
+            // Check for educational level change
+            if (values.educationalLevel && values.educationalLevel !== firestoreUser?.educationalLevel) {
+                firestoreUpdates.educationalLevel = values.educationalLevel;
+                hasChanges = true;
+            }
+            
+            if (Object.keys(firestoreUpdates).length > 0) {
+                await updateDoc(userDocRef, firestoreUpdates);
             }
 
             // Update email if it has changed (and is allowed)
             if (isEmailPasswordProvider && values.email !== user.email) {
                 await verifyBeforeUpdateEmail(user, values.email);
-                 // Optimistically update Firestore, will be reverted if user doesn't verify
+                 // Optimistically update Firestore
                 await updateDoc(userDocRef, { 
                     email: values.email,
                     emailVerified: false,
@@ -473,10 +492,18 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
                 });
                 toast({
                     title: "Verification Required",
-                    description: `A verification link has been sent to ${values.email}. Please check your inbox to complete the change.`,
+                    description: `A verification link has been sent to ${values.email} to complete the change.`,
                     duration: 10000,
                 });
+                hasChanges = true;
             }
+
+            if (hasChanges) {
+                 toast({ title: "Success", description: "Your profile has been updated." });
+            } else {
+                 toast({ title: "No Changes", description: "You did not make any changes." });
+            }
+
             onOpenChange(false);
         } catch (error: any) {
             toast({ variant: "destructive", title: "Update Failed", description: error.message });
@@ -494,6 +521,26 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
                     )}/>
                     <FormField control={form.control} name="email" render={({ field }) => (
                         <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input {...field} disabled={!isEmailPasswordProvider} /></FormControl><FormDescription>{!isEmailPasswordProvider && "You cannot change your email when signed in with Google."}</FormDescription><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="educationalLevel" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Educational Level</FormLabel>
+                             <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select your level..." />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {educationalLevels.map((levelName) => (
+                                    <SelectItem key={levelName} value={levelName}>
+                                        {levelName}
+                                    </SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
                     )}/>
                     <DialogFooter><Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Save Changes</Button></DialogFooter>
                 </form></Form>
@@ -594,3 +641,5 @@ function ChangePasswordDialog({ open, onOpenChange, user, auth }: any) {
         </Dialog>
     )
 }
+
+    
