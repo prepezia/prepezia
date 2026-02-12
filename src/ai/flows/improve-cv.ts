@@ -15,6 +15,7 @@ const ImproveCvInputSchema = z.object({
   cvContentType: z.string().optional().describe("The MIME type of the CV file."),
   careerGoals: z.string().optional().describe("The user's stated career goals."),
   jobDescription: z.string().optional().describe("A specific job description to tailor the CV to."),
+  educationalLevel: z.string().optional().describe("The user's current educational level (e.g., Undergraduate, Postgraduate)."),
 });
 
 export type ImproveCvInput = z.infer<typeof ImproveCvInputSchema>;
@@ -57,6 +58,10 @@ const improveCvPrompt = ai.definePrompt(
     *   Return the **complete, full CV** as a single Markdown string in the 'fullRewrittenCv' field.
 
 ### USER-PROVIDED DATA:
+
+{{#if educationalLevel}}
+User's Educational Level: {{{educationalLevel}}}
+{{/if}}
 
 User's CV:
 \`\`\`

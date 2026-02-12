@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, Suspense, useCallback, useRef, FormEvent } from "react";
+import React, { useState, useEffect, Suspense, useCallback, useRef, FormEvent, useMemo } from "react";
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,8 @@ import Image from "next/image";
 import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUser, useFirestore, useDoc } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 
 type GeneratedContent = {
@@ -311,6 +313,17 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const userDocRef = useMemo(() => user && firestore ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
+  const { data: firestoreUser } = useDoc(userDocRef);
+
+  useEffect(() => {
+    if (firestoreUser?.educationalLevel && !initialNote) {
+        setAcademicLevel(firestoreUser.educationalLevel as AcademicLevel);
+    }
+  }, [firestoreUser, initialNote]);
 
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {

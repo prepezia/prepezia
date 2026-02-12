@@ -15,6 +15,7 @@ const GetAdmissionsAdviceInputSchema = z.object({
   backgroundDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
   backgroundContentType: z.string().optional().describe("The MIME type of the background file."),
   academicObjectives: z.string().describe("The user's stated academic objectives."),
+  educationalLevel: z.string().optional().describe("The user's current educational level (e.g., Undergraduate, Postgraduate)."),
 });
 export type GetAdmissionsAdviceInput = z.infer<typeof GetAdmissionsAdviceInputSchema>;
 
@@ -57,6 +58,10 @@ export async function getAdmissionsAdvice(input: GetAdmissionsAdviceInput): Prom
 -   ADMISSIONS CALENDAR: A high-level timeline of when they need to take exams and submit applications. Use newlines to format the calendar.
 
 **IMPORTANT RULE: Do NOT under any circumstances invent, guess, or create URLs. If you cannot find a real, verifiable URL, do not include that item in the output.** It is better to return fewer results with accurate links than more results with broken links.
+
+{{#if educationalLevel}}
+User's Educational Level: {{{educationalLevel}}}
+{{/if}}
 
 User's Background/CV:
 \`\`\`

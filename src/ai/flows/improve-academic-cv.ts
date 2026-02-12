@@ -15,6 +15,7 @@ const ImproveAcademicCvInputSchema = z.object({
   cvContent: z.string().optional().describe("The user's current CV content as plain text."),
   cvDataUri: z.string().optional().describe("A data URI of the user's CV file (PDF or text)."),
   cvContentType: z.string().optional().describe("The MIME type of the CV file."),
+  educationalLevel: z.string().optional().describe("The user's current educational level (e.g., Undergraduate, Postgraduate)."),
 });
 export type ImproveAcademicCvInput = z.infer<typeof ImproveAcademicCvInputSchema>;
 
@@ -49,6 +50,10 @@ export async function improveAcademicCv(input: ImproveAcademicCvInput): Promise<
     *   Re-order the sections according to the 'Hierarchy of Merit'.
     *   Rewrite the experience and project bullet points to focus on methodology, results, and impact.
     *   Return the **complete, full Academic CV** as a single Markdown string in the 'fullRewrittenCv' field.
+
+{{#if educationalLevel}}
+User's Educational Level: {{{educationalLevel}}}
+{{/if}}
 
 User's CV:
 \`\`\`

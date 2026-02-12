@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, Suspense, useCallback } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,8 @@ import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useUser, useFirestore, useDoc } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "opportunities";
@@ -362,6 +364,16 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const userDocRef = useMemo(() => {
+      if (user && firestore) {
+          return doc(firestore, 'users', user.uid);
+      }
+      return null;
+    }, [user, firestore]);
+    const { data: firestoreUser } = useDoc(userDocRef);
+
     const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
         if (speakingMessageId === messageId && audioRef.current) {
             audioRef.current.pause();
@@ -402,7 +414,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await admissionsChat({ 
                 cvContent: cv.content,
                 academicObjectives: academicObjectives,
-                question: currentInput
+                question: currentInput,
+                educationalLevel: firestoreUser?.educationalLevel,
             });
             const assistantMessageId = `asst-${Date.now()}`;
             const assistantMessage: ChatMessage = { id: assistantMessageId, role: 'assistant', content: result.answer };
@@ -424,7 +437,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         } finally {
             setIsChatting(false);
         }
-    }, [cv.content, academicObjectives, toast, handlePlayAudio]);
+    }, [cv.content, academicObjectives, toast, handlePlayAudio, firestoreUser]);
 
 
     useEffect(() => {
@@ -531,6 +544,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         try {
             const result = await improveAcademicCv({ 
                 cvContent: cv.content,
+                educationalLevel: firestoreUser?.educationalLevel,
             });
             setCvResult(result);
             setRewrittenCvContent(result.fullRewrittenCv);
@@ -563,6 +577,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await generateSop({ 
                 ...sopInputs, 
                 cvContent: cv.content,
+                educationalLevel: firestoreUser?.educationalLevel,
             });
             setSopResult(result);
         } catch(e: any) {
@@ -583,6 +598,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             const result = await getAdmissionsAdvice({
                 backgroundContent: cv.content,
                 academicObjectives,
+                educationalLevel: firestoreUser?.educationalLevel,
             });
             setOpportunitiesResult(result);
         } catch (e: any) {

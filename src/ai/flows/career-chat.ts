@@ -14,6 +14,7 @@ const CareerChatInputSchema = z.object({
   cvContent: z.string().optional().describe("The user's current CV or background information as plain text."),
   careerObjectives: z.string().optional().describe("The user's stated career objectives."),
   question: z.string().describe("The user's specific question for the advisor."),
+  educationalLevel: z.string().optional().describe("The user's current educational level (e.g., Undergraduate, Postgraduate)."),
 });
 export type CareerChatInput = z.infer<typeof CareerChatInputSchema>;
 
@@ -31,7 +32,12 @@ const careerChatPrompt = ai.definePrompt({
 
 You are having a conversation with a user. Use their background information (CV and stated goals) as context to provide the most relevant and personalized advice possible.
 
-Answer the user's question directly and conversationally. Do not use a structured format unless the question explicitly asks for one. Be prepared to answer follow-up questions.
+{{#if educationalLevel}}
+### User's Educational Level:
+\`\`\`
+{{{educationalLevel}}}
+\`\`\`
+{{/if}}
 
 ### User's Background (CV):
 \`\`\`

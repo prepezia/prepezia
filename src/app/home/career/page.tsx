@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, Suspense, useCallback } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,8 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useUser, useFirestore, useDoc } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "jobs";
@@ -446,6 +448,16 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const userDocRef = useMemo(() => {
+    if (user && firestore) {
+        return doc(firestore, 'users', user.uid);
+    }
+    return null;
+  }, [user, firestore]);
+  const { data: firestoreUser } = useDoc(userDocRef);
+
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {
         audioRef.current.pause();
@@ -487,6 +499,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         cvContent: cv.content,
         careerObjectives: careerGoals,
         question: currentInput,
+        educationalLevel: firestoreUser?.educationalLevel,
       });
 
       const assistantMessageId = `asst-${Date.now()}`;
@@ -510,7 +523,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     } finally {
       setIsChatting(false);
     }
-  }, [cv.content, careerGoals, toast, handlePlayAudio]);
+  }, [cv.content, careerGoals, toast, handlePlayAudio, firestoreUser]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -616,6 +629,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
       const result = await improveCv({ 
         cvContent: cv.content, 
         careerGoals,
+        educationalLevel: firestoreUser?.educationalLevel,
       });
       setCvResult(result);
       setRewrittenCvContent(result.fullRewrittenCv);
@@ -1138,6 +1152,7 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
     
 
     
+
 
 
 

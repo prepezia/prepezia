@@ -14,6 +14,7 @@ const AdmissionsChatInputSchema = z.object({
   cvContent: z.string().optional().describe("The user's current academic CV or background information as plain text."),
   academicObjectives: z.string().optional().describe("The user's stated academic objectives."),
   question: z.string().describe("The user's specific question for the advisor."),
+  educationalLevel: z.string().optional().describe("The user's current educational level (e.g., Undergraduate, Postgraduate)."),
 });
 export type AdmissionsChatInput = z.infer<typeof AdmissionsChatInputSchema>;
 
@@ -31,7 +32,12 @@ const admissionsChatPrompt = ai.definePrompt({
 
 You are having a conversation with a student. Use their background information (Academic CV and stated objectives) as context to provide the most relevant and personalized advice possible.
 
-Answer the user's question directly and conversationally. Do not use a structured format unless the question explicitly asks for one. Be prepared to answer follow-up questions on topics like university choice, application strategy, SOP writing, and finding scholarships.
+{{#if educationalLevel}}
+### User's Educational Level:
+\`\`\`
+{{{educationalLevel}}}
+\`\`\`
+{{/if}}
 
 ### Student's Background (CV):
 \`\`\`

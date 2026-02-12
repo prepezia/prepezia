@@ -18,6 +18,7 @@ const GenerateSopInputSchema = z.object({
   targetUniversity: z.string().describe("The target university."),
   targetProgram: z.string().describe("The target program name."),
   personalMotivation: z.string().describe("User's personal motivation for the field."),
+  educationalLevel: z.string().optional().describe("The user's current educational level (e.g., Undergraduate, Postgraduate)."),
 });
 export type GenerateSopInput = z.infer<typeof GenerateSopInputSchema>;
 
@@ -35,6 +36,7 @@ export async function generateSop(input: GenerateSopInput): Promise<GenerateSopO
     prompt: `You are an Expert Admissions Ghostwriter. Your goal is to draft a compelling, highly personalized Statement of Purpose (SOP) for graduate school applications.
 
 ### INPUT DATA:
+{{#if educationalLevel}}-   User's Educational Level: {{{educationalLevel}}}{{/if}}
 -   User's Academic CV (Background, Research, Projects).
 -   Target University: {{{targetUniversity}}}
 -   Target Program: {{{targetProgram}}}
