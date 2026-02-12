@@ -7,6 +7,7 @@ import { doc } from 'firebase/firestore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2, GraduationCap, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 function OnboardingNotification() {
   const { user, loading: userLoading } = useUser();
@@ -54,30 +55,33 @@ function OnboardingNotification() {
     }
   }
 
-  if (userLoading || profileLoading) {
-      return null;
-  }
-  
   if (!isVisible) {
     return null;
   }
   
   return (
-    <div className="bg-primary/10 border-b border-primary/20 text-foreground p-3 animate-in fade-in-50">
-        <div className="container mx-auto flex items-center justify-center sm:justify-between gap-4">
-            <p className="hidden sm:block text-sm text-center font-medium">
-                <GraduationCap className="inline-block mr-2 h-4 w-4" />
-                Please set your educational level to help us personalize your experience.
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" onClick={handleOpenSettings}>Update Profile</Button>
-                <Button size="icon" variant="ghost" onClick={handleDismiss} className="h-8 w-8 hover:bg-primary/20">
-                    <X className="h-4 w-4" />
-                </Button>
+    <div className="container mx-auto px-4 pt-4 sm:px-6 lg:px-8">
+        <Alert className="bg-primary/5 border-primary/20">
+            <div className="flex items-start gap-4">
+                <GraduationCap className="h-6 w-6 text-primary mt-1" />
+                <div className="flex-1 flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                    <div>
+                        <AlertTitle className="font-bold">Unlock Personalized Content</AlertTitle>
+                        <AlertDescription>
+                            Set your educational level for relevant past questions and tailored AI notes.
+                        </AlertDescription>
+                    </div>
+                    <div className="flex gap-2 mt-3 sm:mt-0 sm:ml-4 shrink-0">
+                        <Button size="sm" onClick={handleOpenSettings} className="w-full sm:w-auto">Update Profile</Button>
+                        <Button size="icon" variant="ghost" onClick={handleDismiss} className="h-9 w-9 hover:bg-primary/10">
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
             </div>
-        </div>
+        </Alert>
     </div>
-  )
+  );
 }
 
 export default function HomeLayout({
