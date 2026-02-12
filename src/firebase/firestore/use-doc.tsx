@@ -12,6 +12,8 @@ export const useDoc = <T extends DocumentData>(
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+
     if (!firestore || !docRef) {
       setData(null);
       setLoading(false);

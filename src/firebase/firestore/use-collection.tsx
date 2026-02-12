@@ -16,6 +16,8 @@ export const useCollection = <T extends DocumentData>(
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+
     if (!firestore || !query) {
       setData(null);
       setLoading(false);
