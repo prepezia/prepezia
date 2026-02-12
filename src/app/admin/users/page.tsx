@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useMemo } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, DocumentData } from 'firebase/firestore';
+import { collection, DocumentData, CollectionReference } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -39,7 +40,7 @@ interface UserProfile extends DocumentData {
 
 export default function AdminUsersPage() {
   const firestore = useFirestore();
-  const usersRef = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const usersRef = useMemo(() => firestore ? collection(firestore, 'users') as CollectionReference<UserProfile> : null, [firestore]);
   const { data: users, loading } = useCollection<UserProfile>(usersRef);
 
   return (
