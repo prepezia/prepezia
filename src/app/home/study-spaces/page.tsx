@@ -77,6 +77,14 @@ type AssistantChatMessage = {
 };
 type ChatMessage = UserChatMessage | AssistantChatMessage;
 
+type InteractionProgress = {
+  flashcardsFlipped?: number;
+  quizCompleted?: number;
+  deckViewed?: boolean;
+  infographicViewed?: boolean;
+  mindmapViewed?: boolean;
+  podcastListened?: boolean;
+};
 
 type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
@@ -95,6 +103,7 @@ type StudySpace = {
     sources: Source[];
     chatHistory?: ChatMessage[];
     generatedContent?: GeneratedContent;
+    interactionProgress?: InteractionProgress;
     progress?: number;
     status?: 'Not Started' | 'In Progress' | 'Completed';
 };
@@ -118,6 +127,14 @@ const mockStudySpaces: MockStudySpace[] = [
     { id: 5, name: "BECE Social Studies", description: "Revision notes for all BECE social studies topics.", sourceCount: 15, progress: 100, status: 'Completed' },
     { id: 6, name: "Intro to Python Programming", description: "Basics of Python for beginners.", sourceCount: 10, progress: 16, status: 'In Progress' },
 ];
+
+const PROGRESS_WEIGHTS_SPACES = {
+    quiz: 50,
+    flashcards: 20,
+    deck: 15,
+    mindmap: 10,
+    infographic: 5,
+};
 
 
 function StudySpacesPage() {
@@ -158,12 +175,12 @@ function StudySpacesPage() {
             setStudySpaces(JSON.parse(savedSpaces));
         } else {
             // First time load: use mock data.
-             const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {} }));
+             const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {}, interactionProgress: {} }));
             setStudySpaces(initialSpaces);
         }
     } catch (error) {
         console.error("Failed to parse study spaces from localStorage", error);
-        const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {} }));
+        const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {}, interactionProgress: {} }));
         setStudySpaces(initialSpaces);
     }
   }, []);
@@ -190,6 +207,28 @@ function StudySpacesPage() {
     if (savable.infographic) savable.infographic.imageUrl = "";
     return savable;
   };
+  
+   const calculateAndUpdateProgress = useCallback(() => {
+    if (!selectedStudySpace) return;
+    const { interactionProgress: ip } = selectedStudySpace;
+    if (!ip) return;
+
+    let totalProgress = 0;
+    if (ip.quizCompleted) totalProgress += (ip.quizCompleted / 100) * PROGRESS_WEIGHTS_SPACES.quiz;
+    if (ip.flashcardsFlipped) totalProgress += (ip.flashcardsFlipped / 100) * PROGRESS_WEIGHTS_SPACES.flashcards;
+    if (ip.deckViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.deck;
+    if (ip.mindmapViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.mindmap;
+    if (ip.infographicViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.infographic;
+    
+    const finalProgress = Math.min(Math.round(totalProgress), 100);
+    const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
+
+    updateSelectedStudySpace({ progress: finalProgress, status });
+  }, [selectedStudySpace]);
+
+  useEffect(() => {
+    calculateAndUpdateProgress();
+  }, [selectedStudySpace?.interactionProgress, calculateAndUpdateProgress]);
 
   useEffect(() => {
     try {
@@ -466,6 +505,7 @@ function StudySpacesPage() {
         sources,
         chatHistory: [],
         generatedContent: {},
+        interactionProgress: {},
         progress: 0,
         status: 'Not Started',
     };
@@ -561,6 +601,20 @@ function StudySpacesPage() {
     submitChat(currentInput || '', false);
     if(chatInputRef.current) chatInputRef.current.value = ""; // Clear input immediately
   }
+  
+  const handleQuizComplete = (score: number, total: number) => {
+      updateSelectedStudySpace(current => ({
+          interactionProgress: { ...current.interactionProgress, quizCompleted: (score/total) * 100 }
+      }));
+      setActiveGeneratedView(null);
+  };
+
+  const handleFlashcardsViewed = (flippedPercentage: number) => {
+       updateSelectedStudySpace(current => ({
+          interactionProgress: { ...current.interactionProgress, flashcardsFlipped: Math.max(current.interactionProgress?.flashcardsFlipped || 0, flippedPercentage) }
+      }));
+      setActiveGeneratedView(null);
+  }
 
   const handleGenerateContent = async (type: keyof GeneratedContent) => {
     if (!selectedStudySpace || selectedStudySpace.sources.length === 0) {
@@ -590,24 +644,12 @@ function StudySpacesPage() {
             'mindmap': generateMindMap,
         };
         const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap'];
-        const rawResult = await generator(input);
-        
-        if (type === 'flashcards') {
-            result = (rawResult as GenerateFlashcardsOutput).flashcards;
-        } else if (type === 'quiz') {
-            result = (rawResult as GenerateQuizOutput).quiz;
-        } else {
-            result = rawResult;
-        }
+        result = await generator(input);
       }
       
       updateSelectedStudySpace(current => {
           const newGeneratedContent = { ...(current.generatedContent || {}), [type]: result };
-          const generationOptionsCount = 6;
-          const completedCount = Object.keys(newGeneratedContent).filter(k => newGeneratedContent[k as keyof GeneratedContent]).length;
-          const progress = (completedCount / generationOptionsCount) * 100;
-          const status = progress >= 100 ? 'Completed' : 'In Progress';
-          return { generatedContent: newGeneratedContent, progress, status };
+          return { generatedContent: newGeneratedContent };
       });
       
       setActiveGeneratedView(type);
@@ -624,7 +666,13 @@ function StudySpacesPage() {
     updateSelectedStudySpace(current => {
         const newGeneratedContent = { ...current.generatedContent };
         delete newGeneratedContent[type];
-        return { generatedContent: newGeneratedContent };
+        const newInteractionProgress = { ...current.interactionProgress };
+        const progressKey = `${type}Viewed` as keyof InteractionProgress;
+        if(type === 'flashcards') delete newInteractionProgress['flashcardsFlipped'];
+        if(type === 'quiz') delete newInteractionProgress['quizCompleted'];
+        if(progressKey in newInteractionProgress) delete newInteractionProgress[progressKey];
+
+        return { generatedContent: newGeneratedContent, interactionProgress: newInteractionProgress };
     });
 
     toast({ title: 'Content Deleted', description: 'The generated content has been removed.' });
@@ -667,21 +715,25 @@ function StudySpacesPage() {
     const renderGeneratedContent = () => {
         if (!activeGeneratedView) return null;
         if (activeGeneratedView === 'flashcards' && generatedContent.flashcards) {
-            return <FlashcardView flashcards={generatedContent.flashcards} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+            return <FlashcardView flashcards={generatedContent.flashcards} onBack={handleFlashcardsViewed} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'quiz' && generatedContent.quiz) {
-            return <QuizView quiz={generatedContent.quiz} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+            return <QuizView quiz={generatedContent.quiz} onBack={handleQuizComplete} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'deck' && generatedContent.deck) {
+            updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, deckViewed: true}}));
             return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveGeneratedView(null)} />;
         }
         if (activeGeneratedView === 'podcast' && generatedContent.podcast) {
+            updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, podcastListened: true}}));
             return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name}/>
         }
         if (activeGeneratedView === 'infographic' && generatedContent.infographic) {
+            updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, infographicViewed: true}}));
             return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'mindmap' && generatedContent.mindmap) {
+             updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, mindmapViewed: true}}));
              return <InteractiveMindMapWrapper data={generatedContent.mindmap} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
         }
         return null;
@@ -756,7 +808,7 @@ function StudySpacesPage() {
                                         <CardDescription className="text-muted-foreground pt-1">{selectedStudySpace.description}</CardDescription>
                                         <Separator className="my-4" />
                                         <h3 className="text-xl font-headline font-bold flex items-center gap-2 pt-2">
-                                            <Sparkles className="w-5 h-5 text-primary" />
+                                            
                                             AI Summary
                                         </h3>
                                     </CardHeader>
@@ -1358,7 +1410,7 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
         <Card>
             <CardHeader>
                 <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                <CardTitle className="pt-4 flex items-center gap-2"><Mic className="text-primary"/> Podcast for "{topic}"</CardTitle>
+                <CardTitle className="pt-4 flex items-center gap-2"> Podcast for "{topic}"</CardTitle>
                 <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1384,18 +1436,25 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
 }
 
 // These view components are copied from note-generator/page.tsx and adapted slightly
-function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
+function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: (flippedPercentage: number) => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
     const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const flippedIndices = useRef(new Set<number>());
     const { toast } = useToast();
 
     const handleFlip = (index: number) => {
+        flippedIndices.current.add(index);
         setFlippedStates(prev => {
             const newStates = [...prev];
             newStates[index] = !newStates[index];
             return newStates;
         });
+    };
+
+    const handleBack = () => {
+        const flippedPercentage = (flippedIndices.current.size / flashcards.length) * 100;
+        onBack(flippedPercentage);
     };
 
     const handlePrint = () => {
@@ -1417,14 +1476,14 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
         <Card>
             <CardHeader>
                 <div className="flex justify-between items-start">
-                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <Button onClick={handleBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
                     <div className="flex items-center gap-2">
                         <Button onClick={() => setViewMode('grid')} variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon"><Grid className="h-4 w-4"/></Button>
                         <Button onClick={() => setViewMode('single')} variant={viewMode === 'single' ? 'secondary' : 'ghost'} size="icon"><View className="h-4 w-4"/></Button>
                         <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
                     </div>
                 </div>
-                <CardTitle className="pt-4 flex items-center gap-2"><SquareStack className="text-primary"/> Flashcards for "{topic}"</CardTitle>
+                <CardTitle className="pt-4 flex items-center gap-2"> Flashcards for "{topic}"</CardTitle>
             </CardHeader>
             <CardContent>
                  {viewMode === 'grid' ? (
@@ -1460,7 +1519,7 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
     );
 }
 
-function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: () => void, topic: string }) {
+function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: (score: number, total: number) => void, topic: string }) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
@@ -1477,12 +1536,9 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         setScore(finalScore);
         setQuizState('results');
     };
-    const handleRestart = () => {
-        setCurrentQuestionIndex(0);
-        setSelectedAnswers({});
-        setScore(0);
-        setQuizState('in-progress');
-    };
+    const handleFinishAndGoBack = () => {
+        onBack(score, quiz.length);
+    }
     const handlePrint = () => {
         const printContent = document.getElementById('quiz-results-print-area')?.innerHTML;
         if (!printContent) return;
@@ -1499,9 +1555,9 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     if (quizState === 'results') {
         return (
             <Card>
-                <CardHeader><div className="flex justify-between items-start"><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {quiz.length}</CardDescription></CardHeader>
+                <CardHeader><div className="flex justify-between items-start"><Button onClick={handleFinishAndGoBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {quiz.length}</CardDescription></CardHeader>
                 <CardContent id="quiz-results-print-area"><Progress value={(score / quiz.length) * 100} className="w-full mb-4" /><div className="space-y-4">{quiz.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
-                <CardFooter><Button onClick={handleRestart}>Take Again</Button></CardFooter>
+                <CardFooter><Button onClick={() => setQuizState('in-progress')}>Take Again</Button></CardFooter>
             </Card>
         );
     }
@@ -1510,7 +1566,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
     return (
         <Card>
-            <CardHeader><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"><HelpCircle className="text-primary"/> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" /></CardHeader>
+            <CardHeader><Button onClick={() => onBack(0,0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" /></CardHeader>
             <CardContent>
                 <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
                 <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswers[currentQuestionIndex]} disabled={isAnswered}>
@@ -1549,7 +1605,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
     const currentSlide = deck.slides[currentSlideIndex];
     return (
         <Card className="flex flex-col">
-            <CardHeader><div className="flex justify-between items-start"><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4 flex items-center gap-2"><Presentation className="text-primary"/> {deck.title}</CardTitle><CardDescription>Slide {currentSlideIndex + 1} of {deck.slides.length}</CardDescription></CardHeader>
+            <CardHeader><div className="flex justify-between items-start"><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4 flex items-center gap-2"> {deck.title}</CardTitle><CardDescription>Slide {currentSlideIndex + 1} of {deck.slides.length}</CardDescription></CardHeader>
             <CardContent className="flex-1" id="deck-print-area">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-2 rounded-lg border p-6 bg-secondary/30 min-h-[40vh] flex flex-col justify-center"><h3 className="text-2xl font-bold mb-4">{currentSlide.title}</h3><div className="prose prose-sm dark:prose-invert max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSlide.content}</ReactMarkdown></div></div>
@@ -1586,7 +1642,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
                     <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
                     <Button onClick={handleDownload} variant="ghost" size="icon" disabled={!infographic.imageUrl}><Download className="h-4 w-4"/></Button>
                 </div>
-                <CardTitle className="pt-4 flex items-center gap-2"><AreaChart className="text-primary"/> Infographic for "{topic}"</CardTitle>
+                <CardTitle className="pt-4 flex items-center gap-2"> Infographic for "{topic}"</CardTitle>
                 <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
@@ -1709,5 +1765,3 @@ export default function StudySpacesPageWrapper() {
     </Suspense>
   )
 }
-
-    

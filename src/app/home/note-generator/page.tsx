@@ -55,6 +55,16 @@ type GeneratedContent = {
   podcast?: GeneratePodcastFromSourcesOutput;
 };
 
+type InteractionProgress = {
+  notesViewed?: number; // Percentage of pages viewed for >10 seconds
+  flashcardsFlipped?: number; // Percentage of flashcards flipped
+  quizCompleted?: number; // Quiz score percentage
+  deckViewed?: boolean;
+  infographicViewed?: boolean;
+  mindmapViewed?: boolean;
+  podcastListened?: boolean;
+};
+
 type RecentNote = {
   id: number;
   topic: string;
@@ -63,9 +73,11 @@ type RecentNote = {
   content: string;
   nextStepsPrompt?: string;
   generatedContent?: GeneratedContent;
+  interactionProgress?: InteractionProgress; // New field for detailed tracking
   progress?: number;
   status?: 'Not Started' | 'In Progress' | 'Completed';
 };
+
 
 const dummyRecentNotes: RecentNote[] = [
   { id: 1, topic: 'Photosynthesis', level: 'Undergraduate', date: 'July 21, 2024', content: "## Introduction to Photosynthesis\nPhotosynthesis is the process used by plants, algae, and certain bacteria to harness energy from sunlight and turn it into chemical energy.", progress: 75, status: 'In Progress' },
@@ -214,7 +226,7 @@ function ChatView({
         <Card className="flex flex-col h-full">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <MessageCircle className="text-primary"/> Chat about "{topic}"
+                    Chat about "{topic}"
                 </CardTitle>
                 <CardDescription>Ask the AI for more details or explanations about the notes.</CardDescription>
             </CardHeader>
@@ -291,6 +303,18 @@ const getYoutubeVideoId = (url: string): string | null => {
     return (match && match[2].length === 11) ? match[2] : null;
 };
 
+const NOTE_PAGE_MIN_VIEW_TIME = 10000; // 10 seconds in milliseconds
+
+const PROGRESS_WEIGHTS = {
+  notes: 20,
+  quiz: 40,
+  flashcards: 15,
+  deck: 10,
+  mindmap: 10,
+  infographic: 5,
+  // Podcast doesn't have a direct interaction metric in this design
+};
+
 function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
   const { toast } = useToast();
   const [topic, setTopic] = useState(initialNote?.topic || initialTopic || "");
@@ -302,13 +326,13 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const generationStarted = useRef(false);
+  const pageStartTime = useRef(Date.now());
+  const [viewedPages, setViewedPages] = useState<Set<number>>(() => new Set(initialNote?.interactionProgress?.notesViewed ? Array.from({length: Math.floor(initialNote.interactionProgress.notesViewed * (initialNote.content.split(/\n---\n/).length) / 100)}, (_, i) => i) : []));
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
   
-  // This state now controls the overall view (tabs vs. full-screen generated content)
   const [activeView, setActiveView] = useState<ActiveView>('notes');
-  // This state controls which tab is active within the main view
   const [activeTab, setActiveTab] = useState<'notes' | 'chat' | 'generate'>('notes');
 
 
@@ -326,12 +350,69 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const firestore = useFirestore();
   const userDocRef = useMemo(() => user && firestore ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
   const { data: firestoreUser } = useDoc(userDocRef);
+  
+  const [interactionProgress, setInteractionProgress] = useState<InteractionProgress>(initialNote?.interactionProgress || {});
+
+  const calculateAndUpdateProgress = useCallback(() => {
+    if (!initialNote) return;
+
+    let totalProgress = 0;
+    const ip = interactionProgress;
+
+    if (ip.notesViewed) totalProgress += (ip.notesViewed / 100) * PROGRESS_WEIGHTS.notes;
+    if (ip.quizCompleted) totalProgress += (ip.quizCompleted / 100) * PROGRESS_WEIGHTS.quiz;
+    if (ip.flashcardsFlipped) totalProgress += (ip.flashcardsFlipped / 100) * PROGRESS_WEIGHTS.flashcards;
+    if (ip.deckViewed) totalProgress += PROGRESS_WEIGHTS.deck;
+    if (ip.mindmapViewed) totalProgress += PROGRESS_WEIGHTS.mindmap;
+    if (ip.infographicViewed) totalProgress += PROGRESS_WEIGHTS.infographic;
+    
+    const finalProgress = Math.min(Math.round(totalProgress), 100);
+    const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
+
+    try {
+      const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+      if (!savedNotesRaw) return;
+      const savedNotes: RecentNote[] = JSON.parse(savedNotesRaw);
+      const noteIndex = savedNotes.findIndex((n: RecentNote) => n.id === initialNote.id);
+      
+      if (noteIndex > -1) {
+        savedNotes[noteIndex].progress = finalProgress;
+        savedNotes[noteIndex].status = status;
+        savedNotes[noteIndex].interactionProgress = interactionProgress;
+        localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
+      }
+    } catch (e) {
+        console.error("Failed to update note progress in local storage:", e);
+    }
+  }, [initialNote, interactionProgress]);
+
+  useEffect(() => {
+    calculateAndUpdateProgress();
+  }, [interactionProgress, calculateAndUpdateProgress]);
+
 
   useEffect(() => {
     if (firestoreUser?.educationalLevel && !initialNote) {
         setAcademicLevel(firestoreUser.educationalLevel as AcademicLevel);
     }
   }, [firestoreUser, initialNote]);
+
+  const handleSetCurrentPage = (pageIndex: number) => {
+    const timeSpent = Date.now() - pageStartTime.current;
+    if(timeSpent > NOTE_PAGE_MIN_VIEW_TIME) {
+        setViewedPages(prev => {
+            const newSet = new Set(prev);
+            newSet.add(currentPage);
+            
+            if (initialNote && pages.length > 0) {
+                 setInteractionProgress(ip => ({...ip, notesViewed: (newSet.size / pages.length) * 100 }));
+            }
+            return newSet;
+        });
+    }
+    setCurrentPage(pageIndex);
+    pageStartTime.current = Date.now();
+  };
 
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {
@@ -497,6 +578,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       content,
       nextStepsPrompt: nextSteps,
       generatedContent: {},
+      interactionProgress: {},
       progress: 0,
       status: 'Not Started',
     };
@@ -505,7 +587,6 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw).filter((n: RecentNote) => n.id !== 0) : dummyRecentNotes;
       const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
-      // Replace URL to reflect the new note ID for saving subsequent generated content
       router.replace(`/home/note-generator?noteId=${newNote.id}`);
     } catch (e: any) {
       console.error("Failed to save notes to local storage:", e);
@@ -548,31 +629,6 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   }, [onNoteGenerated, toast]);
   
-  const updateNoteProgressInStorage = useCallback((noteId: number, progress: number, status: 'In Progress' | 'Completed') => {
-    try {
-        const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-        if (!savedNotesRaw) return;
-        const savedNotes: RecentNote[] = JSON.parse(savedNotesRaw);
-        const noteIndex = savedNotes.findIndex((n: RecentNote) => n.id === noteId);
-
-        if (noteIndex > -1) {
-            savedNotes[noteIndex].progress = progress;
-            savedNotes[noteIndex].status = status;
-            localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
-        }
-    } catch (e) {
-        console.error("Failed to update note progress in local storage:", e);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (initialNote && pages.length > 0) {
-        const progress = ((currentPage + 1) / pages.length) * 100;
-        const status = progress >= 100 ? 'Completed' : 'In Progress';
-        updateNoteProgressInStorage(initialNote.id, progress, status);
-    }
-  }, [currentPage, pages, initialNote, updateNoteProgressInStorage]);
-  
   useEffect(() => {
     if (initialTopic && !initialNote) {
         generate(initialTopic, academicLevel);
@@ -585,6 +641,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       const notePages = noteContent.split(/\n---\n/);
       setPages(notePages);
       setCurrentPage(0);
+      pageStartTime.current = Date.now();
     }
   }, [generatedNotes]);
   
@@ -597,7 +654,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         setTopic(initialNote.topic);
         setAcademicLevel(initialNote.level as AcademicLevel);
         setGeneratedContent(initialNote.generatedContent || {});
+        setInteractionProgress(initialNote.interactionProgress || {});
         setCurrentPage(0);
+        pageStartTime.current = Date.now();
         setChatHistory([]); // Clear chat for existing note on load
     }
   }, [initialNote]);
@@ -676,6 +735,16 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     }
   };
 
+  const handleQuizComplete = (score: number, total: number) => {
+      setInteractionProgress(ip => ({...ip, quizCompleted: (score / total) * 100 }));
+      setActiveView('notes');
+  };
+
+  const handleFlashcardsViewed = (flippedPercentage: number) => {
+      setInteractionProgress(ip => ({...ip, flashcardsFlipped: Math.max(ip.flashcardsFlipped || 0, flippedPercentage) }));
+      setActiveView('notes');
+  }
+
 
   const nextStepActions = [
       { label: "Flashcards", icon: SquareStack, action: () => handleGenerateContent('flashcards'), loading: isGenerating === 'flashcards'},
@@ -688,18 +757,21 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
   const renderGeneratedContent = () => {
     if (activeView === 'flashcards' && generatedContent.flashcards) {
-        return <FlashcardView flashcards={generatedContent.flashcards} onBack={() => setActiveView('notes')} topic={topic} />;
+        return <FlashcardView flashcards={generatedContent.flashcards} onBack={handleFlashcardsViewed} topic={topic} />;
     }
     if (activeView === 'quiz' && generatedContent.quiz) {
-        return <QuizView quiz={generatedContent.quiz} onBack={() => setActiveView('notes')} topic={topic} />;
+        return <QuizView quiz={generatedContent.quiz} onBack={handleQuizComplete} topic={topic} />;
     }
     if (activeView === 'deck' && generatedContent.deck) {
+        setInteractionProgress(ip => ({...ip, deckViewed: true}));
         return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveView('notes')} />;
     }
     if (activeView === 'infographic' && generatedContent.infographic) {
+        setInteractionProgress(ip => ({...ip, infographicViewed: true}));
         return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveView('notes')} topic={topic} />;
     }
     if (activeView === 'mindmap' && generatedContent.mindmap) {
+        setInteractionProgress(ip => ({...ip, mindmapViewed: true}));
         return <InteractiveMindMap data={generatedContent.mindmap} topic={topic} />;
     }
     if (activeView === 'podcast' && generatedContent.podcast) {
@@ -729,7 +801,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   </div>
               ) : (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
-                      <TabsList className="grid w-full grid-cols-3 bg-secondary">
+                      <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="notes">Notes</TabsTrigger>
                         <TabsTrigger value="chat">Chat</TabsTrigger>
                         <TabsTrigger value="generate">Generate</TabsTrigger>
@@ -741,7 +813,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                   <CardTitle className="text-3xl font-headline">{topic}</CardTitle>
                                   <CardDescription>Academic Level: {academicLevel}</CardDescription>
                               </CardHeader>
-                              <CardContent className="flex-1 overflow-y-auto">
+                              <CardContent className="flex-1 w-full max-w-0 min-w-full overflow-y-auto">
                                   <div className="prose dark:prose-invert max-w-none p-4 md:p-6">
                                       <ReactMarkdown
                                           remarkPlugins={[remarkGfm]}
@@ -789,9 +861,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           </Card>
                           {pages.length > 1 && (
                               <div className="mt-4 flex justify-between items-center">
-                                  <Button variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                                  <Button variant="outline" onClick={() => handleSetCurrentPage(currentPage - 1)} disabled={currentPage === 0}><ArrowLeft className="mr-2"/> Previous</Button>
                                   <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
-                                  <Button variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                                  <Button variant="outline" onClick={() => handleSetCurrentPage(currentPage + 1)} disabled={currentPage === pages.length - 1}>Next <ArrowRight className="ml-2"/></Button>
                               </div>
                           )}
                            <div className="fixed bottom-24 right-4 z-10 md:right-8">
@@ -816,10 +888,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           />
                       </TabsContent>
 
-                      <TabsContent value="generate" className="mt-4 space-y-6">
+                      <TabsContent value="generate" className="mt-4">
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
+                             <CardHeader>
+                                <CardTitle>Generate</CardTitle>
                                 <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
@@ -831,46 +903,44 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                         </Button>
                                     ))}
                                 </div>
+                            
+                                {(() => {
+                                    const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
+                                    if (saved.length === 0) return null;
+                                    const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
+                                        flashcards: { label: "Flashcards", icon: SquareStack },
+                                        deck: { label: "Slide Deck", icon: Presentation },
+                                        infographic: { label: "Infographic", icon: AreaChart },
+                                        mindmap: { label: "Mind Map", icon: GitFork },
+                                        podcast: { label: "Podcast", icon: Mic },
+                                    };
+                                    return (
+                                        <div>
+                                             <Separator className="my-6" />
+                                             <h3 className="font-semibold mb-4 text-lg">Saved Content</h3>
+                                             <div className="space-y-2">
+                                                {saved.map(([type]) => {
+                                                    const option = generationMap[type];
+                                                    if (!option) return null;
+                                                    return (
+                                                        <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                            <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
+                                                                <option.icon className="h-5 w-5 text-muted-foreground"/>
+                                                                View Generated {option.label}
+                                                            </Button>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                                <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
                             </CardContent>
                         </Card>
-                    
-                        {(() => {
-                            const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
-                            if (saved.length === 0) return null;
-                            const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
-                                flashcards: { label: "Flashcards", icon: SquareStack },
-                                deck: { label: "Slide Deck", icon: Presentation },
-                                infographic: { label: "Infographic", icon: AreaChart },
-                                mindmap: { label: "Mind Map", icon: GitFork },
-                                podcast: { label: "Podcast", icon: Mic },
-                            };
-                            return (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-xl"><Save className="h-5 w-5 text-primary"/> Saved Content</CardTitle>
-                                        <CardDescription>Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        {saved.map(([type]) => {
-                                            const option = generationMap[type];
-                                            if (!option) return null;
-                                            return (
-                                                <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                                    <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
-                                                        <option.icon className="h-5 w-5 text-muted-foreground"/>
-                                                        View Generated {option.label}
-                                                    </Button>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                        <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                            )
-                                        })}
-                                    </CardContent>
-                                </Card>
-                            )
-                        })()}
                       </TabsContent>
                   </Tabs>
               )}
@@ -925,18 +995,25 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   );
 }
 
-function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: () => void, topic: string }) {
+function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: (flippedPercentage: number) => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
     const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const flippedIndices = useRef(new Set<number>());
     const { toast } = useToast();
 
     const handleFlip = (index: number) => {
+        flippedIndices.current.add(index);
         setFlippedStates(prev => {
             const newStates = [...prev];
             newStates[index] = !newStates[index];
             return newStates;
         });
+    };
+    
+    const handleBack = () => {
+        const flippedPercentage = (flippedIndices.current.size / flashcards.length) * 100;
+        onBack(flippedPercentage);
     };
 
     const handlePrint = () => {
@@ -981,14 +1058,14 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
         <Card>
             <CardHeader>
                 <div className="flex justify-between items-start">
-                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <Button onClick={handleBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
                     <div className="flex items-center gap-2">
                         <Button onClick={() => setViewMode('grid')} variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon"><Grid className="h-4 w-4"/></Button>
                         <Button onClick={() => setViewMode('single')} variant={viewMode === 'single' ? 'secondary' : 'ghost'} size="icon"><View className="h-4 w-4"/></Button>
                         <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
                     </div>
                 </div>
-                <CardTitle className="pt-4 flex items-center gap-2"><SquareStack className="text-primary"/> Flashcards for "{topic}"</CardTitle>
+                <CardTitle className="pt-4 flex items-center gap-2">Flashcards for "{topic}"</CardTitle>
                 <CardDescription>Click on a card to flip it and see the answer.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -1035,7 +1112,7 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
     );
 }
 
-function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: () => void, topic: string }) {
+function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: (score: number, total: number) => void, topic: string }) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
@@ -1063,13 +1140,9 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         setQuizState('results');
     };
 
-    const handleRestart = () => {
-        setCurrentQuestionIndex(0);
-        setSelectedAnswers({});
-        setShowExplanation({});
-        setScore(0);
-        setQuizState('in-progress');
-    };
+    const handleFinishAndGoBack = () => {
+        onBack(score, quiz.length);
+    }
     
     const handlePrint = () => {
         const printContent = document.getElementById('quiz-results-print-area')?.innerHTML;
@@ -1095,7 +1168,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-start">
-                        <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                        <Button onClick={handleFinishAndGoBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
                         <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
                     </div>
                     <CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle>
@@ -1122,7 +1195,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
                      </div>
                 </CardContent>
                 <CardFooter>
-                     <Button onClick={handleRestart}>Take Again</Button>
+                     <Button onClick={() => setQuizState('in-progress')}>Take Again</Button>
                 </CardFooter>
             </Card>
         )
@@ -1131,8 +1204,8 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     return (
         <Card>
             <CardHeader>
-                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
-                <CardTitle className="pt-4 flex items-center gap-2"><HelpCircle className="text-primary"/> Quiz for "{topic}"</CardTitle>
+                <Button onClick={() => onBack(0,0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                <CardTitle className="pt-4 flex items-center gap-2">Quiz for "{topic}"</CardTitle>
                 <CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription>
                 <Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" />
             </CardHeader>
@@ -1218,7 +1291,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
                     <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
                     <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
                 </div>
-                <CardTitle className="pt-4 flex items-center gap-2"><Presentation className="text-primary"/> {deck.title}</CardTitle>
+                <CardTitle className="pt-4 flex items-center gap-2"> {deck.title}</CardTitle>
                 <CardDescription>Slide {currentSlideIndex + 1} of {deck.slides.length}</CardDescription>
             </CardHeader>
             <CardContent className="flex-1" id="deck-print-area">
@@ -1265,7 +1338,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
                     <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
                     <Button onClick={handleDownload} variant="ghost" size="icon" disabled={!infographic.imageUrl}><Download className="h-4 w-4"/></Button>
                 </div>
-                <CardTitle className="pt-4 flex items-center gap-2"><AreaChart className="text-primary"/> Infographic for "{topic}"</CardTitle>
+                <CardTitle className="pt-4 flex items-center gap-2"> Infographic for "{topic}"</CardTitle>
                 <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
@@ -1295,7 +1368,7 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
         <Card>
             <CardHeader>
                 <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>
-                <CardTitle className="pt-4 flex items-center gap-2"><Mic className="text-primary"/> Podcast for "{topic}"</CardTitle>
+                <CardTitle className="pt-4 flex items-center gap-2"> Podcast for "{topic}"</CardTitle>
                 <CardDescription>Listen to the AI-generated podcast based on your notes.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1387,7 +1460,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
-    
-
-    
