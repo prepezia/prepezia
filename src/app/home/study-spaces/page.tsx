@@ -1,6 +1,6 @@
 
 
-"use client";
+'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback } from "react";
 import { useForm } from "react-hook-form";
@@ -95,6 +95,8 @@ type StudySpace = {
     sources: Source[];
     chatHistory?: ChatMessage[];
     generatedContent?: GeneratedContent;
+    progress?: number;
+    status?: 'Not Started' | 'In Progress' | 'Completed';
 };
 
 type ViewState = 'list' | 'create' | 'edit';
@@ -104,15 +106,17 @@ type MockStudySpace = {
   name: string;
   description: string;
   sourceCount: number;
+  progress: number;
+  status: 'Not Started' | 'In Progress' | 'Completed';
 };
 
 const mockStudySpaces: MockStudySpace[] = [
-    { id: 1, name: "WASSCE Core Maths Prep", description: "All topics for the WASSCE core mathematics exam.", sourceCount: 12 },
-    { id: 2, name: "Ghanaian History 1800-1957", description: "From the Ashanti Empire to Independence.", sourceCount: 7 },
-    { id: 3, name: "Final Year Project - AI Tutors", description: "Research and resources for my final project on AI in education.", sourceCount: 23 },
-    { id: 4, name: "Quantum Physics Basics", description: "Introductory concepts in quantum mechanics.", sourceCount: 5 },
-    { id: 5, name: "BECE Social Studies", description: "Revision notes for all BECE social studies topics.", sourceCount: 15 },
-    { id: 6, name: "Intro to Python Programming", description: "Basics of Python for beginners.", sourceCount: 10 },
+    { id: 1, name: "WASSCE Core Maths Prep", description: "All topics for the WASSCE core mathematics exam.", sourceCount: 12, progress: 66, status: 'In Progress' },
+    { id: 2, name: "Ghanaian History 1800-1957", description: "From the Ashanti Empire to Independence.", sourceCount: 7, progress: 100, status: 'Completed' },
+    { id: 3, name: "Final Year Project - AI Tutors", description: "Research and resources for my final project on AI in education.", sourceCount: 23, progress: 33, status: 'In Progress' },
+    { id: 4, name: "Quantum Physics Basics", description: "Introductory concepts in quantum mechanics.", sourceCount: 5, progress: 0, status: 'Not Started' },
+    { id: 5, name: "BECE Social Studies", description: "Revision notes for all BECE social studies topics.", sourceCount: 15, progress: 100, status: 'Completed' },
+    { id: 6, name: "Intro to Python Programming", description: "Basics of Python for beginners.", sourceCount: 10, progress: 16, status: 'In Progress' },
 ];
 
 
@@ -462,6 +466,8 @@ function StudySpacesPage() {
         sources,
         chatHistory: [],
         generatedContent: {},
+        progress: 0,
+        status: 'Not Started',
     };
     setStudySpaces(prev => [newSpace, ...prev]);
     setSelectedStudySpace(newSpace);
@@ -597,7 +603,11 @@ function StudySpacesPage() {
       
       updateSelectedStudySpace(current => {
           const newGeneratedContent = { ...(current.generatedContent || {}), [type]: result };
-          return { generatedContent: newGeneratedContent };
+          const generationOptionsCount = 6;
+          const completedCount = Object.keys(newGeneratedContent).filter(k => newGeneratedContent[k as keyof GeneratedContent]).length;
+          const progress = (completedCount / generationOptionsCount) * 100;
+          const status = progress >= 100 ? 'Completed' : 'In Progress';
+          return { generatedContent: newGeneratedContent, progress, status };
       });
       
       setActiveGeneratedView(type);
@@ -977,13 +987,19 @@ function StudySpacesPage() {
               <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {studySpaces.slice(0, visibleCount).map(space => (
-                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative" onClick={() => handleSelectStudySpace(space)}>
+                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={() => handleSelectStudySpace(space)}>
                               <CardHeader>
                                   <CardTitle>{space.name}</CardTitle>
                                   <CardDescription>{space.description}</CardDescription>
                               </CardHeader>
-                              <CardContent>
+                              <CardContent className="flex-grow">
                                   <p className="text-sm font-bold text-primary">{space.sources.length} sources</p>
+                                  {space.status !== 'Not Started' && typeof space.progress === 'number' && (
+                                    <div className="mt-2">
+                                        <Progress value={space.progress} className="h-2" />
+                                        <p className="text-xs text-muted-foreground mt-1">{space.status} - {Math.round(space.progress)}%</p>
+                                    </div>
+                                  )}
                               </CardContent>
                                <div className="absolute top-1 right-1">
                                     <DropdownMenu>
@@ -1693,3 +1709,5 @@ export default function StudySpacesPageWrapper() {
     </Suspense>
   )
 }
+
+    

@@ -28,6 +28,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { Logo } from '@/components/icons/Logo';
+import { Progress } from '@/components/ui/progress';
 
 // Types
 type ChatMessageContent = string | {
@@ -47,6 +48,8 @@ type SavedChat = {
   topic: string;
   history: ChatMessage[];
   createdAt: string;
+  progress?: number;
+  status?: 'Not Started' | 'In Progress' | 'Completed';
 };
 
 type PendingPrompt = {
@@ -177,7 +180,11 @@ function GuidedLearningPage() {
         };
         
         const finalHistory = [...updatedHistoryForRequest, assistantMessage];
-        updateActiveChat({ history: finalHistory });
+        
+        const progress = Math.min((finalHistory.length / 10) * 100, 100); // 10 messages = 100%
+        const currentStatus = chatContext.status === 'Not Started' ? 'In Progress' : (progress >= 100 ? 'Completed' : 'In Progress');
+
+        updateActiveChat({ history: finalHistory, progress, status: currentStatus });
         
         const isFirstAssistantMessage = finalHistory.filter(m => m.role === 'assistant' && !m.isError).length === 1;
 
@@ -215,6 +222,8 @@ function GuidedLearningPage() {
         topic: prompt?.question || 'New Chat',
         history: [],
         createdAt: new Date().toISOString(),
+        progress: 0,
+        status: 'Not Started',
     };
     
     setSavedChats(prev => [newChat, ...prev]);
@@ -319,7 +328,7 @@ function GuidedLearningPage() {
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         if (activeChat) {
-            submitMessage(transcript, activeChat);
+            submitMessage(transcript, activeChat, { isVoiceInput: true });
         }
       };
       recognition.onerror = (event: any) => {
@@ -379,12 +388,19 @@ function GuidedLearningPage() {
                             if (isMobile) setIsSidebarOpen(false);
                         }}
                         className={cn(
-                            "group flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-secondary",
+                            "group flex items-start justify-between p-2 rounded-md cursor-pointer hover:bg-secondary",
                             activeChat?.id === chat.id && "bg-secondary font-semibold"
                         )}
                     >
-                        <p className="text-sm truncate flex-1">{chat.topic}</p>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); handleDeleteChat(chat.id);}}>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{chat.topic}</p>
+                            {chat.status !== 'Not Started' && typeof chat.progress === 'number' && (
+                                <div className="mt-1.5">
+                                    <Progress value={chat.progress} className="h-1" />
+                                </div>
+                            )}
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 shrink-0 ml-2" onClick={(e) => { e.stopPropagation(); handleDeleteChat(chat.id);}}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                     </div>
@@ -529,3 +545,6 @@ export default function GuidedLearningPageWrapper() {
 }
 
 
+
+
+    

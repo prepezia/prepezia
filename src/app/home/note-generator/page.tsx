@@ -63,16 +63,18 @@ type RecentNote = {
   content: string;
   nextStepsPrompt?: string;
   generatedContent?: GeneratedContent;
+  progress?: number;
+  status?: 'Not Started' | 'In Progress' | 'Completed';
 };
 
 const dummyRecentNotes: RecentNote[] = [
-  { id: 1, topic: 'Photosynthesis', level: 'Undergraduate', date: 'July 21, 2024', content: "## Introduction to Photosynthesis\nPhotosynthesis is the process used by plants, algae, and certain bacteria to harness energy from sunlight and turn it into chemical energy." },
-  { id: 2, topic: 'The Scramble for Africa', level: 'Secondary', date: 'July 21, 2024', content: "## The Scramble for Africa\nThe Scramble for Africa was the invasion, occupation, division, and colonization of most of Africa by seven Western European powers during a short period known to historians as the New Imperialism (between 1881 and 1914)." },
-  { id: 3, topic: 'Newtonian Physics', level: 'Intermediate', date: 'July 20, 2024', content: "### Newton's Three Laws of Motion\n\n| Law | Description |\n|---|---|\n| First | An object will not change its motion unless a force acts on it. |\n| Second | The force on an object is equal to its mass times its acceleration. |\n| Third | For every action, there is an equal and opposite reaction. |" },
-  { id: 4, topic: 'Introduction to Python', level: 'Beginner', date: 'July 20, 2024', content: "### Your First Python Program\n\nTo get started, let's write a simple \"Hello, World!\" program.\n\n\`\`\`python\nprint(\"Hello, World!\")\n\`\`\`" },
-  { id: 5, topic: 'Ghanaian Independence', level: 'Secondary', date: 'July 19, 2024', content: "## Ghana's Independence\nGhana, formerly known as the Gold Coast, was the first country in sub-Saharan Africa to gain independence from European colonial rule. Independence was declared on **March 6, 1957**." },
-  { id: 6, 'topic': 'Machine Learning Algorithms', level: 'Masters', date: 'July 18, 2024', content: "### Common Algorithms\n- Linear Regression\n- Logistic Regression\n- Decision Trees\n- Support Vector Machines (SVM)\n- K-Nearest Neighbors (KNN)" },
-  { id: 7, topic: 'The Cell Structure', level: 'Secondary', date: 'July 17, 2024', content: "#### Key Organelles\n*   **Nucleus:** Contains the cell's genetic material.\n*   **Mitochondria:** The powerhouse of the cell.\n*   **Ribosomes:** Synthesize proteins." },
+  { id: 1, topic: 'Photosynthesis', level: 'Undergraduate', date: 'July 21, 2024', content: "## Introduction to Photosynthesis\nPhotosynthesis is the process used by plants, algae, and certain bacteria to harness energy from sunlight and turn it into chemical energy.", progress: 75, status: 'In Progress' },
+  { id: 2, topic: 'The Scramble for Africa', level: 'Secondary', date: 'July 21, 2024', content: "## The Scramble for Africa\nThe Scramble for Africa was the invasion, occupation, division, and colonization of most of Africa by seven Western European powers during a short period known to historians as the New Imperialism (between 1881 and 1914).", progress: 100, status: 'Completed' },
+  { id: 3, topic: 'Newtonian Physics', level: 'Intermediate', date: 'July 20, 2024', content: "### Newton's Three Laws of Motion\n\n| Law | Description |\n|---|---|\n| First | An object will not change its motion unless a force acts on it. |\n| Second | The force on an object is equal to its mass times its acceleration. |\n| Third | For every action, there is an equal and opposite reaction. |", progress: 40, status: 'In Progress' },
+  { id: 4, topic: 'Introduction to Python', level: 'Beginner', date: 'July 20, 2024', content: "### Your First Python Program\n\nTo get started, let's write a simple \"Hello, World!\" program.\n\n\`\`\`python\nprint(\"Hello, World!\")\n\`\`\`", progress: 0, status: 'Not Started' },
+  { id: 5, topic: 'Ghanaian Independence', level: 'Secondary', date: 'July 19, 2024', content: "## Ghana's Independence\nGhana, formerly known as the Gold Coast, was the first country in sub-Saharan Africa to gain independence from European colonial rule. Independence was declared on **March 6, 1957**.", progress: 100, status: 'Completed' },
+  { id: 6, 'topic': 'Machine Learning Algorithms', level: 'Masters', date: 'July 18, 2024', content: "### Common Algorithms\n- Linear Regression\n- Logistic Regression\n- Decision Trees\n- Support Vector Machines (SVM)\n- K-Nearest Neighbors (KNN)", progress: 0, status: 'Not Started' },
+  { id: 7, topic: 'The Cell Structure', level: 'Secondary', date: 'July 17, 2024', content: "#### Key Organelles\n*   **Nucleus:** Contains the cell's genetic material.\n*   **Mitochondria:** The powerhouse of the cell.\n*   **Ribosomes:** Synthesize proteins.", progress: 25, status: 'In Progress' },
 ];
 
 function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: RecentNote) => void, onCreateNew: () => void }) {
@@ -133,13 +135,19 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (note: Rece
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {recentNotes.slice(0, visibleCount).map(note => (
-                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow relative" onClick={() => onSelectNote(note)}>
+                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={() => onSelectNote(note)}>
                                 <CardHeader>
                                     <CardTitle>{note.topic}</CardTitle>
                                     <CardDescription>{note.level}</CardDescription>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="flex-grow">
                                     <p className="text-sm text-muted-foreground">Generated on {note.date}</p>
+                                    {note.status !== 'Not Started' && typeof note.progress === 'number' && (
+                                        <div className="mt-2">
+                                            <Progress value={note.progress} className="h-2" />
+                                            <p className="text-xs text-muted-foreground mt-1">{note.status} - {Math.round(note.progress)}%</p>
+                                        </div>
+                                    )}
                                 </CardContent>
                                 <div className="absolute top-1 right-1">
                                     <DropdownMenu>
@@ -489,6 +497,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       content,
       nextStepsPrompt: nextSteps,
       generatedContent: {},
+      progress: 0,
+      status: 'Not Started',
     };
     try {
       const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
@@ -537,6 +547,31 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       generationStarted.current = false;
     }
   }, [onNoteGenerated, toast]);
+  
+  const updateNoteProgressInStorage = useCallback((noteId: number, progress: number, status: 'In Progress' | 'Completed') => {
+    try {
+        const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+        if (!savedNotesRaw) return;
+        const savedNotes: RecentNote[] = JSON.parse(savedNotesRaw);
+        const noteIndex = savedNotes.findIndex((n: RecentNote) => n.id === noteId);
+
+        if (noteIndex > -1) {
+            savedNotes[noteIndex].progress = progress;
+            savedNotes[noteIndex].status = status;
+            localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
+        }
+    } catch (e) {
+        console.error("Failed to update note progress in local storage:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialNote && pages.length > 0) {
+        const progress = ((currentPage + 1) / pages.length) * 100;
+        const status = progress >= 100 ? 'Completed' : 'In Progress';
+        updateNoteProgressInStorage(initialNote.id, progress, status);
+    }
+  }, [currentPage, pages, initialNote, updateNoteProgressInStorage]);
   
   useEffect(() => {
     if (initialTopic && !initialNote) {
@@ -781,7 +816,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           />
                       </TabsContent>
 
-                      <TabsContent value="generate" className="mt-4">
+                      <TabsContent value="generate" className="mt-4 space-y-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
@@ -796,46 +831,46 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                         </Button>
                                     ))}
                                 </div>
-                    
-                                {(() => {
-                                    const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
-                                    if (saved.length === 0) return null;
-                                    const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
-                                        flashcards: { label: "Flashcards", icon: SquareStack },
-                                        deck: { label: "Slide Deck", icon: Presentation },
-                                        infographic: { label: "Infographic", icon: AreaChart },
-                                        mindmap: { label: "Mind Map", icon: GitFork },
-                                        podcast: { label: "Podcast", icon: Mic },
-                                    };
-                                    return (
-                                        <div className="space-y-4 pt-6 border-t">
-                                             <div className="space-y-1">
-                                                <h3 className="font-semibold text-lg flex items-center gap-2"><Save className="h-5 w-5 text-primary"/> Saved Content</h3>
-                                                <p className="text-sm text-muted-foreground">Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</p>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {saved.map(([type]) => {
-                                                    const option = generationMap[type];
-                                                    if (!option) return null;
-                                                    return (
-                                                        <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                                            <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
-                                                                <option.icon className="h-5 w-5 text-muted-foreground"/>
-                                                                View Generated {option.label}
-                                                            </Button>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                                <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-                                    )
-                                })()}
                             </CardContent>
                         </Card>
+                    
+                        {(() => {
+                            const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
+                            if (saved.length === 0) return null;
+                            const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
+                                flashcards: { label: "Flashcards", icon: SquareStack },
+                                deck: { label: "Slide Deck", icon: Presentation },
+                                infographic: { label: "Infographic", icon: AreaChart },
+                                mindmap: { label: "Mind Map", icon: GitFork },
+                                podcast: { label: "Podcast", icon: Mic },
+                            };
+                            return (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-xl"><Save className="h-5 w-5 text-primary"/> Saved Content</CardTitle>
+                                        <CardDescription>Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        {saved.map(([type]) => {
+                                            const option = generationMap[type];
+                                            if (!option) return null;
+                                            return (
+                                                <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                    <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
+                                                        <option.icon className="h-5 w-5 text-muted-foreground"/>
+                                                        View Generated {option.label}
+                                                    </Button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            )
+                                        })}
+                                    </CardContent>
+                                </Card>
+                            )
+                        })()}
                       </TabsContent>
                   </Tabs>
               )}
@@ -1352,5 +1387,7 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
 
     
