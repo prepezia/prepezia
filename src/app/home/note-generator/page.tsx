@@ -589,12 +589,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     setIsGenerating(type);
 
     try {
-        const input = {
+        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
             context: 'note-generator',
             topic: topic,
             academicLevel: academicLevel,
             content: generatedNotes.notes,
-        } as GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput;
+        };
       
       let resultData;
 
@@ -694,10 +694,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   </div>
               ) : (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
-                      <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="notes">Notes</TabsTrigger>
-                          <TabsTrigger value="chat">Chat</TabsTrigger>
-                          <TabsTrigger value="generate">Generate</TabsTrigger>
+                      <TabsList className="grid w-full grid-cols-3 bg-secondary">
+                        <TabsTrigger value="notes">Notes</TabsTrigger>
+                        <TabsTrigger value="chat">Chat</TabsTrigger>
+                        <TabsTrigger value="generate">Generate</TabsTrigger>
                       </TabsList>
                       
                       <TabsContent value="notes" className="mt-4 flex-1 flex flex-col min-h-0 relative">
@@ -781,57 +781,61 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           />
                       </TabsContent>
 
-                      <TabsContent value="generate" className="mt-4 space-y-6">
-                        <div>
-                            <h3 className="text-xl font-semibold flex items-center gap-2 mb-2"><Sparkles className="text-primary"/> Next Steps</h3>
-                            <p className="text-muted-foreground mb-4">{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</p>
-                            <div className="flex flex-wrap gap-4">
-                                {nextStepActions.map(item => (
-                                    <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading || isGenerating !== null}>
-                                        {item.loading ? <Loader2 className="mr-2 animate-spin"/> : <item.icon className="mr-2"/>}
-                                        {item.label}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-
-                          {(() => {
-                              const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
-                              if (saved.length === 0) return null;
-                              const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
-                                  flashcards: { label: "Flashcards", icon: SquareStack },
-                                  deck: { label: "Slide Deck", icon: Presentation },
-                                  infographic: { label: "Infographic", icon: AreaChart },
-                                  mindmap: { label: "Mind Map", icon: GitFork },
-                                  podcast: { label: "Podcast", icon: Mic },
-                              };
-                              return (
-                                  <Card>
-                                      <CardHeader>
-                                          <CardTitle className="flex items-center gap-2 text-xl"><Save className="text-primary"/> Saved Content</CardTitle>
-                                          <CardDescription>Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</CardDescription>
-                                      </CardHeader>
-                                      <CardContent className="space-y-2">
-                                          {saved.map(([type]) => {
-                                              const option = generationMap[type];
-                                              if (!option) return null;
-                                              return (
-                                                  <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                                      <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
-                                                          <option.icon className="h-5 w-5 text-muted-foreground"/>
-                                                          View Generated {option.label}
-                                                      </Button>
-                                                      <DropdownMenu>
-                                                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                          <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
-                                                      </DropdownMenu>
-                                                  </div>
-                                              )
-                                          })}
-                                      </CardContent>
-                                  </Card>
-                              )
-                          })()}
+                      <TabsContent value="generate" className="mt-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
+                                <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="flex flex-wrap gap-4">
+                                    {nextStepActions.map(item => (
+                                        <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading || isGenerating !== null}>
+                                            {item.loading ? <Loader2 className="mr-2 animate-spin"/> : <item.icon className="mr-2"/>}
+                                            {item.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                    
+                                {(() => {
+                                    const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
+                                    if (saved.length === 0) return null;
+                                    const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
+                                        flashcards: { label: "Flashcards", icon: SquareStack },
+                                        deck: { label: "Slide Deck", icon: Presentation },
+                                        infographic: { label: "Infographic", icon: AreaChart },
+                                        mindmap: { label: "Mind Map", icon: GitFork },
+                                        podcast: { label: "Podcast", icon: Mic },
+                                    };
+                                    return (
+                                        <div className="space-y-4 pt-6 border-t">
+                                             <div className="space-y-1">
+                                                <h3 className="font-semibold text-lg flex items-center gap-2"><Save className="h-5 w-5 text-primary"/> Saved Content</h3>
+                                                <p className="text-sm text-muted-foreground">Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {saved.map(([type]) => {
+                                                    const option = generationMap[type];
+                                                    if (!option) return null;
+                                                    return (
+                                                        <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                            <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
+                                                                <option.icon className="h-5 w-5 text-muted-foreground"/>
+                                                                View Generated {option.label}
+                                                            </Button>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                                <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
+                            </CardContent>
+                        </Card>
                       </TabsContent>
                   </Tabs>
               )}
