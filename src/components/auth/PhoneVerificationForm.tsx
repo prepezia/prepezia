@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -213,7 +214,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       });
       
       setTimeout(() => {
-        router.push("/home");
+        router.push("/home/welcome");
       }, 1000);
 
     } catch (error: any) {

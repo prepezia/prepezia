@@ -98,7 +98,7 @@ export default function WelcomePage() {
             </div>
             <CardTitle className="font-headline text-2xl">One Last Step!</CardTitle>
             <CardDescription>
-              Help us personalize your experience by telling us your current educational level.
+              Help us personalize your experience by telling us your current educational level. You can change this later in your account settings.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
