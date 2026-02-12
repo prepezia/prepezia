@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -57,6 +56,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isResending, setIsResending] = useState(false);
+  const [otpStatus, setOtpStatus] = useState("");
   
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
@@ -105,6 +105,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     }
 
     setIsLoading(true);
+    setOtpStatus("");
 
     try {
       const country = countryCodes.find(c => c.code === values.countryCode);
@@ -120,7 +121,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       const phoneNumber = `${country.dial_code}${localPhoneNumber}`;
       setFullPhoneNumber(phoneNumber);
       
-      const confirmationResult = await sendPhoneOtp(auth, phoneNumber);
+      const confirmationResult = await sendPhoneOtp(auth, phoneNumber, setOtpStatus);
       
       setVerificationId(confirmationResult.verificationId);
       setStep("otp");
@@ -132,6 +133,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
       });
 
     } catch (error: any) {
+      setOtpStatus(`Error: ${error.message}`);
       toast({
         variant: "destructive",
         title: "Failed to Send OTP",
@@ -155,6 +157,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
     if (resendCooldown > 0 || isResending) return;
     
     setIsResending(true);
+    setOtpStatus("");
     
     try {
       await phoneForm.handleSubmit(handleSendOtp)();
@@ -298,6 +301,7 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
                   setStep('phone');
                   setVerificationId(null);
                   setResendCooldown(0);
+                  setOtpStatus("");
                 }}
                 disabled={isLoading || isResending}
                 className="mt-2"
@@ -372,6 +376,9 @@ export function PhoneVerificationForm({ user, onBack }: { user: User, onBack: ()
                 {isLoading && <Loader2 className="mr-2 animate-spin" />}
                 Send Verification Code
               </Button>
+               {otpStatus && (
+                  <p className="text-xs text-muted-foreground text-center animate-pulse">{otpStatus}</p>
+              )}
               <Button 
                 type="button" 
                 variant="outline" 
