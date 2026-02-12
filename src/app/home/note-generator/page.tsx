@@ -752,11 +752,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
 
   const renderGeneratedContent = () => {
     if (activeView === 'flashcards') {
-        const flashcards = generatedContent.flashcards?.flashcards;
+        const flashcards = (generatedContent.flashcards as any)?.flashcards;
         if(flashcards) return <FlashcardView flashcards={flashcards} onBack={handleFlashcardsViewed} topic={topic} />;
     }
-    if (activeView === 'quiz' && generatedContent.quiz) {
-        return <QuizView quiz={generatedContent.quiz.quiz} onBack={handleQuizComplete} topic={topic} />;
+    if (activeView === 'quiz') {
+        const quiz = (generatedContent.quiz as any)?.quiz;
+        if(quiz) return <QuizView quiz={quiz} onBack={handleQuizComplete} topic={topic} />;
     }
     if (activeView === 'deck' && generatedContent.deck) {
         setInteractionProgress(ip => ({...ip, deckViewed: true}));
@@ -798,7 +799,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
                   </div>
               ) : (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
-                      <TabsList className="grid w-full grid-cols-3 bg-secondary">
+                      <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="notes">Notes</TabsTrigger>
                         <TabsTrigger value="chat">Chat</TabsTrigger>
                         <TabsTrigger value="generate">Generate</TabsTrigger>
@@ -1411,37 +1412,39 @@ function NoteGeneratorPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Memoize params to prevent re-renders from searchParams object changing
-    const topicParam = useMemo(() => searchParams.get('topic'), [searchParams]);
-    const noteIdParam = useMemo(() => searchParams.get('noteId'), [searchParams]);
-    const isNewParam = useMemo(() => searchParams.get('new'), [searchParams]);
+    const topicParam = searchParams.get('topic');
+    const noteIdParam = searchParams.get('noteId');
+    const isNewParam = searchParams.get('new');
 
-    const handleSelectNote = (note: RecentNote) => {
+    const handleSelectNote = useCallback((note: RecentNote) => {
         router.push(`/home/note-generator?noteId=${note.id}`);
-    };
+    }, [router]);
 
-    const handleCreateNew = () => {
+    const handleCreateNew = useCallback(() => {
         router.push('/home/note-generator?new=true');
-    };
+    }, [router]);
 
-    const handleBackToList = () => {
+    const handleBackToList = useCallback(() => {
         router.push('/home/note-generator');
-    };
+    }, [router]);
     
+    const initialNote = useMemo(() => {
+        if (noteIdParam) {
+            try {
+                const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+                const savedNotes: RecentNote[] = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
+                return savedNotes.find((n: RecentNote) => n.id.toString() === noteIdParam) || null;
+            } catch (e) {
+                console.error("Error loading note from storage", e);
+                return null;
+            }
+        }
+        return null;
+    }, [noteIdParam]);
+
     const needsNoteView = topicParam || noteIdParam || isNewParam;
 
     if (needsNoteView) {
-        let initialNote: RecentNote | null = null;
-        if (noteIdParam) {
-             try {
-                const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-                const savedNotes: RecentNote[] = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
-                initialNote = savedNotes.find((n: RecentNote) => n.id.toString() === noteIdParam) || null;
-            } catch(e) { 
-                console.error("Error loading note from storage", e); 
-            }
-        }
-
         return <NoteViewPage onBack={handleBackToList} initialTopic={topicParam} initialNote={initialNote} />;
     }
     
