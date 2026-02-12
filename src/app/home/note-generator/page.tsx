@@ -801,7 +801,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   </div>
               ) : (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
-                      <TabsList className="grid w-full grid-cols-3">
+                      <TabsList className="grid w-full grid-cols-3 bg-secondary">
                         <TabsTrigger value="notes">Notes</TabsTrigger>
                         <TabsTrigger value="chat">Chat</TabsTrigger>
                         <TabsTrigger value="generate">Generate</TabsTrigger>
@@ -891,7 +891,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                       <TabsContent value="generate" className="mt-4">
                         <Card>
                              <CardHeader>
-                                <CardTitle>Generate</CardTitle>
+                                <CardTitle>Next Steps</CardTitle>
                                 <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
@@ -1119,6 +1119,18 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
     const [score, setScore] = useState(0);
     const { toast } = useToast();
+
+    if (!quiz || quiz.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <Button onClick={() => onBack(0, 0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <CardTitle className="pt-4">Quiz Error</CardTitle>
+                    <CardDescription>No questions were generated for this topic.</CardDescription>
+                </CardHeader>
+            </Card>
+        )
+    }
 
     const currentQuestion = quiz[currentQuestionIndex];
     const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;

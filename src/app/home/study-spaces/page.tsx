@@ -1526,6 +1526,18 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     const [score, setScore] = useState(0);
     const { toast } = useToast();
 
+    if (!quiz || quiz.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <Button onClick={() => onBack(0, 0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <CardTitle className="pt-4">Quiz Error</CardTitle>
+                    <CardDescription>No questions were generated for these sources.</CardDescription>
+                </CardHeader>
+            </Card>
+        )
+    }
+
     const handleAnswerSelect = (answer: string) => {
         if (selectedAnswers[currentQuestionIndex] !== undefined) return;
         setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
