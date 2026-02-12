@@ -699,11 +699,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             break;
         case 'flashcards':
             const flashcardResult = await generateFlashcards(input);
-            resultData = flashcardResult.flashcards;
+            resultData = flashcardResult;
             break;
         case 'quiz':
             const quizResult = await generateQuiz(input);
-            resultData = quizResult.quiz;
+            resultData = quizResult;
             break;
         case 'deck':
             resultData = await generateSlideDeck(input);
@@ -891,13 +891,13 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           />
                       </TabsContent>
 
-                      <TabsContent value="generate" className="mt-4">
+                      <TabsContent value="generate" className="mt-4 space-y-6">
                         <Card>
                              <CardHeader>
                                 <CardTitle>Next Steps</CardTitle>
                                 <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-6">
+                            <CardContent>
                                 <div className="flex flex-wrap gap-4">
                                     {nextStepActions.map(item => (
                                         <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading || isGenerating !== null}>
@@ -906,44 +906,48 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                         </Button>
                                     ))}
                                 </div>
-                            
-                                {(() => {
-                                    const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
-                                    if (saved.length === 0) return null;
-                                    const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
-                                        flashcards: { label: "Flashcards", icon: SquareStack },
-                                        deck: { label: "Slide Deck", icon: Presentation },
-                                        infographic: { label: "Infographic", icon: AreaChart },
-                                        mindmap: { label: "Mind Map", icon: GitFork },
-                                        podcast: { label: "Podcast", icon: Mic },
-                                    };
-                                    return (
-                                        <div>
-                                             <Separator className="my-6" />
-                                             <h3 className="font-semibold mb-4 text-lg">Saved Content</h3>
-                                             <div className="space-y-2">
-                                                {saved.map(([type]) => {
-                                                    const option = generationMap[type];
-                                                    if (!option) return null;
-                                                    return (
-                                                        <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                                            <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
-                                                                <option.icon className="h-5 w-5 text-muted-foreground"/>
-                                                                View Generated {option.label}
-                                                            </Button>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                                <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-                                    )
-                                })()}
                             </CardContent>
                         </Card>
+                            
+                        {(() => {
+                            const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
+                            if (saved.length === 0) return null;
+                            const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
+                                flashcards: { label: "Flashcards", icon: SquareStack },
+                                deck: { label: "Slide Deck", icon: Presentation },
+                                infographic: { label: "Infographic", icon: AreaChart },
+                                mindmap: { label: "Mind Map", icon: GitFork },
+                                podcast: { label: "Podcast", icon: Mic },
+                            };
+                            return (
+                                <Card>
+                                     <CardHeader>
+                                        <CardTitle>Saved Content</CardTitle>
+                                        <CardDescription>Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                     <div className="space-y-2">
+                                        {saved.map(([type]) => {
+                                            const option = generationMap[type];
+                                            if (!option) return null;
+                                            return (
+                                                <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                    <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
+                                                        <option.icon className="h-5 w-5 text-muted-foreground"/>
+                                                        View Generated {option.label}
+                                                    </Button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                    </CardContent>
+                                </Card>
+                            )
+                        })()}
                       </TabsContent>
                   </Tabs>
               )}
@@ -1475,3 +1479,4 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
