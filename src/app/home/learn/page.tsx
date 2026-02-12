@@ -146,7 +146,7 @@ function GuidedLearningPage() {
   const submitMessage = useCallback(async (
     content: string, 
     chatContext: SavedChat, 
-    options?: { media?: PendingPrompt['media'] }
+    options?: { media?: PendingPrompt['media'], isVoiceInput?: boolean }
   ) => {
     if ((!content.trim() && !options?.media) || isLoading) return;
 
@@ -206,6 +206,10 @@ function GuidedLearningPage() {
             })();
         }
 
+        if (options?.isVoiceInput) {
+            await handlePlayAudio(assistantMessage.id, fullResponseContent);
+        }
+
     } catch (e: any) {
         console.error("Guided learning chat error", e);
         const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again.", isError: true };
@@ -214,7 +218,7 @@ function GuidedLearningPage() {
     } finally {
         setIsLoading(false);
     }
-  }, [isLoading, toast, updateActiveChat]);
+  }, [isLoading, toast, updateActiveChat, handlePlayAudio]);
   
   const startNewChat = useCallback((prompt?: PendingPrompt) => {
     const newChat: SavedChat = {

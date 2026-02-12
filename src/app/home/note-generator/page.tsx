@@ -320,7 +320,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
   const { toast } = useToast();
   const [topic, setTopic] = useState(initialNoteProp?.topic || initialTopic || "");
   const [academicLevel, setAcademicLevel] = useState<AcademicLevel>(initialNoteProp?.level as AcademicLevel || "Undergraduate");
-  const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(initialNoteProp ? { notes: initialNoteProp.content, nextStepsPrompt: initialNoteProp.nextStepsPrompt } : null);
+  const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(initialNoteProp ? { notes: initialNoteProp.content, nextStepsPrompt: initialNoteProp.nextStepsPrompt ?? '' } : null);
   const [isLoading, setIsLoading] = useState(false);
 
   const [pages, setPages] = useState<string[]>([]);
