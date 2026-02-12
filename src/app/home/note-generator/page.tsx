@@ -316,20 +316,20 @@ const PROGRESS_WEIGHTS = {
   // Podcast doesn't have a direct interaction metric in this design
 };
 
-function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
+function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
   const { toast } = useToast();
-  const [topic, setTopic] = useState(initialNote?.topic || initialTopic || "");
-  const [academicLevel, setAcademicLevel] = useState<AcademicLevel>(initialNote?.level as AcademicLevel || "Undergraduate");
-  const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(null);
+  const [topic, setTopic] = useState(initialNoteProp?.topic || initialTopic || "");
+  const [academicLevel, setAcademicLevel] = useState<AcademicLevel>(initialNoteProp?.level as AcademicLevel || "Undergraduate");
+  const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(initialNoteProp ? { notes: initialNoteProp.content, nextStepsPrompt: initialNoteProp.nextStepsPrompt } : null);
   const [isLoading, setIsLoading] = useState(false);
 
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const generationStarted = useRef(false);
   const pageStartTime = useRef(Date.now());
-  const [viewedPages, setViewedPages] = useState<Set<number>>(() => new Set(initialNote?.interactionProgress?.notesViewed ? Array.from({length: Math.floor(initialNote.interactionProgress.notesViewed * (initialNote.content.split(/\n---\n/).length) / 100)}, (_, i) => i) : []));
+  const [viewedPages, setViewedPages] = useState<Set<number>>(() => new Set(initialNoteProp?.interactionProgress?.notesViewed ? Array.from({length: Math.floor(initialNoteProp.interactionProgress.notesViewed * (initialNoteProp.content.split(/\n---\n/).length) / 100)}, (_, i) => i) : []));
 
-  const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNote?.generatedContent || {});
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContent>(initialNoteProp?.generatedContent || {});
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
   
   const [activeView, setActiveView] = useState<ActiveView>('notes');
@@ -351,10 +351,39 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   const userDocRef = useMemo(() => user && firestore ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
   const { data: firestoreUser } = useDoc(userDocRef);
   
-  const [interactionProgress, setInteractionProgress] = useState<InteractionProgress>(initialNote?.interactionProgress || {});
+  const [interactionProgress, setInteractionProgress] = useState<InteractionProgress>(initialNoteProp?.interactionProgress || {});
+
+  const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
+    try {
+        const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+        const savedNotes: RecentNote[] = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
+        const noteIndex = savedNotes.findIndex((n: RecentNote) => n.id === noteId);
+        
+        if (noteIndex > -1) {
+            const updatedNote = { ...savedNotes[noteIndex], ...newContent };
+            savedNotes[noteIndex] = updatedNote;
+            localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
+        }
+    } catch (e: any) {
+        console.error("Failed to update note in local storage:", e);
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+             toast({
+                variant: 'destructive',
+                title: 'Storage Limit Reached',
+                description: "Could not save all generated content because your browser's local storage is full. Some content may not be available next time you visit.",
+            });
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Save Failed',
+                description: "Could not save your changes. The browser storage might be full."
+            });
+        }
+    }
+  }, [toast]);
 
   const calculateAndUpdateProgress = useCallback(() => {
-    if (!initialNote) return;
+    if (!initialNoteProp) return;
 
     let totalProgress = 0;
     const ip = interactionProgress;
@@ -369,22 +398,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     const finalProgress = Math.min(Math.round(totalProgress), 100);
     const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
 
-    try {
-      const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-      if (!savedNotesRaw) return;
-      const savedNotes: RecentNote[] = JSON.parse(savedNotesRaw);
-      const noteIndex = savedNotes.findIndex((n: RecentNote) => n.id === initialNote.id);
-      
-      if (noteIndex > -1) {
-        savedNotes[noteIndex].progress = finalProgress;
-        savedNotes[noteIndex].status = status;
-        savedNotes[noteIndex].interactionProgress = interactionProgress;
-        localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
-      }
-    } catch (e) {
-        console.error("Failed to update note progress in local storage:", e);
-    }
-  }, [initialNote, interactionProgress]);
+    updateAndSaveNote(initialNoteProp.id, { progress: finalProgress, status, interactionProgress });
+  }, [initialNoteProp, interactionProgress, updateAndSaveNote]);
 
   useEffect(() => {
     calculateAndUpdateProgress();
@@ -392,10 +407,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 
   useEffect(() => {
-    if (firestoreUser?.educationalLevel && !initialNote) {
+    if (firestoreUser?.educationalLevel && !initialNoteProp) {
         setAcademicLevel(firestoreUser.educationalLevel as AcademicLevel);
     }
-  }, [firestoreUser, initialNote]);
+  }, [firestoreUser, initialNoteProp]);
 
   const handleSetCurrentPage = (pageIndex: number) => {
     const timeSpent = Date.now() - pageStartTime.current;
@@ -404,7 +419,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             const newSet = new Set(prev);
             newSet.add(currentPage);
             
-            if (initialNote && pages.length > 0) {
+            if (initialNoteProp && pages.length > 0) {
                  setInteractionProgress(ip => ({...ip, notesViewed: (newSet.size / pages.length) * 100 }));
             }
             return newSet;
@@ -540,35 +555,6 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
     return savable;
   };
 
-  const updateAndSaveNote = useCallback((noteId: number, newContent: Partial<RecentNote>) => {
-    try {
-        const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-        const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
-        const noteIndex = savedNotes.findIndex((n: RecentNote) => n.id === noteId);
-        
-        if (noteIndex > -1) {
-            const updatedNote = { ...savedNotes[noteIndex], ...newContent };
-            savedNotes[noteIndex] = updatedNote;
-            localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(savedNotes));
-        }
-    } catch (e: any) {
-        console.error("Failed to update note in local storage:", e);
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-             toast({
-                variant: 'destructive',
-                title: 'Storage Limit Reached',
-                description: "Could not save all generated content because your browser's local storage is full. Some content may not be available next time you visit.",
-            });
-        } else {
-             toast({
-                variant: 'destructive',
-                title: 'Save Failed',
-                description: "Could not save your changes. The browser storage might be full."
-            });
-        }
-    }
-  }, [toast]);
-
   const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
     const newNote: RecentNote = {
       id: Date.now(),
@@ -587,7 +573,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw).filter((n: RecentNote) => n.id !== 0) : dummyRecentNotes;
       const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
-      setInitialNote(newNote); // Set the new note as the current one to continue interaction
+      // No longer need to set state here, as the parent will handle it on next navigation
     } catch (e: any) {
       console.error("Failed to save notes to local storage:", e);
     }
@@ -603,9 +589,6 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         return;
     }
 
-    if (generationStarted.current) return;
-    generationStarted.current = true;
-
     setIsLoading(true);
     setGeneratedNotes(null);
     setPages([]);
@@ -616,6 +599,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
       setGeneratedNotes(result);
       onNoteGenerated(currentTopic, currentLevel, result.notes, result.nextStepsPrompt);
+      // Since this is a new generation, we're not inside an existing note context to update.
+      // The new note is saved, and the user can access it from the list.
+      // To provide a seamless experience, we can update the state to reflect the new note.
+      setTopic(currentTopic);
+      setAcademicLevel(currentLevel);
     } catch (error: any) {
       console.error("Error generating notes:", error);
       toast({
@@ -625,15 +613,15 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         });
     } finally {
       setIsLoading(false);
-      generationStarted.current = false;
     }
   }, [onNoteGenerated, toast]);
   
   useEffect(() => {
-    if (initialTopic && !initialNote) {
+    if (initialTopic && !initialNoteProp && !generationStarted.current) {
+        generationStarted.current = true;
         generate(initialTopic, academicLevel);
     }
-  }, [initialTopic, initialNote, generate, academicLevel]);
+  }, [initialTopic, initialNoteProp, generate, academicLevel]);
 
   useEffect(() => {
     if (generatedNotes?.notes) {
@@ -646,27 +634,34 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
   }, [generatedNotes]);
   
   useEffect(() => {
-    if (initialNote) {
-        const noteContent = initialNote.content || "";
+    if (initialNoteProp) {
+        const noteContent = initialNoteProp.content || "";
         const notePages = noteContent.split(/\n---\n/);
         setPages(notePages);
-        setGeneratedNotes({ notes: noteContent, nextStepsPrompt: initialNote.nextStepsPrompt || ""});
-        setTopic(initialNote.topic);
-        setAcademicLevel(initialNote.level as AcademicLevel);
-        setGeneratedContent(initialNote.generatedContent || {});
-        setInteractionProgress(initialNote.interactionProgress || {});
+        setGeneratedNotes({ notes: noteContent, nextStepsPrompt: initialNoteProp.nextStepsPrompt || ""});
+        setTopic(initialNoteProp.topic);
+        setAcademicLevel(initialNoteProp.level as AcademicLevel);
+        setGeneratedContent(initialNoteProp.generatedContent || {});
+        setInteractionProgress(initialNoteProp.interactionProgress || {});
         setCurrentPage(0);
         pageStartTime.current = Date.now();
         setChatHistory([]); // Clear chat for existing note on load
     }
-  }, [initialNote]);
+  }, [initialNoteProp]);
 
   const handleDeleteGeneratedContent = (contentType: keyof GeneratedContent) => {
     setGeneratedContent(prev => {
         const newContent = { ...prev };
         delete newContent[contentType];
-        if (initialNote) {
-            updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
+        if (initialNoteProp) {
+            const newInteractionProgress = {...interactionProgress};
+            if (contentType === 'quiz') delete newInteractionProgress.quizCompleted;
+            if (contentType === 'flashcards') delete newInteractionProgress.flashcardsFlipped;
+            if (contentType === 'deck') delete newInteractionProgress.deckViewed;
+            if (contentType === 'infographic') delete newInteractionProgress.infographicViewed;
+            if (contentType === 'mindmap') delete newInteractionProgress.mindmapViewed;
+            setInteractionProgress(newInteractionProgress);
+            updateAndSaveNote(initialNoteProp.id, { generatedContent: getSavableContent(newContent), interactionProgress: newInteractionProgress });
         }
         return newContent;
     });
@@ -675,6 +670,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 
   const handleGenerateClick = () => {
+      generationStarted.current = false; // Allow re-generation
       generate(topic, academicLevel);
   };
 
@@ -722,8 +718,8 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         
       setGeneratedContent(prev => {
           const newContent = { ...(prev || {}), [type]: resultData };
-          if (initialNote) {
-              updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
+          if (initialNoteProp) {
+              updateAndSaveNote(initialNoteProp.id, { generatedContent: getSavableContent(newContent) });
           }
           return newContent;
       });
@@ -775,6 +771,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
         return <InteractiveMindMap data={generatedContent.mindmap} topic={topic} />;
     }
     if (activeView === 'podcast' && generatedContent.podcast) {
+        setInteractionProgress(ip => ({...ip, podcastListened: true}));
         return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveView('notes')} topic={topic} />;
     }
     
@@ -904,49 +901,47 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                                     ))}
                                 </div>
                             </CardContent>
+                        
+                            {(() => {
+                                const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
+                                if (saved.length > 0) {
+                                    const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
+                                        flashcards: { label: "Flashcards", icon: SquareStack },
+                                        deck: { label: "Slide Deck", icon: Presentation },
+                                        infographic: { label: "Infographic", icon: AreaChart },
+                                        mindmap: { label: "Mind Map", icon: GitFork },
+                                        podcast: { label: "Podcast", icon: Mic },
+                                    };
+                                    return (
+                                        <>
+                                            <Separator className="my-6" />
+                                            <CardContent>
+                                                <h3 className="font-semibold mb-4 text-lg">Saved Content</h3>
+                                                <div className="space-y-2">
+                                                    {saved.map(([type]) => {
+                                                        const option = generationMap[type];
+                                                        if (!option) return null;
+                                                        return (
+                                                            <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                                <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
+                                                                    <option.icon className="h-5 w-5 text-muted-foreground"/>
+                                                                    View Generated {option.label}
+                                                                </Button>
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                                    <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </CardContent>
+                                        </>
+                                    )
+                                }
+                                return null;
+                            })()}
                         </Card>
-                            
-                        {(() => {
-                            const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
-                            if (saved.length > 0) {
-                                const generationMap: { [key: string]: { label: string; icon: React.ElementType } } = {
-                                    flashcards: { label: "Flashcards", icon: SquareStack },
-                                    deck: { label: "Slide Deck", icon: Presentation },
-                                    infographic: { label: "Infographic", icon: AreaChart },
-                                    mindmap: { label: "Mind Map", icon: GitFork },
-                                    podcast: { label: "Podcast", icon: Mic },
-                                };
-                                return (
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Saved Content</CardTitle>
-                                            <CardDescription>Your generated content is saved here. Quizzes and large media (audio/images) are not saved.</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="space-y-2">
-                                                {saved.map(([type]) => {
-                                                    const option = generationMap[type];
-                                                    if (!option) return null;
-                                                    return (
-                                                        <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                                            <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as any)}>
-                                                                <option.icon className="h-5 w-5 text-muted-foreground"/>
-                                                                View Generated {option.label}
-                                                            </Button>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                                <DropdownMenuContent><DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem></DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )
-                            }
-                            return null;
-                        })()}
                       </TabsContent>
                   </Tabs>
               )}
@@ -1419,27 +1414,23 @@ function NoteGeneratorPage() {
     const [initialTopic, setInitialTopic] = useState<string | null>(null);
     const [initialNote, setInitialNote] = useState<RecentNote | null>(null);
 
-    const topicParam = searchParams.get('topic');
-    const noteIdParam = searchParams.get('noteId');
-    const isNewParam = searchParams.get('new');
+    const topicParam = useMemo(() => searchParams.get('topic'), [searchParams]);
+    const noteIdParam = useMemo(() => searchParams.get('noteId'), [searchParams]);
+    const isNewParam = useMemo(() => searchParams.get('new'), [searchParams]);
 
     useEffect(() => {
-        const topic = topicParam;
-        const noteId = noteIdParam;
-        const isNew = isNewParam;
-
-        if (topic || noteId || isNew) {
+        if (topicParam || noteIdParam || isNewParam) {
             setView('note');
-            if (noteId) {
+            if (noteIdParam) {
                 try {
                     const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
                     const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
-                    const foundNote = savedNotes.find((n: RecentNote) => n.id.toString() === noteId);
+                    const foundNote = savedNotes.find((n: RecentNote) => n.id.toString() === noteIdParam);
                     setInitialNote(foundNote || null);
                     setInitialTopic(null);
                 } catch(e) { console.error("Error loading note from storage", e); }
             } else {
-                setInitialTopic(topic);
+                setInitialTopic(topicParam);
                 setInitialNote(null);
             }
         } else {
