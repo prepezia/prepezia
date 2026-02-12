@@ -20,9 +20,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput } from "@/ai/flows/generate-study-notes";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
-import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
-import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -584,144 +584,58 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
       generate(topic, academicLevel);
   };
 
-  const handleGenerateFlashcards = async () => {
+  const handleGenerateContent = async (type: keyof GeneratedContent) => {
     if (!generatedNotes) return;
-    setIsGenerating('flashcards');
-    try {
-        const result = await generateFlashcards({
-            context: 'note-generator',
-            topic: topic,
-            academicLevel: academicLevel,
-            content: generatedNotes.notes,
-        });
-        setGeneratedContent(prev => {
-            const newContent = { ...prev, flashcards: result.flashcards };
-            if (initialNote) {
-                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
-            }
-            return newContent;
-        });
-        setActiveView('flashcards');
-    } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Failed to generate flashcards', description: e.message });
-    } finally {
-        setIsGenerating(null);
-    }
-  };
+    setIsGenerating(type);
 
-  const handleGenerateQuiz = async () => {
-    if (!generatedNotes) return;
-    setIsGenerating('quiz');
     try {
-        const result = await generateQuiz({
+        const input = {
             context: 'note-generator',
             topic: topic,
             academicLevel: academicLevel,
             content: generatedNotes.notes,
-        });
-        // Just update state for viewing, don't save the quiz
-        setGeneratedContent(prev => ({...prev, quiz: result.quiz}));
-        setActiveView('quiz');
-    } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Failed to generate quiz', description: e.message });
-    } finally {
-        setIsGenerating(null);
-    }
-  };
+        } as GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput;
+      
+      let resultData;
 
-  const handleGenerateSlideDeck = async () => {
-    if (!generatedNotes) return;
-    setIsGenerating('deck');
-    try {
-        const result = await generateSlideDeck({
-            context: 'note-generator',
-            topic: topic,
-            academicLevel: academicLevel,
-            content: generatedNotes.notes,
-        });
-        setGeneratedContent(prev => {
-            const newContent = { ...prev, deck: result };
-            if (initialNote) {
-                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
-            }
-            return newContent;
-        });
-        setActiveView('deck');
+      switch(type) {
+        case 'podcast':
+            resultData = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
+            break;
+        case 'flashcards':
+            resultData = await generateFlashcards(input);
+            break;
+        case 'quiz':
+            resultData = await generateQuiz(input);
+            break;
+        case 'deck':
+            resultData = await generateSlideDeck(input);
+            break;
+        case 'infographic':
+            resultData = await generateInfographic(input);
+            break;
+        case 'mindmap':
+             resultData = await generateMindMap({
+                context: 'note-generator',
+                topic: topic,
+                academicLevel: academicLevel,
+                content: generatedNotes.notes,
+            });
+            break;
+        default:
+            throw new Error("Unknown generation type");
+      }
+        
+      setGeneratedContent(prev => {
+          const newContent = { ...(prev || {}), [type]: resultData };
+          if (initialNote) {
+              updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
+          }
+          return newContent;
+      });
+      setActiveView(type);
     } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Failed to generate slide deck', description: e.message });
-    } finally {
-        setIsGenerating(null);
-    }
-  };
-
-  const handleGenerateInfographic = async () => {
-    if (!generatedNotes) return;
-    setIsGenerating('infographic');
-    try {
-        const result = await generateInfographic({
-            context: 'note-generator',
-            topic: topic,
-            academicLevel: academicLevel,
-            content: generatedNotes.notes,
-        });
-        setGeneratedContent(prev => {
-            const newContent = { ...prev, infographic: result };
-            if (initialNote) {
-                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
-            }
-            return newContent;
-        });
-        setActiveView('infographic');
-    } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Failed to generate infographic', description: e.message });
-    } finally {
-        setIsGenerating(null);
-    }
-  };
-  
-  const handleGenerateMindMap = async () => {
-    if (!generatedNotes) return;
-    setIsGenerating('mindmap');
-    try {
-        const result = await generateMindMap({
-            context: 'note-generator',
-            topic: topic,
-            academicLevel: academicLevel,
-            content: generatedNotes.notes,
-        });
-        setGeneratedContent(prev => {
-            const newContent = { ...prev, mindmap: result };
-            if (initialNote) {
-                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
-            }
-            return newContent;
-        });
-        setActiveView('mindmap');
-    } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Failed to generate mind map', description: e.message });
-    } finally {
-        setIsGenerating(null);
-    }
-  };
-
-  const handleGeneratePodcast = async () => {
-    if (!generatedNotes) return;
-    setIsGenerating('podcast');
-    try {
-        const result = await generatePodcastFromSources({
-            context: 'note-generator',
-            content: generatedNotes.notes,
-        });
-        setGeneratedContent(prev => {
-            const newContent = { ...prev, podcast: result };
-            if (initialNote) {
-                updateAndSaveNote(initialNote.id, { generatedContent: getSavableContent(newContent) });
-            }
-            return newContent;
-        });
-        setActiveView('podcast');
-    } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Failed to generate podcast', description: e.message });
+        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
     } finally {
         setIsGenerating(null);
     }
@@ -729,12 +643,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
 
 
   const nextStepActions = [
-      { label: "Flashcards", icon: SquareStack, action: handleGenerateFlashcards, loading: isGenerating === 'flashcards'},
-      { label: "Quiz", icon: HelpCircle, action: handleGenerateQuiz, loading: isGenerating === 'quiz'},
-      { label: "Slide Deck", icon: Presentation, action: handleGenerateSlideDeck, loading: isGenerating === 'deck'},
-      { label: "Infographic", icon: AreaChart, action: handleGenerateInfographic, loading: isGenerating === 'infographic'},
-      { label: "Mind Map", icon: GitFork, action: handleGenerateMindMap, loading: isGenerating === 'mindmap'},
-      { label: "Podcast", icon: Mic, action: handleGeneratePodcast, loading: isGenerating === 'podcast'},
+      { label: "Flashcards", icon: SquareStack, action: () => handleGenerateContent('flashcards'), loading: isGenerating === 'flashcards'},
+      { label: "Quiz", icon: HelpCircle, action: () => handleGenerateContent('quiz'), loading: isGenerating === 'quiz'},
+      { label: "Slide Deck", icon: Presentation, action: () => handleGenerateContent('deck'), loading: isGenerating === 'deck'},
+      { label: "Infographic", icon: AreaChart, action: () => handleGenerateContent('infographic'), loading: isGenerating === 'infographic'},
+      { label: "Mind Map", icon: GitFork, action: () => handleGenerateContent('mindmap'), loading: isGenerating === 'mindmap'},
+      { label: "Podcast", icon: Mic, action: () => handleGenerateContent('podcast'), loading: isGenerating === 'podcast'},
   ]
 
   const renderGeneratedContent = () => {
@@ -867,7 +781,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           />
                       </TabsContent>
 
-                      <TabsContent value="generate" className="mt-4 flex-1 overflow-y-auto space-y-6">
+                      <TabsContent value="generate" className="mt-4 overflow-y-auto space-y-6">
                         <div>
                             <h3 className="text-xl font-semibold flex items-center gap-2 mb-2"><Sparkles className="text-primary"/> Next Steps</h3>
                             <p className="text-muted-foreground mb-4">{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</p>
