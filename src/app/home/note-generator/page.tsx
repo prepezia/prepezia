@@ -20,9 +20,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput } from "@/ai/flows/generate-study-notes";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
-import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
-import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -694,7 +694,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   </div>
               ) : (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
-                      <TabsList className="grid w-full grid-cols-3">
+                      <TabsList className="grid w-full grid-cols-3 bg-secondary">
                           <TabsTrigger value="notes"><BookOpen className="mr-2"/>Notes</TabsTrigger>
                           <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Chat</TabsTrigger>
                           <TabsTrigger value="generate"><Sparkles className="mr-2"/>Generate</TabsTrigger>
@@ -781,7 +781,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           />
                       </TabsContent>
 
-                      <TabsContent value="generate" className="mt-4 overflow-y-auto space-y-6">
+                      <TabsContent value="generate" className="mt-4 space-y-6">
                         <div>
                             <h3 className="text-xl font-semibold flex items-center gap-2 mb-2"><Sparkles className="text-primary"/> Next Steps</h3>
                             <p className="text-muted-foreground mb-4">{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</p>
