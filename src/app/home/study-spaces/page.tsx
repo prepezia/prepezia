@@ -27,7 +27,7 @@ import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput }
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
-import { generateInfographic, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
+import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -625,38 +625,51 @@ function StudySpacesPage() {
     setActiveGeneratedView(null);
 
     try {
-      let result;
-      const input = {
-          context: 'study-space',
-          sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
-      } as GeneratePodcastFromSourcesInput | GenerateFlashcardsInput | GenerateQuizInput | GenerateSlideDeckInput;
-      
-      if (type === 'podcast') {
-        result = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
-      } else {
-        const generationMap: {
-            [K in 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap']: (input: any) => Promise<any>
-        } = {
-            'flashcards': generateFlashcards,
-            'quiz': generateQuiz,
-            'deck': generateSlideDeck,
-            'infographic': generateInfographic,
-            'mindmap': generateMindMap,
+        let resultData;
+        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
+            context: 'study-space',
+            sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
         };
-        const generator = generationMap[type as 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap'];
-        result = await generator(input);
-      }
       
-      updateSelectedStudySpace(current => {
-          const newGeneratedContent = { ...(current.generatedContent || {}), [type]: result };
-          return { generatedContent: newGeneratedContent };
-      });
+        switch(type) {
+            case 'podcast':
+                resultData = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
+                break;
+            case 'flashcards':
+                const flashcardResult = await generateFlashcards(input as GenerateFlashcardsInput);
+                resultData = flashcardResult.flashcards;
+                break;
+            case 'quiz':
+                const quizResult = await generateQuiz(input as GenerateQuizInput);
+                resultData = quizResult.quiz;
+                break;
+            case 'deck':
+                resultData = await generateSlideDeck(input as GenerateSlideDeckInput);
+                break;
+            case 'infographic':
+                resultData = await generateInfographic(input as GenerateInfographicInput);
+                break;
+            case 'mindmap':
+                resultData = await generateMindMap(input as any); // Schemas are compatible
+                break;
+            default:
+                // This case handles 'summary', which shouldn't be manually generated here.
+                if (type !== 'summary') {
+                    throw new Error("Unknown generation type");
+                }
+                return;
+        }
       
-      setActiveGeneratedView(type);
+        updateSelectedStudySpace(current => {
+            const newGeneratedContent = { ...(current.generatedContent || {}), [type]: resultData };
+            return { generatedContent: newGeneratedContent };
+        });
+      
+        setActiveGeneratedView(type as any); // 'summary' is not a view
     } catch (e: any) {
-      toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
+        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
     } finally {
-      setIsGenerating(null);
+        setIsGenerating(null);
     }
   };
   

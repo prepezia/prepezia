@@ -698,10 +698,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
             resultData = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
             break;
         case 'flashcards':
-            resultData = await generateFlashcards(input);
+            const flashcardResult = await generateFlashcards(input);
+            resultData = flashcardResult.flashcards;
             break;
         case 'quiz':
-            resultData = await generateQuiz(input);
+            const quizResult = await generateQuiz(input);
+            resultData = quizResult.quiz;
             break;
         case 'deck':
             resultData = await generateSlideDeck(input);
