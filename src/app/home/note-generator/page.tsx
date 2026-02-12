@@ -694,10 +694,10 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                   </div>
               ) : (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
-                      <TabsList className="grid w-full grid-cols-3 bg-secondary">
-                          <TabsTrigger value="notes"><BookOpen className="mr-2"/>Notes</TabsTrigger>
-                          <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Chat</TabsTrigger>
-                          <TabsTrigger value="generate"><Sparkles className="mr-2"/>Generate</TabsTrigger>
+                      <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="notes">Notes</TabsTrigger>
+                          <TabsTrigger value="chat">Chat</TabsTrigger>
+                          <TabsTrigger value="generate">Generate</TabsTrigger>
                       </TabsList>
                       
                       <TabsContent value="notes" className="mt-4 flex-1 flex flex-col min-h-0 relative">
