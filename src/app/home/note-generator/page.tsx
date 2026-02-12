@@ -44,6 +44,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
+import { Separator } from "@/components/ui/separator";
 
 
 type GeneratedContent = {
@@ -1132,9 +1133,6 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         )
     }
 
-    const currentQuestion = quiz[currentQuestionIndex];
-    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
-
     const handleAnswerSelect = (answer: string) => {
         if (isAnswered) return;
         setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
@@ -1174,7 +1172,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
             printWindow.close();
         }, 1000);
     };
-
+    
     if (quizState === 'results') {
         return (
             <Card>
@@ -1212,6 +1210,9 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
             </Card>
         )
     }
+
+    const currentQuestion = quiz[currentQuestionIndex];
+    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
 
     return (
         <Card>
