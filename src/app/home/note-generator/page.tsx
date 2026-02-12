@@ -1,6 +1,6 @@
 
 
-"use client";
+'use client';
 
 import React, { useState, useEffect, Suspense, useCallback, useRef, FormEvent, useMemo } from "react";
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -20,9 +20,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput } from "@/ai/flows/generate-study-notes";
 import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
-import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
-import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -867,21 +867,19 @@ function NoteViewPage({ onBack, initialTopic, initialNote }: { onBack: () => voi
                           />
                       </TabsContent>
 
-                      <TabsContent value="generate" className="mt-4 flex-1 overflow-y-auto space-y-8">
-                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="text-primary"/> Next Steps</CardTitle>
-                                <CardDescription>{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex flex-wrap gap-4">
+                      <TabsContent value="generate" className="mt-4 flex-1 overflow-y-auto space-y-6">
+                        <div>
+                            <h3 className="text-xl font-semibold flex items-center gap-2 mb-2"><Sparkles className="text-primary"/> Next Steps</h3>
+                            <p className="text-muted-foreground mb-4">{generatedNotes?.nextStepsPrompt || "What would you like to do next with these notes?"}</p>
+                            <div className="flex flex-wrap gap-4">
                                 {nextStepActions.map(item => (
                                     <Button key={item.label} variant="outline" onClick={item.action} disabled={item.loading || isGenerating !== null}>
                                         {item.loading ? <Loader2 className="mr-2 animate-spin"/> : <item.icon className="mr-2"/>}
                                         {item.label}
                                     </Button>
                                 ))}
-                            </CardContent>
-                          </Card>
+                            </div>
+                        </div>
 
                           {(() => {
                               const saved = Object.entries(generatedContent || {}).filter(([key, value]) => !!value && key !== 'quiz');
@@ -1318,7 +1316,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
                 <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
-                {infographic.imageUrl ? (
+                 {infographic.imageUrl ? (
                     <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
                         <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
                     </div>
