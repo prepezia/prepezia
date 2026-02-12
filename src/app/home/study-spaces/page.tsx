@@ -274,7 +274,7 @@ function StudySpacesPage() {
   const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
     if (!currentInput?.trim() || !selectedStudySpace) return;
     
-    const userMessage: UserChatMessage = { id: `user-${Date.now()}`, role: 'user', content: currentInput };
+    const userMessage: UserChatMessage = { id: `user-${Date.now()}-${Math.random()}`, role: 'user', content: currentInput };
     
     updateSelectedStudySpace(current => ({
         chatHistory: [...(current.chatHistory || []), userMessage]
@@ -297,7 +297,7 @@ function StudySpacesPage() {
         });
         
         const assistantMessage: AssistantChatMessage = {
-            id: `asst-${Date.now()}`,
+            id: `asst-${Date.now()}-${Math.random()}`,
             role: 'assistant',
             content: response.answer,
             citations: response.citations
@@ -314,7 +314,7 @@ function StudySpacesPage() {
     } catch (e: any) {
         console.error("Chat error", e);
         const errorMessage: AssistantChatMessage = {
-            id: `err-${Date.now()}`,
+            id: `err-${Date.now()}-${Math.random()}`,
             role: 'assistant',
             content: e.message || "Sorry, I couldn't process that request.",
             isError: true
