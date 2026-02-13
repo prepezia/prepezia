@@ -432,6 +432,29 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
     }
   }, [firestoreUser, initialNoteProp]);
 
+  const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
+    const newNote: RecentNote = {
+      id: Date.now(),
+      topic,
+      level,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      content,
+      nextStepsPrompt: nextSteps,
+      generatedContent: {},
+      interactionProgress: {},
+      progress: 0,
+      status: 'Not Started',
+    };
+    try {
+      const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+      const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw).filter((n: RecentNote) => n.id !== 0) : dummyRecentNotes;
+      const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
+      localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+    } catch (e: any) {
+      console.error("Failed to save notes to local storage:", e);
+    }
+  }, []);
+
   const handleSetCurrentPage = (pageIndex: number) => {
     const timeSpent = Date.now() - pageStartTime.current;
     if(timeSpent > NOTE_PAGE_MIN_VIEW_TIME) {
@@ -574,33 +597,6 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
     return savable;
   };
 
-  const onNoteGenerated = useCallback((topic: string, level: string, content: string, nextSteps: string) => {
-    const newNote: RecentNote = {
-      id: Date.now(),
-      topic,
-      level,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      content,
-      nextStepsPrompt: nextSteps,
-      generatedContent: {},
-      interactionProgress: {},
-      progress: 0,
-      status: 'Not Started',
-    };
-    try {
-      const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-      const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw).filter((n: RecentNote) => n.id !== 0) : dummyRecentNotes;
-      const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
-      localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
-      
-      // Update URL to point to the new note, preventing re-generation on refresh
-      router.replace(`/home/note-generator?noteId=${newNote.id}`);
-
-    } catch (e: any) {
-      console.error("Failed to save notes to local storage:", e);
-    }
-  }, [router]);
-
   const generate = useCallback(async (currentTopic: string, currentLevel: AcademicLevel) => {
     if (!currentTopic.trim()) {
         toast({
@@ -619,6 +615,7 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
     setChatHistory([]); // Clear chat history for new note
     try {
       const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
+      setGeneratedNotes(result);
       onNoteGenerated(currentTopic, currentLevel, result.notes, result.nextStepsPrompt);
     } catch (error: any) {
       console.error("Error generating notes:", error);
@@ -773,11 +770,11 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
   const renderGeneratedContent = () => {
     if (activeView === 'flashcards') {
         const flashcardsData = (generatedContent.flashcards as any);
-        if(flashcardsData) return <FlashcardView flashcards={flashcardsData.flashcards} onBack={handleFlashcardsViewed} topic={topic} />;
+        if(flashcardsData) return <FlashcardView flashcards={flashcardsData} onBack={handleFlashcardsViewed} topic={topic} />;
     }
     if (activeView === 'quiz') {
         const quizData = (generatedContent.quiz as any);
-        if(quizData) return <QuizView quiz={quizData.quiz} onBack={handleQuizComplete} topic={topic} />;
+        if(quizData) return <QuizView quiz={quizData} onBack={handleQuizComplete} topic={topic} />;
     }
     if (activeView === 'deck' && generatedContent.deck) {
         setInteractionProgress(ip => ({...ip, deckViewed: true}));
@@ -936,7 +933,7 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
                                     };
                                     return (
                                         <>
-                                            <Separator className="my-6" />
+                                             <Separator className="my-6" />
                                             <CardContent>
                                                 <h3 className="font-semibold mb-4 text-lg">Saved Content</h3>
                                                 <div className="space-y-2">
@@ -1473,5 +1470,7 @@ export default function NoteGeneratorPageWrapper() {
     )
 }
 
+
+    
 
     
