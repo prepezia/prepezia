@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -18,7 +20,7 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -42,8 +44,6 @@ import { useUser, useFirestore, useDoc, useCollection, useStorage } from "@/fire
 import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, where, orderBy, Timestamp, DocumentData, deleteField, CollectionReference, DocumentReference } from "firebase/firestore";
 import { Separator } from "@/components/ui/separator";
 import { uploadDataUrlToStorage, deleteFolderFromStorage } from "@/lib/storage";
-import { educationalLevels } from "@/lib/education-levels";
-
 
 type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
@@ -252,7 +252,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const firestore = useFirestore();
   const storage = useStorage();
 
-  const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) as DocumentReference<Note> : null, [firestore, noteId]);
+  const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) : null, [firestore, noteId]);
   const { data: note, loading: noteLoading } = useDoc<Note>(noteDocRef);
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | 'notes' | null>(null);
@@ -442,7 +442,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     setIsGenerating(type);
 
     try {
-        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
+        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateInfographicInput = {
             context: 'note-generator', topic: note.topic, academicLevel: note.level as AcademicLevel, content: note.content,
         };
       
@@ -471,7 +471,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 updateData = { 'generatedContent.quiz': resultData };
                 break;
             case 'deck':
-                resultData = await generateSlideDeck(input);
+                const deckResult = await generateSlideDeck(input as any);
+                resultData = deckResult;
                 updateData = { 'generatedContent.deck': resultData };
                 break;
             case 'mindmap':
@@ -624,7 +625,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 </div>
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0">
-                                <div id="note-content-area" className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4">
+                                <div id="note-content-area" className="prose dark:prose-invert max-w-none w-full max-w-0 min-w-full h-full overflow-y-auto rounded-md border p-4">
                                     {pages.length > 0 ? (
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
                                             {pages[currentPage]}
@@ -759,6 +760,28 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
         }
     }, [firestoreUser, academicLevel]);
 
+    const noteGeneratorLevels = [
+        {
+          label: "Academic",
+          levels: [
+            "Junior High (JHS/BECE)",
+            "Senior High (SHS/WASSCE)",
+            "Undergraduate",
+            "Masters",
+            "PhD",
+          ]
+        },
+        {
+          label: "General / Professional",
+          levels: [
+            "Beginner",
+            "Intermediate",
+            "Advanced",
+            "Other"
+          ]
+        }
+    ];
+
     const handleGenerateClick = async () => {
         const levelToUse = academicLevel;
         if (!topic.trim()) {
@@ -821,10 +844,15 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
                             <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
                                 <SelectTrigger id="level-select" className="h-12 text-base"><SelectValue placeholder="Select an academic level..." /></SelectTrigger>
                                 <SelectContent>
-                                    {educationalLevels.map((level) => (
-                                        <SelectItem key={level} value={level}>
-                                        {level}
-                                        </SelectItem>
+                                    {noteGeneratorLevels.map(group => (
+                                        <SelectGroup key={group.label}>
+                                            <SelectLabel>{group.label}</SelectLabel>
+                                            {group.levels.map(level => (
+                                                <SelectItem key={level} value={level}>
+                                                    {level}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
                                     ))}
                                 </SelectContent>
                             </Select>

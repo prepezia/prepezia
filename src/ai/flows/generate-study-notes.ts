@@ -16,18 +16,15 @@ const GenerateStudyNotesInputSchema = z.object({
   topic: z.string().describe('The topic for which to generate study notes.'),
   academicLevel: z
     .enum([
-        'Beginner', 
-        'Intermediate', 
-        'Expert', 
-        'Secondary', 
-        'Undergraduate', 
-        'Masters', 
-        'PhD',
-        'Junior High (JHS/BECE)',
-        'Senior High (SHS/WASSCE)',
-        'Postgraduate (Masters/PhD)',
-        'Professional',
-        'Other'
+      'Junior High (JHS/BECE)',
+      'Senior High (SHS/WASSCE)',
+      'Undergraduate',
+      'Masters',
+      'PhD',
+      'Beginner',
+      'Intermediate',
+      'Advanced',
+      'Other',
     ])
     .describe('The academic level of the study notes.'),
 });
@@ -85,12 +82,16 @@ The notes must be thorough enough for a student to use as a **primary study reso
       },
       async (input: GenerateStudyNotesInput) => {
         const {output} = await generateStudyNotesPrompt(input);
-        if (!output || !output.notes) {
-            throw new Error("Failed to generate study notes text.");
-        }
-
+        
         // If the model forgets the prompt, provide a default.
-        const nextSteps = output.nextStepsPrompt || "Now that you have your notes, would you like to generate flashcards, a quiz, or a slide deck?";
+        const nextSteps = output?.nextStepsPrompt || "Now that you have your notes, would you like to generate flashcards, a quiz, or a slide deck?";
+
+        if (!output || !output.notes) {
+            return {
+                notes: "The AI failed to generate study notes. This may be due to a safety policy violation or a temporary issue. Please try a different topic or try again later.",
+                nextStepsPrompt: "What would you like to do next?"
+            };
+        }
 
         return {
             notes: output.notes,
