@@ -34,6 +34,13 @@ const GenerateStudyNotesInputSchema = z.object({
 
 export type GenerateStudyNotesInput = z.infer<typeof GenerateStudyNotesInputSchema>;
 
+// Schema for the model's output, allowing for some flexibility
+const PromptOutputSchema = z.object({
+  notes: z.string().describe('The generated study notes in various formats.'),
+  nextStepsPrompt: z.string().optional().describe('A question prompting the user for next steps like generating a quiz or flashcards.')
+});
+
+// Strict schema for the flow's final output, ensuring frontend gets what it expects
 const GenerateStudyNotesOutputSchema = z.object({
   notes: z.string().describe('The generated study notes in various formats.'),
   nextStepsPrompt: z.string().describe('A question prompting the user for next steps like generating a quiz or flashcards.')
@@ -51,7 +58,7 @@ export async function generateStudyNotes(
       name: 'generateStudyNotesPrompt',
       model: 'googleai/gemini-2.5-flash',
       input: {schema: GenerateStudyNotesInputSchema},
-      output: {schema: GenerateStudyNotesOutputSchema},
+      output: {schema: PromptOutputSchema}, // Use the flexible schema for model output
       system: "You are an expert tutor and academic author. Your signature skill is creating exceptionally detailed, comprehensive, and well-structured study materials that students can rely on for their exams. You are known for your clarity and depth.",
       prompt: `Generate **extremely detailed and comprehensive** study notes for the topic: {{{topic}}}.
 The academic level is: {{{academicLevel}}}.
@@ -73,17 +80,20 @@ The notes must be thorough enough for a student to use as a **primary study reso
       {
         name: 'generateStudyNotesFlow',
         inputSchema: GenerateStudyNotesInputSchema,
-        outputSchema: GenerateStudyNotesOutputSchema,
+        outputSchema: GenerateStudyNotesOutputSchema, // The flow guarantees the strict output schema
       },
       async (input: GenerateStudyNotesInput) => {
         const {output} = await generateStudyNotesPrompt(input);
-        if (!output) {
+        if (!output || !output.notes) {
             throw new Error("Failed to generate study notes text.");
         }
 
+        // If the model forgets the prompt, provide a default.
+        const nextSteps = output.nextStepsPrompt || "Now that you have your notes, would you like to generate flashcards, a quiz, or a slide deck?";
+
         return {
             notes: output.notes,
-            nextStepsPrompt: output.nextStepsPrompt,
+            nextStepsPrompt: nextSteps,
         };
       }
     );
