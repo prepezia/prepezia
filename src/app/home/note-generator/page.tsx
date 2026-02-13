@@ -713,11 +713,11 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
             break;
         case 'flashcards':
             const flashcardResult = await generateFlashcards(input as GenerateFlashcardsInput);
-            resultData = flashcardResult;
+            resultData = flashcardResult.flashcards;
             break;
         case 'quiz':
             const quizResult = await generateQuiz(input as GenerateQuizInput);
-            resultData = quizResult;
+            resultData = quizResult.quiz;
             break;
         case 'deck':
             resultData = await generateSlideDeck(input);
