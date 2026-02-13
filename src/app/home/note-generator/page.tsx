@@ -292,7 +292,7 @@ function ChatView({
     );
 }
 
-type AcademicLevel = "Beginner" | "Intermediate" | "Expert" | "Secondary" | "Undergraduate" | "Masters" | "PhD";
+type AcademicLevel = "Beginner" | "Intermediate" | "Expert" | "Secondary" | "Undergraduate" | "Masters" | "PhD" | 'Junior High (JHS/BECE)' | 'Senior High (SHS/WASSCE)' | 'Professional' | 'Other';
 type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast';
 
 
@@ -324,6 +324,11 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
   const noteIdParam = searchParams.get('noteId');
   const topicParam = searchParams.get('topic');
   const isNewParam = searchParams.get('new');
+
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const userDocRef = useMemo(() => user && firestore ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
+  const { data: firestoreUser } = useDoc(userDocRef);
   
   const initialNoteProp = useMemo(() => {
     if (noteIdParam) {
@@ -367,10 +372,6 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const userDocRef = useMemo(() => user && firestore ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
-  const { data: firestoreUser } = useDoc(userDocRef);
   
   const [interactionProgress, setInteractionProgress] = useState<InteractionProgress>(initialNoteProp?.interactionProgress || {});
   const generationRan = useRef(false);
@@ -638,9 +639,19 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
   useEffect(() => {
     if (topicParam && !initialNoteProp && isNewParam !== 'true' && !generationRan.current) {
         generationRan.current = true;
-        generate(topicParam, academicLevel);
+        const levelToUse = academicLevel || (firestoreUser?.educationalLevel as AcademicLevel);
+        if (levelToUse) {
+            generate(topicParam, levelToUse);
+        } else {
+             toast({
+                variant: "destructive",
+                title: "Academic Level Required",
+                description: "Please select an academic level or set one in your profile to generate notes.",
+            });
+            onBack();
+        }
     }
-  }, [topicParam, isNewParam, initialNoteProp, generate, academicLevel]);
+  }, [topicParam, isNewParam, initialNoteProp, generate, academicLevel, firestoreUser, onBack, toast]);
 
   useEffect(() => {
     if (generatedNotes?.notes) {
@@ -689,8 +700,17 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
 
 
   const handleGenerateClick = () => {
+      const levelToUse = academicLevel || (firestoreUser?.educationalLevel as AcademicLevel);
+      if (!levelToUse) {
+        toast({
+            variant: "destructive",
+            title: "Academic Level Required",
+            description: "Please select an academic level or set one in your profile to generate notes.",
+        });
+        return;
+      }
       generationRan.current = true;
-      generate(topic, academicLevel);
+      generate(topic, levelToUse);
   };
 
   const handleGenerateContent = async (type: keyof GeneratedContent) => {
@@ -712,12 +732,10 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
             resultData = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
             break;
         case 'flashcards':
-            const flashcardResult = await generateFlashcards(input as GenerateFlashcardsInput);
-            resultData = flashcardResult.flashcards;
+            resultData = (await generateFlashcards(input as GenerateFlashcardsInput)).flashcards;
             break;
         case 'quiz':
-            const quizResult = await generateQuiz(input as GenerateQuizInput);
-            resultData = quizResult.quiz;
+            resultData = (await generateQuiz(input as GenerateQuizInput)).quiz;
             break;
         case 'deck':
             resultData = await generateSlideDeck(input);
@@ -1010,7 +1028,7 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
                       />
                       <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
                           <SelectTrigger className="h-12 text-base">
-                          <SelectValue placeholder="Select a level" />
+                          <SelectValue placeholder="Select an academic level..." />
                           </SelectTrigger>
                           <SelectContent>
                               <SelectGroup>
@@ -1020,11 +1038,14 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
                                   <SelectItem value="Expert">Expert</SelectItem>
                               </SelectGroup>
                               <SelectGroup>
-                                  <SelectLabel>Degree Level</SelectLabel>
-                                  <SelectItem value="Secondary">Secondary</SelectItem>
+                                  <SelectLabel>Educational System</SelectLabel>
+                                  <SelectItem value="Junior High (JHS/BECE)">Junior High (JHS/BECE)</SelectItem>
+                                  <SelectItem value="Senior High (SHS/WASSCE)">Senior High (SHS/WASSCE)</SelectItem>
                                   <SelectItem value="Undergraduate">Undergraduate</SelectItem>
                                   <SelectItem value="Masters">Masters</SelectItem>
                                   <SelectItem value="PhD">PhD</SelectItem>
+                                  <SelectItem value="Professional">Professional</SelectItem>
+                                  <SelectItem value="Other">Other</SelectItem>
                               </SelectGroup>
                           </SelectContent>
                       </Select>
