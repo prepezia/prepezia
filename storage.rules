@@ -3,9 +3,9 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow users to read, write, and list their own folder in `users/{userId}`
+    // Allow users to read, write, list and delete their own folder in `users/{userId}`
     match /users/{userId}/{allPaths=**} {
-      allow read, write, list: if request.auth != null && request.auth.uid == userId;
+      allow read, write, list, delete: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

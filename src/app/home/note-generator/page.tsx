@@ -22,7 +22,7 @@ import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput }
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
-import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
+import { generateMindMap, GenerateMindMapOutput, GenerateMindMapInput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause } from "lucide-react";
@@ -95,6 +95,29 @@ type ChatMessage = UserChatMessage | AssistantChatMessage;
 type AcademicLevel = GenerateStudyNotesInput['academicLevel'];
 type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast';
 
+async function downloadUrl(url: string, filename: string) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+        console.error('Download failed:', error);
+        throw error; // Re-throw to be caught by caller
+    }
+}
+
 function NoteGeneratorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -146,17 +169,50 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: st
 
   const handleDeleteNote = async (e: React.MouseEvent, noteId: string) => {
     e.stopPropagation();
-    if (!firestore || !user) return;
+    if (!firestore || !user || !storage) return;
     
     try {
       await deleteDoc(doc(firestore, "notes", noteId));
-      if (storage) {
-        await deleteFolderFromStorage(storage, `users/${user.uid}/notes/${noteId}`);
-      }
+      await deleteFolderFromStorage(storage, `users/${user.uid}/notes/${noteId}`);
       toast({ title: "Note Deleted", description: "The note has been successfully removed." });
     } catch (error) {
       console.error("Failed to delete note:", error);
       toast({ variant: "destructive", title: "Deletion Failed", description: "Could not delete the note. Please try again." });
+    }
+  };
+
+  const handleSaveNoteForOffline = async (note: Note) => {
+    if (!note?.generatedContent) {
+        toast({ description: "No generated content to save." });
+        return;
+    }
+
+    toast({ title: "Saving for Offline...", description: "Your generated media files will be downloaded." });
+
+    let downloadedCount = 0;
+    const content = note.generatedContent;
+
+    if (content.infographic?.imageUrl) {
+        try {
+            await downloadUrl(content.infographic.imageUrl, `infographic_${note.topic.replace(/\s+/g, '_')}.png`);
+            downloadedCount++;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Infographic Download Failed" });
+        }
+    }
+    if (content.podcast?.podcastAudioUrl) {
+        try {
+            await downloadUrl(content.podcast.podcastAudioUrl, `podcast_${note.topic.replace(/\s+/g, '_')}.wav`);
+            downloadedCount++;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Podcast Download Failed" });
+        }
+    }
+
+    if (downloadedCount > 0) {
+        toast({ title: "Media files downloaded", description: "Infographics and podcasts have been saved to your device." });
+    } else {
+        toast({ title: "No media to download", description: "Your text notes are automatically available offline once viewed." });
     }
   };
   
@@ -190,20 +246,27 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: st
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {recentNotes.slice(0, visibleCount).map(note => (
-                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={() => onSelectNote(note.id)}>
-                                <CardHeader>
-                                    <CardTitle>{note.topic}</CardTitle>
-                                    <CardDescription>{note.level}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-grow">
-                                    <p className="text-sm text-muted-foreground">Generated on {note.date ? new Date(note.date.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
-                                    {note.status !== 'Not Started' && typeof note.progress === 'number' && (
-                                        <div className="mt-2">
-                                            <Progress value={note.progress} className="h-2" />
-                                            <p className="text-xs text-muted-foreground mt-1">{note.status} - {Math.round(note.progress)}%</p>
-                                        </div>
-                                    )}
-                                </CardContent>
+                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col">
+                                <div className="flex-grow" onClick={() => onSelectNote(note.id)}>
+                                    <CardHeader>
+                                        <CardTitle>{note.topic}</CardTitle>
+                                        <CardDescription>{note.level}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">Generated on {note.date ? new Date(note.date.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+                                        {note.status !== 'Not Started' && typeof note.progress === 'number' && (
+                                            <div className="mt-2">
+                                                <Progress value={note.progress} className="h-2" />
+                                                <p className="text-xs text-muted-foreground mt-1">{note.status} - {Math.round(note.progress)}%</p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </div>
+                                <CardFooter>
+                                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleSaveNoteForOffline(note); }}>
+                                        <Save className="mr-2 h-4 w-4" /> Save Offline
+                                    </Button>
+                                </CardFooter>
                                 <div className="absolute top-1 right-1">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -244,28 +307,7 @@ const PROGRESS_WEIGHTS = {
   podcast: 0, // Not currently tracked for progress
 };
 
-async function downloadUrl(url: string, filename: string) {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
-        }
-        const blob = await response.blob();
-        const objectUrl = window.URL.createObjectURL(blob);
 
-        const a = document.createElement('a');
-        a.href = objectUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        window.URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-        console.error('Download failed:', error);
-        throw error; // Re-throw to be caught by caller
-    }
-}
 
 function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; }) {
   const router = useRouter();
@@ -465,7 +507,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     setIsGenerating(type);
 
     try {
-        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateInfographicInput & GenerateSlideDeckInput = {
+        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
             context: 'note-generator', topic: note.topic, academicLevel: note.level as AcademicLevel, content: note.content,
         };
       
@@ -499,7 +541,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 updateData = { 'generatedContent.deck': resultData };
                 break;
             case 'mindmap':
-                 resultData = await generateMindMap({ context: 'note-generator', topic: note.topic, academicLevel: note.level as AcademicLevel, content: note.content });
+                 resultData = await generateMindMap(input as GenerateMindMapInput);
                  updateData = { 'generatedContent.mindmap': resultData };
                  break;
             default: throw new Error("Unknown generation type");
@@ -509,8 +551,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     } catch (e: any) {
         console.error(`Error generating ${type}:`, e);
         let description = e.message;
-        // @ts-ignore
-        if (e.code === 'storage/unauthorized' || e.code === 'storage/retry-limit-exceeded') {
+        
+        if (typeof e.message === 'string' && (e.message.includes('storage/unauthorized') || e.message.includes('storage/retry-limit-exceeded'))) {
             description = "A Firebase Storage permission error occurred. This might be due to project configuration. Please ensure your project's storage is set up correctly and the security rules are deployed.";
         }
         toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
@@ -587,7 +629,9 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         }
     }
 
-    if (downloadedCount === 0) {
+    if (downloadedCount > 0) {
+        toast({ title: "Media files downloaded", description: "Infographics and podcasts have been saved to your device." });
+    } else {
         toast({ title: "No media to download", description: "Your text notes are automatically available offline once viewed." });
     }
   }
@@ -722,7 +766,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                     {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
                                     <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                                        {/* @ts-ignore */}
                                         <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                     </div>
                                 </div>
