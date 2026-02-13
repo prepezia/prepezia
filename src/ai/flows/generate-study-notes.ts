@@ -70,7 +70,8 @@ The notes must be thorough enough for a student to use as a **primary study reso
 2.  **Mandatory Page Breaks for Length:** The notes MUST be substantial. To manage this length, you **must** break up the content into multiple pages for readability. To do this, insert a horizontal rule (\`---\`) on its own line to indicate a page break. You MUST use at least 2-3 page breaks to ensure the content is comprehensive.
 3.  **Rich Formatting:** Utilize Markdown tables for comparisons or data. Ensure all scientific or mathematical notations (like H₂O or E=mc²) are correctly formatted. Use blockquotes for important quotes or principles.
 4.  **Accuracy and Clarity:** The notes must be factually accurate, easy to understand, and precisely tailored to the selected academic level. Define key terms as they are introduced.
-5.  **Next Steps**: After generating the notes, formulate an engaging question for the user about what they would like to do next. For example: "Now that you have your notes, would you like me to generate flashcards to test your knowledge, a quiz to check your understanding, or a slide deck to present the key points?" and place it in the 'nextStepsPrompt' field.`,
+5.  **Additional Resources:** After the main content and conclusion, add a final section titled "### Additional Resources". This section must include 3-5 bulleted links to high-quality external resources (e.g., reputable websites, academic articles, relevant YouTube videos) that the student can use for further reading. Provide real, valid URLs.
+6.  **Next Steps**: After generating the notes, formulate an engaging question for the user about what they would like to do next. For example: "Now that you have your notes, would you like me to generate flashcards to test your knowledge, a quiz to check your understanding, or a slide deck to present the key points?" and place it in the 'nextStepsPrompt' field.`,
       config: {
           maxOutputTokens: 8192,
       },
