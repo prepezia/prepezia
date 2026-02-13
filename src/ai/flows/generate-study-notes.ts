@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -14,7 +15,20 @@ import {z} from 'genkit';
 const GenerateStudyNotesInputSchema = z.object({
   topic: z.string().describe('The topic for which to generate study notes.'),
   academicLevel: z
-    .enum(['Beginner', 'Intermediate', 'Expert', 'Secondary', 'Undergraduate', 'Masters', 'PhD', 'Junior High (JHS/BECE)', 'Senior High (SHS/WASSCE)', 'Professional', 'Other'])
+    .enum([
+        'Beginner', 
+        'Intermediate', 
+        'Expert', 
+        'Secondary', 
+        'Undergraduate', 
+        'Masters', 
+        'PhD',
+        'Junior High (JHS/BECE)',
+        'Senior High (SHS/WASSCE)',
+        'Postgraduate (Masters/PhD)',
+        'Professional',
+        'Other'
+    ])
     .describe('The academic level of the study notes.'),
 });
 
@@ -38,18 +52,18 @@ export async function generateStudyNotes(
       model: 'googleai/gemini-2.5-flash',
       input: {schema: GenerateStudyNotesInputSchema},
       output: {schema: GenerateStudyNotesOutputSchema},
-      system: "You are an expert tutor, renowned for your ability to break down complex topics into detailed, well-structured, and easy-to-understand study materials. Your primary goal is to create content that is both comprehensive and tailored to the learner's academic level.",
-      prompt: `Generate **highly detailed and comprehensive** study notes for the topic: {{{topic}}}.
+      system: "You are an expert tutor and academic author. Your signature skill is creating exceptionally detailed, comprehensive, and well-structured study materials that students can rely on for their exams. You are known for your clarity and depth.",
+      prompt: `Generate **extremely detailed and comprehensive** study notes for the topic: {{{topic}}}.
 The academic level is: {{{academicLevel}}}.
 
-The notes should be thorough enough for a student to use as a primary study resource, covering all key concepts, sub-topics, important definitions, and relevant examples.
+The notes must be thorough enough for a student to use as a **primary study resource**. Cover all key concepts, sub-topics, important definitions, historical context, critical analyses, and relevant examples. Assume the student has no other material and needs a complete understanding from these notes alone.
 
 ### Content Requirements:
-1.  **Structure and Depth:** Use clear headings, subheadings, bullet points, and bold text to create a logical hierarchy. Start with an introduction and progress through the topic systematically.
-2.  **Mandatory Page Breaks:** You MUST break up long content into multiple pages for readability. To do this, insert a horizontal rule (\`---\`) on its own line to indicate a page break. Use this to separate major sections. All generated notes MUST contain at least one page break.
-3.  **Rich Formatting:** Where appropriate, use Markdown tables to present data or comparisons. Ensure all scientific or mathematical notation (like chemical equations H₂O) is correctly formatted.
-4.  **Accuracy and Clarity:** The notes must be accurate, easy to understand, and precisely tailored to the selected academic level.
-5.  **Next Steps**: After generating the notes, formulate a question for the user about what they would like to do next. For example: "Would you like me to generate flashcards, a quiz, or a slide deck from these notes?" and place it in the 'nextStepsPrompt' field.`,
+1.  **Structure and Depth:** Use a clear, logical hierarchy with Markdown headings (#, ##, ###), subheadings, bullet points, and bold text. Start with an introduction, progress through the topic systematically, and end with a conclusion or summary.
+2.  **Mandatory Page Breaks for Length:** The notes MUST be substantial. To manage this length, you **must** break up the content into multiple pages for readability. To do this, insert a horizontal rule (\`---\`) on its own line to indicate a page break. You MUST use at least 2-3 page breaks to ensure the content is comprehensive.
+3.  **Rich Formatting:** Utilize Markdown tables for comparisons or data. Ensure all scientific or mathematical notations (like H₂O or E=mc²) are correctly formatted. Use blockquotes for important quotes or principles.
+4.  **Accuracy and Clarity:** The notes must be factually accurate, easy to understand, and precisely tailored to the selected academic level. Define key terms as they are introduced.
+5.  **Next Steps**: After generating the notes, formulate an engaging question for the user about what they would like to do next. For example: "Now that you have your notes, would you like me to generate flashcards to test your knowledge, a quiz to check your understanding, or a slide deck to present the key points?" and place it in the 'nextStepsPrompt' field.`,
       config: {
           maxOutputTokens: 8192,
       },
