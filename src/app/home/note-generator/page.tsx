@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, Suspense, useCallback, useRef, FormEvent, useMemo } from "react";
@@ -316,9 +315,30 @@ const PROGRESS_WEIGHTS = {
   // Podcast doesn't have a direct interaction metric in this design
 };
 
-function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { onBack: () => void; initialTopic?: string | null; initialNote?: RecentNote | null }) {
+function NoteViewPage({ onBack }: { onBack: () => void; }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const [topic, setTopic] = useState(initialNoteProp?.topic || initialTopic || "");
+
+  const topicParam = searchParams.get('topic');
+  const noteIdParam = searchParams.get('noteId');
+
+  const initialNoteProp = useMemo(() => {
+      if (noteIdParam) {
+          try {
+              const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+              if (!savedNotesRaw) return null;
+              const savedNotes: RecentNote[] = JSON.parse(savedNotesRaw);
+              return savedNotes.find((n: RecentNote) => n.id.toString() === noteIdParam) || null;
+          } catch (e) {
+              console.error("Error loading note from storage", e);
+              return null;
+          }
+      }
+      return null;
+  }, [noteIdParam]);
+
+  const [topic, setTopic] = useState(initialNoteProp?.topic || topicParam || "");
   const [academicLevel, setAcademicLevel] = useState<AcademicLevel>(initialNoteProp?.level as AcademicLevel || "Undergraduate");
   const [generatedNotes, setGeneratedNotes] = useState<GenerateStudyNotesOutput | null>(initialNoteProp ? { notes: initialNoteProp.content, nextStepsPrompt: initialNoteProp.nextStepsPrompt ?? '' } : null);
   const [isLoading, setIsLoading] = useState(false);
@@ -573,16 +593,13 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
       const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
       
-      setGeneratedNotes({ notes: content, nextStepsPrompt: nextSteps });
-      setTopic(topic);
-      setAcademicLevel(level as AcademicLevel);
-      setGeneratedContent({});
-      setInteractionProgress({});
-      setChatHistory([]);
+      // Update URL to point to the new note, preventing re-generation on refresh
+      router.replace(`/home/note-generator?noteId=${newNote.id}`);
+
     } catch (e: any) {
       console.error("Failed to save notes to local storage:", e);
     }
-  }, []);
+  }, [router]);
 
   const generate = useCallback(async (currentTopic: string, currentLevel: AcademicLevel) => {
     if (!currentTopic.trim()) {
@@ -616,11 +633,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
   }, [onNoteGenerated, toast]);
   
   useEffect(() => {
-    if (initialTopic && !initialNoteProp && !generationRan.current) {
+    const topicToGenerate = topicParam;
+    if (topicToGenerate && !initialNoteProp && !generationRan.current) {
         generationRan.current = true;
-        generate(initialTopic, academicLevel);
+        generate(topicToGenerate, academicLevel);
     }
-  }, [initialTopic, initialNoteProp, generate, academicLevel]);
+  }, [topicParam, initialNoteProp, generate, academicLevel]);
 
   useEffect(() => {
     if (generatedNotes?.notes) {
@@ -755,11 +773,11 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
   const renderGeneratedContent = () => {
     if (activeView === 'flashcards') {
         const flashcardsData = (generatedContent.flashcards as any);
-        if(flashcardsData) return <FlashcardView flashcards={flashcardsData} onBack={handleFlashcardsViewed} topic={topic} />;
+        if(flashcardsData) return <FlashcardView flashcards={flashcardsData.flashcards} onBack={handleFlashcardsViewed} topic={topic} />;
     }
     if (activeView === 'quiz') {
         const quizData = (generatedContent.quiz as any);
-        if(quizData) return <QuizView quiz={quizData} onBack={handleQuizComplete} topic={topic} />;
+        if(quizData) return <QuizView quiz={quizData.quiz} onBack={handleQuizComplete} topic={topic} />;
     }
     if (activeView === 'deck' && generatedContent.deck) {
         setInteractionProgress(ip => ({...ip, deckViewed: true}));
@@ -1417,6 +1435,8 @@ function NoteGeneratorPage() {
     const topicParam = searchParams.get('topic');
     const noteIdParam = searchParams.get('noteId');
     const isNewParam = searchParams.get('new');
+    
+    const needsNoteView = topicParam || noteIdParam || isNewParam;
 
     const handleSelectNote = useCallback((note: RecentNote) => {
         router.push(`/home/note-generator?noteId=${note.id}`);
@@ -1429,25 +1449,9 @@ function NoteGeneratorPage() {
     const handleBackToList = useCallback(() => {
         router.push('/home/note-generator');
     }, [router]);
-    
-    const initialNote = useMemo(() => {
-        if (noteIdParam) {
-            try {
-                const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-                const savedNotes: RecentNote[] = savedNotesRaw ? JSON.parse(savedNotesRaw) : [];
-                return savedNotes.find((n: RecentNote) => n.id.toString() === noteIdParam) || null;
-            } catch (e) {
-                console.error("Error loading note from storage", e);
-                return null;
-            }
-        }
-        return null;
-    }, [noteIdParam]);
-
-    const needsNoteView = topicParam || noteIdParam || isNewParam;
 
     if (needsNoteView) {
-        return <NoteViewPage onBack={handleBackToList} initialTopic={topicParam} initialNote={initialNote} />;
+        return <NoteViewPage onBack={handleBackToList} />;
     }
     
     return <NoteListPage onSelectNote={handleSelectNote} onCreateNew={handleCreateNew} />;
@@ -1468,3 +1472,6 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+
+    
