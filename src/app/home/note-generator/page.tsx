@@ -845,14 +845,6 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
     )
 }
 
-export default function NoteGeneratorPageWrapper() {
-    return (
-        <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin"/></div>}>
-            <NoteGeneratorPage />
-        </Suspense>
-    )
-}
-
 function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string }) {
     return (
         <Card>
@@ -1142,5 +1134,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
-    
