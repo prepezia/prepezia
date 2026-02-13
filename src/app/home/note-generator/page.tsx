@@ -731,7 +731,9 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
   };
 
   const handleQuizComplete = (score: number, total: number) => {
-      setInteractionProgress(ip => ({...ip, quizCompleted: (score / total) * 100 }));
+      if (total > 0) {
+        setInteractionProgress(ip => ({...ip, quizCompleted: (score / total) * 100 }));
+      }
       setActiveView('notes');
   };
 
@@ -752,12 +754,12 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
 
   const renderGeneratedContent = () => {
     if (activeView === 'flashcards') {
-        const flashcards = (generatedContent.flashcards as any)?.flashcards;
-        if(flashcards) return <FlashcardView flashcards={flashcards} onBack={handleFlashcardsViewed} topic={topic} />;
+        const flashcardsData = (generatedContent.flashcards as any);
+        if(flashcardsData) return <FlashcardView flashcards={flashcardsData} onBack={handleFlashcardsViewed} topic={topic} />;
     }
     if (activeView === 'quiz') {
-        const quiz = (generatedContent.quiz as any)?.quiz;
-        if(quiz) return <QuizView quiz={quiz} onBack={handleQuizComplete} topic={topic} />;
+        const quizData = (generatedContent.quiz as any);
+        if(quizData) return <QuizView quiz={quizData} onBack={handleQuizComplete} topic={topic} />;
     }
     if (activeView === 'deck' && generatedContent.deck) {
         setInteractionProgress(ip => ({...ip, deckViewed: true}));
@@ -916,7 +918,7 @@ function NoteViewPage({ onBack, initialTopic, initialNote: initialNoteProp }: { 
                                     };
                                     return (
                                         <>
-                                             <Separator className="my-6" />
+                                            <Separator className="my-6" />
                                             <CardContent>
                                                 <h3 className="font-semibold mb-4 text-lg">Saved Content</h3>
                                                 <div className="space-y-2">
@@ -1123,6 +1125,18 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     const [score, setScore] = useState(0);
     const { toast } = useToast();
 
+    if (!quiz || quiz.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <Button onClick={() => onBack(0, 0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                    <CardTitle className="pt-4">Quiz Error</CardTitle>
+                    <CardDescription>No questions were generated for this topic.</CardDescription>
+                </CardHeader>
+            </Card>
+        )
+    }
+
     const handleAnswerSelect = (answer: string) => {
         if (isAnswered) return;
         setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
@@ -1163,18 +1177,6 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         }, 1000);
     };
 
-    if (!quiz || quiz.length === 0) {
-        return (
-            <Card>
-                <CardHeader>
-                    <Button onClick={() => onBack(0, 0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
-                    <CardTitle className="pt-4">Quiz Error</CardTitle>
-                    <CardDescription>No questions were generated for this topic.</CardDescription>
-                </CardHeader>
-            </Card>
-        )
-    }
-    
     if (quizState === 'results') {
         return (
             <Card>
