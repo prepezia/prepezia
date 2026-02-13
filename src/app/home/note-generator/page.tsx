@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -16,13 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput } from "@/ai/flows/generate-study-notes";
-import { interactiveChatWithSources } from "@/ai/flows/interactive-chat-with-sources";
-import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
-import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
-import { generateInfographic, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
-import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
-import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput } from "@/ai/flows/generate-podcast-from-sources";
+import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
+import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
+import { generateMindMap, GenerateMindMapOutput, GenerateMindMapInput } from "@/ai/flows/generate-mind-map";
+import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
@@ -107,10 +108,6 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: st
     e.stopPropagation();
     if (!firestore || !user) return;
     
-    // Optimistically update UI
-    // In a real app with many users, you might not do this, but for a single user it's fine.
-    // setRecentNotes(prev => prev.filter(note => note.id !== noteId));
-    
     try {
       await deleteDoc(doc(firestore, "notes", noteId));
       if (storage) {
@@ -120,7 +117,6 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: st
     } catch (error) {
       console.error("Failed to delete note:", error);
       toast({ variant: "destructive", title: "Deletion Failed", description: "Could not delete the note. Please try again." });
-      // Re-fetch or revert optimistic update if it failed
     }
   };
   
@@ -196,16 +192,6 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: st
   );
 }
 
-// ... other imports
-
-// Helper function to extract YouTube video ID
-const getYoutubeVideoId = (url: string): string | null => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-};
-
 const NOTE_PAGE_MIN_VIEW_TIME = 10000;
 
 const PROGRESS_WEIGHTS = {
@@ -215,6 +201,7 @@ const PROGRESS_WEIGHTS = {
   deck: 10,
   mindmap: 10,
   infographic: 5,
+  podcast: 0, // Not currently tracked for progress
 };
 
 function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; }) {
@@ -228,10 +215,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) as DocumentData : null, [firestore, noteId]);
   const { data: note, loading: noteLoading } = useDoc<Note>(noteDocRef as any);
 
-  const { data: firestoreUser } = useDoc(useMemo(() => user && firestore ? doc(firestore, 'users', user.uid) : null, [user, firestore]));
-
-  const [topic, setTopic] = useState("");
-  const [academicLevel, setAcademicLevel] = useState<AcademicLevel>("Undergraduate");
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | 'notes' | null>(null);
   
   const [pages, setPages] = useState<string[]>([]);
@@ -276,8 +259,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
 
   useEffect(() => {
     if (note) {
-      setTopic(note.topic);
-      setAcademicLevel(note.level as AcademicLevel);
       const notePages = note.content.split(/\n---\n/);
       setPages(notePages);
       setCurrentPage(0);
@@ -313,8 +294,31 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   };
 
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
-    // ... same as before
-  }, []);
+    if (speakingMessageId === messageId && audioRef.current) {
+        audioRef.current.pause();
+        setSpeakingMessageId(null);
+        return;
+    }
+
+    if (generatingAudioId || (speakingMessageId && speakingMessageId !== messageId)) {
+        if(audioRef.current) audioRef.current.pause();
+    }
+
+    setGeneratingAudioId(messageId);
+    setSpeakingMessageId(null);
+    try {
+        const ttsResponse = await textToSpeech({ text });
+        if (audioRef.current) {
+            audioRef.current.src = ttsResponse.audio;
+            audioRef.current.play();
+            setSpeakingMessageId(messageId);
+        }
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.'});
+    } finally {
+        setGeneratingAudioId(null);
+    }
+  }, [generatingAudioId, speakingMessageId, toast]);
   
   const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
     if (!currentInput?.trim() || isChatting || !note?.content) return;
@@ -326,7 +330,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             sources: [{ type: 'text', name: 'Note Content', dataUri: `data:text/plain;base64,${btoa(unescape(encodeURIComponent(note.content)))}`, contentType: 'text/plain' }],
             question: currentInput
         });
-        const assistantMessage: ChatMessage = { id: `asst-${Date.now()}`, role: 'assistant', content: response.answer };
+        const assistantMessage: any = { id: `asst-${Date.now()}`, role: 'assistant', content: response.answer, citations: response.citations };
         setChatHistory(prev => [...prev, assistantMessage]);
         if (isVoiceInput) await handlePlayAudio(assistantMessage.id, response.answer);
     } catch (error: any) {
@@ -344,6 +348,54 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     submitChat(currentInput, false);
     if (chatInputRef.current) chatInputRef.current.value = "";
   };
+  
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                submitChat(transcript, true);
+            };
+            recognition.onerror = (event: any) => {
+                console.error('Speech recognition error:', event.error);
+                let description = `Could not recognize speech: ${event.error}`;
+                if (event.error === 'network') {
+                    description = 'Network error. Please check your internet connection and try again.';
+                } else if (event.error === 'not-allowed') {
+                    description = 'Microphone access denied. Please enable it in your browser settings.';
+                }
+                toast({ variant: 'destructive', title: 'Speech Error', description });
+            };
+            recognition.onend = () => setIsListening(false);
+            recognitionRef.current = recognition;
+        } else {
+            console.warn("Speech Recognition API not supported in this browser.");
+        }
+    }, [toast, submitChat]);
+
+    const handleMicClick = () => {
+        if (speakingMessageId && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setSpeakingMessageId(null);
+            return;
+        }
+        if (!recognitionRef.current) {
+            toast({ variant: 'destructive', title: 'Not Supported', description: 'Speech recognition is not supported by your browser.' });
+            return;
+        }
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    };
 
   const handleGenerateContent = async (type: keyof GeneratedContent) => {
     if (!note || !user || !storage) return;
@@ -414,6 +466,80 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     updateNote({ [`generatedContent.${contentType}`]: deleteField(), interactionProgress: newProgress });
     toast({ title: 'Content Deleted' });
   };
+
+  const handlePrintNote = () => {
+    const printContent = document.getElementById('note-content-area')?.innerHTML;
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({ variant: 'destructive', title: 'Could not open print window' });
+      return;
+    }
+
+    const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+    const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Print Note - ${note?.topic}</title>
+                ${styles}
+                ${styleBlocks}
+            </head>
+            <body>
+                <div class="prose dark:prose-invert max-w-none p-8">
+                    <h1>${note?.topic}</h1>
+                    <h2>${note?.level}</h2>
+                    <hr />
+                    ${printContent}
+                </div>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 1000);
+  };
+
+  const renderGeneratedContent = () => {
+    if (!activeView || activeView === 'notes' || !note?.generatedContent) return null;
+
+    const content = note.generatedContent[activeView as keyof GeneratedContent];
+    if (!content) {
+        return (
+            <Card>
+                <CardHeader>
+                    <Button onClick={() => setActiveView('notes')} variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Note</Button>
+                </CardHeader>
+                <CardContent className="text-center p-8">
+                    <p className="text-muted-foreground">This content has not been generated yet or was deleted.</p>
+                    <Button onClick={() => setActiveView('notes')} className="mt-4">Go Back</Button>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    switch (activeView) {
+      case 'flashcards':
+        return <FlashcardView flashcards={content as any} onBack={(p) => handleFinishAndGoBack({ flashcardsFlipped: p })} topic={note.topic} />;
+      case 'quiz':
+        return <QuizView quiz={content as any} onBack={(score, total) => handleFinishAndGoBack({ quizCompleted: (score/total)*100 })} topic={note.topic} />;
+      case 'deck':
+        return <SlideDeckView deck={content as any} onBack={() => handleFinishAndGoBack({ deckViewed: true })} />;
+      case 'infographic':
+        return <InfographicView infographic={content as any} onBack={() => handleFinishAndGoBack({ infographicViewed: true })} topic={note.topic} />;
+      case 'mindmap':
+        return <InteractiveMindMapWrapper data={content as any} onBack={() => handleFinishAndGoBack({ mindmapViewed: true })} topic={note.topic} />;
+      case 'podcast':
+        return <PodcastView podcast={content as any} onBack={() => handleFinishAndGoBack({ podcastListened: true })} topic={note.topic} />;
+      default:
+        return null;
+    }
+  };
   
   if (noteLoading) {
     return (
@@ -434,61 +560,162 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         </div>
     );
   }
+
+  const generatedContent = note.generatedContent || {};
+  const generationOptions: { name: string; icon: React.ElementType; type: keyof GeneratedContent }[] = [
+      { name: "Podcast", icon: Mic, type: "podcast" },
+      { name: "Quiz", icon: HelpCircle, type: "quiz" },
+      { name: "Slide Deck", icon: Presentation, type: "deck" },
+      { name: "Flashcards", icon: SquareStack, type: "flashcards" },
+      { name: "Infographic", icon: AreaChart, type: "infographic" },
+      { name: "Mind Map", icon: GitFork, type: "mindmap" },
+  ];
   
-  // Render logic continues here, using `note` from `useDoc`
-  // ...
   return (
      <>
       <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>} />
       <div className="flex-1 flex flex-col min-h-0">
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
           {activeView !== 'notes' ? (
-              <div className="mt-8 flex-1">
-                  {/* renderGeneratedContent logic here */}
+              <div className="my-8 flex-1">
+                  {renderGeneratedContent()}
               </div>
           ) : (
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
-                  {/* ... Tabs and TabsContent using `note` data ... */}
+                   <TabsList className="grid w-full grid-cols-3 bg-secondary">
+                        <TabsTrigger value="notes">Notes</TabsTrigger>
+                        <TabsTrigger value="chat">Chat</TabsTrigger>
+                        <TabsTrigger value="generate">Generate</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="notes" className="mt-4 flex-1">
+                        <Card className="h-full flex flex-col">
+                            <CardHeader>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <CardTitle className="text-3xl font-headline font-bold">{note.topic}</CardTitle>
+                                        <CardDescription>{note.level}</CardDescription>
+                                    </div>
+                                    <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0">
+                                <div id="note-content-area" className="prose dark:prose-invert max-w-none h-full overflow-y-auto rounded-md border p-4">
+                                    {pages.length > 0 ? (
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
+                                            {pages[currentPage]}
+                                        </ReactMarkdown>
+                                    ) : (
+                                        <p>This note is empty.</p>
+                                    )}
+                                </div>
+                            </CardContent>
+                            {pages.length > 1 && (
+                                <CardFooter className="justify-between">
+                                    <Button variant="outline" onClick={() => handleSetCurrentPage(currentPage - 1)} disabled={currentPage === 0}>Previous</Button>
+                                    <span className="text-sm text-muted-foreground">Page {currentPage + 1} of {pages.length}</span>
+                                    <Button variant="outline" onClick={() => handleSetCurrentPage(currentPage + 1)} disabled={currentPage >= pages.length - 1}>Next</Button>
+                                </CardFooter>
+                            )}
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {chatHistory.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
+                                    <Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" />
+                                    <h3 className="font-semibold text-foreground text-lg">Chat with Your Notes</h3>
+                                    <p className="mt-2 text-sm">Ask a question and I will answer based on your notes.</p>
+                                </div>
+                            ) : chatHistory.map((msg, i) => (
+                                <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                                    {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
+                                    <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                                        {/* @ts-ignore */}
+                                        <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                    </div>
+                                </div>
+                            ))}
+                            {isChatting && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
+                        </div>
+                        <div className="p-4 border-t bg-background">
+                            <form onSubmit={handleChatSubmit} className="relative">
+                                <Textarea ref={chatInputRef} placeholder="Ask a question..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}} disabled={isChatting}/>
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>
+                                        {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                    </Button>
+                                    <Button size="icon" className="h-8 w-8" type="submit" disabled={isChatting || isListening}>
+                                        <Send className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </form>
+                             <audio ref={audioRef} onEnded={() => setSpeakingMessageId(null)} className="hidden"/>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="generate" className="mt-4 flex-1">
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>Generate from Notes</CardTitle>
+                                <CardDescription>Create supplementary study materials from your notes.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div>
+                                    <h3 className="font-semibold mb-4">Generate New</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                        {generationOptions.map((option) => (
+                                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
+                                                {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
+                                                <span>{option.name}</span>
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                {(() => {
+                                    const savedItems = Object.entries(generatedContent).filter(([_, value]) => !!value);
+                                    
+                                    return savedItems.length > 0 && (
+                                    <div>
+                                        <h3 className="font-semibold mb-4">Previously Generated</h3>
+                                        <div className="space-y-2">
+                                            {savedItems.map(([type]) => {
+                                                const option = generationOptions.find(o => o.type === type);
+                                                if (!option) return null;
+                                                
+                                                return (
+                                                    <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                        <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as ActiveView)}>
+                                                            <option.icon className="h-5 w-5 text-muted-foreground" />
+                                                            View Generated {option.name}
+                                                        </Button>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                                    <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                    );
+                                })()}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
               </Tabs>
           )}
         </div>
       </div>
     </>
   )
-}
-
-function NoteGeneratorPage() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-
-    const noteIdParam = searchParams.get('noteId');
-    const isNewParam = searchParams.get('new');
-    const topicParam = searchParams.get('topic'); // for deep-linking a new note
-    
-    const needsNoteView = !!noteIdParam;
-    const needsCreationView = isNewParam === 'true' || topicParam;
-
-    const handleSelectNote = useCallback((noteId: string) => {
-        router.push(`/home/note-generator?noteId=${noteId}`);
-    }, [router]);
-
-    const handleCreateNew = useCallback(() => {
-        router.push('/home/note-generator?new=true');
-    }, [router]);
-
-    const handleBackToList = useCallback(() => {
-        router.push('/home/note-generator');
-    }, [router]);
-
-    if (needsNoteView) {
-        return <NoteViewPage noteId={noteIdParam} onBack={handleBackToList} />;
-    }
-    
-    if (needsCreationView) {
-        return <CreateNoteView onBack={handleBackToList} initialTopic={topicParam || ""} />;
-    }
-    
-    return <NoteListPage onSelectNote={handleSelectNote} onCreateNew={handleCreateNew} />;
 }
 
 function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialTopic?: string }) {
@@ -596,4 +823,286 @@ export default function NoteGeneratorPageWrapper() {
             <NoteGeneratorPage />
         </Suspense>
     )
+}
+
+function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string }) {
+    return (
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"> Podcast for "{topic}"</CardTitle>
+                <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {podcast.podcastAudioUrl ? (
+                    <audio controls src={podcast.podcastAudioUrl} className="w-full"></audio>
+                ) : (
+                    <Alert variant="destructive">
+                        <AlertTitle>Audio Not Available</AlertTitle>
+                        <AlertDescription>
+                            The podcast audio could not be loaded. It might need to be regenerated.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                 <details className="w-full">
+                    <summary className="cursor-pointer text-sm font-medium">View Script</summary>
+                    <div className="mt-2 text-left max-h-80 overflow-y-auto rounded-md border bg-secondary/50 p-4">
+                        <pre className="text-sm whitespace-pre-wrap font-body">{podcast.podcastScript}</pre>
+                    </div>
+                </details>
+            </CardContent>
+        </Card>
+    );
+}
+
+function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: (flippedPercentage: number) => void, topic: string }) {
+    const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
+    const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
+    const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const flippedIndices = useRef(new Set<number>());
+    const { toast } = useToast();
+
+    const handleFlip = (index: number) => {
+        flippedIndices.current.add(index);
+        setFlippedStates(prev => {
+            const newStates = [...prev];
+            newStates[index] = !newStates[index];
+            return newStates;
+        });
+    };
+
+    const handleBack = () => {
+        const flippedPercentage = (flippedIndices.current.size / flashcards.length) * 100;
+        onBack(flippedPercentage);
+    };
+
+    const handlePrint = () => {
+        const printContent = document.getElementById('flashcard-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Flashcards</title>${styles}${styleBlocks}<style>@media print { @page { size: A4; margin: 20mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .flashcard-print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .flashcard-print-item { border: 1px solid #ccc; padding: 10px; page-break-inside: avoid; } .flashcard-print-item h4 { font-weight: bold; } }</style></head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+    };
+
+    const currentCard = flashcards[currentCardIndex];
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <Button onClick={handleBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={() => setViewMode('grid')} variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon"><Grid className="h-4 w-4"/></Button>
+                        <Button onClick={() => setViewMode('single')} variant={viewMode === 'single' ? 'secondary' : 'ghost'} size="icon"><View className="h-4 w-4"/></Button>
+                        <Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button>
+                    </div>
+                </div>
+                <CardTitle className="pt-4 flex items-center gap-2"> Flashcards for "{topic}"</CardTitle>
+            </CardHeader>
+            <CardContent>
+                 {viewMode === 'grid' ? (
+                    <div id="flashcard-print-area">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flashcard-print-grid">
+                            {flashcards.map((card, index) => (
+                                <div key={index} className="perspective-1000 flashcard-print-item" onClick={() => handleFlip(index)}>
+                                    <div className={cn("relative w-full h-64 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[index] && "rotate-y-180")}>
+                                        <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center"><div><h4 className="print-only">Front:</h4><p className="font-semibold text-lg">{card.front}</p></div></div>
+                                        <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center"><div><h4 className="print-only">Back:</h4><p className="text-sm">{card.back}</p></div></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                     <div>
+                        <div className="perspective-1000 mx-auto max-w-lg" onClick={() => handleFlip(currentCardIndex)}>
+                            <div className={cn("relative w-full h-80 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[currentCardIndex] && "rotate-y-180")}>
+                                <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center"><p className="font-semibold text-xl">{currentCard.front}</p></div>
+                                <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center"><p>{currentCard.back}</p></div>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center mt-4 max-w-lg mx-auto">
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p - 1)} disabled={currentCardIndex === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                            <span className="text-sm text-muted-foreground">{currentCardIndex + 1} / {flashcards.length}</span>
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p + 1)} disabled={currentCardIndex === flashcards.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: (score: number, total: number) => void, topic: string }) {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+    const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
+    const [score, setScore] = useState(0);
+    const { toast } = useToast();
+
+    if (!quiz || quiz.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <Button onClick={() => onBack(0, 0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <CardTitle className="pt-4">Quiz Error</CardTitle>
+                    <CardDescription>No questions were generated for these sources.</CardDescription>
+                </CardHeader>
+            </Card>
+        )
+    }
+
+    const handleAnswerSelect = (answer: string) => {
+        if (selectedAnswers[currentQuestionIndex] !== undefined) return;
+        setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
+    };
+    const handleSeeResults = () => {
+        let finalScore = 0;
+        quiz.forEach((q, index) => { if(selectedAnswers[index] === q.correctAnswer) finalScore++; });
+        setScore(finalScore);
+        setQuizState('results');
+    };
+    const handleFinishAndGoBack = () => {
+        onBack(score, quiz.length);
+    }
+    const handlePrint = () => {
+        const printContent = document.getElementById('quiz-results-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Quiz Results</title>${styles}${styleBlocks}</head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+    };
+
+    if (quizState === 'results') {
+        return (
+            <Card>
+                <CardHeader><div className="flex justify-between items-start"><Button onClick={handleFinishAndGoBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {quiz.length}</CardDescription></CardHeader>
+                <CardContent id="quiz-results-print-area"><Progress value={(score / quiz.length) * 100} className="w-full mb-4" /><div className="space-y-4">{quiz.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
+                <CardFooter><Button onClick={() => setQuizState('in-progress')}>Take Again</Button></CardFooter>
+            </Card>
+        );
+    }
+    
+    const currentQuestion = quiz[currentQuestionIndex];
+    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
+    return (
+        <Card>
+            <CardHeader><Button onClick={() => onBack(0,0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" /></CardHeader>
+            <CardContent>
+                <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
+                <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswers[currentQuestionIndex]} disabled={isAnswered}>
+                    {currentQuestion.options.map((option, i) => {
+                        const isCorrect = option === currentQuestion.correctAnswer;
+                        const isSelected = selectedAnswers[currentQuestionIndex] === option;
+                        return (<div key={i} className={cn("flex items-center space-x-3 space-y-0 p-3 rounded-md border cursor-pointer", isAnswered && isCorrect && "bg-green-100 dark:bg-green-900/50 border-green-500", isAnswered && isSelected && !isCorrect && "bg-red-100 dark:bg-red-900/50 border-destructive")} onClick={() => handleAnswerSelect(option)}><RadioGroupItem value={option} /><Label className="font-normal flex-1 cursor-pointer">{option}</Label>{isAnswered && isCorrect && <CheckCircle className="text-green-500" />}{isAnswered && isSelected && !isCorrect && <XCircle className="text-destructive" />}</div>);
+                    })}
+                </RadioGroup>
+                {isAnswered && <Card className="mt-4 bg-secondary/50"><CardHeader className="flex-row items-center gap-2 pb-2"><Lightbulb className="w-5 h-5 text-yellow-500" /><CardTitle className="text-md">Explanation</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p></CardContent></Card>}
+                {!isAnswered && currentQuestion.hint && <details className="mt-4 text-sm text-muted-foreground"><summary className="cursor-pointer">Need a hint?</summary><p className="pt-1">{currentQuestion.hint}</p></details>}
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}>Previous</Button>
+                {currentQuestionIndex < quiz.length - 1 ? <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button> : <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>}
+            </CardFooter>
+        </Card>
+    );
+}
+
+function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack: () => void }) {
+    const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+    const { toast } = useToast();
+    const handlePrint = () => {
+        const printContent = document.getElementById('deck-print-area')?.innerHTML;
+        if (!printContent) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
+        const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+        const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+        printWindow.document.write(`<html><head><title>Print Deck</title>${styles}${styleBlocks}<style>@page { size: landscape; }</style></head><body>${printContent}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+    };
+    const currentSlide = deck.slides[currentSlideIndex];
+    return (
+        <Card className="flex flex-col">
+            <CardHeader><div className="flex justify-between items-start"><Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4 flex items-center gap-2"> {deck.title}</CardTitle><CardDescription>Slide {currentSlideIndex + 1} of {deck.slides.length}</CardDescription></CardHeader>
+            <CardContent className="flex-1" id="deck-print-area">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2 rounded-lg border p-6 bg-secondary/30 min-h-[40vh] flex flex-col justify-center"><h3 className="text-2xl font-bold mb-4">{currentSlide.title}</h3><div className="prose prose-sm dark:prose-invert max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSlide.content}</ReactMarkdown></div></div>
+                    <div className="md:col-span-1 rounded-lg border p-4 bg-background"><h4 className="font-semibold mb-2">Speaker Notes</h4><p className="text-sm text-muted-foreground">{currentSlide.speakerNotes}</p></div>
+                </div>
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setCurrentSlideIndex(p => p - 1)} disabled={currentSlideIndex === 0}>Previous</Button>
+                <Button onClick={() => setCurrentSlideIndex(p => p + 1)} disabled={currentSlideIndex === deck.slides.length - 1}>Next</Button>
+            </CardFooter>
+        </Card>
+    );
+}
+
+function InfographicView({ infographic, onBack, topic }: { infographic: { prompt: string; imageUrl?: string }, onBack: () => void, topic: string }) {
+    const { toast } = useToast();
+    const handleDownload = () => {
+        if (!infographic.imageUrl) {
+            toast({ variant: 'destructive', title: 'Image Not Available', description: 'Please regenerate the infographic to download it.' });
+            return;
+        }
+        const link = document.createElement('a');
+        link.href = infographic.imageUrl;
+        link.download = `infographic_${topic.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+                    <Button onClick={handleDownload} variant="ghost" size="icon" disabled={!infographic.imageUrl}><Download className="h-4 w-4"/></Button>
+                </div>
+                <CardTitle className="pt-4 flex items-center gap-2"> Infographic for "{topic}"</CardTitle>
+                <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-6">
+                 {infographic.imageUrl ? (
+                    <div className="relative w-full aspect-square max-w-2xl border rounded-lg overflow-hidden bg-muted">
+                        <Image src={infographic.imageUrl} alt={`Infographic for ${topic}`} fill className="object-contain" />
+                    </div>
+                ) : (
+                    <Alert variant="destructive" className="w-full max-w-2xl">
+                        <AlertTitle>Image Not Available</AlertTitle>
+                        <AlertDescription>
+                            The infographic image could not be loaded. It might need to be regenerated.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                <details className="w-full max-w-2xl text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">View generation prompt</summary>
+                    <p className="pt-2">{infographic.prompt}</p>
+                </details>
+            </CardContent>
+        </Card>
+    );
+}
+
+function InteractiveMindMapWrapper({ data, onBack, topic }: { data: GenerateMindMapOutput, onBack: () => void, topic: string }) {
+    return (
+        <div className="space-y-4">
+             <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
+            <InteractiveMindMap data={data} topic={topic} />
+        </div>
+    );
 }
