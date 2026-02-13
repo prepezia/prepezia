@@ -83,6 +83,34 @@ interface Note extends DocumentData {
 type AcademicLevel = GenerateStudyNotesInput['academicLevel'];
 type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast';
 
+function NoteGeneratorPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const noteId = searchParams.get('noteId');
+  const action = searchParams.get('action');
+
+  const handleSelectNote = (noteId: string) => {
+    router.push(`/home/note-generator?noteId=${noteId}`);
+  };
+
+  const handleCreateNew = () => {
+    router.push(`/home/note-generator?action=create`);
+  };
+
+  const handleBackToList = () => {
+    router.push(`/home/note-generator`);
+  };
+
+  if (noteId) {
+    return <NoteViewPage noteId={noteId} onBack={handleBackToList} />;
+  }
+
+  if (action === 'create') {
+    return <CreateNoteView onBack={handleBackToList} initialTopic={searchParams.get('topic') || ''} />;
+  }
+
+  return <NoteListPage onSelectNote={handleSelectNote} onCreateNew={handleCreateNew} />;
+}
 
 function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: string) => void, onCreateNew: () => void }) {
   const { user } = useUser();
@@ -1106,3 +1134,13 @@ function InteractiveMindMapWrapper({ data, onBack, topic }: { data: GenerateMind
         </div>
     );
 }
+
+export default function NoteGeneratorPageWrapper() {
+    return (
+        <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin"/></div>}>
+            <NoteGeneratorPage />
+        </Suspense>
+    )
+}
+
+    
