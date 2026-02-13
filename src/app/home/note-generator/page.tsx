@@ -22,7 +22,7 @@ import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput }
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
-import { generateMindMap, GenerateMindMapOutput, GenerateMindMapInput } from "@/ai/flows/generate-mind-map";
+import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause } from "lucide-react";
@@ -520,12 +520,24 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 const audioUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio);
                 resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: audioUrl };
                 updateData = { 'generatedContent.podcast': resultData };
+                try {
+                    await downloadUrl(audioUrl, `podcast_${note.topic.replace(/\s+/g, '_')}.wav`);
+                    toast({ title: 'Podcast downloaded', description: 'The audio file has been automatically saved to your device.' });
+                } catch (e) {
+                    toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the podcast file automatically. You can save it manually later.' });
+                }
                 break;
             case 'infographic':
                 const infographicResult = await generateInfographic(input);
                 const imageUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, infographicResult.imageUrl);
                 resultData = { prompt: infographicResult.prompt, imageUrl: imageUrl };
                 updateData = { 'generatedContent.infographic': resultData };
+                try {
+                    await downloadUrl(imageUrl, `infographic_${note.topic.replace(/\s+/g, '_')}.png`);
+                    toast({ title: 'Infographic downloaded', description: 'The image has been automatically saved to your device.' });
+                } catch (e) {
+                    toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the infographic file automatically. You can save it manually later.' });
+                }
                 break;
             case 'flashcards':
                 resultData = (await generateFlashcards(input as GenerateFlashcardsInput)).flashcards;
@@ -706,13 +718,25 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
      <>
       <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>} />
       <div className="flex-1 flex flex-col min-h-0">
+        <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-headline font-bold">{note.topic}</h1>
+                    <p className="text-muted-foreground">{note.level}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
+                    <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
+                </div>
+            </div>
+        </div>
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
           {activeView !== 'notes' ? (
               <div className="my-8 flex-1">
                   {renderGeneratedContent()}
               </div>
           ) : (
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col mt-4">
                    <TabsList className="grid w-full grid-cols-3 bg-secondary">
                         <TabsTrigger value="notes">Notes</TabsTrigger>
                         <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -726,10 +750,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                     <div>
                                         <CardTitle className="text-3xl font-headline font-bold">{note.topic}</CardTitle>
                                         <CardDescription>{note.level}</CardDescription>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
-                                        <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
                                     </div>
                                 </div>
                             </CardHeader>
