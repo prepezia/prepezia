@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, Suspense, useCallback, useRef, FormEvent, useMemo } from "react";
@@ -322,20 +323,21 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
 
   const topicParam = searchParams.get('topic');
   const noteIdParam = searchParams.get('noteId');
-
+  const isNewParam = searchParams.get('new');
+  
   const initialNoteProp = useMemo(() => {
-      if (noteIdParam) {
-          try {
-              const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
-              if (!savedNotesRaw) return null;
-              const savedNotes: RecentNote[] = JSON.parse(savedNotesRaw);
-              return savedNotes.find((n: RecentNote) => n.id.toString() === noteIdParam) || null;
-          } catch (e) {
-              console.error("Error loading note from storage", e);
-              return null;
-          }
-      }
-      return null;
+    if (noteIdParam) {
+        try {
+            const savedNotesRaw = localStorage.getItem('learnwithtemi_recent_notes');
+            if (!savedNotesRaw) return null;
+            const savedNotes: RecentNote[] = JSON.parse(savedNotesRaw);
+            return savedNotes.find((n: RecentNote) => n.id.toString() === noteIdParam) || null;
+        } catch (e) {
+            console.error("Error loading note from storage", e);
+            return null;
+        }
+    }
+    return null;
   }, [noteIdParam]);
 
   const [topic, setTopic] = useState(initialNoteProp?.topic || topicParam || "");
@@ -450,10 +452,11 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
       const savedNotes = savedNotesRaw ? JSON.parse(savedNotesRaw).filter((n: RecentNote) => n.id !== 0) : dummyRecentNotes;
       const updatedNotes = [newNote, ...savedNotes.filter((n: RecentNote) => n.topic !== topic || n.level !== level)];
       localStorage.setItem('learnwithtemi_recent_notes', JSON.stringify(updatedNotes));
+      router.replace(`/home/note-generator?noteId=${newNote.id}`);
     } catch (e: any) {
       console.error("Failed to save notes to local storage:", e);
     }
-  }, []);
+  }, [router]);
 
   const handleSetCurrentPage = (pageIndex: number) => {
     const timeSpent = Date.now() - pageStartTime.current;
@@ -630,12 +633,11 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
   }, [onNoteGenerated, toast]);
   
   useEffect(() => {
-    const topicToGenerate = topicParam;
-    if (topicToGenerate && !initialNoteProp && !generationRan.current) {
+    if (topicParam && !initialNoteProp && !isNewParam && !generationRan.current) {
         generationRan.current = true;
-        generate(topicToGenerate, academicLevel);
+        generate(topicParam, academicLevel);
     }
-  }, [topicParam, initialNoteProp, generate, academicLevel]);
+  }, [topicParam, isNewParam, initialNoteProp, generate, academicLevel]);
 
   useEffect(() => {
     if (generatedNotes?.notes) {
@@ -707,10 +709,12 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
             resultData = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
             break;
         case 'flashcards':
-            resultData = await generateFlashcards(input as GenerateFlashcardsInput);
+            const flashcardResult = await generateFlashcards(input as GenerateFlashcardsInput);
+            resultData = flashcardResult.flashcards;
             break;
         case 'quiz':
-            resultData = await generateQuiz(input as GenerateQuizInput);
+            const quizResult = await generateQuiz(input as GenerateQuizInput);
+            resultData = quizResult.quiz;
             break;
         case 'deck':
             resultData = await generateSlideDeck(input);
@@ -774,7 +778,7 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
     }
     if (activeView === 'quiz') {
         const quizData = (generatedContent.quiz as any);
-        if(quizData) return <QuizView quiz={quizData} onBack={handleQuizComplete} topic={topic} />;
+        if(quizData && quizData.length > 0) return <QuizView quiz={quizData} onBack={handleQuizComplete} topic={topic} />;
     }
     if (activeView === 'deck' && generatedContent.deck) {
         setInteractionProgress(ip => ({...ip, deckViewed: true}));
@@ -1152,6 +1156,8 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         )
     }
 
+    const currentQuestion = quiz[currentQuestionIndex];
+
     const handleAnswerSelect = (answer: string) => {
         if (isAnswered) return;
         setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
@@ -1230,7 +1236,6 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         )
     }
 
-    const currentQuestion = quiz[currentQuestionIndex];
     const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
 
     return (
@@ -1435,17 +1440,17 @@ function NoteGeneratorPage() {
     
     const needsNoteView = topicParam || noteIdParam || isNewParam;
 
-    const handleSelectNote = useCallback((note: RecentNote) => {
+    const handleSelectNote = (note: RecentNote) => {
         router.push(`/home/note-generator?noteId=${note.id}`);
-    }, [router]);
+    };
 
-    const handleCreateNew = useCallback(() => {
+    const handleCreateNew = () => {
         router.push('/home/note-generator?new=true');
-    }, [router]);
+    };
 
-    const handleBackToList = useCallback(() => {
+    const handleBackToList = () => {
         router.push('/home/note-generator');
-    }, [router]);
+    };
 
     if (needsNoteView) {
         return <NoteViewPage onBack={handleBackToList} />;
@@ -1469,8 +1474,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
-
-    
-
-    
