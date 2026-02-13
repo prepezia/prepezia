@@ -20,7 +20,7 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -244,6 +244,29 @@ const PROGRESS_WEIGHTS = {
   podcast: 0, // Not currently tracked for progress
 };
 
+async function downloadUrl(url: string, filename: string) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+        console.error('Download failed:', error);
+        throw error; // Re-throw to be caught by caller
+    }
+}
+
 function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -252,7 +275,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const firestore = useFirestore();
   const storage = useStorage();
 
-  const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) : null, [firestore, noteId]);
+  const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) as DocumentReference<Note> : null, [firestore, noteId]);
   const { data: note, loading: noteLoading } = useDoc<Note>(noteDocRef);
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | 'notes' | null>(null);
@@ -442,7 +465,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     setIsGenerating(type);
 
     try {
-        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateInfographicInput = {
+        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateInfographicInput & GenerateSlideDeckInput = {
             context: 'note-generator', topic: note.topic, academicLevel: note.level as AcademicLevel, content: note.content,
         };
       
@@ -471,7 +494,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 updateData = { 'generatedContent.quiz': resultData };
                 break;
             case 'deck':
-                const deckResult = await generateSlideDeck(input as any);
+                const deckResult = await generateSlideDeck(input);
                 resultData = deckResult;
                 updateData = { 'generatedContent.deck': resultData };
                 break;
@@ -484,7 +507,13 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         updateNote(updateData);
         setActiveView(type);
     } catch (e: any) {
-        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
+        console.error(`Error generating ${type}:`, e);
+        let description = e.message;
+        // @ts-ignore
+        if (e.code === 'storage/unauthorized' || e.code === 'storage/retry-limit-exceeded') {
+            description = "A Firebase Storage permission error occurred. This might be due to project configuration. Please ensure your project's storage is set up correctly and the security rules are deployed.";
+        }
+        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
     } finally {
         setIsGenerating(null);
     }
@@ -529,6 +558,39 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         printWindow.close();
     }, 1000);
   };
+
+  const handleSaveOffline = async () => {
+    if (!note?.generatedContent) {
+        toast({ description: "No generated content to save." });
+        return;
+    }
+
+    toast({ title: "Saving for Offline...", description: "Your generated media files will be downloaded." });
+
+    let downloadedCount = 0;
+    const content = note.generatedContent;
+
+    if (content.infographic?.imageUrl) {
+        try {
+            await downloadUrl(content.infographic.imageUrl, `infographic_${note.topic.replace(/\s+/g, '_')}.png`);
+            downloadedCount++;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Infographic Download Failed" });
+        }
+    }
+    if (content.podcast?.podcastAudioUrl) {
+        try {
+            await downloadUrl(content.podcast.podcastAudioUrl, `podcast_${note.topic.replace(/\s+/g, '_')}.wav`);
+            downloadedCount++;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Podcast Download Failed" });
+        }
+    }
+
+    if (downloadedCount === 0) {
+        toast({ title: "No media to download", description: "Your text notes are automatically available offline once viewed." });
+    }
+  }
 
   const renderGeneratedContent = () => {
     if (!activeView || activeView === 'notes' || !note?.generatedContent) return null;
@@ -621,11 +683,14 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                         <CardTitle className="text-3xl font-headline font-bold">{note.topic}</CardTitle>
                                         <CardDescription>{note.level}</CardDescription>
                                     </div>
-                                    <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
+                                        <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0">
-                                <div id="note-content-area" className="prose dark:prose-invert w-full max-w-0 min-w-full overflow-y-auto rounded-md border p-4">
+                                <div id="note-content-area" className="prose dark:prose-invert w-full max-w-none h-full overflow-y-auto rounded-md border p-4">
                                     {pages.length > 0 ? (
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
                                             {pages[currentPage]}
