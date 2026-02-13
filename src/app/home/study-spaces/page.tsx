@@ -616,6 +616,26 @@ function StudySpacesPage() {
       setActiveGeneratedView(null);
   }
 
+  const handleDeckBack = () => {
+    updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, deckViewed: true}}));
+    setActiveGeneratedView(null);
+  };
+
+  const handleInfographicBack = () => {
+    updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, infographicViewed: true}}));
+    setActiveGeneratedView(null);
+  };
+
+  const handleMindMapBack = () => {
+    updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, mindmapViewed: true}}));
+    setActiveGeneratedView(null);
+  };
+
+  const handlePodcastBack = () => {
+    updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, podcastListened: true}}));
+    setActiveGeneratedView(null);
+  };
+
   const handleGenerateContent = async (type: keyof GeneratedContent) => {
     if (!selectedStudySpace || selectedStudySpace.sources.length === 0) {
       toast({ variant: 'destructive', title: 'No sources', description: 'Add sources to your study space before generating content.' });
@@ -727,6 +747,7 @@ function StudySpacesPage() {
     
     const renderGeneratedContent = () => {
         if (!activeGeneratedView) return null;
+
         if (activeGeneratedView === 'flashcards' && generatedContent.flashcards) {
             return <FlashcardView flashcards={generatedContent.flashcards} onBack={handleFlashcardsViewed} topic={selectedStudySpace.name} />;
         }
@@ -734,20 +755,16 @@ function StudySpacesPage() {
             return <QuizView quiz={generatedContent.quiz} onBack={handleQuizComplete} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'deck' && generatedContent.deck) {
-            updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, deckViewed: true}}));
-            return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveGeneratedView(null)} />;
+            return <SlideDeckView deck={generatedContent.deck} onBack={handleDeckBack} />;
         }
         if (activeGeneratedView === 'podcast' && generatedContent.podcast) {
-            updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, podcastListened: true}}));
-            return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name}/>
+            return <PodcastView podcast={generatedContent.podcast} onBack={handlePodcastBack} topic={selectedStudySpace.name}/>
         }
         if (activeGeneratedView === 'infographic' && generatedContent.infographic) {
-            updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, infographicViewed: true}}));
-            return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+            return <InfographicView infographic={generatedContent.infographic} onBack={handleInfographicBack} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'mindmap' && generatedContent.mindmap) {
-             updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, mindmapViewed: true}}));
-             return <InteractiveMindMapWrapper data={generatedContent.mindmap} onBack={() => setActiveGeneratedView(null)} topic={selectedStudySpace.name} />;
+             return <InteractiveMindMapWrapper data={generatedContent.mindmap} onBack={handleMindMapBack} topic={selectedStudySpace.name} />;
         }
         return null;
     }

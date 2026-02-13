@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, Suspense, useCallback, useRef, FormEvent, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -321,8 +321,8 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const topicParam = searchParams.get('topic');
   const noteIdParam = searchParams.get('noteId');
+  const topicParam = searchParams.get('topic');
   const isNewParam = searchParams.get('new');
   
   const initialNoteProp = useMemo(() => {
@@ -600,7 +600,7 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
     return savable;
   };
 
-  const generate = useCallback(async (currentTopic: string, currentLevel: AcademicLevel) => {
+  const generate = useCallback((currentTopic: string, currentLevel: AcademicLevel) => {
     if (!currentTopic.trim()) {
         toast({
             variant: "destructive",
@@ -616,24 +616,27 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
     setActiveView('notes');
     setGeneratedContent({});
     setChatHistory([]); // Clear chat history for new note
-    try {
-      const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
-      setGeneratedNotes(result);
-      onNoteGenerated(currentTopic, currentLevel, result.notes, result.nextStepsPrompt);
-    } catch (error: any) {
-      console.error("Error generating notes:", error);
-      toast({
-            variant: "destructive",
-            title: "Generation Failed",
-            description: error.message || "An unexpected error occurred.",
-        });
-    } finally {
-      setIsLoading(false);
-    }
+    
+    (async () => {
+        try {
+            const result = await generateStudyNotes({ topic: currentTopic, academicLevel: currentLevel });
+            setGeneratedNotes(result);
+            onNoteGenerated(currentTopic, currentLevel, result.notes, result.nextStepsPrompt);
+        } catch (error: any) {
+            console.error("Error generating notes:", error);
+            toast({
+                variant: "destructive",
+                title: "Generation Failed",
+                description: error.message || "An unexpected error occurred.",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    })();
   }, [onNoteGenerated, toast]);
   
   useEffect(() => {
-    if (topicParam && !initialNoteProp && !isNewParam && !generationRan.current) {
+    if (topicParam && !initialNoteProp && isNewParam !== 'true' && !generationRan.current) {
         generationRan.current = true;
         generate(topicParam, academicLevel);
     }
@@ -686,7 +689,7 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
 
 
   const handleGenerateClick = () => {
-      generationRan.current = false;
+      generationRan.current = true;
       generate(topic, academicLevel);
   };
 
@@ -710,11 +713,11 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
             break;
         case 'flashcards':
             const flashcardResult = await generateFlashcards(input as GenerateFlashcardsInput);
-            resultData = flashcardResult.flashcards;
+            resultData = flashcardResult;
             break;
         case 'quiz':
             const quizResult = await generateQuiz(input as GenerateQuizInput);
-            resultData = quizResult.quiz;
+            resultData = quizResult;
             break;
         case 'deck':
             resultData = await generateSlideDeck(input);
@@ -749,6 +752,26 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
     }
   };
 
+  const handleDeckBack = () => {
+    setInteractionProgress(ip => ({...ip, deckViewed: true}));
+    setActiveView('notes');
+  };
+
+  const handleInfographicBack = () => {
+    setInteractionProgress(ip => ({...ip, infographicViewed: true}));
+    setActiveView('notes');
+  };
+
+  const handleMindMapBack = () => {
+    setInteractionProgress(ip => ({...ip, mindmapViewed: true}));
+    setActiveView('notes');
+  };
+
+  const handlePodcastBack = () => {
+    setInteractionProgress(ip => ({...ip, podcastListened: true}));
+    setActiveView('notes');
+  };
+
   const handleQuizComplete = (score: number, total: number) => {
       if (total > 0) {
         setInteractionProgress(ip => ({...ip, quizCompleted: (score / total) * 100 }));
@@ -772,33 +795,32 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
   ]
 
   const renderGeneratedContent = () => {
-    if (activeView === 'flashcards') {
-        const flashcardsData = (generatedContent.flashcards as any);
-        if(flashcardsData) return <FlashcardView flashcards={flashcardsData} onBack={handleFlashcardsViewed} topic={topic} />;
+    if (activeView === 'flashcards' && generatedContent.flashcards) {
+        return <FlashcardView flashcards={generatedContent.flashcards} onBack={handleFlashcardsViewed} topic={topic} />;
     }
-    if (activeView === 'quiz') {
-        const quizData = (generatedContent.quiz as any);
-        if(quizData && quizData.length > 0) return <QuizView quiz={quizData} onBack={handleQuizComplete} topic={topic} />;
+    if (activeView === 'quiz' && generatedContent.quiz) {
+        return <QuizView quiz={generatedContent.quiz} onBack={handleQuizComplete} topic={topic} />;
     }
     if (activeView === 'deck' && generatedContent.deck) {
-        setInteractionProgress(ip => ({...ip, deckViewed: true}));
-        return <SlideDeckView deck={generatedContent.deck} onBack={() => setActiveView('notes')} />;
+        return <SlideDeckView deck={generatedContent.deck} onBack={handleDeckBack} />;
     }
     if (activeView === 'infographic' && generatedContent.infographic) {
-        setInteractionProgress(ip => ({...ip, infographicViewed: true}));
-        return <InfographicView infographic={generatedContent.infographic} onBack={() => setActiveView('notes')} topic={topic} />;
+        return <InfographicView infographic={generatedContent.infographic} onBack={handleInfographicBack} topic={topic} />;
     }
     if (activeView === 'mindmap' && generatedContent.mindmap) {
-        setInteractionProgress(ip => ({...ip, mindmapViewed: true}));
-        return <InteractiveMindMap data={generatedContent.mindmap} topic={topic} />;
+        return (
+            <div className="space-y-4">
+                <Button onClick={handleMindMapBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back to Notes</Button>
+                <InteractiveMindMap data={generatedContent.mindmap} topic={topic} />
+            </div>
+        );
     }
     if (activeView === 'podcast' && generatedContent.podcast) {
-        setInteractionProgress(ip => ({...ip, podcastListened: true}));
-        return <PodcastView podcast={generatedContent.podcast} onBack={() => setActiveView('notes')} topic={topic} />;
+        return <PodcastView podcast={generatedContent.podcast} onBack={handlePodcastBack} topic={topic} />;
     }
     
-    // If no specific view matches, fall back to the main notes/tabs view
-    setActiveView('notes');
+    // Fallback if activeView is set but content is not ready
+    if(activeView !== 'notes') setActiveView('notes');
     return null;
   }
 
@@ -1434,23 +1456,23 @@ function NoteGeneratorPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const topicParam = searchParams.get('topic');
     const noteIdParam = searchParams.get('noteId');
+    const topicParam = searchParams.get('topic');
     const isNewParam = searchParams.get('new');
     
-    const needsNoteView = topicParam || noteIdParam || isNewParam;
+    const needsNoteView = noteIdParam || topicParam || isNewParam;
 
-    const handleSelectNote = (note: RecentNote) => {
+    const handleSelectNote = useCallback((note: RecentNote) => {
         router.push(`/home/note-generator?noteId=${note.id}`);
-    };
+    }, [router]);
 
-    const handleCreateNew = () => {
+    const handleCreateNew = useCallback(() => {
         router.push('/home/note-generator?new=true');
-    };
+    }, [router]);
 
-    const handleBackToList = () => {
+    const handleBackToList = useCallback(() => {
         router.push('/home/note-generator');
-    };
+    }, [router]);
 
     if (needsNoteView) {
         return <NoteViewPage onBack={handleBackToList} />;

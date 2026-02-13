@@ -53,7 +53,7 @@ const podcastScriptPrompt = ai.definePrompt({
 
     ### INSTRUCTIONS:
     1.  Read the source material below.
-    2.  Write a conversational podcast script between Temi and Jay that is approximately 5-7 minutes long.
+    2.  Write a conversational podcast script between Temi and Jay that is approximately 300-400 words long.
     3.  The script should start with Temi saying: "Hey everyone, welcome back to Learn with Temi!"
     4.  Use banter, analogies, and frequent affirmations (e.g., "Exactly!", "That's a great point, Jay.", "Right, so...").
     5.  Ensure the conversation flows naturally and covers the key points from the source material.
