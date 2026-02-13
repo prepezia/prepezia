@@ -9,9 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -20,9 +18,9 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
-import { generateMindMap, GenerateMindMapOutput, GenerateMindMapInput } from "@/ai/flows/generate-mind-map";
+import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause } from "lucide-react";
@@ -41,7 +39,7 @@ import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser, useFirestore, useDoc, useCollection, useStorage } from "@/firebase";
-import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, where, orderBy, Timestamp, DocumentData, deleteField } from "firebase/firestore";
+import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, where, orderBy, Timestamp, DocumentData, deleteField, CollectionReference, DocumentReference } from "firebase/firestore";
 import { Separator } from "@/components/ui/separator";
 import { uploadDataUrlToStorage, deleteFolderFromStorage } from "@/lib/storage";
 import { educationalLevels } from "@/lib/education-levels";
@@ -79,6 +77,20 @@ interface Note extends DocumentData {
   progress?: number;
   status?: 'Not Started' | 'In Progress' | 'Completed';
 };
+
+type UserChatMessage = {
+    id: string;
+    role: 'user';
+    content: string;
+};
+type AssistantChatMessage = {
+    id: string;
+    role: 'assistant';
+    content: string;
+    citations?: InteractiveChatWithSourcesOutput['citations'];
+    isError?: boolean;
+};
+type ChatMessage = UserChatMessage | AssistantChatMessage;
 
 type AcademicLevel = GenerateStudyNotesInput['academicLevel'];
 type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast';
@@ -122,7 +134,7 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: st
   const notesQuery = useMemo(() => {
     if (user && firestore) {
       return query(
-        collection(firestore, "notes"),
+        collection(firestore, "notes") as CollectionReference<Note>,
         where("userId", "==", user.uid),
         orderBy("date", "desc")
       );
@@ -240,8 +252,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const firestore = useFirestore();
   const storage = useStorage();
 
-  const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) as DocumentData : null, [firestore, noteId]);
-  const { data: note, loading: noteLoading } = useDoc<Note>(noteDocRef as any);
+  const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) as DocumentReference<Note> : null, [firestore, noteId]);
+  const { data: note, loading: noteLoading } = useDoc<Note>(noteDocRef);
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | 'notes' | null>(null);
   
@@ -508,23 +520,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
     const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
 
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Print Note - ${note?.topic}</title>
-                ${styles}
-                ${styleBlocks}
-            </head>
-            <body>
-                <div class="prose dark:prose-invert max-w-none p-8">
-                    <h1>${note?.topic}</h1>
-                    <h2>${note?.level}</h2>
-                    <hr />
-                    ${printContent}
-                </div>
-            </body>
-        </html>
-    `);
+    printWindow.document.write(`<html><head><title>Print Note - ${note?.topic}</title>${styles}${styleBlocks}</head><body><div class="prose dark:prose-invert max-w-none p-8"><h1>${note?.topic}</h1><h2>${note?.level}</h2><hr />${printContent}</div></body></html>`);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => {
@@ -656,7 +652,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                     <h3 className="font-semibold text-foreground text-lg">Chat with Your Notes</h3>
                                     <p className="mt-2 text-sm">Ask a question and I will answer based on your notes.</p>
                                 </div>
-                            ) : chatHistory.map((msg, i) => (
+                            ) : chatHistory.map((msg) => (
                                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                     {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
                                     <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
@@ -754,7 +750,7 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
     const { data: firestoreUser } = useDoc(useMemo(() => user && firestore ? doc(firestore, 'users', user.uid) : null, [user, firestore]));
 
     const [topic, setTopic] = useState(initialTopic || "");
-    const [academicLevel, setAcademicLevel] = useState<AcademicLevel | undefined>(undefined);
+    const [academicLevel, setAcademicLevel] = useState<AcademicLevel | "">("");
     const [isLoading, setIsLoading] = useState(false);
     
     useEffect(() => {
