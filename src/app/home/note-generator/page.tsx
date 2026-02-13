@@ -20,7 +20,7 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -157,10 +157,10 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: st
   const notesQuery = useMemo(() => {
     if (user && firestore) {
       return query(
-        collection(firestore, "notes") as CollectionReference<Note>,
+        collection(firestore, "notes"),
         where("userId", "==", user.uid),
         orderBy("date", "desc")
-      );
+      ) as CollectionReference<Note>;
     }
     return null;
   }, [user, firestore]);
@@ -548,12 +548,12 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 updateData = { 'generatedContent.quiz': resultData };
                 break;
             case 'deck':
-                const deckResult = await generateSlideDeck(input);
+                const deckResult = await generateSlideDeck(input as GenerateSlideDeckInput);
                 resultData = deckResult;
                 updateData = { 'generatedContent.deck': resultData };
                 break;
             case 'mindmap':
-                 resultData = await generateMindMap(input as GenerateMindMapInput);
+                 resultData = await generateMindMap(input as any);
                  updateData = { 'generatedContent.mindmap': resultData };
                  break;
             default: throw new Error("Unknown generation type");
@@ -713,23 +713,21 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
       { name: "Infographic", icon: AreaChart, type: "infographic" },
       { name: "Mind Map", icon: GitFork, type: "mindmap" },
   ];
+
+  const rightHeaderContent = (
+    <div className="flex items-center gap-2">
+        <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
+        <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
+    </div>
+  );
   
   return (
      <>
-      <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>} />
+      <HomeHeader 
+        left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>}
+        right={rightHeaderContent}
+      />
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-headline font-bold">{note.topic}</h1>
-                    <p className="text-muted-foreground">{note.level}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
-                    <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
-                </div>
-            </div>
-        </div>
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
           {activeView !== 'notes' ? (
               <div className="my-8 flex-1">
@@ -895,8 +893,7 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
             "Junior High (JHS/BECE)",
             "Senior High (SHS/WASSCE)",
             "Undergraduate",
-            "Masters",
-            "PhD",
+            "Postgraduate (Masters/PhD)",
           ]
         },
         {
