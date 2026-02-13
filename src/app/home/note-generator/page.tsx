@@ -292,7 +292,7 @@ function ChatView({
     );
 }
 
-type AcademicLevel = "Beginner" | "Intermediate" | "Expert" | "Secondary" | "Undergraduate" | "Masters" | "PhD" | 'Junior High (JHS/BECE)' | 'Senior High (SHS/WASSCE)' | 'Professional' | 'Other';
+type AcademicLevel = GenerateStudyNotesInput['academicLevel'];
 type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast';
 
 
@@ -1019,40 +1019,47 @@ function NoteViewPage({ onBack }: { onBack: () => void; }) {
                         <CardDescription>Enter any topic and select the academic level to get started.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <Input 
-                          placeholder="e.g., Photosynthesis, Ghanaian Independence" 
-                          value={topic}
-                          onChange={(e) => setTopic(e.target.value)}
-                          className="h-12 text-base"
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
-                      />
-                      <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
-                          <SelectTrigger className="h-12 text-base">
-                          <SelectValue placeholder="Select an academic level..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectGroup>
-                                  <SelectLabel>Proficiency</SelectLabel>
-                                  <SelectItem value="Beginner">Beginner</SelectItem>
-                                  <SelectItem value="Intermediate">Intermediate</SelectItem>
-                                  <SelectItem value="Expert">Expert</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                  <SelectLabel>Educational System</SelectLabel>
-                                  <SelectItem value="Junior High (JHS/BECE)">Junior High (JHS/BECE)</SelectItem>
-                                  <SelectItem value="Senior High (SHS/WASSCE)">Senior High (SHS/WASSCE)</SelectItem>
-                                  <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                                  <SelectItem value="Masters">Masters</SelectItem>
-                                  <SelectItem value="PhD">PhD</SelectItem>
-                                  <SelectItem value="Professional">Professional</SelectItem>
-                                  <SelectItem value="Other">Other</SelectItem>
-                              </SelectGroup>
-                          </SelectContent>
-                      </Select>
-                      <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12" size="lg">
-                          <Sparkles className="mr-2 h-5 w-5" />
-                          Generate Notes
-                      </Button>
+                        <div className="space-y-2 text-left">
+                            <Label htmlFor="topic-input">Topic</Label>
+                            <Input 
+                                id="topic-input"
+                                placeholder="e.g., Photosynthesis, Ghanaian Independence" 
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                className="h-12 text-base"
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateClick(); }}
+                            />
+                        </div>
+                        <div className="space-y-2 text-left">
+                            <Label htmlFor="level-select">Academic Level</Label>
+                            <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
+                                <SelectTrigger id="level-select" className="h-12 text-base">
+                                <SelectValue placeholder="Select an academic level..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>Proficiency</SelectLabel>
+                                        <SelectItem value="Beginner">Beginner</SelectItem>
+                                        <SelectItem value="Intermediate">Intermediate</SelectItem>
+                                        <SelectItem value="Expert">Expert</SelectItem>
+                                    </SelectGroup>
+                                    <SelectGroup>
+                                        <SelectLabel>Educational System</SelectLabel>
+                                        <SelectItem value="Junior High (JHS/BECE)">Junior High (JHS/BECE)</SelectItem>
+                                        <SelectItem value="Senior High (SHS/WASSCE)">Senior High (SHS/WASSCE)</SelectItem>
+                                        <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                                        <SelectItem value="Masters">Masters</SelectItem>
+                                        <SelectItem value="PhD">PhD</SelectItem>
+                                        <SelectItem value="Professional">Professional</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button onClick={handleGenerateClick} disabled={!topic.trim()} className="w-full h-12" size="lg">
+                            <Sparkles className="mr-2 h-5 w-5" />
+                            Generate Notes
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
