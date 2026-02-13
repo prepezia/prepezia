@@ -625,7 +625,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 </div>
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0">
-                                <div id="note-content-area" className="prose dark:prose-invert max-w-none w-full max-w-0 min-w-full h-full overflow-y-auto rounded-md border p-4">
+                                <div id="note-content-area" className="prose dark:prose-invert w-full max-w-0 min-w-full overflow-y-auto rounded-md border p-4">
                                     {pages.length > 0 ? (
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
                                             {pages[currentPage]}

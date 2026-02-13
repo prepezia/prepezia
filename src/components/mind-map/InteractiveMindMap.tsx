@@ -33,7 +33,9 @@ const sanitizeNodeIds = (node: MindMapNodeData): MindMapNodeData => {
   return {
     ...node,
     id: `mindmap-node-${idCounter}`, // Overwrite the ID
-    children: node.children?.map(child => sanitizeNodeIds(child)), // Recurse through children
+    children: node.children
+        ?.filter((child): child is MindMapNodeData => child != null)
+        .map(child => sanitizeNodeIds(child)), // Recurse through children
   };
 };
 
