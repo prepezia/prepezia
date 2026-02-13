@@ -40,9 +40,10 @@ import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser, useFirestore, useDoc, useCollection, useStorage } from "@/firebase";
-import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, where, orderBy, Timestamp, DocumentData } from "firebase/firestore";
+import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, where, orderBy, Timestamp, DocumentData, deleteField } from "firebase/firestore";
 import { Separator } from "@/components/ui/separator";
 import { uploadDataUrlToStorage, deleteFolderFromStorage } from "@/lib/storage";
+import { educationalLevels } from "@/lib/education-levels";
 
 
 type GeneratedContent = {
@@ -568,7 +569,13 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
                             <Label htmlFor="level-select">Academic Level</Label>
                             <Select value={academicLevel} onValueChange={(value) => setAcademicLevel(value as AcademicLevel)}>
                                 <SelectTrigger id="level-select" className="h-12 text-base"><SelectValue placeholder="Select an academic level..." /></SelectTrigger>
-                                <SelectContent>{/* ... SelectItems ... */}</SelectContent>
+                                <SelectContent>
+                                    {educationalLevels.map((level) => (
+                                        <SelectItem key={level} value={level}>
+                                        {level}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
                             </Select>
                         </div>
                         <Button onClick={handleGenerateClick} disabled={!topic.trim() || isLoading} className="w-full h-12" size="lg">
