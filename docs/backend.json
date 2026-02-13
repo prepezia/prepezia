@@ -77,6 +77,53 @@
         }
       },
       "required": ["content", "lastUpdated"]
+    },
+    "RecentNote": {
+      "title": "Recent Note",
+      "description": "Represents a single set of AI-generated study notes, linked to a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who owns this note." },
+        "topic": { "type": "string" },
+        "level": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "content": { "type": "string" },
+        "nextStepsPrompt": { "type": "string" },
+        "progress": { "type": "number" },
+        "status": { "type": "string", "enum": ["Not Started", "In Progress", "Completed"] },
+        "generatedContent": { "$ref": "#/entities/GeneratedContent" },
+        "interactionProgress": { "type": "object" }
+      },
+      "required": ["userId", "topic", "level", "date", "content"]
+    },
+    "GeneratedContent": {
+        "title": "Generated Content",
+        "description": "Container for various types of AI-generated content linked to a note or study space.",
+        "type": "object",
+        "properties": {
+            "summary": { "type": "string" },
+            "podcast": {
+                "type": "object",
+                "properties": {
+                    "podcastScript": { "type": "string" },
+                    "podcastAudioUrl": { "type": "string", "description": "URL to the audio file in Cloud Storage." }
+                }
+            },
+            "infographic": {
+                "type": "object",
+                "properties": {
+                    "imageUrl": { "type": "string", "description": "URL to the image file in Cloud Storage." },
+                    "prompt": { "type": "string" }
+                }
+            },
+            "flashcards": {
+                "type": "array",
+                "items": { "type": "object", "properties": { "front": { "type": "string" }, "back": { "type": "string" } } }
+            },
+            "quiz": { "type": "array" },
+            "deck": { "type": "object" },
+            "mindmap": { "type": "object" }
+        }
     }
   },
   "auth": {
@@ -94,6 +141,10 @@
         "$ref": "#/entities/LegalDocument"
       },
       "description": "Stores content for legal pages like 'terms_of_use' and 'privacy_policy'."
+    },
+    "/notes/{noteId}": {
+        "schema": { "$ref": "#/entities/RecentNote" },
+        "description": "Top-level collection for all user notes."
     }
   }
 }
