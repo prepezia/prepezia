@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -19,7 +20,7 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -511,8 +512,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         let resultData: any;
         let updateData: any = {};
         
-        let filename: string;
-        let fileUrl: string;
+        let filename: string | undefined;
+        let fileUrl: string | undefined;
 
         switch(type) {
             case 'podcast':
@@ -522,8 +523,10 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 updateData = { 'generatedContent.podcast': resultData };
                 filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
                 try {
-                    await downloadUrl(fileUrl, filename);
-                    toast({ title: 'Podcast downloaded', description: 'The audio file has been automatically saved to your device.' });
+                    if (fileUrl) {
+                        await downloadUrl(fileUrl, filename);
+                        toast({ title: 'Podcast downloaded', description: 'The audio file has been automatically saved to your device.' });
+                    }
                 } catch (e) {
                     toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the podcast file automatically. You can save it manually later.' });
                 }
@@ -535,8 +538,10 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 updateData = { 'generatedContent.infographic': resultData };
                 filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
                 try {
-                    await downloadUrl(fileUrl, filename);
-                    toast({ title: 'Infographic downloaded', description: 'The image has been automatically saved to your device.' });
+                    if (fileUrl) {
+                        await downloadUrl(fileUrl, filename);
+                        toast({ title: 'Infographic downloaded', description: 'The image has been automatically saved to your device.' });
+                    }
                 } catch (e) {
                     toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the infographic file automatically. You can save it manually later.' });
                 }
@@ -799,7 +804,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="chat" className="mt-4 flex flex-col">
+                    <TabsContent value="chat" className="mt-4 flex flex-col flex-1">
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {chatHistory.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
@@ -852,10 +857,10 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 )}
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                {savedItems.length === 0 ? (
+                                {(savedItems.length === 0 && !isGenerating) ? (
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                         {generationOptions.map((option) => (
-                                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
+                                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating}>
                                                 {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                                 <span>{option.name}</span>
                                             </Button>
@@ -863,6 +868,14 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
+                                         {isGenerating && !generatedContent[isGenerating] && (
+                                            <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
+                                                <div className="flex items-center gap-3 font-medium">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                    <span className="text-muted-foreground">Generating {isGenerating.charAt(0).toUpperCase() + isGenerating.slice(1)}...</span>
+                                                </div>
+                                            </div>
+                                        )}
                                         {generationOptions.map((option) => {
                                             const savedItem = generatedContent[option.type];
                                             if (!savedItem) return null;
@@ -914,7 +927,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                     {generationOptions.map((option) => {
                          const isAlreadyGenerated = !!generatedContent[option.type];
                          return(
-                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null || isAlreadyGenerated}>
+                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating || isAlreadyGenerated}>
                                 {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                 <span>{option.name}</span>
                                 {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}

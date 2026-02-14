@@ -689,7 +689,7 @@ function StudySpacesPage() {
 
     try {
         let resultData;
-        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateInfographicInput = {
+        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
             context: 'study-space',
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
         };
@@ -805,7 +805,7 @@ function StudySpacesPage() {
   if (viewState === 'edit' && selectedStudySpace) {
     const header = (
         <HomeHeader left={
-            <Button variant="outline" onClick={handleBackToList}>
+             <Button variant="outline" onClick={handleBackToList}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to All Spaces
             </Button>
@@ -1063,10 +1063,10 @@ function StudySpacesPage() {
                                      )}
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                     {savedItems.length === 0 ? (
+                                     {(savedItems.length === 0 && !isGenerating) ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
-                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
+                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating}>
                                                     {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                                     <span>{option.name}</span>
                                                 </Button>
@@ -1074,6 +1074,14 @@ function StudySpacesPage() {
                                         </div>
                                      ) : (
                                         <div className="space-y-2">
+                                            {isGenerating && !generatedContent[isGenerating] && (
+                                                <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
+                                                    <div className="flex items-center gap-3 font-medium">
+                                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                        <span className="text-muted-foreground">Generating {isGenerating.charAt(0).toUpperCase() + isGenerating.slice(1)}...</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                             {generationOptions.map((option) => {
                                                 const savedItem = generatedContent[option.type];
                                                 if (!savedItem) return null;
@@ -1125,7 +1133,7 @@ function StudySpacesPage() {
                             {generationOptions.map((option) => {
                                 const isAlreadyGenerated = !!generatedContent[option.type];
                                 return (
-                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null || isAlreadyGenerated}>
+                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating || isAlreadyGenerated}>
                                         {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                         <span>{option.name}</span>
                                         {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}
