@@ -45,12 +45,13 @@ import { useUser, useFirestore, useDoc, useCollection, useStorage } from "@/fire
 import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, where, orderBy, Timestamp, DocumentData, deleteField, CollectionReference, DocumentReference } from "firebase/firestore";
 import { Separator } from "@/components/ui/separator";
 import { uploadDataUrlToStorage, deleteFolderFromStorage } from "@/lib/storage";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
-  infographic?: Omit<GenerateInfographicOutput, 'imageUrl'> & { imageUrl?: string };
+  infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'logs'> & { imageUrl?: string; logs?: string[] };
   mindmap?: GenerateMindMapOutput;
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
 };
@@ -315,7 +316,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const noteDocRef = useMemo(() => firestore ? doc(firestore, 'notes', noteId) as DocumentReference<Note> : null, [firestore, noteId]);
   const { data: note, loading: noteLoading } = useDoc<Note>(noteDocRef);
 
-  const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | 'notes' | null>(null);
+  const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
+  const [generationLogs, setGenerationLogs] = useState<string[]>([]);
   
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -503,6 +505,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     if (!note || !user || !storage) return;
     setIsGenerating(type);
     setIsGenerateDialogOpen(false);
+    setGenerationLogs([]);
 
     try {
         const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
@@ -538,6 +541,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 break;
             case 'infographic':
                 const infographicResult = await generateInfographic(input as GenerateInfographicInput);
+                if (infographicResult.logs) setGenerationLogs(infographicResult.logs);
                 fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, infographicResult.imageUrl);
                 resultData = { prompt: infographicResult.prompt, imageUrl: fileUrl };
                 updateData = { 'generatedContent.infographic': resultData };
@@ -874,16 +878,30 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {isGenerating && isGenerating !== 'notes' && (
+                                        {isGenerating && (
                                             <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
                                                 <div className="flex items-center gap-3 font-medium">
                                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                    <span className="text-muted-foreground">Generating {isGenerating.charAt(0).toUpperCase() + isGenerating.slice(1)}...</span>
+                                                    <span className="text-muted-foreground">Generating {isGenerating}...</span>
                                                 </div>
                                             </div>
                                         )}
+                                        {isGenerating === 'infographic' && generationLogs.length > 0 && (
+                                            <div className="mt-4">
+                                                <Accordion type="single" collapsible>
+                                                    <AccordionItem value="logs">
+                                                        <AccordionTrigger className="text-sm">View Generation Log</AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                                                {generationLogs.join('\n')}
+                                                            </pre>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                </Accordion>
+                                            </div>
+                                        )}
                                         {generationOptions.map((option) => {
-                                            const savedItem = generatedContent[option.type];
+                                            const savedItem = generatedContent[option.type as keyof GeneratedContent];
                                             if (!savedItem) return null;
                                             
                                             return (
@@ -893,7 +911,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                                         {option.name}
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <Button size="sm" variant="outline" onClick={() => setActiveView(option.type)}>
+                                                        <Button size="sm" variant="outline" onClick={() => setActiveView(option.type as ActiveView)}>
                                                             <Eye className="mr-2 h-4 w-4"/> View
                                                         </Button>
                                                         {(option.type === 'infographic' || option.type === 'podcast') && (
@@ -906,7 +924,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                                                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent>
-                                                                <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(option.type)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                                <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(option.type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                                                     <Trash2 className="mr-2 h-4 w-4"/> Delete
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -931,9 +949,9 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 </DialogHeader>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
                     {generationOptions.map((option) => {
-                         const isAlreadyGenerated = !!generatedContent[option.type];
+                         const isAlreadyGenerated = !!generatedContent[option.type as keyof GeneratedContent];
                          return(
-                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating || isAlreadyGenerated}>
+                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type as keyof GeneratedContent)} disabled={!!isGenerating || isAlreadyGenerated}>
                                 {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                 <span>{option.name}</span>
                                 {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}

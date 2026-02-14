@@ -30,7 +30,8 @@ const GenerateInfographicOutputSchema = z.object({
   keyPoints: z.array(z.object({
     title: z.string(),
     summary: z.string()
-  })).optional().describe("The extracted key points for reference")
+  })).optional().describe("The extracted key points for reference"),
+  logs: z.array(z.string()).optional().describe("Debugging logs from the generation process.")
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
@@ -109,7 +110,10 @@ const generateInfographicFlow = ai.defineFlow({
     outputSchema: GenerateInfographicOutputSchema,
 },
 async (input) => {
+    const logs: string[] = [];
+
     // Step 1: Extract key points from the content
+    logs.push("Step 1: Extracting key points from content...");
     let keyPoints: {title: string, summary: string}[] = [];
     try {
         const extractedPoints = await extractKeyPointsFlow({
@@ -119,16 +123,18 @@ async (input) => {
             academicLevel: input.academicLevel
         });
         keyPoints = extractedPoints || [];
+        logs.push(` -> Success: Extracted ${keyPoints.length} key points.`);
     } catch (error) {
-        console.error('Key point extraction failed:', error);
-        // Fallback: create basic points from content
+        logs.push(` -> Error: Key point extraction failed: ${error}`);
         keyPoints = [
             { title: "Main Concept", summary: input.content?.substring(0, 100) || "Key information presented" },
             { title: "Important Detail", summary: "Secondary information and context" }
         ];
+        logs.push(" -> Using fallback key points.");
     }
 
     // Step 2: Generate the detailed prompt for Imagen
+    logs.push("Step 2: Designing a detailed prompt for the image model...");
     const promptResult = await designInfographicPrompt({
         ...input,
         keyPoints
@@ -136,16 +142,18 @@ async (input) => {
 
     const imagePrompt = promptResult.output?.imagePrompt;
     if (!imagePrompt) {
+        logs.push(" -> Error: Failed to generate image prompt.");
         throw new Error("Failed to generate image prompt");
     }
+    logs.push(" -> Success: Image prompt designed.");
 
     // Step 3: Generate image using Imagen correctly
+    logs.push("Step 3: Generating infographic image (this can take up to a minute)...");
     const enhancedPrompt = `${imagePrompt}
 
 IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean sans-serif fonts.`;
 
     try {
-        // Try different model names that might work
         const modelOptions = [
             'googleai/imagen-3.0-generate-001',
             'googleai/imagen-3.0-fast-generate-001',
@@ -157,7 +165,7 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
         
         for (const modelName of modelOptions) {
             try {
-                console.log(`Attempting with model: ${modelName}`);
+                logs.push(` -> Attempting with model: ${modelName}`);
                 
                 const result: any = await ai.generate({
                     model: modelName as any,
@@ -179,19 +187,21 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
                     else if (result.message?.media?.url) imageData = result.message.media.url;
 
                     if (imageData) {
+                        logs.push(` -> Success: Image generated with ${modelName}.`);
                         return {
                             imageUrl: imageData,
                             prompt: enhancedPrompt,
-                            keyPoints: keyPoints
+                            keyPoints: keyPoints,
+                            logs: logs,
                         };
                     }
                 }
                 
-                console.log(`Model ${modelName} didn't return expected format:`, result);
+                logs.push(` -> Warning: Model ${modelName} returned an unexpected format.`);
                 lastError = new Error('Unexpected response format');
                 
             } catch (modelError) {
-                console.log(`Model ${modelName} failed:`, modelError);
+                logs.push(` -> Error with ${modelName}: ${modelError}`);
                 lastError = modelError;
             }
         }
@@ -199,16 +209,20 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
         throw lastError || new Error('All Imagen models failed');
 
     } catch (imageError) {
-        console.error('Imagen generation failed:', imageError);
+        logs.push(` -> Critical Error: All image models failed. ${imageError}`);
         
         try {
+            logs.push(" -> Attempting to generate a fallback SVG image.");
             const fallbackImageUrl = await generateFallbackInfographic(keyPoints, input.topic || 'Key Insights');
+            logs.push(" -> Success: Fallback SVG generated.");
             return {
                 imageUrl: fallbackImageUrl,
                 prompt: enhancedPrompt,
-                keyPoints: keyPoints
+                keyPoints: keyPoints,
+                logs: logs,
             };
         } catch (fallbackError) {
+            logs.push(` -> Critical Error: Fallback SVG generation also failed. ${fallbackError}`);
             throw new Error(`Image generation failed: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`);
         }
     }

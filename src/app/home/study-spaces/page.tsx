@@ -49,6 +49,7 @@ import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/Inter
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser, useStorage } from "@/firebase";
 import { uploadDataUrlToStorage } from "@/lib/storage";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const createSpaceSchema = z.object({
     name: z.string().min(1, { message: "Space name is required." }),
@@ -93,7 +94,7 @@ type GeneratedContent = {
   deck?: GenerateSlideDeckOutput;
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   summary?: string;
-  infographic?: Omit<GenerateInfographicOutput, 'imageUrl'> & { imageUrl?: string };
+  infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'logs'> & { imageUrl?: string; logs?: string[] };
   mindmap?: MindMapNodeData;
 };
 
@@ -356,6 +357,7 @@ function StudySpacesPage() {
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
+  const [generationLogs, setGenerationLogs] = useState<string[]>([]);
   const [activeGeneratedView, setActiveGeneratedView] = useState<keyof GeneratedContent | null>(null);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
 
@@ -863,6 +865,7 @@ function StudySpacesPage() {
     setIsGenerating(type);
     setIsGenerateDialogOpen(false);
     setActiveGeneratedView(null);
+    setGenerationLogs([]);
 
     try {
         let resultData;
@@ -892,6 +895,7 @@ function StudySpacesPage() {
                 break;
             case 'infographic':
                 const infographicResult = await generateInfographic(input as GenerateInfographicInput);
+                if (infographicResult.logs) setGenerationLogs(infographicResult.logs);
                 const imageUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/infographic.png`, infographicResult.imageUrl);
                 resultData = { prompt: infographicResult.prompt, imageUrl: imageUrl };
                 break;
@@ -899,7 +903,6 @@ function StudySpacesPage() {
                 resultData = await generateMindMap(input as any); // Schemas are compatible
                 break;
             default:
-                // This case handles 'summary', which shouldn't be manually generated here.
                 if (type !== 'summary') {
                     throw new Error("Unknown generation type");
                 }
@@ -911,7 +914,7 @@ function StudySpacesPage() {
             return { generatedContent: newGeneratedContent };
         });
       
-        setActiveGeneratedView(type as any); // 'summary' is not a view
+        setActiveGeneratedView(type as any);
     } catch (e: any) {
         console.error(`Error generating ${type}:`, e);
         toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
@@ -1242,7 +1245,27 @@ function StudySpacesPage() {
                                      )}
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                    {savedItems.length === 0 ? (
+                                    {isGenerating === 'infographic' && (
+                                        <div className="mt-4 space-y-2">
+                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                <span>Generating Infographic... This can take up to a minute.</span>
+                                            </div>
+                                            {generationLogs.length > 0 && (
+                                                <Accordion type="single" collapsible>
+                                                    <AccordionItem value="logs">
+                                                        <AccordionTrigger className="text-sm">View Generation Log</AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                                                {generationLogs.join('\n')}
+                                                            </pre>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                </Accordion>
+                                            )}
+                                        </div>
+                                    )}
+                                    {(savedItems.length === 0 && !isGenerating) ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
                                                 <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
@@ -1253,16 +1276,16 @@ function StudySpacesPage() {
                                         </div>
                                      ) : (
                                         <div className="space-y-2">
-                                            {isGenerating && (
+                                            {isGenerating && isGenerating !== 'infographic' && (
                                                 <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
                                                     <div className="flex items-center gap-3 font-medium">
                                                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                        <span className="text-muted-foreground">Generating {isGenerating.charAt(0).toUpperCase() + isGenerating.slice(1)}...</span>
+                                                        <span className="text-muted-foreground">Generating {isGenerating}...</span>
                                                     </div>
                                                 </div>
                                             )}
                                             {generationOptions.map((option) => {
-                                                const savedItem = generatedContent[option.type];
+                                                const savedItem = generatedContent[option.type as keyof GeneratedContent];
                                                 if (!savedItem) return null;
                                                 
                                                 return (
@@ -1272,7 +1295,7 @@ function StudySpacesPage() {
                                                             {option.name}
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <Button size="sm" variant="outline" onClick={() => setActiveGeneratedView(option.type)}>
+                                                            <Button size="sm" variant="outline" onClick={() => setActiveGeneratedView(option.type as any)}>
                                                                 <Eye className="mr-2 h-4 w-4"/> View
                                                             </Button>
                                                             {(option.type === 'infographic' || option.type === 'podcast') && (
@@ -1285,7 +1308,7 @@ function StudySpacesPage() {
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent>
-                                                                    <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(option.type)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                                    <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(option.type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                                                         <Trash2 className="mr-2 h-4 w-4"/> Delete
                                                                     </DropdownMenuItem>
                                                                 </DropdownMenuContent>
@@ -1310,9 +1333,9 @@ function StudySpacesPage() {
                         </DialogHeader>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
                             {generationOptions.map((option) => {
-                                const isAlreadyGenerated = !!generatedContent[option.type];
+                                const isAlreadyGenerated = !!generatedContent[option.type as keyof GeneratedContent];
                                 return (
-                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating || isAlreadyGenerated}>
+                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type as keyof GeneratedContent)} disabled={!!isGenerating || isAlreadyGenerated}>
                                         {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                         <span>{option.name}</span>
                                         {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}
