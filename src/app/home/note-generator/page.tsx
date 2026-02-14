@@ -21,7 +21,7 @@ import { interactiveChatWithSources, InteractiveChatWithSourcesInput, Interactiv
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
-import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow } from "@/ai/flows/generate-infographic";
+import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
@@ -501,81 +501,92 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         }
     };
 
-  const handleGenerateContent = async (type: keyof GeneratedContent) => {
-    if (!note || !user || !storage) return;
-    setIsGenerating(type);
-    setIsGenerateDialogOpen(false);
-    setGenerationLogs([]);
-
-    try {
-        const inputBase = {
-            context: 'note-generator' as const,
-            topic: note.topic,
-            academicLevel: note.level as AcademicLevel,
-            content: note.content,
-        };
-
-        if (type === 'infographic') {
-            setGenerationLogs(prev => [...prev, 'Step 1: Extracting key points...']);
-            const keyPoints = await extractKeyPointsFlow({
-                content: note.content,
-                maxPoints: 5,
-                academicLevel: note.level
-            });
-            setGenerationLogs(prev => [...prev, `-> Success: Extracted ${keyPoints.length} key points.`]);
-
-            setGenerationLogs(prev => [...prev, 'Step 2: Designing prompt for image model...']);
-            const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
-            setGenerationLogs(prev => [...prev, '-> Success: Image prompt designed.']);
-
-            setGenerationLogs(prev => [...prev, 'Step 3: Generating infographic image...']);
-            const { imageUrl, logs } = await generateImageFlow({ 
-                imagePrompt, 
-                keyPoints,
+    const handleGenerateContent = async (type: keyof GeneratedContent) => {
+        if (!note || !user || !storage) return;
+        setIsGenerating(type);
+        setIsGenerateDialogOpen(false);
+        setGenerationLogs([`Step 1: Generating ${type}...`]);
+    
+        try {
+            const inputBase = {
+                context: 'note-generator' as const,
                 topic: note.topic,
-            });
-            setGenerationLogs(prev => [...prev, ...logs]);
-            
-            const resultData = { prompt: imagePrompt, imageUrl: imageUrl, keyPoints };
-            updateNote({ 'generatedContent.infographic': resultData });
-            setActiveView('infographic');
+                academicLevel: note.level as AcademicLevel,
+                content: note.content,
+            };
+    
+            if (type === 'infographic') {
+                setGenerationLogs(prev => ['Step 1: Extracting key points from content...', ...prev]);
+                const keyPoints = await extractKeyPointsFlow({ content: inputBase.content, maxPoints: inputBase.maxPoints, academicLevel: inputBase.academicLevel });
+                setGenerationLogs(prev => [`-> Success: Extracted ${keyPoints.length} key points.`, 'Step 2: Designing a detailed prompt for the image model...', ...prev].reverse());
+                
+                const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
+                setGenerationLogs(prev => ['-> Success: Image prompt designed.', 'Step 3: Generating infographic image...', ...prev].reverse());
 
-        } else {
-            // Handle other generation types
-            let resultData: any;
-            switch(type) {
-                case 'podcast':
-                    const podcastResult = await generatePodcastFromSources(inputBase);
-                    const fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio);
-                    resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: fileUrl };
-                    break;
-                case 'flashcards':
-                    resultData = (await generateFlashcards(inputBase)).flashcards;
-                    break;
-                case 'quiz':
-                    resultData = (await generateQuiz(inputBase)).quiz;
-                    break;
-                case 'deck':
-                    resultData = await generateSlideDeck(inputBase);
-                    break;
-                case 'mindmap':
-                     resultData = await generateMindMap(inputBase);
-                     break;
-                default: throw new Error("Unknown generation type");
+                const { imageUrl, logs: imageLogs } = await generateImageFlow({ imagePrompt, keyPoints, topic: note.topic });
+                setGenerationLogs(prev => [...imageLogs, ...prev].reverse());
+
+                const resultDataForUI = { prompt: imagePrompt, imageUrl: imageUrl, keyPoints };
+                updateNote({ 'generatedContent.infographic': resultDataForUI });
+                
+                uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, imageUrl)
+                    .then(downloadURL => {
+                        updateNote({ 'generatedContent.infographic.imageUrl': downloadURL });
+                        toast({ title: 'Infographic saved to your cloud storage.' });
+                    })
+                    .catch(err => {
+                        console.error("Infographic upload failed:", err);
+                        toast({ variant: 'destructive', title: 'Infographic could not be saved to the cloud' });
+                    });
+    
+                setActiveView('infographic');
+            } else {
+                let resultData: any;
+                switch (type) {
+                    case 'podcast':
+                        const podcastResult = await generatePodcastFromSources(inputBase);
+                        updateNote({ 'generatedContent.podcast': { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio }});
+                        setActiveView('podcast');
+
+                        uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio)
+                            .then(downloadURL => {
+                                updateNote({ 'generatedContent.podcast.podcastAudioUrl': downloadURL });
+                                toast({ title: 'Podcast saved to your cloud storage.' });
+                            })
+                            .catch(err => {
+                                console.error("Podcast upload failed:", err);
+                                toast({ variant: 'destructive', title: 'Podcast could not be saved to the cloud.' });
+                            });
+                        break;
+                    case 'flashcards':
+                        resultData = (await generateFlashcards(inputBase)).flashcards;
+                        break;
+                    case 'quiz':
+                        resultData = (await generateQuiz(inputBase)).quiz;
+                        break;
+                    case 'deck':
+                        resultData = await generateSlideDeck(inputBase);
+                        break;
+                    case 'mindmap':
+                        resultData = await generateMindMap(inputBase);
+                        break;
+                    default:
+                        throw new Error("Unknown generation type");
+                }
+                if (type !== 'podcast') {
+                    updateNote({ [`generatedContent.${type}`]: resultData });
+                    setActiveView(type);
+                }
             }
-            updateNote({ [`generatedContent.${type}`]: resultData });
-            setActiveView(type);
+        } catch (e: any) {
+            console.error(`Error generating ${type}:`, e);
+            const description = e.message || `An unknown error occurred while generating the ${type}.`;
+            setGenerationLogs(prev => [`ERROR: ${description}`, ...prev].reverse());
+            toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
+        } finally {
+            setIsGenerating(null);
         }
-
-    } catch (e: any) {
-        console.error(`Error generating ${type}:`, e);
-        const description = e.message || `An unknown error occurred while generating the ${type}.`;
-        setGenerationLogs(prev => [...prev, `ERROR: ${description}`]);
-        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
-    } finally {
-        setIsGenerating(null);
-    }
-  };
+    };
 
   const handleFinishAndGoBack = (progressUpdate: Partial<InteractionProgress>) => {
     updateNote({ interactionProgress: { ...note?.interactionProgress, ...progressUpdate } });

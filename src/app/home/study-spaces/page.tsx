@@ -27,7 +27,7 @@ import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput }
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
-import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow } from "@/ai/flows/generate-infographic";
+import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -852,87 +852,108 @@ function StudySpacesPage() {
     setActiveGeneratedView(null);
   };
 
-  const handleGenerateContent = async (type: keyof GeneratedContent) => {
-    if (!selectedStudySpace || selectedStudySpace.sources.length === 0) {
-      toast({ variant: 'destructive', title: 'No sources', description: 'Add sources to your study space before generating content.' });
-      return;
-    }
-    if (!user || !storage) {
-        toast({ variant: 'destructive', title: 'Not Signed In', description: 'You must be signed in to generate media.' });
-        return;
-    }
-    
-    setIsGenerating(type);
-    setIsGenerateDialogOpen(false);
-    setActiveGeneratedView(null);
-    setGenerationLogs([]);
-
-    try {
-        const inputBase = {
-            context: 'study-space' as const,
-            sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any })),
-        };
-      
-        if (type === 'infographic') {
-            setGenerationLogs(prev => [...prev, 'Step 1: Extracting key points...']);
-            const keyPoints = await extractKeyPointsFlow({
-                sources: inputBase.sources,
-                maxPoints: 5,
-            });
-            setGenerationLogs(prev => [...prev, `-> Success: Extracted ${keyPoints.length} key points.`]);
-
-            setGenerationLogs(prev => [...prev, 'Step 2: Designing image prompt...']);
-            const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
-            setGenerationLogs(prev => [...prev, '-> Success: Image prompt designed.']);
-
-            setGenerationLogs(prev => [...prev, 'Step 3: Generating infographic...']);
-            const { imageUrl, logs } = await generateImageFlow({ 
-                imagePrompt, 
-                keyPoints,
-                topic: selectedStudySpace.name,
-            });
-            setGenerationLogs(prev => [...prev, ...logs]);
-            
-            const resultData = { prompt: imagePrompt, imageUrl: imageUrl, keyPoints };
-            updateSelectedStudySpace({ [`generatedContent.${type}`]: resultData });
-
-        } else {
-            let resultData: any;
-            switch(type) {
-                case 'podcast':
-                    const podcastResult = await generatePodcastFromSources(inputBase);
-                    const audioUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/podcast.wav`, podcastResult.podcastAudio);
-                    resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: audioUrl };
-                    break;
-                case 'flashcards':
-                    resultData = (await generateFlashcards(inputBase)).flashcards;
-                    break;
-                case 'quiz':
-                    resultData = (await generateQuiz(inputBase)).quiz;
-                    break;
-                case 'deck':
-                    resultData = await generateSlideDeck(inputBase);
-                    break;
-                case 'mindmap':
-                    resultData = await generateMindMap(inputBase);
-                    break;
-                default: throw new Error("Unknown generation type");
-            }
-             updateSelectedStudySpace(current => ({
-                generatedContent: { ...current.generatedContent, [type]: resultData }
-            }));
+    const handleGenerateContent = async (type: keyof GeneratedContent) => {
+        if (!selectedStudySpace || selectedStudySpace.sources.length === 0) {
+            toast({ variant: 'destructive', title: 'No sources', description: 'Add sources to your study space before generating content.' });
+            return;
         }
-      
-        setActiveGeneratedView(type as any);
-    } catch (e: any) {
-        console.error(`Error generating ${type}:`, e);
-        const description = e.message || `An unknown error occurred while generating the ${type}.`;
-        setGenerationLogs(prev => [...prev, `ERROR: ${description}`]);
-        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
-    } finally {
-        setIsGenerating(null);
-    }
-  };
+        if (!user || !storage) {
+            toast({ variant: 'destructive', title: 'Not Signed In', description: 'You must be signed in to generate media.' });
+            return;
+        }
+        
+        setIsGenerating(type);
+        setIsGenerateDialogOpen(false);
+        setActiveGeneratedView(null);
+        setGenerationLogs([`Step 1: Generating ${type}...`]);
+
+        try {
+            const inputBase = {
+                context: 'study-space' as const,
+                sources: selectedStudySpace.sources.map(s => ({ ...s, type: s.type === 'clipboard' ? 'text' : (s.type as any) })),
+            };
+
+            if (type === 'infographic') {
+                setGenerationLogs(prev => ['Step 1: Extracting key points...', ...prev].reverse());
+                const keyPoints = await extractKeyPointsFlow({ sources: inputBase.sources, maxPoints: 5 });
+                setGenerationLogs(prev => [`-> Success: Extracted ${keyPoints.length} key points.`, 'Step 2: Designing prompt...', ...prev].reverse());
+                
+                const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
+                setGenerationLogs(prev => ['-> Success: Prompt designed.', 'Step 3: Generating image...', ...prev].reverse());
+
+                const { imageUrl, logs: imageLogs } = await generateImageFlow({ imagePrompt, keyPoints, topic: selectedStudySpace.name });
+                setGenerationLogs(prev => [...imageLogs, ...prev].reverse());
+
+                // Immediately show the generated (local) image
+                const resultDataForUI = { prompt: imagePrompt, imageUrl, keyPoints };
+                updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, infographic: resultDataForUI }}));
+                setActiveGeneratedView(type);
+                
+                // Asynchronously upload and update with permanent URL
+                uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/infographic.png`, imageUrl)
+                    .then(downloadURL => {
+                        updateSelectedStudySpace(current => {
+                            const newInfographic = { ...current.generatedContent?.infographic, imageUrl: downloadURL };
+                            return { generatedContent: { ...current.generatedContent, infographic: newInfographic }};
+                        });
+                        toast({ title: 'Infographic saved to your cloud storage.' });
+                    })
+                    .catch(err => {
+                        console.error("Infographic upload failed:", err);
+                        toast({ variant: 'destructive', title: 'Infographic could not be saved to the cloud' });
+                    });
+            } else {
+                let resultData: any;
+                switch (type) {
+                    case 'podcast':
+                        const podcastResult = await generatePodcastFromSources(inputBase);
+                        // Immediately show local audio
+                        updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, podcast: { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio }}}));
+                        setActiveGeneratedView('podcast');
+
+                        // Asynchronously upload and update with permanent URL
+                        uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/podcast.wav`, podcastResult.podcastAudio)
+                            .then(downloadURL => {
+                                updateSelectedStudySpace(current => {
+                                    const newPodcast = { ...current.generatedContent?.podcast, podcastAudioUrl: downloadURL };
+                                    return { generatedContent: { ...current.generatedContent, podcast: newPodcast }};
+                                });
+                                toast({ title: 'Podcast saved to your cloud storage.' });
+                            })
+                            .catch(err => {
+                                console.error("Podcast upload failed:", err);
+                                toast({ variant: 'destructive', title: 'Podcast could not be saved to the cloud.' });
+                            });
+                        break;
+                    case 'flashcards':
+                        resultData = (await generateFlashcards(inputBase)).flashcards;
+                        break;
+                    case 'quiz':
+                        resultData = (await generateQuiz(inputBase)).quiz;
+                        break;
+                    case 'deck':
+                        resultData = await generateSlideDeck(inputBase);
+                        break;
+                    case 'mindmap':
+                        resultData = await generateMindMap(inputBase);
+                        break;
+                    default:
+                        throw new Error("Unknown generation type");
+                }
+                if (type !== 'podcast' && type !== 'infographic') {
+                    updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, [type]: resultData }}));
+                    setActiveGeneratedView(type as any);
+                }
+            }
+        } catch (e: any) {
+            console.error(`Error generating ${type}:`, e);
+            const description = e.message || `An unknown error occurred while generating the ${type}.`;
+            setGenerationLogs(prev => [`ERROR: ${description}`, ...prev].reverse());
+            toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
+        } finally {
+            setIsGenerating(null);
+        }
+    };
   
   const handleDeleteGeneratedContent = (type: keyof GeneratedContent) => {
     if (!selectedStudySpace) return;

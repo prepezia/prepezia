@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -81,27 +82,28 @@ const designInfographicPrompt = ai.definePrompt({
             imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a professional infographic.")
         })
     },
-    prompt: `You are an expert infographic designer. Create a detailed prompt for an image generation model to generate a professional infographic.
+    prompt: `You are an expert prompt engineer for text-to-image models. Create a single, detailed, and effective prompt to generate a professional infographic.
 
-### CONTEXT:
-- Style: {{style}}
-- Color Scheme: {{#if colorScheme}}{{colorScheme}}{{else}}A professionally coordinated and aesthetically pleasing color palette{{/if}}
-- Academic Level: {{academicLevel}}
+### INFOGRAPHIC REQUIREMENTS:
+- **Topic**: {{#if topic}}"{{topic}}"{{else}}"Key Insights"{{/if}}
+- **Style**: {{style}}
+- **Color Scheme**: {{#if colorScheme}}{{colorScheme}}{{else}}A professionally coordinated and aesthetically pleasing color palette based on blues and grays, with a single warm accent color.{{/if}}
 
 ### KEY POINTS TO VISUALIZE:
 {{#each keyPoints}}
-- Point {{@index}}: "{{this.title}}" - {{this.summary}}
+- **Point {{@index}}**: **{{this.title}}** - {{this.summary}}
 {{/each}}
 
-### IMPERATIVE INSTRUCTIONS FOR YOUR PROMPT:
-1.  **Layout**: Create a clean, professional, visually balanced infographic layout. It should feature a prominent main title and clearly separated sections for each key point. Use a grid or a logical flow (e.g., top-to-bottom, circular).
-2.  **Main Title**: The main title should be "{{#if topic}}{{topic}}{{else}}Key Insights{{/if}}". It must be large, prominent, and perfectly legible.
-3.  **Text**: For each point, include both the title and the summary text. ALL TEXT MUST BE PERFECTLY HORIZONTAL, CLEAR, AND LEGIBLE. Use a clean, modern sans-serif font.
-4.  **Icons/Visuals**: For each key point, describe a simple, professional, and relevant icon or visual metaphor that represents the concept. The visuals should be high-quality vector art.
-5.  **Branding**: Include the text "Prepezia" in the bottom-left corner, small and subtle.
-6.  **Overall Style**: The overall aesthetic should be modern, clean, and uncluttered. High resolution, digital art.
+### YOUR PROMPT MUST INCLUDE THE FOLLOWING IMPERATIVE INSTRUCTIONS:
+1.  **Master Prompt**: Start with "A professional, ultra-detailed, high-resolution infographic about '{{#if topic}}{{topic}}{{else}}Key Insights{{/if}}'. Vector art, minimalist design, clean and modern aesthetic."
+2.  **Layout**: Mandate a clear, balanced layout. "Use a vertical grid layout with a prominent main title at the top, followed by clearly separated horizontal sections for each key point."
+3.  **Typography (CRITICAL)**: Be extremely specific about text rendering. Add this exact phrase: "CRITICAL: ALL text MUST be perfectly horizontal, clear, legible, and accurately spelled. Use a modern sans-serif font like Arial or Helvetica. There should be absolutely no distorted, garbled, or misspelled words. Double-check all text for accuracy."
+4.  **Content Sections**: For each key point, instruct the model to "Create a section with the title '{{this.title}}' and the summary '{{this.summary}}'."
+5.  **Icons/Visuals**: Instruct the model to "For each section, include a simple, minimalist icon that visually represents its concept (e.g., a gear for 'process', a lightbulb for 'idea')."
+6.  **Branding**: Specify the branding element. "In the bottom-left corner, add the text 'Prepezia' in small, subtle font."
+7.  **Negative Prompts**: Add negative prompts to avoid common issues. "AVOID: 3D rendering, shadows, gradients, blurry text, misspelled words, complex illustrations."
 
-Generate a single, detailed, and descriptive prompt for an image generation model now.`,
+Combine these instructions into a single, coherent, and powerful prompt for an image generation model.`,
 });
 
 // Flow 2: Design the prompt for the image model
@@ -185,9 +187,6 @@ export const generateImageFlow = ai.defineFlow({
 
     const modelOptions = [
         'googleai/imagen-4.0-fast-generate-001',
-        'googleai/imagen-3.0-generate-001',
-        'googleai/imagen-3.0-fast-generate-001',
-        'googleai/imagen-2.0-generate-001',
     ];
 
     let lastError: any = null;
@@ -199,11 +198,6 @@ export const generateImageFlow = ai.defineFlow({
             const result: any = await ai.generate({
                 model: modelName as any,
                 prompt: imagePrompt,
-                config: {
-                    safetyFilterLevel: 'BLOCK_ONLY_HIGH',
-                    personGeneration: 'ALLOW_ADULT',
-                    aspectRatio: '1:1',
-                }
             });
 
             if (result) {
