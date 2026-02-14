@@ -20,12 +20,12 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause, Eye } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -36,6 +36,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import Image from "next/image";
 import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -339,6 +340,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+
   const calculateAndUpdateProgress = useCallback(() => {
     if (!note || !note.interactionProgress || !noteDocRef) return;
     const ip = note.interactionProgress;
@@ -505,6 +508,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const handleGenerateContent = async (type: keyof GeneratedContent) => {
     if (!note || !user || !storage) return;
     setIsGenerating(type);
+    setIsGenerateDialogOpen(false);
 
     try {
         const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
@@ -648,6 +652,32 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     }
   }
 
+  const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
+    if (!note) return;
+    const content = note.generatedContent;
+    if (!content) return;
+    
+    let url: string | undefined;
+    let filename: string;
+    
+    if (type === 'infographic' && content.infographic?.imageUrl) {
+        url = content.infographic.imageUrl;
+        filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
+    } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
+        url = content.podcast.podcastAudioUrl;
+        filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
+    }
+
+    if (url) {
+        toast({ title: 'Starting download...' });
+        downloadUrl(url, filename).catch(() => {
+            toast({ variant: 'destructive', title: 'Download Failed' });
+        });
+    } else {
+        toast({ variant: 'destructive', title: 'No file to download' });
+    }
+  };
+
   const renderGeneratedContent = () => {
     if (!activeView || activeView === 'notes' || !note?.generatedContent) return null;
 
@@ -714,18 +744,18 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
       { name: "Mind Map", icon: GitFork, type: "mindmap" },
   ];
 
-  const rightHeaderContent = (
-    <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
-        <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
-    </div>
-  );
+  const savedItems = Object.entries(generatedContent).filter(([_, value]) => !!value);
   
   return (
      <>
       <HomeHeader 
         left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>}
-        right={rightHeaderContent}
+        right={(
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
+                <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
+            </div>
+        )}
       />
       <div className="flex-1 flex flex-col min-h-0">
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
@@ -807,14 +837,25 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                     </TabsContent>
 
                     <TabsContent value="generate" className="mt-4 flex-1">
-                         <Card>
+                        <Card>
                             <CardHeader>
-                                <CardTitle>Generate from Notes</CardTitle>
-                                <CardDescription>Create supplementary study materials from your notes.</CardDescription>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle>Generate from Notes</CardTitle>
+                                    {savedItems.length > 0 && (
+                                        <Button variant="outline" onClick={() => setIsGenerateDialogOpen(true)}>
+                                            <Plus className="mr-2 h-4 w-4" /> Generate New
+                                        </Button>
+                                    )}
+                                </div>
+                                <CardDescription>
+                                    {savedItems.length > 0
+                                        ? "View your generated study materials or create new ones."
+                                        : "Create supplementary study materials from your notes."
+                                    }
+                                </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div>
-                                    <h3 className="font-semibold mb-4">Generate New</h3>
+                                {savedItems.length === 0 ? (
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                         {generationOptions.map((option) => (
                                             <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
@@ -823,47 +864,69 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                             </Button>
                                         ))}
                                     </div>
-                                </div>
-                                
-                                {(() => {
-                                    const savedItems = Object.entries(generatedContent).filter(([_, value]) => !!value);
-                                    
-                                    return savedItems.length > 0 && (
-                                    <div>
-                                        <h3 className="font-semibold mb-4">Previously Generated</h3>
-                                        <div className="space-y-2">
-                                            {savedItems.map(([type]) => {
-                                                const option = generationOptions.find(o => o.type === type);
-                                                if (!option) return null;
-                                                
-                                                return (
-                                                    <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                                        <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveView(type as ActiveView)}>
-                                                            <option.icon className="h-5 w-5 text-muted-foreground" />
-                                                            View Generated {option.name}
+                                ) : (
+                                    <div className="space-y-2">
+                                        {generationOptions.map((option) => {
+                                            const savedItem = generatedContent[option.type];
+                                            if (!savedItem) return null;
+                                            
+                                            return (
+                                                <div key={option.type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                    <div className="flex items-center gap-3 font-medium">
+                                                        <option.icon className="h-5 w-5 text-muted-foreground" />
+                                                        {option.name}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button size="sm" variant="outline" onClick={() => setActiveView(option.type)}>
+                                                            <Eye className="mr-2 h-4 w-4"/> View
                                                         </Button>
+                                                        {(option.type === 'infographic' || option.type === 'podcast') && (
+                                                            <Button size="sm" variant="outline" onClick={() => handleDownloadMedia(option.type as 'infographic' | 'podcast')}>
+                                                                <Download className="mr-2 h-4 w-4"/> Download
+                                                            </Button>
+                                                        )}
                                                         <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
+                                                            </DropdownMenuTrigger>
                                                             <DropdownMenuContent>
-                                                                <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                                <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(option.type)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                                                     <Trash2 className="mr-2 h-4 w-4"/> Delete
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </div>
-                                                )
-                                            })}
-                                        </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
-                                    );
-                                })()}
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
-
               </Tabs>
           )}
         </div>
+         <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Generate New Content</DialogTitle>
+                    <DialogDescription>Select a new type of study material to generate from your notes.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
+                    {generationOptions.map((option) => {
+                         const isAlreadyGenerated = !!generatedContent[option.type];
+                         return(
+                            <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null || isAlreadyGenerated}>
+                                {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
+                                <span>{option.name}</span>
+                                {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}
+                            </Button>
+                        )
+                    })}
+                </div>
+            </DialogContent>
+        </Dialog>
       </div>
     </>
   )
@@ -893,7 +956,8 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
             "Junior High (JHS/BECE)",
             "Senior High (SHS/WASSCE)",
             "Undergraduate",
-            "Postgraduate (Masters/PhD)",
+            "Masters",
+            "PhD"
           ]
         },
         {
@@ -902,7 +966,6 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
             "Beginner",
             "Intermediate",
             "Advanced",
-            "Other"
           ]
         }
     ];

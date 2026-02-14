@@ -47,7 +47,8 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
 import { useSearchParams, useRouter } from "next/navigation";
-
+import { useUser, useStorage } from "@/firebase";
+import { uploadDataUrlToStorage } from "@/lib/storage";
 
 const createSpaceSchema = z.object({
     name: z.string().min(1, { message: "Space name is required." }),
@@ -90,9 +91,9 @@ type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
-  podcast?: GeneratePodcastFromSourcesOutput;
+  podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   summary?: string;
-  infographic?: GenerateInfographicOutput;
+  infographic?: Omit<GenerateInfographicOutput, 'imageUrl'> & { imageUrl?: string };
   mindmap?: GenerateMindMapOutput;
 };
 
@@ -136,6 +137,28 @@ const PROGRESS_WEIGHTS_SPACES = {
     infographic: 5,
 };
 
+async function downloadUrl(url: string, filename: string) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+        console.error('Download failed:', error);
+        throw error;
+    }
+}
 
 function StudySpacesPage() {
   const searchParams = useSearchParams();
@@ -157,6 +180,10 @@ function StudySpacesPage() {
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
   const [activeGeneratedView, setActiveGeneratedView] = useState<keyof GeneratedContent | null>(null);
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+
+  const { user } = useUser();
+  const storage = useStorage();
 
   // Voice Chat State
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -203,8 +230,6 @@ function StudySpacesPage() {
     if (!content) return undefined;
     const savable = JSON.parse(JSON.stringify(content));
     delete savable.quiz;
-    if (savable.podcast) savable.podcast.podcastAudio = "";
-    if (savable.infographic) savable.infographic.imageUrl = "";
     return savable;
   };
   
@@ -641,7 +666,13 @@ function StudySpacesPage() {
       toast({ variant: 'destructive', title: 'No sources', description: 'Add sources to your study space before generating content.' });
       return;
     }
+    if (!user || !storage) {
+        toast({ variant: 'destructive', title: 'Not Signed In', description: 'You must be signed in to generate media.' });
+        return;
+    }
+    
     setIsGenerating(type);
+    setIsGenerateDialogOpen(false);
     setActiveGeneratedView(null);
 
     try {
@@ -653,7 +684,9 @@ function StudySpacesPage() {
       
         switch(type) {
             case 'podcast':
-                resultData = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
+                const podcastResult = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
+                const audioUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/podcast.wav`, podcastResult.podcastAudio);
+                resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: audioUrl };
                 break;
             case 'flashcards':
                 const flashcardResult = await generateFlashcards(input as GenerateFlashcardsInput);
@@ -667,7 +700,9 @@ function StudySpacesPage() {
                 resultData = await generateSlideDeck(input as GenerateSlideDeckInput);
                 break;
             case 'infographic':
-                resultData = await generateInfographic(input as GenerateInfographicInput);
+                const infographicResult = await generateInfographic(input as GenerateInfographicInput);
+                const imageUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/infographic.png`, infographicResult.imageUrl);
+                resultData = { prompt: infographicResult.prompt, imageUrl: imageUrl };
                 break;
             case 'mindmap':
                 resultData = await generateMindMap(input as any); // Schemas are compatible
@@ -687,6 +722,7 @@ function StudySpacesPage() {
       
         setActiveGeneratedView(type as any); // 'summary' is not a view
     } catch (e: any) {
+        console.error(`Error generating ${type}:`, e);
         toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
     } finally {
         setIsGenerating(null);
@@ -709,6 +745,32 @@ function StudySpacesPage() {
     });
 
     toast({ title: 'Content Deleted', description: 'The generated content has been removed.' });
+  };
+  
+  const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
+    if (!selectedStudySpace) return;
+    const content = selectedStudySpace.generatedContent;
+    if (!content) return;
+    
+    let url: string | undefined;
+    let filename: string;
+    
+    if (type === 'infographic' && content.infographic?.imageUrl) {
+        url = content.infographic.imageUrl;
+        filename = `infographic_${selectedStudySpace.name.replace(/\s+/g, '_')}.png`;
+    } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
+        url = content.podcast.podcastAudioUrl;
+        filename = `podcast_${selectedStudySpace.name.replace(/\s+/g, '_')}.wav`;
+    }
+
+    if (url) {
+        toast({ title: 'Starting download...' });
+        downloadUrl(url, filename).catch(() => {
+            toast({ variant: 'destructive', title: 'Download Failed' });
+        });
+    } else {
+        toast({ variant: 'destructive', title: 'No file to download' });
+    }
   };
 
   const handleDeleteStudySpace = (spaceId: number) => {
@@ -745,27 +807,16 @@ function StudySpacesPage() {
         { name: "Mind Map", icon: GitFork, type: "mindmap" },
     ];
     
+    const savedItems = Object.entries(generatedContent).filter(([type, value]) => !!value && type !== 'summary');
+    
     const renderGeneratedContent = () => {
         if (!activeGeneratedView) return null;
-
-        if (activeGeneratedView === 'flashcards' && generatedContent.flashcards) {
-            return <FlashcardView flashcards={generatedContent.flashcards} onBack={handleFlashcardsViewed} topic={selectedStudySpace.name} />;
-        }
-        if (activeGeneratedView === 'quiz' && generatedContent.quiz) {
-            return <QuizView quiz={generatedContent.quiz} onBack={handleQuizComplete} topic={selectedStudySpace.name} />;
-        }
-        if (activeGeneratedView === 'deck' && generatedContent.deck) {
-            return <SlideDeckView deck={generatedContent.deck} onBack={handleDeckBack} />;
-        }
-        if (activeGeneratedView === 'podcast' && generatedContent.podcast) {
-            return <PodcastView podcast={generatedContent.podcast} onBack={handlePodcastBack} topic={selectedStudySpace.name}/>
-        }
-        if (activeGeneratedView === 'infographic' && generatedContent.infographic) {
-            return <InfographicView infographic={generatedContent.infographic} onBack={handleInfographicBack} topic={selectedStudySpace.name} />;
-        }
-        if (activeGeneratedView === 'mindmap' && generatedContent.mindmap) {
-             return <InteractiveMindMapWrapper data={generatedContent.mindmap} onBack={handleMindMapBack} topic={selectedStudySpace.name} />;
-        }
+        if (activeGeneratedView === 'flashcards' && generatedContent.flashcards) { return <FlashcardView flashcards={generatedContent.flashcards} onBack={handleFlashcardsViewed} topic={selectedStudySpace.name} />; }
+        if (activeGeneratedView === 'quiz' && generatedContent.quiz) { return <QuizView quiz={generatedContent.quiz} onBack={handleQuizComplete} topic={selectedStudySpace.name} />; }
+        if (activeGeneratedView === 'deck' && generatedContent.deck) { return <SlideDeckView deck={generatedContent.deck} onBack={handleDeckBack} />; }
+        if (activeGeneratedView === 'podcast' && generatedContent.podcast) { return <PodcastView podcast={generatedContent.podcast} onBack={handlePodcastBack} topic={selectedStudySpace.name}/> }
+        if (activeGeneratedView === 'infographic' && generatedContent.infographic) { return <InfographicView infographic={generatedContent.infographic} onBack={handleInfographicBack} topic={selectedStudySpace.name} />; }
+        if (activeGeneratedView === 'mindmap' && generatedContent.mindmap) { return <InteractiveMindMapWrapper data={generatedContent.mindmap} onBack={handleMindMapBack} topic={selectedStudySpace.name} />; }
         return null;
     }
 
@@ -980,12 +1031,23 @@ function StudySpacesPage() {
                         {activeGeneratedView ? renderGeneratedContent() : (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Generate from Sources</CardTitle>
-                                    <CardDescription>Create study materials from the sources you've added.</CardDescription>
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle>Generate from Sources</CardTitle>
+                                        {savedItems.length > 0 && (
+                                            <Button variant="outline" onClick={() => setIsGenerateDialogOpen(true)}>
+                                                <Plus className="mr-2 h-4 w-4" /> Generate New
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <CardDescription>
+                                        {savedItems.length > 0
+                                            ? "View your generated study materials or create new ones."
+                                            : "Create supplementary study materials from your sources."
+                                        }
+                                    </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                    <div>
-                                        <h3 className="font-semibold mb-4">Generate New</h3>
+                                     {savedItems.length === 0 ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
                                                 <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
@@ -994,49 +1056,69 @@ function StudySpacesPage() {
                                                 </Button>
                                             ))}
                                         </div>
-                                    </div>
-                                    
-                                    {(() => {
-                                        const savedContent = { ...(generatedContent || {}) };
-                                        delete savedContent.quiz; // Don't show quiz in saved content
-                                        
-                                        const savedItems = Object.entries(savedContent).filter(([_, value]) => !!value);
-                                        
-                                        return savedItems.length > 0 && (
-                                        <div>
-                                            <h3 className="font-semibold mb-4">Previously Generated</h3>
-                                            <div className="space-y-2">
-                                                {savedItems.map(([type]) => {
-                                                    const option = generationOptions.find(o => o.type === type);
-                                                    if (!option) return null;
-                                                    
-                                                    return (
-                                                        <div key={type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
-                                                            <Button variant="ghost" className="flex-1 justify-start gap-2" onClick={() => setActiveGeneratedView(type as keyof GeneratedContent)}>
-                                                                <option.icon className="h-5 w-5 text-muted-foreground" />
-                                                                View Generated {option.name}
+                                     ) : (
+                                        <div className="space-y-2">
+                                            {generationOptions.map((option) => {
+                                                const savedItem = generatedContent[option.type];
+                                                if (!savedItem) return null;
+                                                
+                                                return (
+                                                    <div key={option.type} className="flex items-center justify-between p-2 rounded-md bg-secondary/50 hover:bg-secondary">
+                                                        <div className="flex items-center gap-3 font-medium">
+                                                            <option.icon className="h-5 w-5 text-muted-foreground" />
+                                                            {option.name}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Button size="sm" variant="outline" onClick={() => setActiveGeneratedView(option.type)}>
+                                                                <Eye className="mr-2 h-4 w-4"/> View
                                                             </Button>
+                                                            {(option.type === 'infographic' || option.type === 'podcast') && (
+                                                                <Button size="sm" variant="outline" onClick={() => handleDownloadMedia(option.type as 'infographic' | 'podcast')}>
+                                                                    <Download className="mr-2 h-4 w-4"/> Download
+                                                                </Button>
+                                                            )}
                                                             <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
+                                                                </DropdownMenuTrigger>
                                                                 <DropdownMenuContent>
-                                                                    <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(type as keyof GeneratedContent)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                                                    <DropdownMenuItem onClick={() => handleDeleteGeneratedContent(option.type)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                                                         <Trash2 className="mr-2 h-4 w-4"/> Delete
                                                                     </DropdownMenuItem>
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
                                                         </div>
-                                                    )
-                                                })}
-                                            </div>
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
-                                        );
-                                    })()}
+                                     )}
                                 </CardContent>
                             </Card>
                         )}
                     </TabsContent>
                 </Tabs>
                 <AddSourcesDialog open={isAddSourcesOpen} onOpenChange={setIsAddSourcesOpen} onAddSources={handleAddMoreSources} />
+                 <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Generate New Content</DialogTitle>
+                            <DialogDescription>Select a new type of study material to generate.</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
+                            {generationOptions.map((option) => {
+                                const isAlreadyGenerated = !!generatedContent[option.type];
+                                return (
+                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null || isAlreadyGenerated}>
+                                        {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
+                                        <span>{option.name}</span>
+                                        {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}
+                                    </Button>
+                                )
+                            })}
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     )
@@ -1435,7 +1517,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     );
 }
 
-function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudio: string }, onBack: () => void, topic: string }) {
+function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string }) {
     return (
         <Card>
             <CardHeader>
@@ -1444,13 +1526,13 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
                 <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {podcast.podcastAudio ? (
-                    <audio controls src={podcast.podcastAudio} className="w-full"></audio>
+                {podcast.podcastAudioUrl ? (
+                    <audio controls src={podcast.podcastAudioUrl} className="w-full"></audio>
                 ) : (
                     <Alert variant="destructive">
                         <AlertTitle>Audio Not Available</AlertTitle>
                         <AlertDescription>
-                            Podcast audio is not saved between sessions to save space. Please regenerate it if you'd like to listen again.
+                            The podcast audio could not be loaded. It might need to be regenerated.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -1662,7 +1744,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
     );
 }
 
-function InfographicView({ infographic, onBack, topic }: { infographic: GenerateInfographicOutput, onBack: () => void, topic: string }) {
+function InfographicView({ infographic, onBack, topic }: { infographic: { prompt: string; imageUrl?: string }, onBack: () => void, topic: string }) {
     const { toast } = useToast();
     const handleDownload = () => {
         if (!infographic.imageUrl) {
@@ -1696,7 +1778,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: Generate
                     <Alert variant="destructive" className="w-full max-w-2xl">
                         <AlertTitle>Image Not Available</AlertTitle>
                         <AlertDescription>
-                            The infographic image is not saved between sessions to save space. Please regenerate it if you'd like to see it again.
+                            The infographic image could not be loaded. It might need to be regenerated.
                         </AlertDescription>
                     </Alert>
                 )}
