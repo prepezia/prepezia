@@ -25,7 +25,7 @@ import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GenerateP
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
@@ -1031,20 +1031,20 @@ function StudySpacesPage() {
                         {activeGeneratedView ? renderGeneratedContent() : (
                             <Card>
                                 <CardHeader>
-                                    <div className="flex justify-between items-center">
-                                        <CardTitle>Generate from Sources</CardTitle>
-                                        {savedItems.length > 0 && (
-                                            <Button variant="outline" onClick={() => setIsGenerateDialogOpen(true)}>
-                                                <Plus className="mr-2 h-4 w-4" /> Generate New
-                                            </Button>
-                                        )}
-                                    </div>
+                                    <CardTitle>Generate from Sources</CardTitle>
                                     <CardDescription>
                                         {savedItems.length > 0
                                             ? "View your generated study materials or create new ones."
                                             : "Create supplementary study materials from your sources."
                                         }
                                     </CardDescription>
+                                     {savedItems.length > 0 && (
+                                        <div className="flex justify-end pt-2.5">
+                                            <Button variant="outline" onClick={() => setIsGenerateDialogOpen(true)}>
+                                                <Plus className="mr-2 h-4 w-4" /> Generate New
+                                            </Button>
+                                        </div>
+                                    )}
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                      {savedItems.length === 0 ? (
@@ -1791,7 +1791,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
     );
 }
 
-function InteractiveMindMapWrapper({ data, onBack, topic }: { data: GenerateMindMapOutput, onBack: () => void, topic: string }) {
+function InteractiveMindMapWrapper({ data, onBack, topic }: { data: MindMapNodeData, onBack: () => void, topic: string }) {
     return (
         <div className="space-y-4">
              <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>

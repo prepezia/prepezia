@@ -20,7 +20,7 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -79,19 +79,13 @@ interface Note extends DocumentData {
   status?: 'Not Started' | 'In Progress' | 'Completed';
 };
 
-type UserChatMessage = {
+type ChatMessage = {
     id: string;
-    role: 'user';
-    content: string;
-};
-type AssistantChatMessage = {
-    id: string;
-    role: 'assistant';
+    role: 'user' | 'assistant';
     content: string;
     citations?: InteractiveChatWithSourcesOutput['citations'];
     isError?: boolean;
 };
-type ChatMessage = UserChatMessage | AssistantChatMessage;
 
 type AcademicLevel = GenerateStudyNotesInput['academicLevel'];
 type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'mindmap' | 'podcast';
@@ -774,12 +768,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                     <TabsContent value="notes" className="mt-4 flex-1">
                         <Card className="h-full flex flex-col">
                             <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <CardTitle className="text-3xl font-headline font-bold">{note.topic}</CardTitle>
-                                        <CardDescription>{note.level}</CardDescription>
-                                    </div>
-                                </div>
+                                <h1 className="text-3xl font-headline font-bold">{note.topic}</h1>
+                                <p className="text-muted-foreground">{note.level}</p>
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0">
                                 <div id="note-content-area" className="prose dark:prose-invert w-full max-w-none h-full overflow-y-auto rounded-md border p-4">
@@ -839,20 +829,20 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                     <TabsContent value="generate" className="mt-4 flex-1">
                         <Card>
                             <CardHeader>
-                                <div className="flex justify-between items-center">
-                                    <CardTitle>Generate from Notes</CardTitle>
-                                    {savedItems.length > 0 && (
-                                        <Button variant="outline" onClick={() => setIsGenerateDialogOpen(true)}>
-                                            <Plus className="mr-2 h-4 w-4" /> Generate New
-                                        </Button>
-                                    )}
-                                </div>
+                                <CardTitle>Generate from Notes</CardTitle>
                                 <CardDescription>
                                     {savedItems.length > 0
                                         ? "View your generated study materials or create new ones."
                                         : "Create supplementary study materials from your notes."
                                     }
                                 </CardDescription>
+                                {savedItems.length > 0 && (
+                                    <div className="flex justify-end pt-2.5">
+                                        <Button variant="outline" onClick={() => setIsGenerateDialogOpen(true)}>
+                                            <Plus className="mr-2 h-4 w-4" /> Generate New
+                                        </Button>
+                                    </div>
+                                )}
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {savedItems.length === 0 ? (
@@ -966,6 +956,7 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
             "Beginner",
             "Intermediate",
             "Advanced",
+            "Other"
           ]
         }
     ];
@@ -1330,7 +1321,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
     );
 }
 
-function InteractiveMindMapWrapper({ data, onBack, topic }: { data: GenerateMindMapOutput, onBack: () => void, topic: string }) {
+function InteractiveMindMapWrapper({ data, onBack, topic }: { data: MindMapNodeData, onBack: () => void, topic: string }) {
     return (
         <div className="space-y-4">
              <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
