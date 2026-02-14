@@ -35,8 +35,8 @@ const GenerateInfographicOutputSchema = z.object({
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
-// First, extract key points from content
-const extractKeyPointsFlow = ai.defineFlow({
+// Flow 1: Extract key points from content
+export const extractKeyPointsFlow = ai.defineFlow({
   name: 'extractKeyPointsFlow',
   inputSchema: z.object({
     content: z.string().optional(),
@@ -50,7 +50,7 @@ const extractKeyPointsFlow = ai.defineFlow({
   })),
 }, async (input) => {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-flash',
+    model: 'googleai/gemini-1.5-flash-latest',
     prompt: `Extract ${input.maxPoints} key points from the following content. For each point, provide a short title (2-4 words) and a one-sentence summary (10-15 words). Format as JSON with keys "title" and "summary".
 
 Academic Level: ${input.academicLevel || 'general'}
@@ -65,9 +65,10 @@ Return ONLY the JSON array, no other text.`,
   return output as any;
 });
 
+// Private prompt for designing the image generation prompt
 const designInfographicPrompt = ai.definePrompt({
     name: 'designInfographicPrompt',
-    model: 'googleai/gemini-2.5-flash',
+    model: 'googleai/gemini-1.5-flash-latest',
     input: {
       schema: GenerateInfographicInputSchema.extend({
         keyPoints: z.array(z.object({
@@ -104,131 +105,29 @@ const designInfographicPrompt = ai.definePrompt({
 Generate a single, detailed, and descriptive prompt for an image generation model now.`,
 });
 
-const generateInfographicFlow = ai.defineFlow({
-    name: 'generateInfographicFlow',
-    inputSchema: GenerateInfographicInputSchema,
-    outputSchema: GenerateInfographicOutputSchema,
-},
-async (input) => {
-    const logs: string[] = [];
-
-    // Step 1: Extract key points from the content
-    logs.push("Step 1: Extracting key points from content...");
-    let keyPoints: {title: string, summary: string}[] = [];
-    try {
-        const extractedPoints = await extractKeyPointsFlow({
-            content: input.content,
-            sources: input.sources,
-            maxPoints: input.maxPoints || 5,
-            academicLevel: input.academicLevel
-        });
-        keyPoints = extractedPoints || [];
-        logs.push(` -> Success: Extracted ${keyPoints.length} key points.`);
-    } catch (error) {
-        logs.push(` -> Error: Key point extraction failed: ${error}`);
-        keyPoints = [
-            { title: "Main Concept", summary: input.content?.substring(0, 100) || "Key information presented" },
-            { title: "Important Detail", summary: "Secondary information and context" }
-        ];
-        logs.push(" -> Using fallback key points.");
-    }
-
-    // Step 2: Generate the detailed prompt for Imagen
-    logs.push("Step 2: Designing a detailed prompt for the image model...");
-    const promptResult = await designInfographicPrompt({
-        ...input,
-        keyPoints
-    });
-
+// Flow 2: Design the prompt for the image model
+export const designInfographicFlow = ai.defineFlow({
+    name: 'designInfographicFlow',
+    inputSchema: GenerateInfographicInputSchema.extend({
+        keyPoints: z.array(z.object({
+          title: z.string(),
+          summary: z.string()
+        }))
+    }),
+    outputSchema: z.object({
+        imagePrompt: z.string()
+    }),
+}, async (input) => {
+    const promptResult = await designInfographicPrompt(input);
     const imagePrompt = promptResult.output?.imagePrompt;
     if (!imagePrompt) {
-        logs.push(" -> Error: Failed to generate image prompt.");
         throw new Error("Failed to generate image prompt");
     }
-    logs.push(" -> Success: Image prompt designed.");
-
-    // Step 3: Generate image using Imagen correctly
-    logs.push("Step 3: Generating infographic image (this can take up to a minute)...");
-    const enhancedPrompt = `${imagePrompt}
-
-IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean sans-serif fonts.`;
-
-    try {
-        const modelOptions = [
-            'googleai/imagen-3.0-generate-001',
-            'googleai/imagen-3.0-fast-generate-001',
-            'googleai/imagen-2.0-generate-001',
-            'googleai/imagen-4.0-fast-generate-001'
-        ];
-
-        let lastError: any = null;
-        
-        for (const modelName of modelOptions) {
-            try {
-                logs.push(` -> Attempting with model: ${modelName}`);
-                
-                const result: any = await ai.generate({
-                    model: modelName as any,
-                    prompt: enhancedPrompt,
-                    config: {
-                        safetyFilterLevel: 'BLOCK_ONLY_HIGH',
-                        personGeneration: 'ALLOW_ADULT',
-                        aspectRatio: '1:1',
-                        sampleCount: 1,
-                    }
-                });
-
-                if (result) {
-                    let imageData: string | null = null;
-                    if (result.media?.url) imageData = result.media.url; 
-                    else if (result.output?.url) imageData = result.output.url;
-                    else if (result.output?.imageData) imageData = result.output.imageData;
-                    else if (typeof result === 'string' && result.startsWith('data:image')) imageData = result;
-                    else if (result.message?.media?.url) imageData = result.message.media.url;
-
-                    if (imageData) {
-                        logs.push(` -> Success: Image generated with ${modelName}.`);
-                        return {
-                            imageUrl: imageData,
-                            prompt: enhancedPrompt,
-                            keyPoints: keyPoints,
-                            logs: logs,
-                        };
-                    }
-                }
-                
-                logs.push(` -> Warning: Model ${modelName} returned an unexpected format.`);
-                lastError = new Error('Unexpected response format');
-                
-            } catch (modelError) {
-                logs.push(` -> Error with ${modelName}: ${modelError}`);
-                lastError = modelError;
-            }
-        }
-
-        throw lastError || new Error('All Imagen models failed');
-
-    } catch (imageError) {
-        logs.push(` -> Critical Error: All image models failed. ${imageError}`);
-        
-        try {
-            logs.push(" -> Attempting to generate a fallback SVG image.");
-            const fallbackImageUrl = await generateFallbackInfographic(keyPoints, input.topic || 'Key Insights');
-            logs.push(" -> Success: Fallback SVG generated.");
-            return {
-                imageUrl: fallbackImageUrl,
-                prompt: enhancedPrompt,
-                keyPoints: keyPoints,
-                logs: logs,
-            };
-        } catch (fallbackError) {
-            logs.push(` -> Critical Error: Fallback SVG generation also failed. ${fallbackError}`);
-            throw new Error(`Image generation failed: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`);
-        }
-    }
+    return { imagePrompt };
 });
 
-// Add a fallback SVG generator
+
+// Fallback SVG generator
 async function generateFallbackInfographic(keyPoints: Array<{title: string, summary: string}>, topic: string): Promise<string> {
     const width = 800;
     const height = 800;
@@ -266,11 +165,109 @@ async function generateFallbackInfographic(keyPoints: Array<{title: string, summ
         </text>
     </svg>`;
     
-    // Convert SVG to data URL
     const encodedSvg = encodeURIComponent(svg).replace(/\(/g, '%28').replace(/\)/g, '%29');
     return `data:image/svg+xml,${encodedSvg}`;
 }
 
+// Flow 3: Generate the image, with retries and fallback
+export const generateImageFlow = ai.defineFlow({
+    name: 'generateImageFlow',
+    inputSchema: z.object({
+        imagePrompt: z.string(),
+        keyPoints: z.array(z.object({ title: z.string(), summary: z.string() })),
+        topic: z.string()
+    }),
+    outputSchema: z.object({
+        imageUrl: z.string(),
+        logs: z.array(z.string()),
+    }),
+}, async ({ imagePrompt, keyPoints, topic }) => {
+    const logs: string[] = [];
+
+    const modelOptions = [
+        'googleai/imagen-4.0-fast-generate-001',
+        'googleai/imagen-3.0-generate-001',
+        'googleai/imagen-3.0-fast-generate-001',
+        'googleai/imagen-2.0-generate-001',
+    ];
+
+    let lastError: any = null;
+    
+    for (const modelName of modelOptions) {
+        try {
+            logs.push(`-> Attempting with model: ${modelName}`);
+            
+            const result: any = await ai.generate({
+                model: modelName as any,
+                prompt: imagePrompt,
+                config: {
+                    safetyFilterLevel: 'BLOCK_ONLY_HIGH',
+                    personGeneration: 'ALLOW_ADULT',
+                    aspectRatio: '1:1',
+                }
+            });
+
+            if (result) {
+                let imageData: string | null = null;
+                if (result.media?.url) imageData = result.media.url; 
+                else if (result.output?.url) imageData = result.output.url;
+                else if (result.output?.imageData) imageData = result.output.imageData;
+                else if (typeof result === 'string' && result.startsWith('data:image')) imageData = result;
+                else if (result.message?.media?.url) imageData = result.message.media.url;
+
+                if (imageData) {
+                    logs.push(`-> Success: Image generated with ${modelName}.`);
+                    return { imageUrl: imageData, logs };
+                }
+            }
+            
+            logs.push(`-> Warning: Model ${modelName} returned an unexpected format.`);
+            lastError = new Error('Unexpected response format');
+            
+        } catch (modelError) {
+            logs.push(`-> Error with ${modelName}: ${modelError}`);
+            lastError = modelError;
+        }
+    }
+
+    try {
+        logs.push("-> All image models failed. Attempting to generate a fallback SVG image.");
+        const fallbackImageUrl = await generateFallbackInfographic(keyPoints, topic);
+        logs.push("-> Success: Fallback SVG generated.");
+        return {
+            imageUrl: fallbackImageUrl,
+            logs: logs,
+        };
+    } catch (fallbackError) {
+        logs.push(`-> Critical Error: Fallback SVG generation also failed. ${fallbackError}`);
+        throw lastError || new Error(`Image generation and fallback both failed`);
+    }
+});
+
+// Main orchestrating flow (can be used for simple, non-streaming generation if needed)
 export async function generateInfographic(input: GenerateInfographicInput): Promise<GenerateInfographicOutput> {
-  return generateInfographicFlow(input);
+  const keyPoints = await extractKeyPointsFlow({
+      content: input.content,
+      sources: input.sources,
+      maxPoints: input.maxPoints,
+      academicLevel: input.academicLevel
+  });
+
+  const { imagePrompt } = await designInfographicFlow({
+      ...input,
+      keyPoints,
+  });
+
+  const { imageUrl, logs } = await generateImageFlow({
+      imagePrompt,
+      keyPoints,
+      topic: input.topic || 'Key Insights'
+  });
+
+  return {
+      imageUrl,
+      prompt: imagePrompt,
+      keyPoints,
+      logs
+  };
 }

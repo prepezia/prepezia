@@ -21,7 +21,7 @@ import { interactiveChatWithSources, InteractiveChatWithSourcesInput, Interactiv
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
-import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
+import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
@@ -508,80 +508,73 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     setGenerationLogs([]);
 
     try {
-        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
-            context: 'note-generator',
+        const inputBase = {
+            context: 'note-generator' as const,
             topic: note.topic,
             academicLevel: note.level as AcademicLevel,
             content: note.content,
-            style: 'educational', // Add default
-            maxPoints: 5, // Add default
         };
-      
-        let resultData: any;
-        let updateData: any = {};
-        
-        let filename: string | undefined;
-        let fileUrl: string | undefined;
 
-        switch(type) {
-            case 'podcast':
-                const podcastResult = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
-                fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio);
-                resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: fileUrl };
-                updateData = { 'generatedContent.podcast': resultData };
-                filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
-                try {
-                    if (fileUrl) {
-                        await downloadUrl(fileUrl, filename);
-                        toast({ title: 'Podcast downloaded', description: 'The audio file has been automatically saved to your device.' });
-                    }
-                } catch (e) {
-                    toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the podcast file automatically. You can save it manually later.' });
-                }
-                break;
-            case 'infographic':
-                const infographicResult = await generateInfographic(input as GenerateInfographicInput);
-                if (infographicResult.logs) setGenerationLogs(infographicResult.logs);
-                fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, infographicResult.imageUrl);
-                resultData = { prompt: infographicResult.prompt, imageUrl: fileUrl };
-                updateData = { 'generatedContent.infographic': resultData };
-                filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
-                try {
-                    if (fileUrl) {
-                        await downloadUrl(fileUrl, filename);
-                        toast({ title: 'Infographic downloaded', description: 'The image has been automatically saved to your device.' });
-                    }
-                } catch (e) {
-                    toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the infographic file automatically. You can save it manually later.' });
-                }
-                break;
-            case 'flashcards':
-                resultData = (await generateFlashcards(input as GenerateFlashcardsInput)).flashcards;
-                updateData = { 'generatedContent.flashcards': resultData };
-                break;
-            case 'quiz':
-                resultData = (await generateQuiz(input as GenerateQuizInput)).quiz;
-                updateData = { 'generatedContent.quiz': resultData };
-                break;
-            case 'deck':
-                resultData = await generateSlideDeck(input as GenerateSlideDeckInput);
-                updateData = { 'generatedContent.deck': resultData };
-                break;
-            case 'mindmap':
-                 resultData = await generateMindMap(input as any);
-                 updateData = { 'generatedContent.mindmap': resultData };
-                 break;
-            default: throw new Error("Unknown generation type");
+        if (type === 'infographic') {
+            setGenerationLogs(['Step 1: Extracting key points from content...']);
+            const keyPoints = await extractKeyPointsFlow({
+                content: note.content,
+                maxPoints: 5,
+                academicLevel: note.level
+            });
+            setGenerationLogs(prev => [...prev, `-> Success: Extracted ${keyPoints.length} key points.`]);
+
+            setGenerationLogs(prev => [...prev, 'Step 2: Designing a detailed prompt for the image model...']);
+            const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
+            setGenerationLogs(prev => [...prev, '-> Success: Image prompt designed.']);
+
+            setGenerationLogs(prev => [...prev, 'Step 3: Generating infographic image...']);
+            const { imageUrl, logs } = await generateImageFlow({ 
+                imagePrompt, 
+                keyPoints,
+                topic: note.topic,
+            });
+            setGenerationLogs(prev => [...prev, ...logs]);
+            
+            setGenerationLogs(prev => [...prev, 'Step 4: Uploading to storage...']);
+            const fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, imageUrl);
+            setGenerationLogs(prev => [...prev, '-> Success: Upload complete.']);
+            
+            const resultData = { prompt: imagePrompt, imageUrl: fileUrl, keyPoints };
+            updateNote({ 'generatedContent.infographic': resultData });
+            setActiveView('infographic');
+
+        } else {
+            // Handle other generation types
+            let resultData: any;
+            switch(type) {
+                case 'podcast':
+                    const podcastResult = await generatePodcastFromSources(inputBase);
+                    const fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio);
+                    resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: fileUrl };
+                    break;
+                case 'flashcards':
+                    resultData = (await generateFlashcards(inputBase)).flashcards;
+                    break;
+                case 'quiz':
+                    resultData = (await generateQuiz(inputBase)).quiz;
+                    break;
+                case 'deck':
+                    resultData = await generateSlideDeck(inputBase);
+                    break;
+                case 'mindmap':
+                     resultData = await generateMindMap(inputBase);
+                     break;
+                default: throw new Error("Unknown generation type");
+            }
+            updateNote({ [`generatedContent.${type}`]: resultData });
+            setActiveView(type);
         }
-        updateNote(updateData);
-        setActiveView(type);
+
     } catch (e: any) {
         console.error(`Error generating ${type}:`, e);
-        let description = e.message;
-        
-        if (typeof e.message === 'string' && (e.message.includes('storage/unauthorized') || e.message.includes('storage/retry-limit-exceeded'))) {
-            description = "A Firebase Storage permission error occurred. This might be due to project configuration. Please ensure your project's storage is set up correctly and the security rules are deployed.";
-        }
+        const description = e.message || `An unknown error occurred while generating the ${type}.`;
+        setGenerationLogs(prev => [...prev, `ERROR: ${description}`]);
         toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
     } finally {
         setIsGenerating(null);
@@ -867,39 +860,36 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 )}
                             </CardHeader>
                             <CardContent className="space-y-6">
+                                {isGenerating === 'infographic' ? (
+                                    <div className="p-4 rounded-md bg-secondary/50">
+                                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Generating Infographic...
+                                        </h4>
+                                        <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                            {generationLogs.join('\n')}
+                                        </pre>
+                                    </div>
+                                ) : isGenerating ? (
+                                     <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
+                                        <div className="flex items-center gap-3 font-medium">
+                                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                            <span className="text-muted-foreground">Generating {isGenerating}...</span>
+                                        </div>
+                                    </div>
+                                ) : null}
+
                                 {(savedItems.length === 0 && !isGenerating) ? (
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                         {generationOptions.map((option) => (
                                             <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating}>
-                                                {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
+                                                <option.icon className="w-6 h-6 text-primary" />
                                                 <span>{option.name}</span>
                                             </Button>
                                         ))}
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {isGenerating && (
-                                            <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
-                                                <div className="flex items-center gap-3 font-medium">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                    <span className="text-muted-foreground">Generating {isGenerating}...</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {isGenerating === 'infographic' && generationLogs.length > 0 && (
-                                            <div className="mt-4">
-                                                <Accordion type="single" collapsible>
-                                                    <AccordionItem value="logs">
-                                                        <AccordionTrigger className="text-sm">View Generation Log</AccordionTrigger>
-                                                        <AccordionContent>
-                                                            <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
-                                                                {generationLogs.join('\n')}
-                                                            </pre>
-                                                        </AccordionContent>
-                                                    </AccordionItem>
-                                                </Accordion>
-                                            </div>
-                                        )}
                                         {generationOptions.map((option) => {
                                             const savedItem = generatedContent[option.type as keyof GeneratedContent];
                                             if (!savedItem) return null;

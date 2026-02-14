@@ -27,7 +27,7 @@ import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput }
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
-import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
+import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -868,56 +868,71 @@ function StudySpacesPage() {
     setGenerationLogs([]);
 
     try {
-        let resultData;
-        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
-            context: 'study-space',
+        const inputBase = {
+            context: 'study-space' as const,
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any })),
-            style: 'educational', // Add default
-            maxPoints: 5, // Add default
         };
       
-        switch(type) {
-            case 'podcast':
-                const podcastResult = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
-                const audioUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/podcast.wav`, podcastResult.podcastAudio);
-                resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: audioUrl };
-                break;
-            case 'flashcards':
-                const flashcardResult = await generateFlashcards(input as GenerateFlashcardsInput);
-                resultData = flashcardResult.flashcards;
-                break;
-            case 'quiz':
-                const quizResult = await generateQuiz(input as GenerateQuizInput);
-                resultData = quizResult.quiz;
-                break;
-            case 'deck':
-                resultData = await generateSlideDeck(input as GenerateSlideDeckInput);
-                break;
-            case 'infographic':
-                const infographicResult = await generateInfographic(input as GenerateInfographicInput);
-                if (infographicResult.logs) setGenerationLogs(infographicResult.logs);
-                const imageUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/infographic.png`, infographicResult.imageUrl);
-                resultData = { prompt: infographicResult.prompt, imageUrl: imageUrl };
-                break;
-            case 'mindmap':
-                resultData = await generateMindMap(input as any); // Schemas are compatible
-                break;
-            default:
-                if (type !== 'summary') {
-                    throw new Error("Unknown generation type");
-                }
-                return;
+        if (type === 'infographic') {
+            setGenerationLogs(['Step 1: Extracting key points...']);
+            const keyPoints = await extractKeyPointsFlow({
+                sources: inputBase.sources,
+                maxPoints: 5,
+            });
+            setGenerationLogs(prev => [...prev, `-> Success: Extracted ${keyPoints.length} key points.`]);
+
+            setGenerationLogs(prev => [...prev, 'Step 2: Designing image prompt...']);
+            const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
+            setGenerationLogs(prev => [...prev, '-> Success: Image prompt designed.']);
+
+            setGenerationLogs(prev => [...prev, 'Step 3: Generating infographic...']);
+            const { imageUrl, logs } = await generateImageFlow({ 
+                imagePrompt, 
+                keyPoints,
+                topic: selectedStudySpace.name,
+            });
+            setGenerationLogs(prev => [...prev, ...logs]);
+            
+            setGenerationLogs(prev => [...prev, 'Step 4: Uploading to storage...']);
+            const fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/infographic.png`, imageUrl);
+            setGenerationLogs(prev => [...prev, '-> Success: Upload complete.']);
+            
+            const resultData = { prompt: imagePrompt, imageUrl: fileUrl, keyPoints };
+            updateSelectedStudySpace({ [`generatedContent.${type}`]: resultData });
+
+        } else {
+            let resultData: any;
+            switch(type) {
+                case 'podcast':
+                    const podcastResult = await generatePodcastFromSources(inputBase);
+                    const audioUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/podcast.wav`, podcastResult.podcastAudio);
+                    resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: audioUrl };
+                    break;
+                case 'flashcards':
+                    resultData = (await generateFlashcards(inputBase)).flashcards;
+                    break;
+                case 'quiz':
+                    resultData = (await generateQuiz(inputBase)).quiz;
+                    break;
+                case 'deck':
+                    resultData = await generateSlideDeck(inputBase);
+                    break;
+                case 'mindmap':
+                    resultData = await generateMindMap(inputBase);
+                    break;
+                default: throw new Error("Unknown generation type");
+            }
+             updateSelectedStudySpace(current => ({
+                generatedContent: { ...current.generatedContent, [type]: resultData }
+            }));
         }
-      
-        updateSelectedStudySpace(current => {
-            const newGeneratedContent = { ...(current.generatedContent || {}), [type]: resultData };
-            return { generatedContent: newGeneratedContent };
-        });
       
         setActiveGeneratedView(type as any);
     } catch (e: any) {
         console.error(`Error generating ${type}:`, e);
-        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description: e.message });
+        const description = e.message || `An unknown error occurred while generating the ${type}.`;
+        setGenerationLogs(prev => [...prev, `ERROR: ${description}`]);
+        toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
     } finally {
         setIsGenerating(null);
     }
@@ -1245,45 +1260,36 @@ function StudySpacesPage() {
                                      )}
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                    {isGenerating === 'infographic' && (
-                                        <div className="mt-4 space-y-2">
-                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                    {isGenerating === 'infographic' ? (
+                                        <div className="p-4 rounded-md bg-secondary/50">
+                                            <h4 className="font-semibold mb-2 flex items-center gap-2">
                                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                                <span>Generating Infographic... This can take up to a minute.</span>
-                                            </div>
-                                            {generationLogs.length > 0 && (
-                                                <Accordion type="single" collapsible>
-                                                    <AccordionItem value="logs">
-                                                        <AccordionTrigger className="text-sm">View Generation Log</AccordionTrigger>
-                                                        <AccordionContent>
-                                                            <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
-                                                                {generationLogs.join('\n')}
-                                                            </pre>
-                                                        </AccordionContent>
-                                                    </AccordionItem>
-                                                </Accordion>
-                                            )}
+                                                Generating Infographic...
+                                            </h4>
+                                            <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                                {generationLogs.join('\n')}
+                                            </pre>
                                         </div>
-                                    )}
+                                    ) : isGenerating ? (
+                                        <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
+                                            <div className="flex items-center gap-3 font-medium">
+                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                <span className="text-muted-foreground">Generating {isGenerating}...</span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    
                                     {(savedItems.length === 0 && !isGenerating) ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
-                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
-                                                    {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
+                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating}>
+                                                    <option.icon className="w-6 h-6 text-primary" />
                                                     <span>{option.name}</span>
                                                 </Button>
                                             ))}
                                         </div>
                                      ) : (
                                         <div className="space-y-2">
-                                            {isGenerating && isGenerating !== 'infographic' && (
-                                                <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
-                                                    <div className="flex items-center gap-3 font-medium">
-                                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                        <span className="text-muted-foreground">Generating {isGenerating}...</span>
-                                                    </div>
-                                                </div>
-                                            )}
                                             {generationOptions.map((option) => {
                                                 const savedItem = generatedContent[option.type as keyof GeneratedContent];
                                                 if (!savedItem) return null;
