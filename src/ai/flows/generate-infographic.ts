@@ -49,7 +49,7 @@ const extractKeyPointsFlow = ai.defineFlow({
   })),
 }, async (input) => {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-2.5-flash',
     prompt: `Extract ${input.maxPoints} key points from the following content. For each point, provide a short title (2-4 words) and a one-sentence summary (10-15 words). Format as JSON with keys "title" and "summary".
 
 Academic Level: ${input.academicLevel || 'general'}
@@ -66,7 +66,7 @@ Return ONLY the JSON array, no other text.`,
 
 const designInfographicPrompt = ai.definePrompt({
     name: 'designInfographicPrompt',
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-2.5-flash',
     input: {
       schema: GenerateInfographicInputSchema.extend({
         keyPoints: z.array(z.object({
@@ -80,33 +80,27 @@ const designInfographicPrompt = ai.definePrompt({
             imagePrompt: z.string().describe("A highly detailed, descriptive prompt for Imagen to create a professional infographic.")
         })
     },
-    prompt: `You are an expert infographic designer. Create a detailed prompt for Imagen 3 to generate a professional infographic.
+    prompt: `You are an expert infographic designer. Create a detailed prompt for an image generation model to generate a professional infographic.
 
 ### CONTEXT:
-- Style: {{style}} ({{style}} style with appropriate visuals)
-- Color Scheme: {{#if colorScheme}}{{colorScheme}}{{else}}professionally coordinated palette{{/if}} (use these colors)
-- Academic Level: {{academicLevel}} (adjust complexity accordingly)
+- Style: {{style}}
+- Color Scheme: {{#if colorScheme}}{{colorScheme}}{{else}}A professionally coordinated and aesthetically pleasing color palette{{/if}}
+- Academic Level: {{academicLevel}}
 
 ### KEY POINTS TO VISUALIZE:
 {{#each keyPoints}}
-Point {{@index}}: "{{this.title}}" - {{this.summary}}
+- Point {{@index}}: "{{this.title}}" - {{this.summary}}
 {{/each}}
 
 ### IMPERATIVE INSTRUCTIONS FOR YOUR PROMPT:
-1. **Layout**: Create a clean {{keyPoints.length}}-point grid layout (2x3 or 2x2 as appropriate) with a clear main title at the top
-2. **Main Title**: "{{#if topic}}{{topic}}{{else}}Key Insights{{/if}}" prominently displayed
-3. **Text**: For each point, include both the title and summary text
-4. **Icons**: Simple, professional icons representing each point
-5. **Readability**: ALL TEXT MUST BE PERFECTLY HORIZONTAL, CLEAR, AND LEGIBLE. Use sans-serif fonts.
-6. **Branding**: Include small "Learn with Temi" in bottom-left corner (subtle)
+1.  **Layout**: Create a clean, professional, visually balanced infographic layout. It should feature a prominent main title and clearly separated sections for each key point. Use a grid or a logical flow (e.g., top-to-bottom, circular).
+2.  **Main Title**: The main title should be "{{#if topic}}{{topic}}{{else}}Key Insights{{/if}}". It must be large, prominent, and perfectly legible.
+3.  **Text**: For each point, include both the title and the summary text. ALL TEXT MUST BE PERFECTLY HORIZONTAL, CLEAR, AND LEGIBLE. Use a clean, modern sans-serif font.
+4.  **Icons/Visuals**: For each key point, describe a simple, professional, and relevant icon or visual metaphor that represents the concept. The visuals should be high-quality vector art.
+5.  **Branding**: Include the text "Prepezia" in the bottom-left corner, small and subtle.
+6.  **Overall Style**: The overall aesthetic should be modern, clean, and uncluttered. High resolution, digital art.
 
-### SPECIFICATIONS:
-- Format: Digital infographic, high resolution
-- Colors: {{#if colorScheme}}{{colorScheme}}{{else}}professionally coordinated palette{{/if}}
-- Style: Clean, modern, {{style}} aesthetic
-- Text prominence: Text blocks should be clearly separated from visuals
-
-Generate a single, detailed prompt for Imagen now.`,
+Generate a single, detailed, and descriptive prompt for an image generation model now.`,
 });
 
 const generateInfographicFlow = ai.defineFlow({
