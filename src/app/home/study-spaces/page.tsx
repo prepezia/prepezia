@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback } from "react";
@@ -761,13 +762,14 @@ function StudySpacesPage() {
   const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
       if (!selectedStudySpace) return;
       const content = selectedStudySpace.generatedContent;
+      let url: string | undefined;
+      let filename: string | undefined;
+      
       if (!content) {
           toast({ variant: 'destructive', title: 'No file to download' });
           return;
       }
       
-      let url:string | undefined;
-      let filename:string | undefined;
 
       if (type === 'infographic' && content.infographic?.imageUrl) {
           url = content.infographic.imageUrl;
@@ -1004,7 +1006,7 @@ function StudySpacesPage() {
                         </Card>
                     </TabsContent>
                     
-                    <TabsContent value="chat" className="mt-4 flex flex-col">
+                    <TabsContent value="chat" className="mt-4 flex flex-col flex-1">
                       <div className="flex-1 overflow-y-auto p-4 space-y-4">
                         {(selectedStudySpace.chatHistory || []).length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
@@ -1041,7 +1043,7 @@ function StudySpacesPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="generate" className="mt-4">
+                    <TabsContent value="generate" className="mt-4 flex-none">
                         {activeGeneratedView ? renderGeneratedContent() : (
                             <Card>
                                 <CardHeader>
@@ -1058,13 +1060,13 @@ function StudySpacesPage() {
                                                 <Plus className="mr-2 h-4 w-4" /> Generate New
                                             </Button>
                                         </div>
-                                    )}
+                                     )}
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                      {savedItems.length === 0 ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
-                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={()={() => handleGenerateContent(option.type)}} disabled={isGenerating !== null}>
+                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
                                                     {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                                     <span>{option.name}</span>
                                                 </Button>
@@ -1123,7 +1125,7 @@ function StudySpacesPage() {
                             {generationOptions.map((option) => {
                                 const isAlreadyGenerated = !!generatedContent[option.type];
                                 return (
-                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={()={() => handleGenerateContent(option.type)}} disabled={isGenerating !== null || isAlreadyGenerated}>
+                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null || isAlreadyGenerated}>
                                         {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                         <span>{option.name}</span>
                                         {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}
@@ -1165,7 +1167,7 @@ function StudySpacesPage() {
               <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {studySpaces.slice(0, visibleCount).map(space => (
-                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={()={() => handleSelectStudySpace(space)}}>
+                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={() => handleSelectStudySpace(space)}>
                               <CardHeader>
                                   <CardTitle>{space.name}</CardTitle>
                                   <CardDescription>{space.description}</CardDescription>
@@ -1634,9 +1636,9 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
                             </div>
                         </div>
                         <div className="flex justify-between items-center mt-4 max-w-lg mx-auto">
-                            <Button variant="outline" onClick={()={() => setCurrentCardIndex(p => p - 1)}} disabled={currentCardIndex === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p - 1)} disabled={currentCardIndex === 0}><ArrowLeft className="mr-2"/> Previous</Button>
                             <span className="text-sm text-muted-foreground">{currentCardIndex + 1} / {flashcards.length}</span>
-                            <Button variant="outline" onClick={()={() => setCurrentCardIndex(p => p + 1)}} disabled={currentCardIndex === flashcards.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p + 1)} disabled={currentCardIndex === flashcards.length - 1}>Next <ArrowRight className="ml-2"/></Button>
                         </div>
                     </div>
                 )}
@@ -1687,7 +1689,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         printWindow.document.write(`<html><head><title>Print Quiz Results</title>${styles}${styleBlocks}</head><body>${printContent}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(()={() => { printWindow.print(); printWindow.close(); }, 1000);
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
     };
 
     if (quizState === 'results') {
@@ -1738,7 +1740,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
         printWindow.document.write(`<html><head><title>Print Deck</title>${styles}${styleBlocks}<style>@page { size: landscape; }</style></head><body>${printContent}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(()={() => { printWindow.print(); printWindow.close(); }, 1000);
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
     };
     const currentSlide = deck.slides[currentSlideIndex];
     return (
@@ -1903,5 +1905,3 @@ export default function StudySpacesPageWrapper() {
     </Suspense>
   )
 }
-
-    
