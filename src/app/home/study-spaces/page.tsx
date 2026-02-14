@@ -691,7 +691,9 @@ function StudySpacesPage() {
         let resultData;
         const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
             context: 'study-space',
-            sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
+            sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any })),
+            style: 'educational',
+            maxPoints: 5,
         };
       
         switch(type) {
@@ -1063,7 +1065,7 @@ function StudySpacesPage() {
                                      )}
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                     {(savedItems.length === 0 && !isGenerating) ? (
+                                    {savedItems.length === 0 ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
                                                 <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={!!isGenerating}>
@@ -1074,7 +1076,7 @@ function StudySpacesPage() {
                                         </div>
                                      ) : (
                                         <div className="space-y-2">
-                                            {isGenerating && !generatedContent[isGenerating] && (
+                                            {isGenerating && (
                                                 <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
                                                     <div className="flex items-center gap-3 font-medium">
                                                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -1530,10 +1532,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                         ) : (
                             <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
                         )}
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button>
-                            <Button onClick={handleAddSelectedSources}>Add Selected</Button>
-                        </DialogFooter>
+                        <DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>
@@ -1822,88 +1821,6 @@ function InteractiveMindMapWrapper({ data, onBack, topic }: { data: MindMapNodeD
             <InteractiveMindMap data={data} topic={topic} />
         </div>
     );
-}
-
-function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean; onOpenChange: (open: boolean) => void; onAddSources: (sources: Source[]) => void; }) {
-    const [sources, setSources] = useState<Source[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [isTextModalOpen, setIsTextModalOpen] = useState(false);
-    const [copiedText, setCopiedText] = useState("");
-    const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
-    const [urlModalConfig, setUrlModalConfig] = useState<{type: 'youtube' | 'website', name: string, icon: React.ElementType} | null>(null);
-    const [currentUrl, setCurrentUrl] = useState("");
-    const { toast } = useToast();
-    
-    const [searchQuery, setSearchQuery] = useState("");
-    type SourceSearchResult = { title: string; url: string; snippet: string; };
-    const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-    const [selectedWebSources, setSelectedWebSources] = useState<SourceSearchResult[]>([]);
-
-    const handleDeleteSource = (indexToDelete: number) => { setSources(prev => prev.filter((_, index) => index !== indexToDelete)); };
-    const handleFileButtonClick = (accept: string) => { if (fileInputRef.current) { fileInputRef.current.accept = accept; fileInputRef.current.removeAttribute('capture'); fileInputRef.current.value = ""; fileInputRef.current.click(); } };
-    const handleOpenUrlModal = (type: 'youtube' | 'website', name: string, icon: React.ElementType) => { setUrlModalConfig({ type, name, icon }); setCurrentUrl(""); setIsUrlModalOpen(true); };
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const dataUri = e.target?.result as string;
-            let fileType: Source['type'] = 'text';
-            if (file.type.startsWith('image/')) fileType = 'image';
-            else if (file.type.startsWith('audio/')) fileType = 'audio';
-            else if (file.type === 'application/pdf') fileType = 'pdf';
-            setSources(prev => [...prev, { type: fileType, name: file.name, data: dataUri, contentType: file.type }]);
-        };
-        reader.readAsDataURL(file);
-    };
-    const handleAddCopiedText = () => { if (!copiedText.trim()) return; setSources(prev => [...prev, { type: 'clipboard', name: `Pasted Text (${copiedText.substring(0, 15)}...)`, data: copiedText, contentType: 'text/plain' }]); setCopiedText(""); setIsTextModalOpen(false); };
-    const handleAddUrl = () => { if (!currentUrl.trim() || !urlModalConfig) return; setSources(prev => [...prev, { type: urlModalConfig.type, name: currentUrl, url: currentUrl }]); setCurrentUrl(""); setIsUrlModalOpen(false); };
-    const handleSearch = async () => {
-        if (!searchQuery.trim()) return;
-        setIsSearching(true);
-        setSearchResults([]);
-        setSelectedWebSources([]);
-        setIsSearchModalOpen(true);
-        try {
-            const response = await searchWebForSources({ query: searchQuery });
-            setSearchResults(response.results);
-        } catch (e: any) {
-            toast({ variant: 'destructive', title: 'Search Failed', description: e.message || 'Could not fetch web results.' });
-        } finally {
-            setIsSearching(false);
-        }
-    };
-    const handleAddSelectedSources = () => {
-        const newSources: Source[] = selectedWebSources.map(result => ({ type: (result.url.includes('youtube.com') || result.url.includes('youtu.be')) ? 'youtube' : 'website', name: result.title, url: result.url }));
-        if (newSources.length > 0) setSources(prev => [...prev, ...newSources.filter(ns => !prev.some(s => s.url === ns.url))]);
-        setIsSearchModalOpen(false);
-    };
-    const sourceButtons = [{ name: "PDF", icon: FileText, action: () => handleFileButtonClick("application/pdf") }, { name: "Audio", icon: Mic, action: () => handleFileButtonClick("audio/*") }, { name: "Image", icon: ImageIcon, action: () => handleFileButtonClick("image/png, image/jpeg, image/gif, image/webp") }, { name: "Website", icon: Globe, action: () => handleOpenUrlModal('website', 'Website', Globe) }, { name: "YouTube", icon: Youtube, action: () => handleOpenUrlModal('youtube', 'YouTube', Youtube) }, { name: "Text", icon: ClipboardPaste, action: () => setIsTextModalOpen(true) }];
-    const handleDone = () => { onAddSources(sources); setSources([]); onOpenChange(false); };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
-                <DialogHeader><DialogTitle>Add More Sources</DialogTitle><DialogDescription>Search the web or add files and links. Click &quot;Add to Space&quot; when you&apos;re done.</DialogDescription></DialogHeader>
-                <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-8 border-y py-6">
-                    <div className="space-y-6"><div className="flex w-full items-center space-x-2"><Input placeholder="Search the web for articles, videos..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}/><Button onClick={handleSearch} disabled={isSearching} size="icon"><Search className="h-4 w-4" /></Button></div><div className="relative py-2"><div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t" /></div><div className="relative flex justify-center"><span className="bg-background px-2 text-sm text-muted-foreground">Or Add Manually</span></div></div><div className="grid grid-cols-2 md:grid-cols-3 gap-4">{sourceButtons.map(btn => (<Button key={btn.name} variant="outline" className="h-20 text-base flex-col" onClick={btn.action}><btn.icon className="mb-1 h-6 w-6"/>{btn.name}</Button>))}</div><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" /></div>
-                    {sources.length > 0 && (<div className="space-y-2"><h4 className="font-semibold">Sources to Add ({sources.length})</h4><ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">{sources.map((s, i) => (<li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">{(s.type === 'pdf' || s.type === 'text') && <FileText className="w-4 h-4 mt-0.5"/>}{s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}{s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}{s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}{s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}{s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}<span className="flex-1 min-w-0 break-words">{s.name}</span><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button></li>))}</ul></div>)}
-                </div>
-                <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button onClick={handleDone}>Add to Space</Button></DialogFooter>
-                <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={(e) => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
-                <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader><Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/><DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter></DialogContent></Dialog>
-                <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
-                    <DialogContent className="sm:max-w-2xl">
-                        <DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add.</DialogDescription></DialogHeader>
-                        {isSearching ? <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div> : searchResults.length > 0 ? <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`add-search-result-${index}`} onCheckedChange={(checked) => { if (checked) setSelectedWebSources(p => [...p, result]); else setSelectedWebSources(p => p.filter(r => r.url !== result.url)); }} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`add-search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div> : <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>}
-                        <DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </DialogContent>
-        </Dialog>
-    )
 }
 
 export default function StudySpacesPageWrapper() {

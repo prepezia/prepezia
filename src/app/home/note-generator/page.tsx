@@ -506,7 +506,12 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
 
     try {
         const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
-            context: 'note-generator', topic: note.topic, academicLevel: note.level as AcademicLevel, content: note.content,
+            context: 'note-generator',
+            topic: note.topic,
+            academicLevel: note.level as AcademicLevel,
+            content: note.content,
+            style: 'educational', // Add default
+            maxPoints: 5, // Add default
         };
       
         let resultData: any;
@@ -532,7 +537,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 }
                 break;
             case 'infographic':
-                const infographicResult = await generateInfographic(input);
+                const infographicResult = await generateInfographic(input as GenerateInfographicInput);
                 fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, infographicResult.imageUrl);
                 resultData = { prompt: infographicResult.prompt, imageUrl: fileUrl };
                 updateData = { 'generatedContent.infographic': resultData };
@@ -663,7 +668,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         }
 
         let url:string | undefined;
-        let filename:string | undefined;
+        let filename: string | undefined;
+
         if (type === 'infographic' && content.infographic?.imageUrl) {
             url = content.infographic.imageUrl;
             filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
@@ -868,7 +874,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                         {isGenerating && !generatedContent[isGenerating] && (
+                                        {isGenerating && isGenerating !== 'notes' && (
                                             <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
                                                 <div className="flex items-center gap-3 font-medium">
                                                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

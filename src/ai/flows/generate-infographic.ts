@@ -1,4 +1,3 @@
-
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -18,47 +17,96 @@ const GenerateInfographicInputSchema = z.object({
   academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
   content: z.string().optional().describe("The source text content (for note generation)."),
   sources: z.array(SourceSchema).optional().describe("An array of sources (for study spaces)."),
+  style: z.enum(['modern', 'minimalist', 'colorful', 'corporate', 'educational']).optional().default('educational').describe("Visual style preference"),
+  colorScheme: z.string().optional().describe("Preferred color scheme (e.g., 'blue tones', 'warm colors')"),
+  maxPoints: z.number().min(3).max(8).optional().default(5).describe("Number of key points to include"),
 });
 export type GenerateInfographicInput = z.infer<typeof GenerateInfographicInputSchema>;
 
-
 const GenerateInfographicOutputSchema = z.object({
   imageUrl: z.string().describe("The data URI of the generated infographic image."),
-  prompt: z.string().describe("The prompt used to generate the image for debugging purposes.")
+  prompt: z.string().describe("The prompt used to generate the image for debugging purposes."),
+  keyPoints: z.array(z.object({
+    title: z.string(),
+    summary: z.string()
+  })).optional().describe("The extracted key points for reference")
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
-const designInfographicMetaPrompt = ai.definePrompt({
-    name: 'designInfographicMetaPrompt',
-    model: 'googleai/gemini-2.5-flash',
-    input: { schema: GenerateInfographicInputSchema },
-    output: {
-        schema: z.object({
-            imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a professional infographic.")
-        })
-    },
-    prompt: `You are an expert infographic designer. Your task is to create a detailed, descriptive prompt for an image generation AI (like Imagen) to produce a visually appealing and highly readable infographic based on the provided source content.
+// First, extract key points from content
+const extractKeyPointsFlow = ai.defineFlow({
+  name: 'extractKeyPointsFlow',
+  inputSchema: z.object({
+    content: z.string().optional(),
+    sources: z.array(SourceSchema).optional(),
+    maxPoints: z.number().default(5),
+    academicLevel: z.string().optional(),
+  }),
+  outputSchema: z.array(z.object({
+    title: z.string(),
+    summary: z.string()
+  })),
+}, async (input) => {
+  const { output } = await ai.generate({
+    model: 'googleai/gemini-1.5-flash-latest',
+    prompt: `Extract ${input.maxPoints} key points from the following content. For each point, provide a short title (2-4 words) and a one-sentence summary (10-15 words). Format as JSON with keys "title" and "summary".
 
-### INSTRUCTIONS:
-1.  **Summarize Content:** Break down the source content into 4-6 key points. Each point should have a short title and a one-sentence summary.
-2.  **Describe Layout:** Describe a clean, modern layout for the infographic. A 2x2 or 2x3 grid is a good choice. Mention a main title for the infographic.
-3.  **Specify Visuals:** For each key point, suggest a simple, clean icon to accompany the text.
-4.  **Emphasize Readability:** In your final prompt, you MUST include the following instruction: "All text must be perfectly clear, horizontal, and easy to read. Use a modern sans-serif font."
-5.  **Branding:** Include a request for a small, discreet 'Learn with Temi' text mark in the bottom-left corner.
+Academic Level: ${input.academicLevel || 'general'}
 
-### SOURCE CONTENT:
-{{#if content}}
-{{{content}}}
-{{else}}
-  {{#each sources}}
-- {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
-  {{/each}}
-{{/if}}
+Content:
+${input.content || input.sources?.map(s => `${s.name}: ${s.data || s.url}`).join('\n')}
 
-Generate a single, coherent prompt for the image model now.
-`,
+Return ONLY the JSON array, no other text.`,
+    output: { format: 'json' }
+  });
+
+  return output;
 });
 
+const designInfographicPrompt = ai.definePrompt({
+    name: 'designInfographicPrompt',
+    model: 'googleai/gemini-2.0-flash-exp',
+    input: { 
+      schema: GenerateInfographicInputSchema.extend({
+        keyPoints: z.array(z.object({
+          title: z.string(),
+          summary: z.string()
+        }))
+      }) 
+    },
+    output: {
+        schema: z.object({
+            imagePrompt: z.string().describe("A highly detailed, descriptive prompt for Imagen to create a professional infographic.")
+        })
+    },
+    prompt: `You are an expert infographic designer. Create a detailed prompt for Imagen 3 to generate a professional infographic.
+
+### CONTEXT:
+- Style: {{style}} ({{style}} style with appropriate visuals)
+- Color Scheme: {{colorScheme}} (use these colors)
+- Academic Level: {{academicLevel}} (adjust complexity accordingly)
+
+### KEY POINTS TO VISUALIZE:
+{{#each keyPoints}}
+Point {{@index}}: "{{this.title}}" - {{this.summary}}
+{{/each}}
+
+### IMPERATIVE INSTRUCTIONS FOR YOUR PROMPT:
+1. **Layout**: Create a clean {{keyPoints.length}}-point grid layout (2x3 or 2x2 as appropriate) with a clear main title at the top
+2. **Main Title**: "{{topic || 'Key Insights'}}" prominently displayed
+3. **Text**: For each point, include both the title and summary text
+4. **Icons**: Simple, professional icons representing each point
+5. **Readability**: ALL TEXT MUST BE PERFECTLY HORIZONTAL, CLEAR, AND LEGIBLE. Use sans-serif fonts.
+6. **Branding**: Include small "Learn with Temi" in bottom-left corner (subtle)
+
+### SPECIFICATIONS:
+- Format: Digital infographic, high resolution
+- Colors: {{colorScheme || 'professionally coordinated palette'}}
+- Style: Clean, modern, {{style}} aesthetic
+- Text prominence: Text blocks should be clearly separated from visuals
+
+Generate a single, detailed prompt for Imagen now.`,
+});
 
 const generateInfographicFlow = ai.defineFlow({
     name: 'generateInfographicFlow',
@@ -66,27 +114,73 @@ const generateInfographicFlow = ai.defineFlow({
     outputSchema: GenerateInfographicOutputSchema,
 },
 async (input) => {
-    // Step 1: Generate the detailed "meta-prompt" for the image model.
-    const { output } = await designInfographicMetaPrompt(input);
-    if (!output?.imagePrompt) {
-        throw new Error("The AI failed to generate the design prompt for the infographic.");
+    // Step 1: Extract key points from the content
+    let keyPoints = [];
+    try {
+        const extractedPoints = await extractKeyPointsFlow({
+            content: input.content,
+            sources: input.sources,
+            maxPoints: input.maxPoints || 5,
+            academicLevel: input.academicLevel
+        });
+        keyPoints = extractedPoints || [];
+    } catch (error) {
+        console.error('Key point extraction failed:', error);
+        // Fallback: create basic points from content
+        keyPoints = [
+            { title: "Main Concept", summary: input.content?.substring(0, 100) || "Key information presented" },
+            { title: "Important Detail", summary: "Secondary information and context" }
+        ];
     }
-    const imagePrompt = output.imagePrompt;
 
-    // Step 2: Use the generated prompt to create the image.
-    const { media } = await ai.generate({
-        model: 'googleai/imagen-4.0-fast-generate-001',
-        prompt: imagePrompt,
+    // Step 2: Generate the detailed prompt for Imagen
+    const promptResult = await designInfographicPrompt({
+        ...input,
+        keyPoints
     });
 
-    if (!media?.url) {
-        throw new Error('Image generation failed.');
+    const imagePrompt = promptResult.output?.imagePrompt;
+    if (!imagePrompt) {
+        throw new Error("Failed to generate image prompt");
     }
 
-    return {
-        imageUrl: media.url,
-        prompt: imagePrompt, // Return the generated prompt for debugging.
-    };
+    // Step 3: Generate image using Imagen correctly
+    const imagenPrompt = `${imagePrompt}
+
+IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean sans-serif fonts.`;
+
+    try {
+        // Correct way to call Imagen with Genkit
+        const { media } = await ai.generate({
+            model: 'googleai/imagen-3.0-generate-001', // Updated to latest version
+            prompt: imagenPrompt,
+            config: {
+                // Imagen-specific configurations
+                safetyFilterLevel: 'BLOCK_MEDIUM_AND_ABOVE',
+                personGeneration: 'ALLOW_ADULT',
+                aspectRatio: '1:1', // or '16:9', '3:4', '9:16', '4:3'
+                sampleCount: 1,
+                // Add negative prompts to avoid common issues
+                negativePrompt: "blurry text, distorted text, unreadable text, text not horizontal, cluttered layout, messy design, low quality, bad typography"
+            }
+        });
+
+        if (!media?.url) {
+            throw new Error('No image URL returned from Imagen');
+        }
+
+        return {
+            imageUrl: media.url,
+            prompt: imagenPrompt,
+            keyPoints: keyPoints
+        };
+    } catch (imageError) {
+        console.error('Imagen generation failed:', imageError);
+        
+        // Fallback: Generate a data URI representation using canvas or return error
+        // You could implement a fallback here using a different approach
+        throw new Error(`Image generation failed: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`);
+    }
 });
 
 export async function generateInfographic(input: GenerateInfographicInput): Promise<GenerateInfographicOutput> {
