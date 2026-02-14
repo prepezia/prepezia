@@ -875,7 +875,7 @@ function StudySpacesPage() {
 
             if (type === 'infographic') {
                 setGenerationLogs(prev => ['Step 1: Extracting key points...', ...prev].reverse());
-                const keyPoints = await extractKeyPointsFlow({ sources: inputBase.sources, maxPoints: 5 });
+                const keyPoints = await extractKeyPointsFlow({ sources: inputBase.sources });
                 setGenerationLogs(prev => [`-> Success: Extracted ${keyPoints.length} key points.`, 'Step 2: Designing prompt...', ...prev].reverse());
                 
                 const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
@@ -888,20 +888,6 @@ function StudySpacesPage() {
                 const resultDataForUI = { prompt: imagePrompt, imageUrl, keyPoints };
                 updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, infographic: resultDataForUI }}));
                 setActiveGeneratedView(type);
-                
-                // Asynchronously upload and update with permanent URL
-                uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/infographic.png`, imageUrl)
-                    .then(downloadURL => {
-                        updateSelectedStudySpace(current => {
-                            const newInfographic = { ...current.generatedContent?.infographic, imageUrl: downloadURL };
-                            return { generatedContent: { ...current.generatedContent, infographic: newInfographic }};
-                        });
-                        toast({ title: 'Infographic saved to your cloud storage.' });
-                    })
-                    .catch(err => {
-                        console.error("Infographic upload failed:", err);
-                        toast({ variant: 'destructive', title: 'Infographic could not be saved to the cloud' });
-                    });
             } else {
                 let resultData: any;
                 switch (type) {

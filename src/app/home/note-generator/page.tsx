@@ -516,8 +516,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             };
     
             if (type === 'infographic') {
-                setGenerationLogs(prev => ['Step 1: Extracting key points from content...', ...prev]);
-                const keyPoints = await extractKeyPointsFlow({ content: inputBase.content, maxPoints: inputBase.maxPoints, academicLevel: inputBase.academicLevel });
+                setGenerationLogs(prev => ['Step 1: Extracting key points from content...', ...prev].reverse());
+                const keyPoints = await extractKeyPointsFlow({ content: inputBase.content, academicLevel: inputBase.academicLevel });
                 setGenerationLogs(prev => [`-> Success: Extracted ${keyPoints.length} key points.`, 'Step 2: Designing a detailed prompt for the image model...', ...prev].reverse());
                 
                 const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
@@ -529,16 +529,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 const resultDataForUI = { prompt: imagePrompt, imageUrl: imageUrl, keyPoints };
                 updateNote({ 'generatedContent.infographic': resultDataForUI });
                 
-                uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, imageUrl)
-                    .then(downloadURL => {
-                        updateNote({ 'generatedContent.infographic.imageUrl': downloadURL });
-                        toast({ title: 'Infographic saved to your cloud storage.' });
-                    })
-                    .catch(err => {
-                        console.error("Infographic upload failed:", err);
-                        toast({ variant: 'destructive', title: 'Infographic could not be saved to the cloud' });
-                    });
-    
                 setActiveView('infographic');
             } else {
                 let resultData: any;
@@ -573,7 +563,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                     default:
                         throw new Error("Unknown generation type");
                 }
-                if (type !== 'podcast') {
+                if (type !== 'podcast' && type !== 'infographic') {
                     updateNote({ [`generatedContent.${type}`]: resultData });
                     setActiveView(type);
                 }

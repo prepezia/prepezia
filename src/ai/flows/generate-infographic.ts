@@ -82,28 +82,20 @@ const designInfographicPrompt = ai.definePrompt({
             imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a professional infographic.")
         })
     },
-    prompt: `You are an expert prompt engineer for text-to-image models. Create a single, detailed, and effective prompt to generate a professional infographic.
+    prompt: `Create a professional infographic with the following specifications:
+- Style: {{style}}, clean, modern, educational
+- Colors: {{#if colorScheme}}{{colorScheme}}{{else}}Professional blue tones with accent colors{{/if}}
+- Text: All text must be perfectly horizontal and legible
+- Layout: Grid-based with clear sections for each point
+- Title: "{{#if topic}}{{topic}}{{else}}Key Insights{{/if}}" at the top
+- Footer: Include "Prepezia" at the bottom
 
-### INFOGRAPHIC REQUIREMENTS:
-- **Topic**: {{#if topic}}"{{topic}}"{{else}}"Key Insights"{{/if}}
-- **Style**: {{style}}
-- **Color Scheme**: {{#if colorScheme}}{{colorScheme}}{{else}}A professionally coordinated and aesthetically pleasing color palette based on blues and grays, with a single warm accent color.{{/if}}
-
-### KEY POINTS TO VISUALIZE:
+Content to visualize:
 {{#each keyPoints}}
-- **Point {{@index}}**: **{{this.title}}** - {{this.summary}}
+{{@index_1}}. {{this.title}}: {{this.summary}}
 {{/each}}
 
-### YOUR PROMPT MUST INCLUDE THE FOLLOWING IMPERATIVE INSTRUCTIONS:
-1.  **Master Prompt**: Start with "A professional, ultra-detailed, high-resolution infographic about '{{#if topic}}{{topic}}{{else}}Key Insights{{/if}}'. Vector art, minimalist design, clean and modern aesthetic."
-2.  **Layout**: Mandate a clear, balanced layout. "Use a vertical grid layout with a prominent main title at the top, followed by clearly separated horizontal sections for each key point."
-3.  **Typography (CRITICAL)**: Be extremely specific about text rendering. Add this exact phrase: "CRITICAL: ALL text MUST be perfectly horizontal, clear, legible, and accurately spelled. Use a modern sans-serif font like Arial or Helvetica. There should be absolutely no distorted, garbled, or misspelled words. Double-check all text for accuracy."
-4.  **Content Sections**: For each key point, instruct the model to "Create a section with the title '{{this.title}}' and the summary '{{this.summary}}'."
-5.  **Icons/Visuals**: Instruct the model to "For each section, include a simple, minimalist icon that visually represents its concept (e.g., a gear for 'process', a lightbulb for 'idea')."
-6.  **Branding**: Specify the branding element. "In the bottom-left corner, add the text 'Prepezia' in small, subtle font."
-7.  **Negative Prompts**: Add negative prompts to avoid common issues. "AVOID: 3D rendering, shadows, gradients, blurry text, misspelled words, complex illustrations."
-
-Combine these instructions into a single, coherent, and powerful prompt for an image generation model.`,
+Generate a high-quality infographic image.`,
 });
 
 // Flow 2: Design the prompt for the image model
@@ -236,31 +228,3 @@ export const generateImageFlow = ai.defineFlow({
         throw lastError || new Error(`Image generation and fallback both failed`);
     }
 });
-
-// Main orchestrating flow (can be used for simple, non-streaming generation if needed)
-export async function generateInfographic(input: GenerateInfographicInput): Promise<GenerateInfographicOutput> {
-  const keyPoints = await extractKeyPointsFlow({
-      content: input.content,
-      sources: input.sources,
-      maxPoints: input.maxPoints,
-      academicLevel: input.academicLevel
-  });
-
-  const { imagePrompt } = await designInfographicFlow({
-      ...input,
-      keyPoints,
-  });
-
-  const { imageUrl, logs } = await generateImageFlow({
-      imagePrompt,
-      keyPoints,
-      topic: input.topic || 'Key Insights'
-  });
-
-  return {
-      imageUrl,
-      prompt: imagePrompt,
-      keyPoints,
-      logs
-  };
-}
