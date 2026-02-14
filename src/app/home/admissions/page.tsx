@@ -884,7 +884,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         </Tabs>
                     </TabsContent>
 
-                    <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
+                    <TabsContent value="chat" className="mt-4 flex flex-col">
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">AI Admissions Advisor</h3><p className="mt-2 text-sm">Ask about universities, scholarships, or application strategies. Try voice mode for a hands-free chat.</p></div>) 
                             : chatHistory.map((msg, i) => (
@@ -1007,3 +1007,4 @@ function AdmissionsAdviceCard({ result }: { result: GetAdmissionsAdviceOutput })
         </Card>
     );
 }
+

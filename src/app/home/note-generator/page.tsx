@@ -19,7 +19,7 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -37,7 +37,7 @@ import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import Image from "next/image";
-import { InteractiveMindMap, type MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
+import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser, useFirestore, useDoc, useCollection, useStorage } from "@/firebase";
@@ -510,6 +510,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
       
         let resultData: any;
         let updateData: any = {};
+        
         let filename: string;
         let fileUrl: string;
 
@@ -656,7 +657,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             return;
         }
 
-        let url:string | undefined, filename:string | undefined;
+        let url:string | undefined;
+        let filename:string | undefined;
         if (type === 'infographic' && content.infographic?.imageUrl) {
             url = content.infographic.imageUrl;
             filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
@@ -797,7 +799,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
+                    <TabsContent value="chat" className="mt-4 flex flex-col">
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {chatHistory.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">

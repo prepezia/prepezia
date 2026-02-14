@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback } from "react";
@@ -25,7 +24,7 @@ import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GenerateP
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
@@ -45,7 +44,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { InteractiveMindMap, type MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
+import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser, useStorage } from "@/firebase";
 import { uploadDataUrlToStorage } from "@/lib/storage";
@@ -699,7 +698,7 @@ function StudySpacesPage() {
                 resultData = quizResult.quiz;
                 break;
             case 'deck':
-                resultData = await generateSlideDeck(input as any);
+                resultData = await generateSlideDeck(input as GenerateSlideDeckInput);
                 break;
             case 'infographic':
                 const infographicResult = await generateInfographic(input as GenerateInfographicInput);
@@ -757,16 +756,18 @@ function StudySpacesPage() {
           return;
       }
       
+      let url:string | undefined;
+      let filename:string | undefined;
+
       if (type === 'infographic' && content.infographic?.imageUrl) {
-          const url = content.infographic.imageUrl;
-          const filename = `infographic_${selectedStudySpace.name.replace(/\s+/g, '_')}.png`;
-          toast({ title: 'Starting download...' });
-          downloadUrl(url, filename).catch(() => {
-              toast({ variant: 'destructive', title: 'Download Failed' });
-          });
+          url = content.infographic.imageUrl;
+          filename = `infographic_${selectedStudySpace.name.replace(/\s+/g, '_')}.png`;
       } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
-          const url = content.podcast.podcastAudioUrl;
-          const filename = `podcast_${selectedStudySpace.name.replace(/\s+/g, '_')}.wav`;
+          url = content.podcast.podcastAudioUrl;
+          filename = `podcast_${selectedStudySpace.name.replace(/\s+/g, '_')}.wav`;
+      }
+
+      if(url && filename) {
           toast({ title: 'Starting download...' });
           downloadUrl(url, filename).catch(() => {
               toast({ variant: 'destructive', title: 'Download Failed' });
@@ -993,7 +994,7 @@ function StudySpacesPage() {
                         </Card>
                     </TabsContent>
                     
-                    <TabsContent value="chat" className="mt-4 flex-1 flex flex-col">
+                    <TabsContent value="chat" className="mt-4 flex flex-col">
                       <div className="flex-1 overflow-y-auto p-4 space-y-4">
                         {(selectedStudySpace.chatHistory || []).length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
