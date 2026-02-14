@@ -25,7 +25,7 @@ import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GenerateP
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
@@ -94,7 +94,7 @@ type GeneratedContent = {
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   summary?: string;
   infographic?: Omit<GenerateInfographicOutput, 'imageUrl'> & { imageUrl?: string };
-  mindmap?: GenerateMindMapOutput;
+  mindmap?: MindMapNodeData;
 };
 
 type StudySpace = {
@@ -194,6 +194,38 @@ function StudySpacesPage() {
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
+  const updateSelectedStudySpace = useCallback((update: Partial<StudySpace> | ((current: StudySpace) => Partial<StudySpace>)) => {
+    setSelectedStudySpace(prev => {
+        if (!prev) return null;
+        const changes = typeof update === 'function' ? update(prev) : update;
+        const newSpace = { ...prev, ...changes };
+
+        setStudySpaces(currentSpaces => currentSpaces.map(s => s.id === newSpace.id ? newSpace : s));
+        
+        return newSpace;
+    });
+  }, []);
+
+  const calculateAndUpdateProgress = useCallback(() => {
+    if (!selectedStudySpace) return;
+    const { interactionProgress: ip, progress: currentProgress, status: currentStatus } = selectedStudySpace;
+    if (!ip) return;
+
+    let totalProgress = 0;
+    if (ip.quizCompleted) totalProgress += (ip.quizCompleted / 100) * PROGRESS_WEIGHTS_SPACES.quiz;
+    if (ip.flashcardsFlipped) totalProgress += (ip.flashcardsFlipped / 100) * PROGRESS_WEIGHTS_SPACES.flashcards;
+    if (ip.deckViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.deck;
+    if (ip.mindmapViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.mindmap;
+    if (ip.infographicViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.infographic;
+    
+    const finalProgress = Math.min(Math.round(totalProgress), 100);
+    const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
+    
+    if (finalProgress !== currentProgress || status !== currentStatus) {
+        updateSelectedStudySpace({ progress: finalProgress, status });
+    }
+  }, [selectedStudySpace, updateSelectedStudySpace]);
+
 
   useEffect(() => {
     try {
@@ -233,24 +265,6 @@ function StudySpacesPage() {
     return savable;
   };
   
-   const calculateAndUpdateProgress = useCallback(() => {
-    if (!selectedStudySpace) return;
-    const { interactionProgress: ip } = selectedStudySpace;
-    if (!ip) return;
-
-    let totalProgress = 0;
-    if (ip.quizCompleted) totalProgress += (ip.quizCompleted / 100) * PROGRESS_WEIGHTS_SPACES.quiz;
-    if (ip.flashcardsFlipped) totalProgress += (ip.flashcardsFlipped / 100) * PROGRESS_WEIGHTS_SPACES.flashcards;
-    if (ip.deckViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.deck;
-    if (ip.mindmapViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.mindmap;
-    if (ip.infographicViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.infographic;
-    
-    const finalProgress = Math.min(Math.round(totalProgress), 100);
-    const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
-
-    updateSelectedStudySpace({ progress: finalProgress, status });
-  }, [selectedStudySpace]);
-
   useEffect(() => {
     calculateAndUpdateProgress();
   }, [selectedStudySpace?.interactionProgress, calculateAndUpdateProgress]);
@@ -540,18 +554,6 @@ function StudySpacesPage() {
     setViewState('edit');
   };
 
-  const updateSelectedStudySpace = (update: Partial<StudySpace> | ((current: StudySpace) => Partial<StudySpace>)) => {
-    setSelectedStudySpace(prev => {
-        if (!prev) return null;
-        const changes = typeof update === 'function' ? update(prev) : update;
-        const newSpace = { ...prev, ...changes };
-
-        setStudySpaces(currentSpaces => currentSpaces.map(s => s.id === newSpace.id ? newSpace : s));
-        
-        return newSpace;
-    });
-  };
-
   const handleDeleteSource = (indexToDelete: number) => {
     if (!selectedStudySpace) return;
     const newSources = selectedStudySpace.sources.filter((_, index) => index !== indexToDelete);
@@ -697,7 +699,7 @@ function StudySpacesPage() {
                 resultData = quizResult.quiz;
                 break;
             case 'deck':
-                resultData = await generateSlideDeck(input as GenerateSlideDeckInput);
+                resultData = await generateSlideDeck(input as any);
                 break;
             case 'infographic':
                 const infographicResult = await generateInfographic(input as GenerateInfographicInput);
