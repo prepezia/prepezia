@@ -1,4 +1,3 @@
-
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -110,7 +109,7 @@ const generateInfographicFlow = ai.defineFlow({
 },
 async (input) => {
     // Step 1: Extract key points from the content
-    let keyPoints = [];
+    let keyPoints: {title: string, summary: string}[] = [];
     try {
         const extractedPoints = await extractKeyPointsFlow({
             content: input.content,
@@ -140,41 +139,143 @@ async (input) => {
     }
 
     // Step 3: Generate image using Imagen correctly
-    const imagenPrompt = `${imagePrompt}
+    const enhancedPrompt = `${imagePrompt}
 
 IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean sans-serif fonts.`;
 
     try {
-        // Correct way to call Imagen with Genkit
-        const { media } = await ai.generate({
-            model: 'googleai/imagen-4.0-fast-generate-001',
-            prompt: imagenPrompt,
-            config: {
-                // Imagen-specific configurations
-                safetyFilterLevel: 'BLOCK_MEDIUM_AND_ABOVE',
-                personGeneration: 'ALLOW_ADULT',
-                aspectRatio: '1:1', // or '16:9', '3:4', '9:16', '4:3'
-                sampleCount: 1,
-            }
-        });
+        // Try different model names that might work
+        const modelOptions = [
+            'googleai/imagen-3.0-generate-001',  // Try imagen-3 first
+            'googleai/imagen-3.0-fast-generate-001',
+            'googleai/imagen-2.0-generate-001',
+            'googleai/imagen-4.0-fast-generate-001'  // Your original
+        ];
 
-        if (!media?.url) {
-            throw new Error('No image URL returned from Imagen');
+        let lastError: any = null;
+        
+        for (const modelName of modelOptions) {
+            try {
+                console.log(`Attempting with model: ${modelName}`);
+                
+                const result: any = await ai.generate({
+                    model: modelName as any,
+                    prompt: enhancedPrompt,
+                    config: {
+                        safetyFilterLevel: 'BLOCK_ONLY_HIGH',
+                        personGeneration: 'ALLOW_ADULT',
+                        aspectRatio: '1:1',
+                        sampleCount: 1,
+                    }
+                });
+
+                // Check different possible response structures
+                if (result) {
+                    // Try to extract the image URL/data from the response
+                    let imageData: string | null = null;
+                    
+                    // Check for media property
+                    if (result.media?.url) {
+                        imageData = result.media.url;
+                    } 
+                    // Check for direct URL in output
+                    else if (result.output?.url) {
+                        imageData = result.output.url;
+                    }
+                    // Check for base64 data
+                    else if (result.output?.imageData) {
+                        imageData = result.output.imageData;
+                    }
+                    // Check if result itself is a string (data URL)
+                    else if (typeof result === 'string' && result.startsWith('data:image')) {
+                        imageData = result;
+                    }
+                    // Check for message with media
+                    else if (result.message?.media?.url) {
+                        imageData = result.message.media.url;
+                    }
+
+                    if (imageData) {
+                        return {
+                            imageUrl: imageData,
+                            prompt: enhancedPrompt,
+                            keyPoints: keyPoints
+                        };
+                    }
+                }
+                
+                console.log(`Model ${modelName} didn't return expected format:`, result);
+                lastError = new Error('Unexpected response format');
+                
+            } catch (modelError) {
+                console.log(`Model ${modelName} failed:`, modelError);
+                lastError = modelError;
+                // Continue to next model
+            }
         }
 
-        return {
-            imageUrl: media.url,
-            prompt: imagenPrompt,
-            keyPoints: keyPoints
-        };
+        throw lastError || new Error('All Imagen models failed');
+
     } catch (imageError) {
         console.error('Imagen generation failed:', imageError);
-
-        // Fallback: Generate a data URI representation using canvas or return error
-        // You could implement a fallback here using a different approach
-        throw new Error(`Image generation failed: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`);
+        
+        // Enhanced fallback: Generate a data URI representation
+        // This creates a simple SVG infographic as fallback
+        try {
+            const fallbackImageUrl = await generateFallbackInfographic(keyPoints, input.topic || 'Key Insights');
+            return {
+                imageUrl: fallbackImageUrl,
+                prompt: enhancedPrompt,
+                keyPoints: keyPoints
+            };
+        } catch (fallbackError) {
+            throw new Error(`Image generation failed: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`);
+        }
     }
 });
+
+// Add a fallback SVG generator
+async function generateFallbackInfographic(keyPoints: Array<{title: string, summary: string}>, topic: string): Promise<string> {
+    const width = 800;
+    const height = 800;
+    const pointHeight = Math.floor((height - 200) / Math.max(keyPoints.length, 3));
+    
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <rect width="${width}" height="${height}" fill="white" />
+        
+        <!-- Title -->
+        <text x="50" y="60" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#333">
+            ${topic}
+        </text>
+        <line x1="50" y1="70" x2="750" y2="70" stroke="#0077be" stroke-width="2" />
+        
+        <!-- Key Points -->
+        ${keyPoints.map((point, index) => {
+            const y = 120 + (index * pointHeight);
+            return `
+                <g transform="translate(50, ${y})">
+                    <circle cx="20" cy="20" r="15" fill="#0077be" />
+                    <text x="45" y="25" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333">
+                        ${point.title}
+                    </text>
+                    <text x="45" y="50" font-family="Arial, sans-serif" font-size="14" fill="#666">
+                        ${point.summary.substring(0, 60)}${point.summary.length > 60 ? '...' : ''}
+                    </text>
+                    <line x1="0" y1="70" x2="700" y2="70" stroke="#eee" stroke-width="1" />
+                </g>
+            `;
+        }).join('')}
+        
+        <!-- Footer -->
+        <text x="50" y="${height - 30}" font-family="Arial, sans-serif" font-size="14" fill="#999">
+            Prepezia
+        </text>
+    </svg>`;
+    
+    // Convert SVG to data URL
+    const encodedSvg = encodeURIComponent(svg).replace(/\(/g, '%28').replace(/\)/g, '%29');
+    return `data:image/svg+xml,${encodedSvg}`;
+}
 
 export async function generateInfographic(input: GenerateInfographicInput): Promise<GenerateInfographicOutput> {
   return generateInfographicFlow(input);
