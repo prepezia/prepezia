@@ -147,7 +147,7 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
     try {
         // Correct way to call Imagen with Genkit
         const { media } = await ai.generate({
-            model: 'googleai/imagen-3.0-generate-001', // Updated to latest version
+            model: 'googleai/imagen-4.0-fast-generate-001',
             prompt: imagenPrompt,
             config: {
                 // Imagen-specific configurations
