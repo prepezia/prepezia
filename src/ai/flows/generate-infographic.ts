@@ -155,8 +155,6 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
                 personGeneration: 'ALLOW_ADULT',
                 aspectRatio: '1:1', // or '16:9', '3:4', '9:16', '4:3'
                 sampleCount: 1,
-                // Add negative prompts to avoid common issues
-                negativePrompt: "blurry text, distorted text, unreadable text, text not horizontal, cluttered layout, messy design, low quality, bad typography"
             }
         });
 
