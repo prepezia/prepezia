@@ -3,9 +3,17 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write;
+    // Match any file within a user's private folder
+    match /users/{userId}/{allPaths=**} {
+      // Allow read and write access only if the user is authenticated
+      // and their UID matches the {userId} in the path.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow public read access for files in the 'public' folder
+    match /public/{allPaths=**} {
+        allow read;
+        allow write: if false; // No public writes
     }
   }
 }
-
