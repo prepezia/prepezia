@@ -537,16 +537,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         const podcastResult = await generatePodcastFromSources(inputBase);
                         updateNote({ 'generatedContent.podcast': { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio }});
                         setActiveView('podcast');
-
-                        uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio)
-                            .then(downloadURL => {
-                                updateNote({ 'generatedContent.podcast.podcastAudioUrl': downloadURL });
-                                toast({ title: 'Podcast saved to your cloud storage.' });
-                            })
-                            .catch(err => {
-                                console.error("Podcast upload failed:", err);
-                                toast({ variant: 'destructive', title: 'Podcast could not be saved to the cloud.' });
-                            });
                         break;
                     case 'flashcards':
                         resultData = (await generateFlashcards(inputBase)).flashcards;

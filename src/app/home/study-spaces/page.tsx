@@ -896,20 +896,6 @@ function StudySpacesPage() {
                         // Immediately show local audio
                         updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, podcast: { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio }}}));
                         setActiveGeneratedView('podcast');
-
-                        // Asynchronously upload and update with permanent URL
-                        uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/podcast.wav`, podcastResult.podcastAudio)
-                            .then(downloadURL => {
-                                updateSelectedStudySpace(current => {
-                                    const newPodcast = { ...current.generatedContent?.podcast, podcastAudioUrl: downloadURL };
-                                    return { generatedContent: { ...current.generatedContent, podcast: newPodcast }};
-                                });
-                                toast({ title: 'Podcast saved to your cloud storage.' });
-                            })
-                            .catch(err => {
-                                console.error("Podcast upload failed:", err);
-                                toast({ variant: 'destructive', title: 'Podcast could not be saved to the cloud.' });
-                            });
                         break;
                     case 'flashcards':
                         resultData = (await generateFlashcards(inputBase)).flashcards;
