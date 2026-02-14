@@ -1,4 +1,3 @@
-
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -50,7 +49,7 @@ export const extractKeyPointsFlow = ai.defineFlow({
   })),
 }, async (input) => {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-2.5-flash',
     prompt: `Extract ${input.maxPoints} key points from the following content. For each point, provide a short title (2-4 words) and a one-sentence summary (10-15 words). Format as JSON with keys "title" and "summary".
 
 Academic Level: ${input.academicLevel || 'general'}
@@ -68,7 +67,7 @@ Return ONLY the JSON array, no other text.`,
 // Private prompt for designing the image generation prompt
 const designInfographicPrompt = ai.definePrompt({
     name: 'designInfographicPrompt',
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-2.5-flash',
     input: {
       schema: GenerateInfographicInputSchema.extend({
         keyPoints: z.array(z.object({
