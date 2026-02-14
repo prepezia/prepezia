@@ -352,62 +352,72 @@ function StudySpacesPage() {
     }
   }, [generatingAudioId, speakingMessageId, toast]);
   
-  const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
-    if (!currentInput?.trim() || !selectedStudySpace) return;
-    
-    const userMessage: UserChatMessage = { id: `user-${Date.now()}-${Math.random()}`, role: 'user', content: currentInput };
-    
-    updateSelectedStudySpace(current => ({
-        chatHistory: [...(current.chatHistory || []), userMessage]
-    }));
+    const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
+        if (!currentInput?.trim() || !selectedStudySpace) return;
+        
+        const initialHistory = selectedStudySpace.chatHistory || [];
+        const userMessage: UserChatMessage = { 
+            id: `user-${Date.now()}-${initialHistory.length}`, 
+            role: 'user', 
+            content: currentInput 
+        };
+        
+        const newHistoryWithUserMessage = [...initialHistory, userMessage];
 
-    setIsChatLoading(true);
-
-    try {
-        const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
-            name: s.name,
-            type: s.type === 'clipboard' ? 'text' : s.type,
-            url: s.url,
-            dataUri: s.data,
-            contentType: s.contentType,
-        }));
-
-        const response = await interactiveChatWithSources({
-            sources: sourceInputs,
-            question: currentInput
+        // Optimistically update the UI with the user's message
+        updateSelectedStudySpace({
+            chatHistory: newHistoryWithUserMessage
         });
-        
-        const assistantMessage: AssistantChatMessage = {
-            id: `asst-${Date.now()}-${Math.random()}`,
-            role: 'assistant',
-            content: response.answer,
-            citations: response.citations
-        };
 
-        updateSelectedStudySpace(current => ({
-            chatHistory: [...(current.chatHistory || []), assistantMessage]
-        }));
-        
-        if (isVoiceInput) {
-            await handlePlayAudio(assistantMessage.id, response.answer);
+        setIsChatLoading(true);
+
+        try {
+            const sourceInputs: InteractiveChatWithSourcesInput['sources'] = selectedStudySpace.sources.map(s => ({
+                name: s.name,
+                type: s.type === 'clipboard' ? 'text' : s.type,
+                url: s.url,
+                dataUri: s.data,
+                contentType: s.contentType,
+            }));
+
+            const response = await interactiveChatWithSources({
+                sources: sourceInputs,
+                question: currentInput
+            });
+            
+            const assistantMessage: AssistantChatMessage = {
+                id: `asst-${Date.now()}-${newHistoryWithUserMessage.length}`,
+                role: 'assistant',
+                content: response.answer,
+                citations: response.citations
+            };
+
+            // Update the UI with the final history including the assistant's response
+            updateSelectedStudySpace({
+                chatHistory: [...newHistoryWithUserMessage, assistantMessage]
+            });
+            
+            if (isVoiceInput) {
+                await handlePlayAudio(assistantMessage.id, response.answer);
+            }
+
+        } catch (e: any) {
+            console.error("Chat error", e);
+            const errorMessage: AssistantChatMessage = {
+                id: `err-${Date.now()}-${newHistoryWithUserMessage.length}`,
+                role: 'assistant',
+                content: e.message || "Sorry, I couldn't process that request.",
+                isError: true
+            };
+            
+            // Update the UI with the final history including the error message
+            updateSelectedStudySpace({
+                chatHistory: [...newHistoryWithUserMessage, errorMessage]
+            });
+        } finally {
+            setIsChatLoading(false);
         }
-
-    } catch (e: any) {
-        console.error("Chat error", e);
-        const errorMessage: AssistantChatMessage = {
-            id: `err-${Date.now()}-${Math.random()}`,
-            role: 'assistant',
-            content: e.message || "Sorry, I couldn't process that request.",
-            isError: true
-        };
-        updateSelectedStudySpace(current => ({
-            chatHistory: [...(current.chatHistory || []), errorMessage]
-        }));
-    } finally {
-        setIsChatLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStudySpace, toast, handlePlayAudio]);
+    }, [selectedStudySpace, toast, handlePlayAudio, updateSelectedStudySpace]);
   
   // Voice Chat Effect
   useEffect(() => {
@@ -1054,7 +1064,7 @@ function StudySpacesPage() {
                                      {savedItems.length === 0 ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                             {generationOptions.map((option) => (
-                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null}>
+                                                <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={()={() => handleGenerateContent(option.type)}} disabled={isGenerating !== null}>
                                                     {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                                     <span>{option.name}</span>
                                                 </Button>
@@ -1113,7 +1123,7 @@ function StudySpacesPage() {
                             {generationOptions.map((option) => {
                                 const isAlreadyGenerated = !!generatedContent[option.type];
                                 return (
-                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type)} disabled={isGenerating !== null || isAlreadyGenerated}>
+                                    <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={()={() => handleGenerateContent(option.type)}} disabled={isGenerating !== null || isAlreadyGenerated}>
                                         {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
                                         <span>{option.name}</span>
                                         {isAlreadyGenerated && <span className="text-xs text-muted-foreground">(Generated)</span>}
@@ -1155,7 +1165,7 @@ function StudySpacesPage() {
               <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {studySpaces.slice(0, visibleCount).map(space => (
-                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={() => handleSelectStudySpace(space)}>
+                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={()={() => handleSelectStudySpace(space)}}>
                               <CardHeader>
                                   <CardTitle>{space.name}</CardTitle>
                                   <CardDescription>{space.description}</CardDescription>
@@ -1624,9 +1634,9 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
                             </div>
                         </div>
                         <div className="flex justify-between items-center mt-4 max-w-lg mx-auto">
-                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p - 1)} disabled={currentCardIndex === 0}><ArrowLeft className="mr-2"/> Previous</Button>
+                            <Button variant="outline" onClick={()={() => setCurrentCardIndex(p => p - 1)}} disabled={currentCardIndex === 0}><ArrowLeft className="mr-2"/> Previous</Button>
                             <span className="text-sm text-muted-foreground">{currentCardIndex + 1} / {flashcards.length}</span>
-                            <Button variant="outline" onClick={() => setCurrentCardIndex(p => p + 1)} disabled={currentCardIndex === flashcards.length - 1}>Next <ArrowRight className="ml-2"/></Button>
+                            <Button variant="outline" onClick={()={() => setCurrentCardIndex(p => p + 1)}} disabled={currentCardIndex === flashcards.length - 1}>Next <ArrowRight className="ml-2"/></Button>
                         </div>
                     </div>
                 )}
@@ -1677,7 +1687,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         printWindow.document.write(`<html><head><title>Print Quiz Results</title>${styles}${styleBlocks}</head><body>${printContent}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+        setTimeout(()={() => { printWindow.print(); printWindow.close(); }, 1000);
     };
 
     if (quizState === 'results') {
@@ -1728,7 +1738,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
         printWindow.document.write(`<html><head><title>Print Deck</title>${styles}${styleBlocks}<style>@page { size: landscape; }</style></head><body>${printContent}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
+        setTimeout(()={() => { printWindow.print(); printWindow.close(); }, 1000);
     };
     const currentSlide = deck.slides[currentSlideIndex];
     return (
@@ -1872,7 +1882,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean;
                     {sources.length > 0 && (<div className="space-y-2"><h4 className="font-semibold">Sources to Add ({sources.length})</h4><ul className="space-y-2 max-h-60 overflow-y-auto rounded-md border p-2">{sources.map((s, i) => (<li key={i} className="flex items-start text-sm gap-2 p-2 bg-secondary rounded-md">{(s.type === 'pdf' || s.type === 'text') && <FileText className="w-4 h-4 mt-0.5"/>}{s.type === 'audio' && <Mic className="w-4 h-4 mt-0.5"/>}{s.type === 'image' && <ImageIcon className="w-4 h-4 mt-0.5"/>}{s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}{s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}{s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}<span className="flex-1 min-w-0 break-words">{s.name}</span><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button></li>))}</ul></div>)}
                 </div>
                 <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button onClick={handleDone}>Add to Space</Button></DialogFooter>
-                <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
+                <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={(e) => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
                 <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader><Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/><DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter></DialogContent></Dialog>
                 <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
                     <DialogContent className="sm:max-w-2xl">
@@ -1893,3 +1903,5 @@ export default function StudySpacesPageWrapper() {
     </Suspense>
   )
 }
+
+    
