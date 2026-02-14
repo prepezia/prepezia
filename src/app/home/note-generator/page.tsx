@@ -510,15 +510,18 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
       
         let resultData: any;
         let updateData: any = {};
+        let filename: string;
+        let fileUrl: string;
 
         switch(type) {
             case 'podcast':
                 const podcastResult = await generatePodcastFromSources(input as GeneratePodcastFromSourcesInput);
-                const audioUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio);
-                resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: audioUrl };
+                fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/podcast.wav`, podcastResult.podcastAudio);
+                resultData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: fileUrl };
                 updateData = { 'generatedContent.podcast': resultData };
+                filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
                 try {
-                    await downloadUrl(audioUrl, `podcast_${note.topic.replace(/\s+/g, '_')}.wav`);
+                    await downloadUrl(fileUrl, filename);
                     toast({ title: 'Podcast downloaded', description: 'The audio file has been automatically saved to your device.' });
                 } catch (e) {
                     toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the podcast file automatically. You can save it manually later.' });
@@ -526,11 +529,12 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 break;
             case 'infographic':
                 const infographicResult = await generateInfographic(input);
-                const imageUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, infographicResult.imageUrl);
-                resultData = { prompt: infographicResult.prompt, imageUrl: imageUrl };
+                fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, infographicResult.imageUrl);
+                resultData = { prompt: infographicResult.prompt, imageUrl: fileUrl };
                 updateData = { 'generatedContent.infographic': resultData };
+                filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
                 try {
-                    await downloadUrl(imageUrl, `infographic_${note.topic.replace(/\s+/g, '_')}.png`);
+                    await downloadUrl(fileUrl, filename);
                     toast({ title: 'Infographic downloaded', description: 'The image has been automatically saved to your device.' });
                 } catch (e) {
                     toast({ variant: 'destructive', title: 'Auto-Download Failed', description: 'Could not save the infographic file automatically. You can save it manually later.' });
@@ -652,16 +656,16 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             return;
         }
 
+        let url:string | undefined, filename:string | undefined;
         if (type === 'infographic' && content.infographic?.imageUrl) {
-            const url = content.infographic.imageUrl;
-            const filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
-            toast({ title: 'Starting download...' });
-            downloadUrl(url, filename).catch(() => {
-                toast({ variant: 'destructive', title: 'Download Failed' });
-            });
+            url = content.infographic.imageUrl;
+            filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
         } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
-            const url = content.podcast.podcastAudioUrl;
-            const filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
+            url = content.podcast.podcastAudioUrl;
+            filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
+        }
+
+        if(url && filename) {
             toast({ title: 'Starting download...' });
             downloadUrl(url, filename).catch(() => {
                 toast({ variant: 'destructive', title: 'Download Failed' });
@@ -741,23 +745,25 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   
   return (
      <>
-      <HomeHeader 
-        left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>}
-        right={(
-            <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
-                <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
-            </div>
-        )}
-      />
+      <HomeHeader />
       <div className="flex-1 flex flex-col min-h-0">
+        <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center gap-4 py-4">
+                <Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes</Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={handleSaveOffline}><Save className="h-4 w-4"/></Button>
+                    <Button variant="outline" size="icon" onClick={handlePrintNote}><Printer className="h-4 w-4"/></Button>
+                </div>
+            </div>
+        </div>
+        
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
           {activeView !== 'notes' ? (
               <div className="my-8 flex-1">
                   {renderGeneratedContent()}
               </div>
           ) : (
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col mt-4">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex-1 flex flex-col">
                    <TabsList className="grid w-full grid-cols-3 bg-secondary">
                         <TabsTrigger value="notes">Notes</TabsTrigger>
                         <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -825,7 +831,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="generate" className="mt-4">
+                    <TabsContent value="generate" className="mt-4 flex-none">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Generate from Notes</CardTitle>
@@ -938,7 +944,7 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
         }
     }, [firestoreUser, academicLevel]);
 
-    const noteGeneratorLevels = [
+    const noteGeneratorLevels: { label: string, levels: GenerateStudyNotesInput['academicLevel'][] }[] = [
         {
           label: "Academic",
           levels: [
@@ -950,13 +956,16 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
           ]
         },
         {
-          label: "General / Professional",
+          label: "Professional",
           levels: [
             "Beginner",
             "Intermediate",
-            "Advanced",
-            "Other"
+            "Advanced"
           ]
+        },
+        {
+            label: "Other",
+            levels: ["Other"]
         }
     ];
 
