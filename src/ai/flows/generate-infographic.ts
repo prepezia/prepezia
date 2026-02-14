@@ -66,13 +66,13 @@ Return ONLY the JSON array, no other text.`,
 const designInfographicPrompt = ai.definePrompt({
     name: 'designInfographicPrompt',
     model: 'googleai/gemini-2.0-flash-exp',
-    input: { 
+    input: {
       schema: GenerateInfographicInputSchema.extend({
         keyPoints: z.array(z.object({
           title: z.string(),
           summary: z.string()
         }))
-      }) 
+      })
     },
     output: {
         schema: z.object({
@@ -83,7 +83,7 @@ const designInfographicPrompt = ai.definePrompt({
 
 ### CONTEXT:
 - Style: {{style}} ({{style}} style with appropriate visuals)
-- Color Scheme: {{colorScheme}} (use these colors)
+- Color Scheme: {{#if colorScheme}}{{colorScheme}}{{else}}professionally coordinated palette{{/if}} (use these colors)
 - Academic Level: {{academicLevel}} (adjust complexity accordingly)
 
 ### KEY POINTS TO VISUALIZE:
@@ -93,7 +93,7 @@ Point {{@index}}: "{{this.title}}" - {{this.summary}}
 
 ### IMPERATIVE INSTRUCTIONS FOR YOUR PROMPT:
 1. **Layout**: Create a clean {{keyPoints.length}}-point grid layout (2x3 or 2x2 as appropriate) with a clear main title at the top
-2. **Main Title**: "{{topic || 'Key Insights'}}" prominently displayed
+2. **Main Title**: "{{#if topic}}{{topic}}{{else}}Key Insights{{/if}}" prominently displayed
 3. **Text**: For each point, include both the title and summary text
 4. **Icons**: Simple, professional icons representing each point
 5. **Readability**: ALL TEXT MUST BE PERFECTLY HORIZONTAL, CLEAR, AND LEGIBLE. Use sans-serif fonts.
@@ -101,7 +101,7 @@ Point {{@index}}: "{{this.title}}" - {{this.summary}}
 
 ### SPECIFICATIONS:
 - Format: Digital infographic, high resolution
-- Colors: {{colorScheme || 'professionally coordinated palette'}}
+- Colors: {{#if colorScheme}}{{colorScheme}}{{else}}professionally coordinated palette{{/if}}
 - Style: Clean, modern, {{style}} aesthetic
 - Text prominence: Text blocks should be clearly separated from visuals
 
@@ -176,7 +176,7 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
         };
     } catch (imageError) {
         console.error('Imagen generation failed:', imageError);
-        
+
         // Fallback: Generate a data URI representation using canvas or return error
         // You could implement a fallback here using a different approach
         throw new Error(`Image generation failed: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`);
