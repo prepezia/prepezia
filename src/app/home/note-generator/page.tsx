@@ -37,7 +37,7 @@ import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import Image from "next/image";
-import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
+import { InteractiveMindMap, type MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser, useFirestore, useDoc, useCollection, useStorage } from "@/firebase";
@@ -644,31 +644,32 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     }
   }
 
-  const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
-    if (!note) return;
-    const content = note.generatedContent;
-    if (!content) return;
-    
-    let url: string | undefined;
-    let filename: string;
-    
-    if (type === 'infographic' && content.infographic?.imageUrl) {
-        url = content.infographic.imageUrl;
-        filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
-    } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
-        url = content.podcast.podcastAudioUrl;
-        filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
-    }
+    const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
+        if (!note) return;
+        const content = note.generatedContent;
+        if (!content) {
+            toast({ variant: 'destructive', title: 'No file to download' });
+            return;
+        }
 
-    if (url) {
-        toast({ title: 'Starting download...' });
-        downloadUrl(url, filename).catch(() => {
-            toast({ variant: 'destructive', title: 'Download Failed' });
-        });
-    } else {
-        toast({ variant: 'destructive', title: 'No file to download' });
-    }
-  };
+        if (type === 'infographic' && content.infographic?.imageUrl) {
+            const url = content.infographic.imageUrl;
+            const filename = `infographic_${note.topic.replace(/\s+/g, '_')}.png`;
+            toast({ title: 'Starting download...' });
+            downloadUrl(url, filename).catch(() => {
+                toast({ variant: 'destructive', title: 'Download Failed' });
+            });
+        } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
+            const url = content.podcast.podcastAudioUrl;
+            const filename = `podcast_${note.topic.replace(/\s+/g, '_')}.wav`;
+            toast({ title: 'Starting download...' });
+            downloadUrl(url, filename).catch(() => {
+                toast({ variant: 'destructive', title: 'Download Failed' });
+            });
+        } else {
+            toast({ variant: 'destructive', title: 'No file to download' });
+        }
+    };
 
   const renderGeneratedContent = () => {
     if (!activeView || activeView === 'notes' || !note?.generatedContent) return null;
@@ -1335,5 +1336,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
-    

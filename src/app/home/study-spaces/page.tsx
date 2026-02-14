@@ -25,7 +25,7 @@ import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GenerateP
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
@@ -45,7 +45,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { InteractiveMindMap } from "@/components/mind-map/InteractiveMindMap";
+import { InteractiveMindMap, type MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser, useStorage } from "@/firebase";
 import { uploadDataUrlToStorage } from "@/lib/storage";
@@ -677,7 +677,7 @@ function StudySpacesPage() {
 
     try {
         let resultData;
-        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateSlideDeckInput & GenerateInfographicInput = {
+        const input: GeneratePodcastFromSourcesInput & GenerateFlashcardsInput & GenerateQuizInput & GenerateInfographicInput = {
             context: 'study-space',
             sources: selectedStudySpace.sources.map(s => ({...s, type: s.type === 'clipboard' ? 'text' : s.type as any }))
         };
@@ -748,29 +748,30 @@ function StudySpacesPage() {
   };
   
   const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
-    if (!selectedStudySpace) return;
-    const content = selectedStudySpace.generatedContent;
-    if (!content) return;
-    
-    let url: string | undefined;
-    let filename: string;
-    
-    if (type === 'infographic' && content.infographic?.imageUrl) {
-        url = content.infographic.imageUrl;
-        filename = `infographic_${selectedStudySpace.name.replace(/\s+/g, '_')}.png`;
-    } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
-        url = content.podcast.podcastAudioUrl;
-        filename = `podcast_${selectedStudySpace.name.replace(/\s+/g, '_')}.wav`;
-    }
-
-    if (url) {
-        toast({ title: 'Starting download...' });
-        downloadUrl(url, filename).catch(() => {
-            toast({ variant: 'destructive', title: 'Download Failed' });
-        });
-    } else {
-        toast({ variant: 'destructive', title: 'No file to download' });
-    }
+      if (!selectedStudySpace) return;
+      const content = selectedStudySpace.generatedContent;
+      if (!content) {
+          toast({ variant: 'destructive', title: 'No file to download' });
+          return;
+      }
+      
+      if (type === 'infographic' && content.infographic?.imageUrl) {
+          const url = content.infographic.imageUrl;
+          const filename = `infographic_${selectedStudySpace.name.replace(/\s+/g, '_')}.png`;
+          toast({ title: 'Starting download...' });
+          downloadUrl(url, filename).catch(() => {
+              toast({ variant: 'destructive', title: 'Download Failed' });
+          });
+      } else if (type === 'podcast' && content.podcast?.podcastAudioUrl) {
+          const url = content.podcast.podcastAudioUrl;
+          const filename = `podcast_${selectedStudySpace.name.replace(/\s+/g, '_')}.wav`;
+          toast({ title: 'Starting download...' });
+          downloadUrl(url, filename).catch(() => {
+              toast({ variant: 'destructive', title: 'Download Failed' });
+          });
+      } else {
+          toast({ variant: 'destructive', title: 'No file to download' });
+      }
   };
 
   const handleDeleteStudySpace = (spaceId: number) => {
