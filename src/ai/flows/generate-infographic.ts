@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -60,7 +61,7 @@ Return ONLY the JSON array, no other text.`,
     output: { format: 'json' }
   });
 
-  return output;
+  return output as any;
 });
 
 const designInfographicPrompt = ai.definePrompt({
@@ -76,7 +77,7 @@ const designInfographicPrompt = ai.definePrompt({
     },
     output: {
         schema: z.object({
-            imagePrompt: z.string().describe("A highly detailed, descriptive prompt for Imagen to create a professional infographic.")
+            imagePrompt: z.string().describe("A highly detailed, descriptive prompt for an image generation model to create a professional infographic.")
         })
     },
     prompt: `You are an expert infographic designer. Create a detailed prompt for an image generation model to generate a professional infographic.
@@ -146,10 +147,10 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
     try {
         // Try different model names that might work
         const modelOptions = [
-            'googleai/imagen-3.0-generate-001',  // Try imagen-3 first
+            'googleai/imagen-3.0-generate-001',
             'googleai/imagen-3.0-fast-generate-001',
             'googleai/imagen-2.0-generate-001',
-            'googleai/imagen-4.0-fast-generate-001'  // Your original
+            'googleai/imagen-4.0-fast-generate-001'
         ];
 
         let lastError: any = null;
@@ -169,31 +170,13 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
                     }
                 });
 
-                // Check different possible response structures
                 if (result) {
-                    // Try to extract the image URL/data from the response
                     let imageData: string | null = null;
-                    
-                    // Check for media property
-                    if (result.media?.url) {
-                        imageData = result.media.url;
-                    } 
-                    // Check for direct URL in output
-                    else if (result.output?.url) {
-                        imageData = result.output.url;
-                    }
-                    // Check for base64 data
-                    else if (result.output?.imageData) {
-                        imageData = result.output.imageData;
-                    }
-                    // Check if result itself is a string (data URL)
-                    else if (typeof result === 'string' && result.startsWith('data:image')) {
-                        imageData = result;
-                    }
-                    // Check for message with media
-                    else if (result.message?.media?.url) {
-                        imageData = result.message.media.url;
-                    }
+                    if (result.media?.url) imageData = result.media.url; 
+                    else if (result.output?.url) imageData = result.output.url;
+                    else if (result.output?.imageData) imageData = result.output.imageData;
+                    else if (typeof result === 'string' && result.startsWith('data:image')) imageData = result;
+                    else if (result.message?.media?.url) imageData = result.message.media.url;
 
                     if (imageData) {
                         return {
@@ -210,7 +193,6 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
             } catch (modelError) {
                 console.log(`Model ${modelName} failed:`, modelError);
                 lastError = modelError;
-                // Continue to next model
             }
         }
 
@@ -219,8 +201,6 @@ IMPORTANT: All text must be horizontal, clear, and perfectly readable. Use clean
     } catch (imageError) {
         console.error('Imagen generation failed:', imageError);
         
-        // Enhanced fallback: Generate a data URI representation
-        // This creates a simple SVG infographic as fallback
         try {
             const fallbackImageUrl = await generateFallbackInfographic(keyPoints, input.topic || 'Key Insights');
             return {
