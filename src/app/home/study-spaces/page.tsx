@@ -874,7 +874,7 @@ function StudySpacesPage() {
         };
       
         if (type === 'infographic') {
-            setGenerationLogs(['Step 1: Extracting key points...']);
+            setGenerationLogs(prev => [...prev, 'Step 1: Extracting key points...']);
             const keyPoints = await extractKeyPointsFlow({
                 sources: inputBase.sources,
                 maxPoints: 5,
@@ -893,11 +893,7 @@ function StudySpacesPage() {
             });
             setGenerationLogs(prev => [...prev, ...logs]);
             
-            setGenerationLogs(prev => [...prev, 'Step 4: Uploading to storage...']);
-            const fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/studyspaces/${selectedStudySpace.id}/infographic.png`, imageUrl);
-            setGenerationLogs(prev => [...prev, '-> Success: Upload complete.']);
-            
-            const resultData = { prompt: imagePrompt, imageUrl: fileUrl, keyPoints };
+            const resultData = { prompt: imagePrompt, imageUrl: imageUrl, keyPoints };
             updateSelectedStudySpace({ [`generatedContent.${type}`]: resultData });
 
         } else {
@@ -1260,22 +1256,15 @@ function StudySpacesPage() {
                                      )}
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                    {isGenerating === 'infographic' ? (
+                                    {isGenerating ? (
                                         <div className="p-4 rounded-md bg-secondary/50">
                                             <h4 className="font-semibold mb-2 flex items-center gap-2">
                                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                                Generating Infographic...
+                                                Generating {isGenerating}...
                                             </h4>
                                             <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
                                                 {generationLogs.join('\n')}
                                             </pre>
-                                        </div>
-                                    ) : isGenerating ? (
-                                        <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
-                                            <div className="flex items-center gap-3 font-medium">
-                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                <span className="text-muted-foreground">Generating {isGenerating}...</span>
-                                            </div>
                                         </div>
                                     ) : null}
                                     

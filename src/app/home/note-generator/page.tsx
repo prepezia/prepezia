@@ -516,7 +516,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         };
 
         if (type === 'infographic') {
-            setGenerationLogs(['Step 1: Extracting key points from content...']);
+            setGenerationLogs(prev => [...prev, 'Step 1: Extracting key points...']);
             const keyPoints = await extractKeyPointsFlow({
                 content: note.content,
                 maxPoints: 5,
@@ -524,7 +524,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             });
             setGenerationLogs(prev => [...prev, `-> Success: Extracted ${keyPoints.length} key points.`]);
 
-            setGenerationLogs(prev => [...prev, 'Step 2: Designing a detailed prompt for the image model...']);
+            setGenerationLogs(prev => [...prev, 'Step 2: Designing prompt for image model...']);
             const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
             setGenerationLogs(prev => [...prev, '-> Success: Image prompt designed.']);
 
@@ -536,11 +536,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             });
             setGenerationLogs(prev => [...prev, ...logs]);
             
-            setGenerationLogs(prev => [...prev, 'Step 4: Uploading to storage...']);
-            const fileUrl = await uploadDataUrlToStorage(storage, `users/${user.uid}/notes/${note.id}/infographic.png`, imageUrl);
-            setGenerationLogs(prev => [...prev, '-> Success: Upload complete.']);
-            
-            const resultData = { prompt: imagePrompt, imageUrl: fileUrl, keyPoints };
+            const resultData = { prompt: imagePrompt, imageUrl: imageUrl, keyPoints };
             updateNote({ 'generatedContent.infographic': resultData });
             setActiveView('infographic');
 
@@ -860,24 +856,17 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 )}
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                {isGenerating === 'infographic' ? (
+                                {isGenerating && (
                                     <div className="p-4 rounded-md bg-secondary/50">
                                         <h4 className="font-semibold mb-2 flex items-center gap-2">
                                             <Loader2 className="h-4 w-4 animate-spin" />
-                                            Generating Infographic...
+                                            Generating {isGenerating}...
                                         </h4>
                                         <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
                                             {generationLogs.join('\n')}
                                         </pre>
                                     </div>
-                                ) : isGenerating ? (
-                                     <div className="flex items-center justify-between p-2 rounded-md bg-secondary/50">
-                                        <div className="flex items-center gap-3 font-medium">
-                                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                            <span className="text-muted-foreground">Generating {isGenerating}...</span>
-                                        </div>
-                                    </div>
-                                ) : null}
+                                )}
 
                                 {(savedItems.length === 0 && !isGenerating) ? (
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
