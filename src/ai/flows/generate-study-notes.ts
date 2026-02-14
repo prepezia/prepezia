@@ -70,7 +70,7 @@ The notes must be thorough enough for a student to use as a **primary study reso
 5.  **Additional Resources:** After the main content and conclusion, add a final section titled "### Additional Resources". This section must include 3-5 bulleted links to high-quality external resources (e.g., reputable websites, academic articles, relevant YouTube videos) that the student can use for further reading. Provide real, valid URLs.
 6.  **Next Steps**: After generating the notes, formulate an engaging question for the user about what they would like to do next. For example: "Now that you have your notes, would you like me to generate flashcards to test your knowledge, a quiz to check your understanding, or a slide deck to present the key points?" and place it in the 'nextStepsPrompt' field.`,
       config: {
-          maxOutputTokens: 8192,
+          maxOutputTokens: 16384,
       },
     });
 
