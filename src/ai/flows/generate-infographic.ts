@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -65,7 +66,7 @@ Return ONLY the JSON array, no other text.`,
 
 const designInfographicPrompt = ai.definePrompt({
     name: 'designInfographicPrompt',
-    model: 'googleai/gemini-2.0-flash-exp',
+    model: 'googleai/gemini-1.5-flash-latest',
     input: {
       schema: GenerateInfographicInputSchema.extend({
         keyPoints: z.array(z.object({
