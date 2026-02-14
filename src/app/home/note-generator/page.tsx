@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -20,7 +19,7 @@ import { generateStudyNotes, GenerateStudyNotesOutput, GenerateStudyNotesInput }
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
+import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateInfographic, GenerateInfographicOutput, GenerateInfographicInput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
@@ -546,8 +545,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 updateData = { 'generatedContent.quiz': resultData };
                 break;
             case 'deck':
-                const deckResult = await generateSlideDeck(input as GenerateSlideDeckInput);
-                resultData = deckResult;
+                resultData = await generateSlideDeck(input as GenerateSlideDeckInput);
                 updateData = { 'generatedContent.deck': resultData };
                 break;
             case 'mindmap':
@@ -826,7 +824,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="generate" className="mt-4 flex-1">
+                    <TabsContent value="generate" className="mt-4">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Generate from Notes</CardTitle>
@@ -1337,3 +1335,5 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
+    
