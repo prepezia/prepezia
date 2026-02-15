@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save, Pause, Volume2 } from "lucide-react";
+import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save, Pause, Volume2, BrainCircuit } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -28,6 +28,7 @@ import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
+import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,6 +49,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useUser, useStorage } from "@/firebase";
 import { uploadDataUrlToStorage } from "@/lib/storage";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 
 const createSpaceSchema = z.object({
     name: z.string().min(1, { message: "Space name is required." }),
@@ -83,6 +85,7 @@ type InteractionProgress = {
   deckViewed?: boolean;
   infographicViewed?: boolean;
   podcastListened?: boolean;
+  mindmapViewed?: boolean;
 };
 
 type GeneratedContent = {
@@ -92,6 +95,7 @@ type GeneratedContent = {
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   summary?: string;
   infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'logs'> & { imageUrl?: string; logs?: string[] };
+  mindMap?: GenerateMindMapOutput['mindMap'];
 };
 
 type StudySpace = {
@@ -131,6 +135,7 @@ const PROGRESS_WEIGHTS_SPACES = {
     flashcards: 20,
     deck: 15,
     infographic: 5,
+    mindMap: 10,
 };
 
 async function downloadUrl(url: string, filename: string) {
@@ -390,6 +395,7 @@ function StudySpacesPage() {
     if (ip.flashcardsFlipped) totalProgress += (ip.flashcardsFlipped / 100) * PROGRESS_WEIGHTS_SPACES.flashcards;
     if (ip.deckViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.deck;
     if (ip.infographicViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.infographic;
+    if (ip.mindmapViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.mindMap;
     
     const finalProgress = Math.min(Math.round(totalProgress), 100);
     const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
@@ -841,6 +847,12 @@ function StudySpacesPage() {
     setActiveGeneratedView(null);
   };
 
+  const handleMindMapBack = () => {
+    updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, mindmapViewed: true}}));
+    setActiveGeneratedView(null);
+  };
+
+
     const handleGenerateContent = async (type: keyof GeneratedContent) => {
         if (!selectedStudySpace || selectedStudySpace.sources.length === 0) {
             toast({ variant: 'destructive', title: 'No sources', description: 'Add sources to your study space before generating content.' });
@@ -894,6 +906,9 @@ function StudySpacesPage() {
                         break;
                     case 'deck':
                         resultData = await generateSlideDeck(inputBase);
+                        break;
+                    case 'mindMap':
+                        resultData = (await generateMindMap(inputBase)).mindMap;
                         break;
                     default:
                         throw new Error("Unknown generation type");
@@ -992,6 +1007,7 @@ function StudySpacesPage() {
         { name: "Slide Deck", icon: Presentation, type: "deck" },
         { name: "Flashcards", icon: SquareStack, type: "flashcards" },
         { name: "Infographic", icon: AreaChart, type: "infographic" },
+        { name: "Mind Map", icon: BrainCircuit, type: "mindMap" },
     ];
     
     const savedItems = Object.entries(generatedContent).filter(([type, value]) => !!value && type !== 'summary');
@@ -1003,6 +1019,7 @@ function StudySpacesPage() {
         if (activeGeneratedView === 'deck' && generatedContent.deck) { return <SlideDeckView deck={generatedContent.deck} onBack={handleDeckBack} />; }
         if (activeGeneratedView === 'podcast' && generatedContent.podcast) { return <PodcastView podcast={generatedContent.podcast} onBack={handlePodcastBack} topic={selectedStudySpace.name}/> }
         if (activeGeneratedView === 'infographic' && generatedContent.infographic) { return <InfographicView infographic={generatedContent.infographic} onBack={handleInfographicBack} topic={selectedStudySpace.name} />; }
+        if (activeGeneratedView === 'mindMap' && generatedContent.mindMap) { return <MindMapView mindMap={generatedContent.mindMap} onBack={handleMindMapBack} topic={selectedStudySpace.name} />; }
         return null;
     }
 
@@ -1675,35 +1692,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                         {isSearching ? (
                             <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>
                         ) : searchResults.length > 0 ? (
-                            <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y">
-                                <div className="py-4 space-y-2">
-                                {searchResults.map((result, index) => (
-                                    <div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50">
-                                        <Checkbox 
-                                            id={`search-result-${index}`}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setSelectedWebSources(prev => [...prev, result]);
-                                                } else {
-                                                    setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));
-                                                }
-                                            }}
-                                            checked={selectedWebSources.some(s => s.url === result.url)}
-                                        />
-                                        <div className="grid gap-1.5 leading-none flex-1 min-w-0">
-                                            <label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">
-                                                {result.title}
-                                            </label>
-                                            <p className="text-xs text-muted-foreground">{result.snippet}</p>
-                                            <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a>
-                                        </div>
-                                    </div>
-                                ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>
-                        )}
+                            <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => {if (checked) {setSelectedWebSources(prev => [...prev, result]);} else {setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));}}} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}
                         <DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -1981,6 +1970,21 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
                     <summary className="cursor-pointer">View generation prompt</summary>
                     <p className="pt-2">{infographic.prompt}</p>
                 </details>
+            </CardContent>
+        </Card>
+    );
+}
+
+function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onBack: () => void, topic: string }) {
+    return (
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"> Mind Map for "{topic}"</CardTitle>
+                <CardDescription>A visual breakdown of the key concepts.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <InteractiveMindMap data={mindMap} />
             </CardContent>
         </Card>
     );

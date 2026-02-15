@@ -23,8 +23,9 @@ import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
+import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause, Eye } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause, Eye, BrainCircuit } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -44,6 +45,7 @@ import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, 
 import { Separator } from "@/components/ui/separator";
 import { uploadDataUrlToStorage, deleteFolderFromStorage } from "@/lib/storage";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 
 type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
@@ -51,6 +53,7 @@ type GeneratedContent = {
   deck?: GenerateSlideDeckOutput;
   infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'logs'> & { imageUrl?: string; logs?: string[] };
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
+  mindMap?: GenerateMindMapOutput['mindMap'];
 };
 
 type InteractionProgress = {
@@ -60,6 +63,7 @@ type InteractionProgress = {
   deckViewed?: boolean;
   infographicViewed?: boolean;
   podcastListened?: boolean;
+  mindmapViewed?: boolean;
 };
 
 interface Note extends DocumentData {
@@ -85,7 +89,7 @@ type ChatMessage = {
 };
 
 type AcademicLevel = GenerateStudyNotesInput['academicLevel'];
-type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'podcast';
+type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'podcast' | 'mindMap';
 
 async function downloadUrl(url: string, filename: string) {
     try {
@@ -296,6 +300,7 @@ const PROGRESS_WEIGHTS = {
   deck: 10,
   infographic: 5,
   podcast: 0, // Not currently tracked for progress
+  mindMap: 10,
 };
 
 
@@ -342,6 +347,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     if (ip.flashcardsFlipped) totalProgress += (ip.flashcardsFlipped / 100) * PROGRESS_WEIGHTS.flashcards;
     if (ip.deckViewed) totalProgress += PROGRESS_WEIGHTS.deck;
     if (ip.infographicViewed) totalProgress += PROGRESS_WEIGHTS.infographic;
+    if (ip.mindmapViewed) totalProgress += PROGRESS_WEIGHTS.mindMap;
     
     const finalProgress = Math.min(Math.round(totalProgress), 100);
     const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
@@ -532,6 +538,9 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         updateNote({ 'generatedContent.podcast': { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio }});
                         setActiveView('podcast');
                         break;
+                    case 'mindMap':
+                        resultData = (await generateMindMap(inputBase)).mindMap;
+                        break;
                     case 'flashcards':
                         resultData = (await generateFlashcards(inputBase)).flashcards;
                         break;
@@ -571,6 +580,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     if (contentType === 'deck') delete newProgress.deckViewed;
     if (contentType === 'infographic') delete newProgress.infographicViewed;
     if (contentType === 'podcast') delete newProgress.podcastListened;
+    if (contentType === 'mindMap') delete newProgress.mindmapViewed;
     
     updateNote({ [`generatedContent.${contentType}`]: deleteField(), interactionProgress: newProgress });
     toast({ title: 'Content Deleted' });
@@ -691,6 +701,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         return <InfographicView infographic={content as any} onBack={() => handleFinishAndGoBack({ infographicViewed: true })} topic={note.topic} />;
       case 'podcast':
         return <PodcastView podcast={content as any} onBack={() => handleFinishAndGoBack({ podcastListened: true })} topic={note.topic} />;
+      case 'mindMap':
+        return <MindMapView mindMap={content as any} onBack={() => handleFinishAndGoBack({ mindmapViewed: true })} topic={note.topic} />;
       default:
         return null;
     }
@@ -723,6 +735,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
       { name: "Slide Deck", icon: Presentation, type: "deck" },
       { name: "Flashcards", icon: SquareStack, type: "flashcards" },
       { name: "Infographic", icon: AreaChart, type: "infographic" },
+      { name: "Mind Map", icon: BrainCircuit, type: "mindMap" },
   ];
 
   const savedItems = Object.entries(generatedContent).filter(([_, value]) => !!value);
@@ -1320,6 +1333,21 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
                     <summary className="cursor-pointer">View generation prompt</summary>
                     <p className="pt-2">{infographic.prompt}</p>
                 </details>
+            </CardContent>
+        </Card>
+    );
+}
+
+function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onBack: () => void, topic: string }) {
+    return (
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"> Mind Map for "{topic}"</CardTitle>
+                <CardDescription>A visual breakdown of the key concepts.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <InteractiveMindMap data={mindMap} />
             </CardContent>
         </Card>
     );

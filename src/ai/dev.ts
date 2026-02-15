@@ -28,3 +28,4 @@ import '@/ai/flows/generate-infographic.ts';
 import '@/ai/flows/text-to-speech.ts';
 import '@/ai/flows/guided-learning-chat.ts';
 import '@/ai/flows/generate-chat-title.ts';
+import '@/ai/flows/generate-mind-map.ts';
