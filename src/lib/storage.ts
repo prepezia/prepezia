@@ -1,23 +1,30 @@
 import { FirebaseStorage, ref, uploadString, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
 
-// Helper to test storage connection
-export async function testStorageConnection(storage: FirebaseStorage): Promise<boolean> {
+// Helper to get file size from data URL
+export function getDataUrlSize(dataUrl: string): number {
     try {
-        console.log('[Storage] Testing connection...');
-        const testRef = ref(storage, `test-connection-${Date.now()}.txt`);
-        const testData = 'data:text/plain;base64,' + btoa('Storage connection test');
-        
-        const snapshot = await uploadString(testRef, testData, 'data_url');
-        await getDownloadURL(snapshot.ref);
-        await deleteObject(snapshot.ref);
-        
-        console.log('[Storage] Connection test successful');
+        const base64Data = dataUrl.split(',')[1] || '';
+        // Base64 length * 0.75 gives approximate byte size
+        return Math.round(base64Data.length * 0.75);
+    } catch {
+        return 0;
+    }
+}
+
+// Helper to validate data URL
+export function isValidDataUrl(dataUrl: string): boolean {
+    if (!dataUrl || typeof dataUrl !== 'string') return false;
+    if (!dataUrl.startsWith('data:')) return false;
+    
+    try {
+        const [header] = dataUrl.split(',');
+        if (!header.includes(';base64')) return false;
         return true;
-    } catch (error) {
-        console.error('[Storage] Connection test failed:', error);
+    } catch {
         return false;
     }
 }
+
 
 // Helper to upload a data URL string to Firebase Storage with timeout and retry
 export async function uploadDataUrlToStorage(
@@ -26,16 +33,12 @@ export async function uploadDataUrlToStorage(
     dataUrl: string,
     maxRetries = 3
 ): Promise<string> {
-    console.log(`[Storage] Starting upload to: ${path}`);
-    console.log(`[Storage] Data URL length: ${dataUrl.length}, preview: ${dataUrl.substring(0, 100)}...`);
+    const estimatedSize = getDataUrlSize(dataUrl);
+    console.log(`[Storage] Starting upload to: ${path}. Estimated size: ${(estimatedSize / 1024).toFixed(2)} KB`);
     
     // Validate input
-    if (!dataUrl || typeof dataUrl !== 'string') {
-        throw new Error(`Invalid dataUrl: must be a non-empty string, got ${typeof dataUrl}`);
-    }
-    
-    if (!dataUrl.startsWith('data:')) {
-        throw new Error(`Invalid Data URL. Must start with "data:". Actual: ${dataUrl.substring(0, 50)}...`);
+    if (!isValidDataUrl(dataUrl)) {
+        throw new Error(`Invalid Data URL. Must be a non-empty string starting with "data:...;base64,".`);
     }
 
     let lastError: Error | null = null;
@@ -47,13 +50,13 @@ export async function uploadDataUrlToStorage(
             
             const storageRef = ref(storage, path);
             
-            // Create upload promise with timeout
+            // Create upload promise with a longer timeout
             const uploadPromise = uploadString(storageRef, dataUrl, 'data_url');
             const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error(`Upload attempt ${attempt} timed out after 60 seconds`)), 60000);
+                setTimeout(() => reject(new Error(`Upload attempt ${attempt} timed out after 120 seconds`)), 120000); // Increased to 2 minutes
             });
 
-            // Race the upload against the timeout
+            console.log(`[Storage] Racing upload against ${120}s timeout...`);
             const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
             
             console.log(`[Storage] Upload successful on attempt ${attempt}, getting download URL...`);
@@ -76,11 +79,8 @@ export async function uploadDataUrlToStorage(
             });
 
             // Don't retry on certain errors
-            if (error.code === 'storage/unauthorized') {
-                throw new Error('Permission denied: You do not have access to upload to this location. Please check your authentication.');
-            }
-            if (error.code === 'storage/invalid-format') {
-                throw new Error('Invalid file format. The data URL appears to be corrupted.');
+            if (error.code === 'storage/unauthorized' || error.code === 'storage/invalid-format') {
+                throw new Error(`Upload failed with non-retriable error: ${error.message}`);
             }
             
             // Wait before retrying (exponential backoff)
@@ -158,30 +158,5 @@ export async function deleteFolderFromStorage(storage: FirebaseStorage, path: st
     } catch (error) {
         console.error(`[Storage] Failed to delete folder ${path}:`, error);
         // Don't re-throw, as we don't want to block UI deletion if storage deletion fails
-    }
-}
-
-// Helper to get file size from data URL
-export function getDataUrlSize(dataUrl: string): number {
-    try {
-        const base64Data = dataUrl.split(',')[1] || '';
-        // Base64 length * 0.75 gives approximate byte size
-        return Math.round(base64Data.length * 0.75);
-    } catch {
-        return 0;
-    }
-}
-
-// Helper to validate data URL
-export function isValidDataUrl(dataUrl: string): boolean {
-    if (!dataUrl || typeof dataUrl !== 'string') return false;
-    if (!dataUrl.startsWith('data:')) return false;
-    
-    try {
-        const [header] = dataUrl.split(',');
-        if (!header.includes(';base64')) return false;
-        return true;
-    } catch {
-        return false;
     }
 }
