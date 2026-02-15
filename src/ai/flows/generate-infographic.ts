@@ -50,7 +50,7 @@ const extractKeyPointsFlow = ai.defineFlow({
   })),
 }, async (input) => {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-flash',
+    model: 'googleai/gemini-2.5-pro',
     prompt: `Extract the ${input.maxPoints} most important, distinct key points from the following content. Each point must have a very short, catchy title (2-3 words) and a concise one-sentence summary (max 15 words).
 
 Academic Level: ${input.academicLevel || 'general'}
@@ -210,7 +210,7 @@ async function generateFallbackSvg(keyPoints: { title: string; summary: string }
               context: {template: content},
               width: width,
               height: height
-          } as any
+          }
       );
       return dataUrl;
   } catch (error) {
