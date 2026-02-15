@@ -25,7 +25,7 @@ import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow, Generat
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
-import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause, Eye, BrainCircuit } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, Plus, ArrowLeft, ArrowRight, MessageCircle, Send, Bot, HelpCircle, Presentation, SquareStack, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Printer, View, Grid, Save, MoreVertical, Trash2, AreaChart, Download, GitFork, Mic, Volume2, Pause, Eye, BrainCircuit, Minus } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1339,15 +1339,67 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
 }
 
 function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onBack: () => void, topic: string }) {
+    const [isAllExpanded, setIsAllExpanded] = useState(true);
+    const [mindMapKey, setMindMapKey] = useState(Date.now());
+    const { toast } = useToast();
+
+    const handleExpandAll = () => {
+        setIsAllExpanded(true);
+        setMindMapKey(Date.now());
+    };
+
+    const handleCollapseAll = () => {
+        setIsAllExpanded(false);
+        setMindMapKey(Date.now());
+    };
+    
+    const downloadMindMapAsText = (node: MindMapNodeData, level = 0): string => {
+        let content = `${'  '.repeat(level)}- ${node.title}\n`;
+        if (node.note) {
+            content += `${'  '.repeat(level + 1)}  Note: ${node.note}\n`;
+        }
+        if (node.children) {
+            for (const child of node.children) {
+                content += downloadMindMapAsText(child, level + 1);
+            }
+        }
+        return content;
+    };
+
+    const handleDownload = () => {
+        try {
+            const textContent = downloadMindMapAsText(mindMap);
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${topic.replace(/\s+/g, '_')}_mindmap.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Download failed' });
+            console.error(error);
+        }
+    };
+
     return (
         <Card>
             <CardHeader>
-                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                 <div className="flex justify-between items-start">
+                    <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                        <Button onClick={handleExpandAll} variant="ghost" size="icon"><Plus className="h-4 w-4"/></Button>
+                        <Button onClick={handleCollapseAll} variant="ghost" size="icon"><Minus className="h-4 w-4"/></Button>
+                    </div>
+                </div>
                 <CardTitle className="pt-4 flex items-center gap-2"> Mind Map for "{topic}"</CardTitle>
                 <CardDescription>A visual breakdown of the key concepts.</CardDescription>
             </CardHeader>
             <CardContent>
-                <InteractiveMindMap data={mindMap} />
+                <InteractiveMindMap key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
             </CardContent>
         </Card>
     );
