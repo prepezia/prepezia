@@ -789,7 +789,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         <TabsTrigger value="generate">Generate</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="notes" className="mt-4 flex-1">
+                    <TabsContent value="notes" className="mt-4 flex-1 w-full max-w-0 min-w-full">
                         <Card className="h-full flex flex-col">
                             <CardHeader>
                                 <h1 className="text-3xl font-headline font-bold">{note.topic}</h1>
@@ -1419,3 +1419,4 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
+
