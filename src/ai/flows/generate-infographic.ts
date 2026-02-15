@@ -186,14 +186,6 @@ function generateFallbackHtml(keyPoints: { title: string; summary: string }[], t
     </div>
   `;
 
-  return `
-    <html>
-      <head>
-          <meta charset="UTF-8">
-          <style> body { margin: 0; padding: 0; } </style>
-      </head>
-      <body>
-          ${content}
-      </body>
-    </html>`;
+  // Return only the main div, not the full HTML document
+  return content;
 }
