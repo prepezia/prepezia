@@ -3,16 +3,16 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // The request.path variable contains the full path to the object.
-    // We construct a regular expression to match paths that start with 'users/',
-    // followed by the authenticated user's UID. This ensures users can only write
-    // to their own designated folder.
-    match /{path=**} {
-      allow read, write: if request.auth != null && request.path.matches('/b/' + bucket + '/o/users/' + request.auth.uid + '/.*');
+    // --- User-Specific Files ---
+    // Users can only read and write to their own folder, which is named
+    // after their unique User ID (UID).
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // This rule allows public read access to files in the 'public' folder.
-    // Writing to the public folder is denied.
+    // --- Public Files ---
+    // Any file in the 'public/' directory is readable by anyone.
+    // Writing to the public folder is disabled to prevent abuse.
     match /public/{allPaths=**} {
       allow read;
       allow write: if false;
