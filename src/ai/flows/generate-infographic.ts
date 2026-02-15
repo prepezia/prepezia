@@ -3,7 +3,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { toPng } from 'html-to-image';
 
 const SourceSchema = z.object({
     type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
@@ -64,57 +63,6 @@ Return ONLY the JSON array of objects, with keys "title" and "summary". Do not a
   return output as any;
 });
 
-// Flow 2: Design the prompt for the image model
-const designInfographicPromptFlow = ai.defineFlow({
-    name: 'designInfographicPromptFlow',
-    inputSchema: z.object({
-        topic: z.string(),
-        keyPoints: z.array(z.object({ title: z.string(), summary: z.string() }))
-    }),
-    outputSchema: z.object({ imagePrompt: z.string() }),
-}, async ({ topic, keyPoints }) => {
-    const { output } = await ai.generate({
-        model: 'googleai/gemini-2.5-pro', // Using the more powerful model for better prompt design
-        prompt: `Create a professional infographic about "${topic}". The infographic must be visually appealing, clean, and modern.
-
-    **CRITICAL REQUIREMENTS:**
-    1.  **Legible Text:** All text MUST be perfectly horizontal, clear, and easy to read. Do not use distorted, rotated, or unreadable text.
-    2.  **Grid Layout:** Use a structured grid-based layout with clear sections for each key point.
-    3.  **Title:** The main title "${topic}" should be prominent at the top.
-    4.  **Visuals:** Use clean icons and simple graphics to represent each point. Avoid overly complex imagery.
-    5.  **Color Scheme:** Use a professional color palette with 2-3 primary colors (e.g., shades of blue and a single accent color like orange or green). High contrast is essential.
-    6.  **Footer:** Include the text "Prepezia" in a small, clean font at the bottom.
-
-    **CONTENT TO VISUALIZE:**
-    ${keyPoints.map((p, i) => `${i + 1}. **${p.title}:** ${p.summary}`).join('\n')}
-
-    Generate a high-quality, professional infographic image that effectively visualizes these points.`,
-        output: { schema: z.object({ imagePrompt: z.string() }) },
-    });
-    return output!;
-});
-
-// Flow 3: Generate the actual image, with retries and fallback
-const generateImageWithFallbackFlow = ai.defineFlow({
-    name: 'generateImageWithFallbackFlow',
-    inputSchema: z.object({
-        imagePrompt: z.string(),
-    }),
-    outputSchema: z.object({ imageUrl: z.string().optional() }),
-}, async ({ imagePrompt }) => {
-    try {
-        const { media } = await ai.generate({
-            model: 'googleai/imagen-4.0-fast-generate-001',
-            prompt: imagePrompt,
-        });
-        return { imageUrl: media?.url };
-    } catch (error) {
-        console.error("Primary image generation failed:", error);
-        // Fallback is now handled on the client side
-        return { imageUrl: undefined };
-    }
-});
-
 
 // Main flow that orchestrates the steps
 export const generateInfographic = ai.defineFlow({
@@ -129,45 +77,32 @@ export const generateInfographic = ai.defineFlow({
     const keyPoints = await extractKeyPointsFlow(input);
     logs.push(`-> Success: Extracted ${keyPoints.length} key points.`);
 
-    // Step 2: Design the image generation prompt
-    logs.push('Step 2: Designing a detailed prompt for the image model...');
-    const { imagePrompt } = await designInfographicPromptFlow({
-        topic: input.topic || 'Key Insights',
-        keyPoints,
-    });
-    logs.push('-> Success: Image prompt designed.');
-    
-    // Step 3: Attempt to generate the image
-    logs.push('Step 3: Generating infographic image...');
-    const { imageUrl } = await generateImageWithFallbackFlow({ imagePrompt });
-    
-    if (imageUrl) {
-        logs.push('-> Success: Image generated.');
-        return { imageUrl, prompt: imagePrompt, keyPoints, logs };
-    }
+    // Step 2: Generate HTML design from the key points
+    logs.push('Step 2: Generating HTML design for infographic...');
+    const fallbackHtml = generateInfographicHtml(keyPoints, input.topic || 'Key Insights');
+    logs.push('-> Success: HTML generated.');
 
-    // Step 4: If image fails, create fallback HTML
-    logs.push('-> Image generation failed. Generating fallback HTML design.');
-    const fallbackHtml = generateFallbackHtml(keyPoints, input.topic || 'Key Insights');
-    logs.push('-> Success: Fallback HTML generated.');
-    return { fallbackHtml, prompt: imagePrompt, keyPoints, logs };
+    // The client will handle the rendering to an image and the upload.
+    return { fallbackHtml, keyPoints, logs };
 });
 
-// Helper function to generate a fallback HTML string
-function generateFallbackHtml(keyPoints: { title: string; summary: string }[], topic: string): string {
-  const content = `
-    <div style="width: 800px; height: 600px; background-color: white; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; display: flex; flex-direction: column;">
-      <h1 style="font-size: 36px; font-weight: 700; color: #111; text-align: center; margin-bottom: 30px;">${topic}</h1>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1;">
-        ${keyPoints.map((point) => `
-          <div style="background-color: #f1f5f9; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; border: 1px solid #e2e8f0;">
-            <h2 style="font-size: 18px; font-weight: 600; color: #005A9C; margin: 0 0 8px 0;">${point.title}</h2>
-            <p style="font-size: 14px; color: #475569; margin: 0; line-height: 1.5;">${point.summary}</p>
-          </div>
-        `).join('')}
+// Helper function to generate a well-styled HTML string
+function generateInfographicHtml(keyPoints: { title: string; summary: string }[], topic: string): string {
+    const content = `
+      <div style="width: 800px; padding: 40px; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; border: 1px solid #e2e8f0; display: flex; flex-direction: column;">
+        <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #E53E3E; margin-bottom: 30px;">
+            <h1 style="font-size: 38px; font-weight: 800; color: #1a202c; margin: 0;">${topic}</h1>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px 40px; flex-grow: 1;">
+          ${keyPoints.map((point, index) => `
+            <div style="display: flex; flex-direction: column;">
+              <h2 style="font-size: 20px; font-weight: 700; color: #2d3748; margin: 0 0 8px 0; border-bottom: 1px solid #CBD5E0; padding-bottom: 8px;">${point.title}</h2>
+              <p style="font-size: 15px; color: #4a5568; margin: 0; line-height: 1.6;">${point.summary}</p>
+            </div>
+          `).join('')}
+        </div>
+        <p style="text-align: center; font-size: 14px; color: #a0aec0; margin-top: 40px; font-weight: 600; padding-top: 20px; border-top: 1px solid #e2e8f0;">Prepezia</p>
       </div>
-      <p style="text-align: center; font-size: 14px; color: #94a3b8; margin-top: 30px;">Prepezia</p>
-    </div>
-  `;
-  return content;
+    `;
+    return content;
 }
