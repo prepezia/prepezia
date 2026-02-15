@@ -3,6 +3,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { toPng } from 'html-to-image';
 
 const SourceSchema = z.object({
     type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
@@ -72,7 +73,9 @@ const designInfographicPromptFlow = ai.defineFlow({
     }),
     outputSchema: z.object({ imagePrompt: z.string() }),
 }, async ({ topic, keyPoints }) => {
-    const prompt = `Create a professional infographic about "${topic}". The infographic must be visually appealing, clean, and modern.
+    const { output } = await ai.generate({
+        model: 'googleai/gemini-2.5-pro', // Using the more powerful model for better prompt design
+        prompt: `Create a professional infographic about "${topic}". The infographic must be visually appealing, clean, and modern.
 
     **CRITICAL REQUIREMENTS:**
     1.  **Legible Text:** All text MUST be perfectly horizontal, clear, and easy to read. Do not use distorted, rotated, or unreadable text.
@@ -85,8 +88,10 @@ const designInfographicPromptFlow = ai.defineFlow({
     **CONTENT TO VISUALIZE:**
     ${keyPoints.map((p, i) => `${i + 1}. **${p.title}:** ${p.summary}`).join('\n')}
 
-    Generate a high-quality, professional infographic image that effectively visualizes these points.`;
-    return { imagePrompt: prompt };
+    Generate a high-quality, professional infographic image that effectively visualizes these points.`,
+        output: { schema: z.object({ imagePrompt: z.string() }) },
+    });
+    return output!;
 });
 
 // Flow 3: Generate the actual image, with retries and fallback
@@ -94,39 +99,19 @@ const generateImageWithFallbackFlow = ai.defineFlow({
     name: 'generateImageWithFallbackFlow',
     inputSchema: z.object({
         imagePrompt: z.string(),
-        keyPoints: z.array(z.object({ title: z.string(), summary: z.string() })),
-        topic: z.string()
     }),
-    outputSchema: GenerateInfographicOutputSchema,
-}, async ({ imagePrompt, keyPoints, topic }) => {
-    const logs: string[] = [];
-
+    outputSchema: z.object({ imageUrl: z.string().optional() }),
+}, async ({ imagePrompt }) => {
     try {
-        logs.push(`-> Attempting with primary image model...`);
         const { media } = await ai.generate({
             model: 'googleai/imagen-4.0-fast-generate-001',
             prompt: imagePrompt,
         });
-
-        if (media?.url) {
-            logs.push(`-> Success: Image generated with primary model.`);
-            return { imageUrl: media.url, prompt: imagePrompt, keyPoints, logs };
-        }
-        throw new Error('Primary model did not return a valid image URL.');
-
-    } catch (error: any) {
-        logs.push(`-> Primary image model failed: ${error.message}`);
-        logs.push("-> Generating a fallback HTML design.");
-
-        const fallbackHtml = generateFallbackHtml(keyPoints, topic);
-        logs.push("-> Success: Fallback HTML generated.");
-
-        return {
-            fallbackHtml: fallbackHtml,
-            prompt: imagePrompt,
-            keyPoints,
-            logs,
-        };
+        return { imageUrl: media?.url };
+    } catch (error) {
+        console.error("Primary image generation failed:", error);
+        // Fallback is now handled on the client side
+        return { imageUrl: undefined };
     }
 });
 
@@ -152,27 +137,26 @@ export const generateInfographic = ai.defineFlow({
     });
     logs.push('-> Success: Image prompt designed.');
     
-    // Step 3: Generate the image or get fallback HTML
+    // Step 3: Attempt to generate the image
     logs.push('Step 3: Generating infographic image...');
-    const finalResult = await generateImageWithFallbackFlow({
-        imagePrompt,
-        keyPoints,
-        topic: input.topic || 'Key Insights',
-    });
+    const { imageUrl } = await generateImageWithFallbackFlow({ imagePrompt });
+    
+    if (imageUrl) {
+        logs.push('-> Success: Image generated.');
+        return { imageUrl, prompt: imagePrompt, keyPoints, logs };
+    }
 
-    return {
-        ...finalResult,
-        logs: [...logs, ...(finalResult.logs || [])],
-    };
+    // Step 4: If image fails, create fallback HTML
+    logs.push('-> Image generation failed. Generating fallback HTML design.');
+    const fallbackHtml = generateFallbackHtml(keyPoints, input.topic || 'Key Insights');
+    logs.push('-> Success: Fallback HTML generated.');
+    return { fallbackHtml, prompt: imagePrompt, keyPoints, logs };
 });
 
 // Helper function to generate a fallback HTML string
 function generateFallbackHtml(keyPoints: { title: string; summary: string }[], topic: string): string {
-  const width = 800;
-  const height = 600 + keyPoints.length * 50; 
-
   const content = `
-    <div style="width: ${width}px; height: ${height}px; background-color: white; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; display: flex; flex-direction: column;">
+    <div style="width: 800px; height: 600px; background-color: white; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; display: flex; flex-direction: column;">
       <h1 style="font-size: 36px; font-weight: 700; color: #111; text-align: center; margin-bottom: 30px;">${topic}</h1>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1;">
         ${keyPoints.map((point) => `
@@ -185,7 +169,5 @@ function generateFallbackHtml(keyPoints: { title: string; summary: string }[], t
       <p style="text-align: center; font-size: 14px; color: #94a3b8; margin-top: 30px;">Prepezia</p>
     </div>
   `;
-
-  // Return only the main div, not the full HTML document
   return content;
 }
