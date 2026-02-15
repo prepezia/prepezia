@@ -195,7 +195,7 @@ async function generateFallbackSvg(keyPoints: { title: string; summary: string }
   try {
       const dataUrl = await toPng(
           {
-              template: (args) => `
+              template: (args: any) => `
                   <html>
                   <head>
                       <meta charset="UTF-8">

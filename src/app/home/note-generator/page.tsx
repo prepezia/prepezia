@@ -53,7 +53,7 @@ type GeneratedContent = {
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
   infographic?: Omit<GenerateInfographicOutput, 'imageUrl'> & { imageUrl?: string };
-  podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudioUrl'> & { podcastAudioUrl?: string };
+  podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   mindMap?: GenerateMindMapOutput['mindMap'];
 };
 
@@ -521,7 +521,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             if (type === 'infographic' || type === 'podcast') {
                 setGenerationLogs(prev => [...prev, `Step 1a: Calling AI to generate ${type}...`]);
                 const result = type === 'infographic'
-                    ? await generateInfographic(inputBase)
+                    ? await generateInfographic({...inputBase, style: 'educational', maxPoints: 5})
                     : await generatePodcastFromSources(inputBase);
                 
                 setGenerationLogs(prev => [...prev, `-> AI generation complete.`]);
@@ -539,7 +539,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     
                 setGenerationLogs(prev => [...prev, `Step 2: Uploading ${type} to storage... Path: ${storagePath}`]);
                 
-                let downloadUrl;
+                let downloadUrl: string;
                 try {
                     downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
                     setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded. URL: ${downloadUrl}`]);
