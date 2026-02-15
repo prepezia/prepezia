@@ -1,4 +1,4 @@
-import { FirebaseStorage, ref, uploadString, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
+import { FirebaseStorage, ref, uploadString, getDownloadURL, deleteObject, listAll, uploadBytes } from 'firebase/storage';
 
 // Helper to get file size from data URL
 export function getDataUrlSize(dataUrl: string): number {
@@ -26,41 +26,37 @@ export function isValidDataUrl(dataUrl: string): boolean {
 }
 
 
-// Helper to upload a data URL string to Firebase Storage with timeout and retry
+// Helper to upload a data URL string to Firebase Storage by converting it to a Blob
 export async function uploadDataUrlToStorage(
     storage: FirebaseStorage, 
     path: string, 
     dataUrl: string,
-    maxRetries = 3
+    maxRetries = 1
 ): Promise<string> {
     const estimatedSize = getDataUrlSize(dataUrl);
     console.log(`[Storage] Starting upload to: ${path}. Estimated size: ${(estimatedSize / 1024).toFixed(2)} KB`);
     
-    // Validate input
     if (!isValidDataUrl(dataUrl)) {
         throw new Error(`Invalid Data URL. Must be a non-empty string starting with "data:...;base64,".`);
     }
 
     let lastError: Error | null = null;
     
-    // Retry loop
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             console.log(`[Storage] Upload attempt ${attempt}/${maxRetries}`);
-            
+
+            // Convert data URL to Blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            console.log(`[Storage] Converted data URL to Blob. Blob size: ${(blob.size / 1024).toFixed(2)} KB, Type: ${blob.type}`);
+
             const storageRef = ref(storage, path);
             
-            // Create upload promise with a longer timeout
-            const uploadPromise = uploadString(storageRef, dataUrl, 'data_url');
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error(`Upload attempt ${attempt} timed out after 120 seconds`)), 120000); // Increased to 2 minutes
-            });
+            // Using uploadBytes which is better for file-like objects (Blobs)
+            const snapshot = await uploadBytes(storageRef, blob);
+            console.log(`[Storage] Upload successful on attempt ${attempt}. Getting download URL...`);
 
-            console.log(`[Storage] Racing upload against ${120}s timeout...`);
-            const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
-            
-            console.log(`[Storage] Upload successful on attempt ${attempt}, getting download URL...`);
-            
             const downloadUrl = await getDownloadURL(snapshot.ref);
             console.log(`[Storage] Download URL obtained: ${downloadUrl}`);
             
@@ -68,24 +64,15 @@ export async function uploadDataUrlToStorage(
             
         } catch (error: any) {
             lastError = error;
-            
-            // Detailed error logging
             console.error(`[Storage] Upload attempt ${attempt} failed:`, {
-                error: error,
+                error,
                 message: error.message,
                 code: error.code,
                 name: error.name,
                 path: path
             });
-
-            // Don't retry on certain errors
-            if (error.code === 'storage/unauthorized' || error.code === 'storage/invalid-format') {
-                throw new Error(`Upload failed with non-retriable error: ${error.message}`);
-            }
-            
-            // Wait before retrying (exponential backoff)
             if (attempt < maxRetries) {
-                const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+                const waitTime = Math.pow(2, attempt) * 1000;
                 console.log(`[Storage] Waiting ${waitTime}ms before retry...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
             }
@@ -94,19 +81,6 @@ export async function uploadDataUrlToStorage(
 
     // All retries failed
     const errorMessage = lastError?.message || 'Unknown error';
-    const errorCode = (lastError as any)?.code;
-    
-    // Handle specific Firebase Storage errors
-    if (errorCode === 'storage/unauthorized') {
-        throw new Error('Permission denied: You do not have access to upload to this location.');
-    } else if (errorCode === 'storage/canceled') {
-        throw new Error('Upload was canceled.');
-    } else if (errorCode === 'storage/unknown') {
-        throw new Error('An unknown error occurred during upload. Please check your network connection.');
-    } else if (errorMessage.includes('timeout')) {
-        throw new Error('Upload timed out. The file might be too large or your connection is slow.');
-    }
-    
     throw new Error(`Failed to upload to storage after ${maxRetries} attempts: ${errorMessage}`);
 }
 
