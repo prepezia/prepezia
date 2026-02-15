@@ -1,3 +1,4 @@
+
 import { FirebaseStorage, ref, uploadString, getDownloadURL, deleteObject, listAll, uploadBytes } from 'firebase/storage';
 
 // Helper to get file size from data URL
@@ -30,105 +31,65 @@ export function isValidDataUrl(dataUrl: string): boolean {
 export async function uploadDataUrlToStorage(
     storage: FirebaseStorage, 
     path: string, 
-    dataUrl: string,
-    maxRetries = 1
+    dataUrl: string
 ): Promise<string> {
     const estimatedSize = getDataUrlSize(dataUrl);
     console.log(`[Storage] Starting upload to: ${path}. Estimated size: ${(estimatedSize / 1024).toFixed(2)} KB`);
     
     if (!isValidDataUrl(dataUrl)) {
-        throw new Error(`Invalid Data URL. Must be a non-empty string starting with "data:...;base64,".`);
+        throw new Error(`[Storage] Invalid Data URL. Must be a non-empty string starting with "data:...;base64,".`);
     }
 
-    let lastError: Error | null = null;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            console.log(`[Storage] Upload attempt ${attempt}/${maxRetries}`);
+    try {
+        console.log('[Storage] Converting data URL to Blob...');
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        console.log(`[Storage] Blob created. Size: ${(blob.size / 1024).toFixed(2)} KB, Type: ${blob.type}`);
 
-            // Convert data URL to Blob
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
-            console.log(`[Storage] Converted data URL to Blob. Blob size: ${(blob.size / 1024).toFixed(2)} KB, Type: ${blob.type}`);
+        const storageRef = ref(storage, path);
+        
+        console.log('[Storage] Starting uploadBytes...');
+        const snapshot = await uploadBytes(storageRef, blob);
+        console.log('[Storage] uploadBytes complete. Getting download URL...');
 
-            const storageRef = ref(storage, path);
-            
-            // Using uploadBytes which is better for file-like objects (Blobs)
-            const snapshot = await uploadBytes(storageRef, blob);
-            console.log(`[Storage] Upload successful on attempt ${attempt}. Getting download URL...`);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        console.log(`[Storage] Success! Download URL obtained: ${downloadUrl}`);
+        
+        return downloadUrl;
+        
+    } catch (error: any) {
+        console.error('[Storage] Upload failed. Full error details:', {
+            code: error.code,
+            message: error.message,
+            name: error.name,
+            path: path,
+            serverResponse: (error as any).serverResponse,
+        });
 
-            const downloadUrl = await getDownloadURL(snapshot.ref);
-            console.log(`[Storage] Download URL obtained: ${downloadUrl}`);
-            
-            return downloadUrl;
-            
-        } catch (error: any) {
-            lastError = error;
-            console.error(`[Storage] Upload attempt ${attempt} failed:`, {
-                error,
-                message: error.message,
-                code: error.code,
-                name: error.name,
-                path: path
-            });
-            if (attempt < maxRetries) {
-                const waitTime = Math.pow(2, attempt) * 1000;
-                console.log(`[Storage] Waiting ${waitTime}ms before retry...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-            }
+        // Provide a more user-friendly error message
+        if (error.code === 'storage/unauthorized') {
+            throw new Error("Permission denied. Please check your Firebase Storage security rules and CORS configuration.");
+        } else if (error.code === 'storage/object-not-found') {
+            throw new Error("File path not found. This can sometimes be a permission issue.");
+        } else {
+             throw new Error(`Failed to upload to storage: ${error.message}`);
         }
     }
-
-    // All retries failed
-    const errorMessage = lastError?.message || 'Unknown error';
-    throw new Error(`Failed to upload to storage after ${maxRetries} attempts: ${errorMessage}`);
 }
 
 // Helper to delete a folder and its contents with better error handling
 export async function deleteFolderFromStorage(storage: FirebaseStorage, path: string) {
     try {
-        console.log(`[Storage] Deleting folder contents: ${path}`);
         const folderRef = ref(storage, path);
+        const listResults = await listAll(folderRef);
         
-        // Check if folder exists by listing contents
-        let listResults;
-        try {
-            listResults = await listAll(folderRef);
-        } catch (listError: any) {
-            if (listError.code === 'storage/object-not-found') {
-                console.log(`[Storage] Folder does not exist: ${path}`);
-                return; // Folder doesn't exist, nothing to delete
-            }
-            throw listError;
-        }
-        
-        if (listResults.items.length === 0) {
-            console.log(`[Storage] No files found in folder: ${path}`);
-            return;
-        }
-
-        console.log(`[Storage] Found ${listResults.items.length} files to delete`);
-        
-        const deleteResults = await Promise.allSettled(
-            listResults.items.map(async (itemRef) => {
-                try {
-                    await deleteObject(itemRef);
-                    console.log(`[Storage] Deleted: ${itemRef.fullPath}`);
-                    return { success: true, path: itemRef.fullPath };
-                } catch (itemError) {
-                    console.error(`[Storage] Failed to delete ${itemRef.fullPath}:`, itemError);
-                    return { success: false, path: itemRef.fullPath, error: itemError };
-                }
-            })
-        );
-        
-        const failed = deleteResults.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
-        if (failed.length > 0) {
-            console.warn(`[Storage] ${failed.length} files failed to delete`);
-        } else {
+        const deletePromises = listResults.items.map(itemRef => deleteObject(itemRef));
+        if (deletePromises.length > 0) {
+            await Promise.all(deletePromises);
             console.log(`[Storage] Successfully deleted all files in: ${path}`);
+        } else {
+            console.log(`[Storage] No files found to delete in: ${path}`);
         }
-        
     } catch (error) {
         console.error(`[Storage] Failed to delete folder ${path}:`, error);
         // Don't re-throw, as we don't want to block UI deletion if storage deletion fails
