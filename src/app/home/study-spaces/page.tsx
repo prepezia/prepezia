@@ -28,7 +28,6 @@ import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/
 import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
 import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
-import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,7 +44,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser, useStorage } from "@/firebase";
 import { uploadDataUrlToStorage } from "@/lib/storage";
@@ -84,7 +82,6 @@ type InteractionProgress = {
   quizCompleted?: number;
   deckViewed?: boolean;
   infographicViewed?: boolean;
-  mindmapViewed?: boolean;
   podcastListened?: boolean;
 };
 
@@ -95,7 +92,6 @@ type GeneratedContent = {
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   summary?: string;
   infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'logs'> & { imageUrl?: string; logs?: string[] };
-  mindmap?: MindMapNodeData;
 };
 
 type StudySpace = {
@@ -134,7 +130,6 @@ const PROGRESS_WEIGHTS_SPACES = {
     quiz: 50,
     flashcards: 20,
     deck: 15,
-    mindmap: 10,
     infographic: 5,
 };
 
@@ -394,7 +389,6 @@ function StudySpacesPage() {
     if (ip.quizCompleted) totalProgress += (ip.quizCompleted / 100) * PROGRESS_WEIGHTS_SPACES.quiz;
     if (ip.flashcardsFlipped) totalProgress += (ip.flashcardsFlipped / 100) * PROGRESS_WEIGHTS_SPACES.flashcards;
     if (ip.deckViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.deck;
-    if (ip.mindmapViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.mindmap;
     if (ip.infographicViewed) totalProgress += PROGRESS_WEIGHTS_SPACES.infographic;
     
     const finalProgress = Math.min(Math.round(totalProgress), 100);
@@ -842,11 +836,6 @@ function StudySpacesPage() {
     setActiveGeneratedView(null);
   };
 
-  const handleMindMapBack = () => {
-    updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, mindmapViewed: true}}));
-    setActiveGeneratedView(null);
-  };
-
   const handlePodcastBack = () => {
     updateSelectedStudySpace(c => ({interactionProgress: {...c.interactionProgress, podcastListened: true}}));
     setActiveGeneratedView(null);
@@ -905,9 +894,6 @@ function StudySpacesPage() {
                         break;
                     case 'deck':
                         resultData = await generateSlideDeck(inputBase);
-                        break;
-                    case 'mindmap':
-                        resultData = await generateMindMap(inputBase);
                         break;
                     default:
                         throw new Error("Unknown generation type");
@@ -1006,7 +992,6 @@ function StudySpacesPage() {
         { name: "Slide Deck", icon: Presentation, type: "deck" },
         { name: "Flashcards", icon: SquareStack, type: "flashcards" },
         { name: "Infographic", icon: AreaChart, type: "infographic" },
-        { name: "Mind Map", icon: GitFork, type: "mindmap" },
     ];
     
     const savedItems = Object.entries(generatedContent).filter(([type, value]) => !!value && type !== 'summary');
@@ -1018,7 +1003,6 @@ function StudySpacesPage() {
         if (activeGeneratedView === 'deck' && generatedContent.deck) { return <SlideDeckView deck={generatedContent.deck} onBack={handleDeckBack} />; }
         if (activeGeneratedView === 'podcast' && generatedContent.podcast) { return <PodcastView podcast={generatedContent.podcast} onBack={handlePodcastBack} topic={selectedStudySpace.name}/> }
         if (activeGeneratedView === 'infographic' && generatedContent.infographic) { return <InfographicView infographic={generatedContent.infographic} onBack={handleInfographicBack} topic={selectedStudySpace.name} />; }
-        if (activeGeneratedView === 'mindmap' && generatedContent.mindmap) { return <InteractiveMindMapWrapper data={generatedContent.mindmap} onBack={handleMindMapBack} topic={selectedStudySpace.name} />; }
         return null;
     }
 
@@ -1999,15 +1983,6 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
                 </details>
             </CardContent>
         </Card>
-    );
-}
-
-function InteractiveMindMapWrapper({ data, onBack, topic }: { data: MindMapNodeData, onBack: () => void, topic: string }) {
-    return (
-        <div className="space-y-4">
-             <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
-            <InteractiveMindMap data={data} topic={topic} />
-        </div>
     );
 }
 
