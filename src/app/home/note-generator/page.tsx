@@ -1339,7 +1339,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
 }
 
 function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onBack: () => void, topic: string }) {
-    const [isAllExpanded, setIsAllExpanded] = useState(true);
+    const [isAllExpanded, setIsAllExpanded] = useState(false);
     const [mindMapKey, setMindMapKey] = useState(Date.now());
     const { toast } = useToast();
 

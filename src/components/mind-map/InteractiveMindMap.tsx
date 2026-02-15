@@ -20,7 +20,7 @@ interface InteractiveMindMapProps {
 }
 
 const Node: React.FC<{ node: MindMapNodeData; level: number; initialOpen: boolean; }> = ({ node, level, initialOpen }) => {
-  const [isOpen, setIsOpen] = React.useState(initialOpen);
+  const [isOpen, setIsOpen] = React.useState(initialOpen || level === 0);
   const hasChildren = node.children && node.children.length > 0;
 
   return (
