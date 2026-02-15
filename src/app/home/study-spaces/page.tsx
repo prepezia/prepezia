@@ -167,7 +167,7 @@ async function generatePngFromHtml(htmlContent: string): Promise<string> {
     const container = document.createElement('div');
     container.innerHTML = htmlContent;
     // The root element inside the HTML string is what we need to render
-    const elementToRender = container.firstChild as HTMLElement;
+    const elementToRender = container.firstElementChild as HTMLElement;
     
     if (!elementToRender) {
         throw new Error("Invalid HTML content for rendering.");
@@ -2084,7 +2084,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
                 <CardDescription>A visual breakdown of the key concepts.</CardDescription>
             </CardHeader>
             <CardContent>
-                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
+                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={initialOpen} />
             </CardContent>
         </Card>
     );
