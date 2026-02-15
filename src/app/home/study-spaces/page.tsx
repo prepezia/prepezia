@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -21,13 +19,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save, Pause, Volume2, BrainCircuit, Minus } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
-import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput, GeneratePodcastFromSourcesInput } from "@/ai/flows/generate-podcast-from-sources";
+import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
-import { generateFlashcards, GenerateFlashcardsOutput, GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
-import { generateQuiz, GenerateQuizOutput, GenerateQuizInput } from "@/ai/flows/generate-quiz";
-import { generateSlideDeck, GenerateSlideDeckOutput, GenerateSlideDeckInput } from "@/ai/flows/generate-slide-deck";
+import { generateFlashcards, GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
+import { generateQuiz, GenerateQuizOutput } from "@/ai/flows/generate-quiz";
+import { generateSlideDeck, GenerateSlideDeckOutput } from "@/ai/flows/generate-slide-deck";
 import { generateSummaryFromSources } from "@/ai/flows/generate-summary-from-sources";
-import { extractKeyPointsFlow, designInfographicFlow, generateImageFlow, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
+import { generateInfographic, GenerateInfographicOutput } from "@/ai/flows/generate-infographic";
 import { generateMindMap, GenerateMindMapOutput } from "@/ai/flows/generate-mind-map";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -95,7 +93,7 @@ type GeneratedContent = {
   deck?: GenerateSlideDeckOutput;
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   summary?: string;
-  infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'logs'> & { imageUrl?: string; logs?: string[] };
+  infographic?: Omit<GenerateInfographicOutput, 'imageUrl'> & { imageUrl?: string };
   mindMap?: GenerateMindMapOutput['mindMap'];
 };
 
@@ -374,13 +372,6 @@ function StudySpacesPage() {
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   
-  const [unsavedContent, setUnsavedContent] = useState<GeneratedContent>({});
-  const combinedGeneratedContent = useMemo(() => {
-    if (!selectedStudySpace) return {};
-    return { ...selectedStudySpace.generatedContent, ...unsavedContent };
-  }, [selectedStudySpace?.generatedContent, unsavedContent]);
-
-
   const updateSelectedStudySpace = useCallback((update: Partial<StudySpace> | ((current: StudySpace) => Partial<StudySpace>)) => {
     setSelectedStudySpace(prev => {
         if (!prev) return null;
@@ -723,7 +714,6 @@ function StudySpacesPage() {
   const handleSelectStudySpace = (space: StudySpace) => {
     setSelectedStudySpace(space);
     setActiveGeneratedView(null);
-    setUnsavedContent({});
     setViewState('edit');
     setIsDirty(false);
   };
@@ -861,54 +851,12 @@ function StudySpacesPage() {
     setActiveGeneratedView(null);
   };
 
-    const handleSaveGeneratedContent = async (type: 'infographic' | 'podcast') => {
-        const contentToSave = unsavedContent[type];
-        if (!contentToSave || !user || !storage || !selectedStudySpace) return;
-
-        toast({ title: `Saving ${type}...`, description: "Uploading file to your secure storage." });
-
-        try {
-            const isInfographic = type === 'infographic';
-            const content = contentToSave as any;
-            const dataUrl = isInfographic ? content.imageUrl : content.podcastAudioUrl;
-
-            if (!dataUrl || !dataUrl.startsWith('data:')) {
-                throw new Error("No valid media data to save.");
-            }
-
-            const fileExtension = isInfographic ? 'png' : 'wav';
-            const storagePath = `users/${user.uid}/studyspaces/${selectedStudySpace.id}/${type}.${fileExtension}`;
-            
-            const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
-
-            const dataForDb = isInfographic
-                ? { ...content, imageUrl: downloadUrl }
-                : { ...content, podcastAudioUrl: downloadUrl };
-            
-            updateSelectedStudySpace(current => ({
-                generatedContent: { ...current.generatedContent, [type]: dataForDb }
-            }));
-
-            setUnsavedContent(prev => {
-                const newUnsaved = { ...prev };
-                delete newUnsaved[type];
-                return newUnsaved;
-            });
-
-            toast({ title: "Success!", description: `Your ${type} has been saved.` });
-        } catch (e: any) {
-            console.error(`Failed to save ${type}:`, e);
-            toast({ variant: 'destructive', title: `Save Failed`, description: e.message || 'Could not save the file.' });
-            throw e; // Re-throw to be handled by the caller's finally block
-        }
-    };
-
-
     const handleGenerateContent = async (type: keyof GeneratedContent) => {
         if (!selectedStudySpace || selectedStudySpace.sources.length === 0) {
             toast({ variant: 'destructive', title: 'No sources', description: 'Add sources to your study space before generating content.' });
             return;
         }
+        if (!user || !storage) return;
         
         setIsGenerating(type);
         setIsGenerateDialogOpen(false);
@@ -921,52 +869,52 @@ function StudySpacesPage() {
                 sources: selectedStudySpace.sources.map(s => ({ ...s, type: s.type === 'clipboard' ? 'text' : (s.type as any) })),
             };
 
-            if (type === 'infographic') {
-                setGenerationLogs(prev => ['Step 1: Extracting key points...', ...prev].reverse());
-                const keyPoints = await extractKeyPointsFlow({ sources: inputBase.sources });
-                setGenerationLogs(prev => [`-> Success: Extracted ${keyPoints.length} key points.`, 'Step 2: Designing prompt...', ...prev].reverse());
+            let dataForDb: any;
+            
+            if (type === 'infographic' || type === 'podcast') {
+                const result = type === 'infographic'
+                    ? await generateInfographic(inputBase)
+                    : await generatePodcastFromSources(inputBase);
                 
-                const { imagePrompt } = await designInfographicFlow({ ...inputBase, keyPoints });
-                setGenerationLogs(prev => ['-> Success: Prompt designed.', 'Step 3: Generating image...', ...prev].reverse());
-
-                const { imageUrl, logs: imageLogs } = await generateImageFlow({ imagePrompt, keyPoints, topic: selectedStudySpace.name });
-                setGenerationLogs(prev => [...imageLogs, ...prev].reverse());
+                const dataUrl = type === 'infographic' ? (result as GenerateInfographicOutput).imageUrl : (result as GeneratePodcastFromSourcesOutput).podcastAudio;
+                const fileExtension = type === 'infographic' ? 'png' : 'wav';
+                const storagePath = `users/${user.uid}/studyspaces/${selectedStudySpace.id}/${type}.${fileExtension}`;
                 
-                const resultDataForUI = { prompt: imagePrompt, imageUrl, keyPoints };
-                setUnsavedContent(prev => ({...prev, infographic: resultDataForUI }));
-                setActiveGeneratedView(type);
+                setGenerationLogs(prev => [...prev, `Step 2: Uploading ${type} to storage...`]);
+                const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
+                setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded.`]);
 
-            } else if (type === 'podcast') {
-                const podcastResult = await generatePodcastFromSources(inputBase);
-                const podcastData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio };
-                setUnsavedContent(prev => ({...prev, podcast: podcastData }));
-                setActiveGeneratedView('podcast');
+                dataForDb = { ...result, [type === 'infographic' ? 'imageUrl' : 'podcastAudioUrl']: downloadUrl };
+                
+                if (type === 'infographic') delete dataForDb.imageUrl;
+                if (type === 'podcast') delete dataForDb.podcastAudio;
 
             } else {
-                let resultData: any;
                 switch (type) {
                     case 'flashcards':
-                        resultData = (await generateFlashcards(inputBase)).flashcards;
+                        dataForDb = (await generateFlashcards(inputBase)).flashcards;
                         break;
                     case 'quiz':
-                        resultData = (await generateQuiz(inputBase)).quiz;
+                        dataForDb = (await generateQuiz(inputBase)).quiz;
                         break;
                     case 'deck':
-                        resultData = await generateSlideDeck(inputBase);
+                        dataForDb = await generateSlideDeck(inputBase);
                         break;
                     case 'mindMap':
-                        resultData = (await generateMindMap(inputBase)).mindMap;
+                        dataForDb = (await generateMindMap(inputBase)).mindMap;
                         break;
                     default:
                         throw new Error("Unknown generation type");
                 }
-                updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, [type]: resultData }}));
-                setActiveGeneratedView(type as any);
             }
+            
+            updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, [type]: dataForDb }}));
+            setActiveGeneratedView(type as any);
+
         } catch (e: any) {
             console.error(`Error generating ${type}:`, e);
             const description = e.message || `An unknown error occurred while generating the ${type}.`;
-            setGenerationLogs(prev => [`ERROR: ${description}`, ...prev].reverse());
+            setGenerationLogs(prev => [...prev, `ERROR: ${description}`]);
             toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
         } finally {
             setIsGenerating(null);
@@ -976,12 +924,6 @@ function StudySpacesPage() {
   const handleDeleteGeneratedContent = (type: keyof GeneratedContent) => {
     if (!selectedStudySpace) return;
     
-    setUnsavedContent(prev => {
-        const newState = {...prev};
-        delete newState[type];
-        return newState;
-    });
-
     updateSelectedStudySpace(current => {
         const newGeneratedContent = { ...current.generatedContent };
         delete newGeneratedContent[type];
@@ -998,8 +940,8 @@ function StudySpacesPage() {
   };
   
   const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
-      if (!selectedStudySpace) return;
-      const content = combinedGeneratedContent;
+      if (!selectedStudySpace?.generatedContent) return;
+      const content = selectedStudySpace.generatedContent;
       let url: string | undefined;
       let filename: string | undefined;
       
@@ -1018,18 +960,9 @@ function StudySpacesPage() {
 
       if(url && filename) {
           toast({ title: 'Starting download...' });
-          if (url.startsWith('data:')) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          } else {
-            downloadUrl(url, filename).catch(() => {
-                toast({ variant: 'destructive', title: 'Download Failed' });
-            });
-          }
+          downloadUrl(url, filename).catch(() => {
+              toast({ variant: 'destructive', title: 'Download Failed' });
+          });
       } else {
           toast({ variant: 'destructive', title: 'No file to download' });
       }
@@ -1067,23 +1000,21 @@ function StudySpacesPage() {
         { name: "Mind Map", icon: BrainCircuit, type: "mindMap" },
     ];
     
-    const savedItems = Object.entries(combinedGeneratedContent).filter(([type, value]) => !!value && type !== 'summary');
+    const savedItems = Object.entries(selectedStudySpace.generatedContent || {}).filter(([type, value]) => !!value && type !== 'summary');
     
     const renderGeneratedContent = () => {
-        if (!activeGeneratedView) return null;
-        const content = combinedGeneratedContent[activeGeneratedView as keyof GeneratedContent];
+        if (!activeGeneratedView || !selectedStudySpace.generatedContent) return null;
+        const content = selectedStudySpace.generatedContent[activeGeneratedView as keyof GeneratedContent];
         if (!content) return null;
         
         if (activeGeneratedView === 'flashcards') { return <FlashcardView flashcards={content as any} onBack={handleFlashcardsViewed} topic={selectedStudySpace.name} />; }
         if (activeGeneratedView === 'quiz') { return <QuizView quiz={content as any} onBack={handleQuizComplete} topic={selectedStudySpace.name} />; }
         if (activeGeneratedView === 'deck') { return <SlideDeckView deck={content as any} onBack={handleDeckBack} />; }
         if (activeGeneratedView === 'podcast') {
-            const isPodcastSaved = !unsavedContent.podcast;
-            return <PodcastView podcast={content as any} onBack={handlePodcastBack} topic={selectedStudySpace.name} onSave={() => handleSaveGeneratedContent('podcast')} isSaved={isPodcastSaved} />;
+            return <PodcastView podcast={content as any} onBack={handlePodcastBack} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'infographic') {
-            const isInfographicSaved = !unsavedContent.infographic;
-            return <InfographicView infographic={content as any} onBack={handleInfographicBack} topic={selectedStudySpace.name} onSave={() => handleSaveGeneratedContent('infographic')} isSaved={isInfographicSaved} />;
+            return <InfographicView infographic={content as any} onBack={handleInfographicBack} topic={selectedStudySpace.name} />;
         }
         if (activeGeneratedView === 'mindMap') { return <MindMapView mindMap={content as any} onBack={handleMindMapBack} topic={selectedStudySpace.name} />; }
         return null;
@@ -1340,7 +1271,7 @@ function StudySpacesPage() {
                                      ) : (
                                         <div className="space-y-2">
                                             {generationOptions.map((option) => {
-                                                const savedItem = combinedGeneratedContent[option.type as keyof GeneratedContent];
+                                                const savedItem = selectedStudySpace.generatedContent?.[option.type as keyof GeneratedContent];
                                                 if (!savedItem) return null;
                                                 
                                                 return (
@@ -1388,7 +1319,7 @@ function StudySpacesPage() {
                         </DialogHeader>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
                             {generationOptions.map((option) => {
-                                const isAlreadyGenerated = !!combinedGeneratedContent[option.type as keyof GeneratedContent];
+                                const isAlreadyGenerated = !!selectedStudySpace.generatedContent?.[option.type as keyof GeneratedContent];
                                 return (
                                     <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type as keyof GeneratedContent)} disabled={!!isGenerating || isAlreadyGenerated}>
                                         {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
@@ -1767,17 +1698,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     );
 }
 
-function PodcastView({ podcast, onBack, topic, onSave, isSaved }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string, onSave: () => Promise<void>, isSaved: boolean }) {
-    const [isSaving, setIsSaving] = useState(false);
-    const handleSaveClick = async () => {
-        setIsSaving(true);
-        try {
-            await onSave();
-        } finally {
-            setIsSaving(false);
-        }
-    }
-
+function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string }) {
     return (
         <Card>
             <CardHeader>
@@ -1803,14 +1724,6 @@ function PodcastView({ podcast, onBack, topic, onSave, isSaved }: { podcast: { p
                     </div>
                 </details>
             </CardContent>
-            {!isSaved && (
-                <CardFooter>
-                    <Button onClick={handleSaveClick} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save to Space
-                    </Button>
-                </CardFooter>
-            )}
         </Card>
     );
 }
@@ -2012,17 +1925,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
     );
 }
 
-function InfographicView({ infographic, onBack, topic, onSave, isSaved }: { infographic: { prompt: string; imageUrl?: string }, onBack: () => void, topic: string, onSave: () => Promise<void>, isSaved: boolean }) {
-    const [isSaving, setIsSaving] = useState(false);
-    
-    const handleSaveClick = async () => {
-        setIsSaving(true);
-        try {
-            await onSave();
-        } finally {
-            setIsSaving(false);
-        }
-    }
+function InfographicView({ infographic, onBack, topic }: { infographic: { prompt: string; imageUrl?: string }, onBack: () => void, topic: string }) {
     const { toast } = useToast();
     const handleDownload = () => {
         if (!infographic.imageUrl) {
@@ -2065,14 +1968,6 @@ function InfographicView({ infographic, onBack, topic, onSave, isSaved }: { info
                     <p className="pt-2">{infographic.prompt}</p>
                 </details>
             </CardContent>
-            {!isSaved && (
-                <CardFooter>
-                    <Button onClick={handleSaveClick} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save to Space
-                    </Button>
-                </CardFooter>
-            )}
         </Card>
     );
 }
