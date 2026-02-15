@@ -339,6 +339,18 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
 
+  const [unsavedContent, setUnsavedContent] = useState<GeneratedContent>({});
+  const combinedGeneratedContent = useMemo(() => ({ ...note?.generatedContent, ...unsavedContent }), [note?.generatedContent, unsavedContent]);
+
+  const updateNoteInFirestore = useCallback((data: DocumentData) => {
+    if (noteDocRef) {
+      updateDoc(noteDocRef, data).catch(err => {
+        console.error("Failed to update note in Firestore:", err);
+        toast({ variant: 'destructive', title: "Save failed", description: "Could not save your changes to the server." });
+      });
+    }
+  }, [noteDocRef, toast]);
+  
   const calculateAndUpdateProgress = useCallback(() => {
     if (!note || !note.interactionProgress || !noteDocRef) return;
     const ip = note.interactionProgress;
@@ -354,9 +366,9 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
     
     if (note.progress !== finalProgress || note.status !== status) {
-        updateDoc(noteDocRef, { progress: finalProgress, status });
+        updateNoteInFirestore({ progress: finalProgress, status });
     }
-  }, [note, noteDocRef]);
+  }, [note, noteDocRef, updateNoteInFirestore]);
 
   useEffect(() => {
     calculateAndUpdateProgress();
@@ -372,15 +384,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     }
   }, [note]);
 
-  const updateNote = useCallback((data: DocumentData) => {
-    if (noteDocRef) {
-      updateDoc(noteDocRef, data).catch(err => {
-        console.error("Failed to update note:", err);
-        toast({ variant: 'destructive', title: "Save failed", description: "Could not save your changes." });
-      });
-    }
-  }, [noteDocRef, toast]);
-  
   const handleSetCurrentPage = (pageIndex: number) => {
     const timeSpent = Date.now() - pageStartTime.current;
     if(timeSpent > NOTE_PAGE_MIN_VIEW_TIME) {
@@ -389,7 +392,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         newSet.add(currentPage);
         if (note && pages.length > 0) {
           const notesViewed = (newSet.size / pages.length) * 100;
-          updateNote({ 'interactionProgress.notesViewed': notesViewed });
+          updateNoteInFirestore({ 'interactionProgress.notesViewed': notesViewed });
         }
         return newSet;
       });
@@ -501,9 +504,49 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             setIsListening(true);
         }
     };
+    
+    const handleSaveGeneratedContent = async (type: 'infographic' | 'podcast') => {
+        const contentToSave = unsavedContent[type];
+        if (!contentToSave || !user || !storage || !note) return;
+
+        toast({ title: `Saving ${type}...`, description: "Uploading file to your secure storage." });
+
+        try {
+            const isInfographic = type === 'infographic';
+            const content = contentToSave as any;
+            const dataUrl = isInfographic ? content.imageUrl : content.podcastAudioUrl;
+
+            if (!dataUrl || !dataUrl.startsWith('data:')) {
+                throw new Error("No valid media data to save.");
+            }
+
+            const fileExtension = isInfographic ? 'png' : 'wav';
+            const storagePath = `users/${user.uid}/notes/${note.id}/${type}.${fileExtension}`;
+            
+            const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
+
+            const dataForDb = isInfographic
+                ? { ...content, imageUrl: downloadUrl }
+                : { ...content, podcastAudioUrl: downloadUrl };
+
+            await updateNoteInFirestore({ [`generatedContent.${type}`]: dataForDb });
+
+            setUnsavedContent(prev => {
+                const newUnsaved = { ...prev };
+                delete newUnsaved[type];
+                return newUnsaved;
+            });
+
+            toast({ title: "Success!", description: `Your ${type} has been saved.` });
+        } catch (e: any) {
+            console.error(`Failed to save ${type}:`, e);
+            toast({ variant: 'destructive', title: `Save Failed`, description: e.message || 'Could not save the file.' });
+            throw e; // Re-throw to be handled by the caller's finally block
+        }
+    };
 
     const handleGenerateContent = async (type: keyof GeneratedContent) => {
-        if (!note || !user || !storage) return;
+        if (!note || !user) return;
         setIsGenerating(type);
         setIsGenerateDialogOpen(false);
         setGenerationLogs([`Step 1: Generating ${type}...`]);
@@ -527,18 +570,19 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 const { imageUrl, logs: imageLogs } = await generateImageFlow({ imagePrompt, keyPoints, topic: note.topic });
                 setGenerationLogs(prev => [...imageLogs, ...prev].reverse());
 
-                const resultDataForUI = { prompt: imagePrompt, imageUrl: imageUrl, keyPoints };
-                updateNote({ 'generatedContent.infographic': resultDataForUI });
-                
+                const resultDataForUI = { prompt: imagePrompt, imageUrl, keyPoints };
+                setUnsavedContent(prev => ({...prev, infographic: resultDataForUI }));
                 setActiveView('infographic');
+
+            } else if (type === 'podcast') {
+                const podcastResult = await generatePodcastFromSources(inputBase);
+                const podcastData = { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio };
+                setUnsavedContent(prev => ({...prev, podcast: podcastData }));
+                setActiveView('podcast');
+
             } else {
                 let resultData: any;
                 switch (type) {
-                    case 'podcast':
-                        const podcastResult = await generatePodcastFromSources(inputBase);
-                        updateNote({ 'generatedContent.podcast': { podcastScript: podcastResult.podcastScript, podcastAudioUrl: podcastResult.podcastAudio }});
-                        setActiveView('podcast');
-                        break;
                     case 'mindMap':
                         resultData = (await generateMindMap(inputBase)).mindMap;
                         break;
@@ -554,10 +598,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                     default:
                         throw new Error("Unknown generation type");
                 }
-                if (type !== 'podcast' && type !== 'infographic') {
-                    updateNote({ [`generatedContent.${type}`]: resultData });
-                    setActiveView(type);
-                }
+                updateNoteInFirestore({ [`generatedContent.${type}`]: resultData });
+                setActiveView(type);
             }
         } catch (e: any) {
             console.error(`Error generating ${type}:`, e);
@@ -570,11 +612,17 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     };
 
   const handleFinishAndGoBack = (progressUpdate: Partial<InteractionProgress>) => {
-    updateNote({ interactionProgress: { ...note?.interactionProgress, ...progressUpdate } });
+    updateNoteInFirestore({ interactionProgress: { ...note?.interactionProgress, ...progressUpdate } });
     setActiveView('notes');
   };
 
   const handleDeleteGeneratedContent = (contentType: keyof GeneratedContent) => {
+    setUnsavedContent(prev => {
+        const newState = {...prev};
+        delete newState[contentType];
+        return newState;
+    });
+
     const newProgress = { ...note?.interactionProgress };
     if (contentType === 'quiz') delete newProgress.quizCompleted;
     if (contentType === 'flashcards') delete newProgress.flashcardsFlipped;
@@ -583,7 +631,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     if (contentType === 'podcast') delete newProgress.podcastListened;
     if (contentType === 'mindMap') delete newProgress.mindmapViewed;
     
-    updateNote({ [`generatedContent.${contentType}`]: deleteField(), interactionProgress: newProgress });
+    updateNoteInFirestore({ [`generatedContent.${contentType}`]: deleteField(), interactionProgress: newProgress });
     toast({ title: 'Content Deleted' });
   };
 
@@ -646,7 +694,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
 
     const handleDownloadMedia = (type: 'infographic' | 'podcast') => {
         if (!note) return;
-        const content = note.generatedContent;
+        const content = combinedGeneratedContent;
         if (!content) {
             toast({ variant: 'destructive', title: 'No file to download' });
             return;
@@ -665,18 +713,28 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
 
         if(url && filename) {
             toast({ title: 'Starting download...' });
-            downloadUrl(url, filename).catch(() => {
-                toast({ variant: 'destructive', title: 'Download Failed' });
-            });
+            if (url.startsWith('data:')) {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                downloadUrl(url, filename).catch(() => {
+                    toast({ variant: 'destructive', title: 'Download Failed' });
+                });
+            }
         } else {
             toast({ variant: 'destructive', title: 'No file to download' });
         }
     };
 
   const renderGeneratedContent = () => {
-    if (!activeView || activeView === 'notes' || !note?.generatedContent) return null;
+    if (!activeView || activeView === 'notes') return null;
 
-    const content = note.generatedContent[activeView as keyof GeneratedContent];
+    const content = combinedGeneratedContent[activeView as keyof GeneratedContent];
+
     if (!content) {
         return (
             <Card>
@@ -699,9 +757,11 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
       case 'deck':
         return <SlideDeckView deck={content as any} onBack={() => handleFinishAndGoBack({ deckViewed: true })} />;
       case 'infographic':
-        return <InfographicView infographic={content as any} onBack={() => handleFinishAndGoBack({ infographicViewed: true })} topic={note.topic} />;
+        const isInfographicSaved = !unsavedContent.infographic;
+        return <InfographicView infographic={content as any} onBack={() => handleFinishAndGoBack({ infographicViewed: true })} topic={note.topic} onSave={() => handleSaveGeneratedContent('infographic')} isSaved={isInfographicSaved} />;
       case 'podcast':
-        return <PodcastView podcast={content as any} onBack={() => handleFinishAndGoBack({ podcastListened: true })} topic={note.topic} />;
+        const isPodcastSaved = !unsavedContent.podcast;
+        return <PodcastView podcast={content as any} onBack={() => handleFinishAndGoBack({ podcastListened: true })} topic={note.topic} onSave={() => handleSaveGeneratedContent('podcast')} isSaved={isPodcastSaved} />;
       case 'mindMap':
         return <MindMapView mindMap={content as any} onBack={() => handleFinishAndGoBack({ mindmapViewed: true })} topic={note.topic} />;
       default:
@@ -729,7 +789,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     );
   }
 
-  const generatedContent = note.generatedContent || {};
   const generationOptions: { name: string; icon: React.ElementType; type: keyof GeneratedContent }[] = [
       { name: "Podcast", icon: Mic, type: "podcast" },
       { name: "Quiz", icon: HelpCircle, type: "quiz" },
@@ -739,7 +798,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
       { name: "Mind Map", icon: BrainCircuit, type: "mindMap" },
   ];
 
-  const savedItems = Object.entries(generatedContent).filter(([_, value]) => !!value);
+  const savedItems = Object.entries(combinedGeneratedContent).filter(([_, value]) => !!value);
   
   return (
      <>
@@ -872,7 +931,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 ) : (
                                     <div className="space-y-2">
                                         {generationOptions.map((option) => {
-                                            const savedItem = generatedContent[option.type as keyof GeneratedContent];
+                                            const savedItem = combinedGeneratedContent[option.type as keyof GeneratedContent];
                                             if (!savedItem) return null;
                                             
                                             return (
@@ -920,7 +979,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 </DialogHeader>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
                     {generationOptions.map((option) => {
-                         const isAlreadyGenerated = !!generatedContent[option.type as keyof GeneratedContent];
+                         const isAlreadyGenerated = !!combinedGeneratedContent[option.type as keyof GeneratedContent];
                          return(
                             <Button key={option.name} variant="outline" className="h-24 flex-col gap-2" onClick={() => handleGenerateContent(option.type as keyof GeneratedContent)} disabled={!!isGenerating || isAlreadyGenerated}>
                                 {isGenerating === option.type ? <Loader2 className="w-6 h-6 animate-spin" /> : <option.icon className="w-6 h-6 text-primary" />}
@@ -1066,7 +1125,17 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
     )
 }
 
-function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string }) {
+function PodcastView({ podcast, onBack, topic, onSave, isSaved }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string, onSave: () => Promise<void>, isSaved: boolean }) {
+    const [isSaving, setIsSaving] = useState(false);
+    const handleSaveClick = async () => {
+        setIsSaving(true);
+        try {
+            await onSave();
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -1092,6 +1161,14 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
                     </div>
                 </details>
             </CardContent>
+             {!isSaved && (
+                <CardFooter>
+                    <Button onClick={handleSaveClick} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save to Note
+                    </Button>
+                </CardFooter>
+            )}
         </Card>
     );
 }
@@ -1292,11 +1369,22 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
     );
 }
 
-function InfographicView({ infographic, onBack, topic }: { infographic: { prompt: string; imageUrl?: string }, onBack: () => void, topic: string }) {
+function InfographicView({ infographic, onBack, topic, onSave, isSaved }: { infographic: { prompt: string; imageUrl?: string }, onBack: () => void, topic: string, onSave: () => Promise<void>, isSaved: boolean }) {
     const { toast } = useToast();
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSaveClick = async () => {
+        setIsSaving(true);
+        try {
+            await onSave();
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
     const handleDownload = () => {
         if (!infographic.imageUrl) {
-            toast({ variant: 'destructive', title: 'Image Not Available', description: 'Please regenerate the infographic to download it.' });
+            toast({ variant: 'destructive', title: 'Image Not Available' });
             return;
         }
         const link = document.createElement('a');
@@ -1335,6 +1423,14 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
                     <p className="pt-2">{infographic.prompt}</p>
                 </details>
             </CardContent>
+            {!isSaved && (
+                <CardFooter>
+                    <Button onClick={handleSaveClick} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save to Note
+                    </Button>
+                </CardFooter>
+            )}
         </Card>
     );
 }
