@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow to generate a mind map from content.
@@ -25,7 +24,7 @@ const SourceSchema = z.object({
     contentType: z.string().optional(),
 });
 
-export const GenerateMindMapInputSchema = z.object({
+const GenerateMindMapInputSchema = z.object({
   context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
   topic: z.string().optional().describe("The topic of the content (used in 'note-generator' context)."),
   academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
@@ -34,7 +33,7 @@ export const GenerateMindMapInputSchema = z.object({
 });
 export type GenerateMindMapInput = z.infer<typeof GenerateMindMapInputSchema>;
 
-export const GenerateMindMapOutputSchema = z.object({
+const GenerateMindMapOutputSchema = z.object({
   mindMap: MindMapNodeSchema.describe("The root node of the generated mind map."),
 });
 export type GenerateMindMapOutput = z.infer<typeof GenerateMindMapOutputSchema>;
