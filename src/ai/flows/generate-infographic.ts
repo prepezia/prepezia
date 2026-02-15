@@ -3,7 +3,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { toPng } from 'html-to-image';
 
 const SourceSchema = z.object({
     type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
@@ -25,13 +24,14 @@ const GenerateInfographicInputSchema = z.object({
 export type GenerateInfographicInput = z.infer<typeof GenerateInfographicInputSchema>;
 
 const GenerateInfographicOutputSchema = z.object({
-  imageUrl: z.string().describe("The data URI of the generated infographic image."),
-  prompt: z.string().describe("The prompt used to generate the image for debugging purposes."),
+  imageUrl: z.string().optional().describe("The data URI of the generated infographic image, if successful."),
+  prompt: z.string().optional().describe("The prompt used to generate the image for debugging purposes."),
   keyPoints: z.array(z.object({
     title: z.string(),
     summary: z.string()
   })).optional().describe("The extracted key points for reference"),
-  logs: z.array(z.string()).optional().describe("Debugging logs from the generation process.")
+  logs: z.array(z.string()).optional().describe("Debugging logs from the generation process."),
+  fallbackHtml: z.string().optional().describe("The HTML content for a fallback infographic if image generation fails."),
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
@@ -116,21 +116,17 @@ const generateImageWithFallbackFlow = ai.defineFlow({
 
     } catch (error: any) {
         logs.push(`-> Primary image model failed: ${error.message}`);
-        logs.push("-> Attempting to generate a fallback SVG image.");
+        logs.push("-> Generating a fallback HTML design.");
 
-        try {
-            const fallbackImageUrl = await generateFallbackSvg(keyPoints, topic);
-            logs.push("-> Success: Fallback SVG generated.");
-            return {
-                imageUrl: fallbackImageUrl,
-                prompt: imagePrompt,
-                keyPoints,
-                logs,
-            };
-        } catch (fallbackError: any) {
-            logs.push(`-> Critical Error: Fallback SVG generation also failed. ${fallbackError.message}`);
-            throw new Error(`Image generation and fallback both failed.`);
-        }
+        const fallbackHtml = generateFallbackHtml(keyPoints, topic);
+        logs.push("-> Success: Fallback HTML generated.");
+
+        return {
+            fallbackHtml: fallbackHtml,
+            prompt: imagePrompt,
+            keyPoints,
+            logs,
+        };
     }
 });
 
@@ -156,7 +152,7 @@ export const generateInfographic = ai.defineFlow({
     });
     logs.push('-> Success: Image prompt designed.');
     
-    // Step 3: Generate the image with fallback
+    // Step 3: Generate the image or get fallback HTML
     logs.push('Step 3: Generating infographic image...');
     const finalResult = await generateImageWithFallbackFlow({
         imagePrompt,
@@ -170,19 +166,17 @@ export const generateInfographic = ai.defineFlow({
     };
 });
 
-// Helper function to generate a fallback SVG
-async function generateFallbackSvg(keyPoints: { title: string; summary: string }[], topic: string): Promise<string> {
+// Helper function to generate a fallback HTML string
+function generateFallbackHtml(keyPoints: { title: string; summary: string }[], topic: string): string {
   const width = 800;
   const height = 600 + keyPoints.length * 50; 
-  const boxHeight = 100;
-  const boxPadding = 20;
 
   const content = `
     <div style="width: ${width}px; height: ${height}px; background-color: white; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; display: flex; flex-direction: column;">
       <h1 style="font-size: 36px; font-weight: 700; color: #111; text-align: center; margin-bottom: 30px;">${topic}</h1>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1;">
-        ${keyPoints.map((point, index) => `
-          <div style="background-color: #f1f5f9; border-radius: 12px; padding: ${boxPadding}px; display: flex; flex-direction: column; border: 1px solid #e2e8f0;">
+        ${keyPoints.map((point) => `
+          <div style="background-color: #f1f5f9; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; border: 1px solid #e2e8f0;">
             <h2 style="font-size: 18px; font-weight: 600; color: #005A9C; margin: 0 0 8px 0;">${point.title}</h2>
             <p style="font-size: 14px; color: #475569; margin: 0; line-height: 1.5;">${point.summary}</p>
           </div>
@@ -192,29 +186,14 @@ async function generateFallbackSvg(keyPoints: { title: string; summary: string }
     </div>
   `;
 
-  try {
-      const dataUrl = await toPng(
-          {
-              template: (args: any) => `
-                  <html>
-                  <head>
-                      <meta charset="UTF-8">
-                      <style>
-                          body { margin: 0; padding: 0; }
-                      </style>
-                  </head>
-                  <body>
-                      ${args.template}
-                  </body>
-                  </html>`,
-              context: {template: content},
-              width: width,
-              height: height
-          }
-      );
-      return dataUrl;
-  } catch (error) {
-      console.error('oops, something went wrong!', error);
-      throw new Error("Failed to render fallback SVG to PNG.");
-  }
+  return `
+    <html>
+      <head>
+          <meta charset="UTF-8">
+          <style> body { margin: 0; padding: 0; } </style>
+      </head>
+      <body>
+          ${content}
+      </body>
+    </html>`;
 }

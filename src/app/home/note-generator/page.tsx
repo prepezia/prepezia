@@ -52,7 +52,7 @@ type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
-  infographic?: Omit<GenerateInfographicOutput, 'imageUrl'> & { imageUrl?: string };
+  infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'fallbackHtml'> & { imageUrl?: string };
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   mindMap?: GenerateMindMapOutput['mindMap'];
 };
@@ -115,6 +115,33 @@ async function downloadUrl(url: string, filename: string) {
     }
 }
 
+// Client-side helper to render HTML to a PNG data URL
+async function generatePngFromHtml(htmlContent: string): Promise<string> {
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    // The root element inside the HTML string is what we need to render
+    const elementToRender = container.firstChild as HTMLElement;
+    
+    if (!elementToRender) {
+        throw new Error("Invalid HTML content for rendering.");
+    }
+    
+    // Temporarily append to body to ensure styles are applied
+    document.body.appendChild(elementToRender);
+    
+    try {
+        const dataUrl = await toPng(elementToRender, {
+            cacheBust: true,
+            backgroundColor: 'white',
+            pixelRatio: 2
+        });
+        return dataUrl;
+    } finally {
+        // Clean up the element from the DOM
+        document.body.removeChild(elementToRender);
+    }
+}
+
 function NoteGeneratorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -144,7 +171,7 @@ function NoteGeneratorPage() {
   return <NoteListPage onSelectNote={handleSelectNote} onCreateNew={handleCreateNew} />;
 }
 
-function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (noteId: string) => void, onCreateNew: () => void }) {
+function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (string) => void, onCreateNew: () => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const storage = useStorage();
@@ -520,42 +547,49 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             
             if (type === 'infographic' || type === 'podcast') {
                 setGenerationLogs(prev => [...prev, `Step 1a: Calling AI to generate ${type}...`]);
+                
                 const result = type === 'infographic'
-                    ? await generateInfographic({...inputBase, style: 'educational', maxPoints: 5})
+                    ? await generateInfographic({ ...inputBase, style: 'educational', maxPoints: 5 })
                     : await generatePodcastFromSources(inputBase);
                 
                 setGenerationLogs(prev => [...prev, `-> AI generation complete.`]);
+    
+                let dataUrl: string | undefined;
+                if (type === 'infographic') {
+                    const infographicResult = result as GenerateInfographicOutput;
+                    if (infographicResult.imageUrl) {
+                        dataUrl = infographicResult.imageUrl;
+                    } else if (infographicResult.fallbackHtml) {
+                        setGenerationLogs(prev => [...prev, `Step 1b: Primary generation failed. Rendering fallback HTML to PNG...`]);
+                        dataUrl = await generatePngFromHtml(infographicResult.fallbackHtml);
+                        setGenerationLogs(prev => [...prev, `-> Fallback PNG generated.`]);
+                    }
+                } else { // podcast
+                    dataUrl = (result as GeneratePodcastFromSourcesOutput).podcastAudio;
+                }
                 
-                const dataUrl = type === 'infographic' 
-                    ? (result as GenerateInfographicOutput).imageUrl 
-                    : (result as GeneratePodcastFromSourcesOutput).podcastAudio;
-
-                if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
-                    throw new Error(`AI returned an invalid data format for ${type}. Cannot upload.`);
+                if (!dataUrl) {
+                    throw new Error(`AI failed to return image data or fallback HTML for ${type}.`);
+                }
+    
+                if (!dataUrl.startsWith('data:')) {
+                    throw new Error(`Invalid Data URL format received from generation: ${dataUrl.substring(0, 100)}...`);
                 }
                 
                 const fileExtension = type === 'infographic' ? 'png' : 'wav';
                 const storagePath = `users/${user.uid}/notes/${note.id}/${type}.${fileExtension}`;
     
                 setGenerationLogs(prev => [...prev, `Step 2: Uploading ${type} to storage... Path: ${storagePath}`]);
-                
-                let downloadUrl: string;
-                try {
-                    downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
-                    setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded. URL: ${downloadUrl}`]);
-                } catch (uploadError) {
-                    setGenerationLogs(prev => [...prev, `ERROR: Upload failed - ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`]);
-                    throw uploadError;
-                }
+                const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
+                setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded. URL: ${downloadUrl}`]);
     
                 dataForDb = { ...result };
                 if (type === 'infographic') {
                     dataForDb.imageUrl = downloadUrl;
-                    setGenerationLogs(prev => [...prev, `-> Set imageUrl to: ${downloadUrl}`]);
+                    delete dataForDb.fallbackHtml;
                 } else { // podcast
                     dataForDb.podcastAudioUrl = downloadUrl;
                     delete dataForDb.podcastAudio;
-                    setGenerationLogs(prev => [...prev, `-> Set podcastAudioUrl to: ${downloadUrl}`]);
                 }
             } else {
                 switch (type) {
