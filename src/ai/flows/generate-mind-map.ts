@@ -13,7 +13,7 @@ import {z} from 'zod';
 const MindMapNodeSchema: z.ZodType<any> = z.lazy(() => z.object({
     title: z.string().describe("The concise title for this node of the mind map."),
     note: z.string().describe("A brief, one-sentence explanation of the node's topic."),
-    children: z.array(MindMapNodeSchema).optional().describe("An array of child nodes, forming the branches of the mind map."),
+    children: z.array(MindMapNodeSchema).optional().describe("An array of child nodes. Omit this property entirely if there are no children."),
 }));
 
 const SourceSchema = z.object({
@@ -48,11 +48,10 @@ const generateMindMapPrompt = ai.definePrompt({
 ### TASK:
 Convert the provided source content into a structured mind map.
 
-### CRITICAL HIERARCHY RULE:
-You **MUST** create a hierarchical structure with a single root node. This root node must have at least 2-4 main child nodes (branches). Each of these main branches **MUST** also have their own child nodes (sub-branches). The mind map should be at least 3 levels deep.
-
-### CRITICAL NOTE RULE:
-For **EVERY SINGLE NODE** you create (including the root, main branches, and all sub-branches), you **MUST** provide a concise, one-sentence explanation in the 'note' field. This note should clarify the concept of the node's title.
+### CRITICAL RULES:
+1.  **HIERARCHY:** You **MUST** create a hierarchical structure with a single root node. This root node must have at least 2-4 main child nodes (branches). Each of these main branches **MUST** also have their own child nodes (sub-branches). The mind map should be at least 3 levels deep.
+2.  **NOTES:** For **EVERY SINGLE NODE** you create (including the root and all children), you **MUST** provide a concise, one-sentence explanation in the 'note' field.
+3.  **CHILDREN PROPERTY:** If a node has no sub-topics, you **MUST OMIT** the 'children' property for that node entirely. Do not include an empty 'children' array.
 
 ### CONTEXT:
 {{#if topic}}

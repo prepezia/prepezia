@@ -46,6 +46,7 @@ import { Separator } from "@/components/ui/separator";
 import { uploadDataUrlToStorage, deleteFolderFromStorage } from "@/lib/storage";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
+import { toPng } from 'html-to-image';
 
 type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
@@ -1342,6 +1343,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
     const [isAllExpanded, setIsAllExpanded] = useState(false);
     const [mindMapKey, setMindMapKey] = useState(Date.now());
     const { toast } = useToast();
+    const mindMapRef = useRef<HTMLDivElement>(null);
 
     const handleExpandAll = () => {
         setIsAllExpanded(true);
@@ -1353,36 +1355,26 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
         setMindMapKey(Date.now());
     };
     
-    const downloadMindMapAsText = (node: MindMapNodeData, level = 0): string => {
-        let content = `${'  '.repeat(level)}- ${node.title}\n`;
-        if (node.note) {
-            content += `${'  '.repeat(level + 1)}  Note: ${node.note}\n`;
+    const handleDownload = useCallback(() => {
+        if (!mindMapRef.current) {
+            toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find the mind map element.' });
+            return;
         }
-        if (node.children) {
-            for (const child of node.children) {
-                content += downloadMindMapAsText(child, level + 1);
-            }
-        }
-        return content;
-    };
 
-    const handleDownload = () => {
-        try {
-            const textContent = downloadMindMapAsText(mindMap);
-            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${topic.replace(/\s+/g, '_')}_mindmap.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Download failed' });
-            console.error(error);
-        }
-    };
+        toast({ title: 'Generating image...', description: 'Please wait a moment.' });
+
+        toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'white', pixelRatio: 2 })
+            .then((dataUrl) => {
+                const link = document.createElement('a');
+                link.download = `${topic.replace(/\s+/g, '_')}_mindmap.png`;
+                link.href = dataUrl;
+                link.click();
+            })
+            .catch((err) => {
+                console.error(err);
+                toast({ variant: 'destructive', title: 'Download failed', description: 'Could not convert mind map to an image.' });
+            });
+    }, [topic, toast]);
 
     return (
         <Card>
@@ -1399,7 +1391,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
                 <CardDescription>A visual breakdown of the key concepts.</CardDescription>
             </CardHeader>
             <CardContent>
-                <InteractiveMindMap key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
+                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
             </CardContent>
         </Card>
     );

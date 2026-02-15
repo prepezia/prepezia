@@ -20,7 +20,7 @@ interface InteractiveMindMapProps {
 }
 
 const Node: React.FC<{ node: MindMapNodeData; level: number; initialOpen: boolean; }> = ({ node, level, initialOpen }) => {
-  const [isOpen, setIsOpen] = React.useState(initialOpen || level === 0);
+  const [isOpen, setIsOpen] = React.useState(initialOpen || level < 1);
   const hasChildren = node.children && node.children.length > 0;
 
   return (
@@ -47,7 +47,7 @@ const Node: React.FC<{ node: MindMapNodeData; level: number; initialOpen: boolea
         {isOpen && hasChildren && (
             <div className="pt-1">
                 {node.children!.map((child, index) => (
-                    <Node
+                    child && <Node
                         key={index}
                         node={child}
                         level={level + 1}
@@ -60,12 +60,15 @@ const Node: React.FC<{ node: MindMapNodeData; level: number; initialOpen: boolea
   );
 };
 
-export function InteractiveMindMap({ data, initialOpen = true }: InteractiveMindMapProps) {
-  if (!data) return null;
+export const InteractiveMindMap = React.forwardRef<HTMLDivElement, InteractiveMindMapProps>(
+  ({ data, initialOpen = true }, ref) => {
+    if (!data) return null;
 
-  return (
-    <div className="p-4 font-sans">
-      <Node node={data} level={0} initialOpen={initialOpen} />
-    </div>
-  );
-}
+    return (
+      <div className="p-4 font-sans bg-background" ref={ref}>
+        <Node node={data} level={0} initialOpen={initialOpen} />
+      </div>
+    );
+  }
+);
+InteractiveMindMap.displayName = 'InteractiveMindMap';
