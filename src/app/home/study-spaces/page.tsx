@@ -873,27 +873,47 @@ function StudySpacesPage() {
             let dataForDb: any;
             
             if (type === 'infographic' || type === 'podcast') {
+                setGenerationLogs(prev => [...prev, `Step 1a: Calling AI to generate ${type}...`]);
                 const result = type === 'infographic'
                     ? await generateInfographic(inputBase)
                     : await generatePodcastFromSources(inputBase);
                 
-                const dataUrl = type === 'infographic' ? (result as GenerateInfographicOutput).imageUrl : (result as GeneratePodcastFromSourcesOutput).podcastAudio;
+                setGenerationLogs(prev => [...prev, `-> AI generation complete.`]);
+                
+                const dataUrl = type === 'infographic' 
+                    ? (result as GenerateInfographicOutput).imageUrl 
+                    : (result as GeneratePodcastFromSourcesOutput).podcastAudio;
+                
+                if (!dataUrl) {
+                    throw new Error(`No data URL returned from ${type} generation`);
+                }
+                
+                if (!dataUrl.startsWith('data:')) {
+                    console.warn(`Unexpected data URL format: ${dataUrl.substring(0, 100)}`);
+                }
+                
                 const fileExtension = type === 'infographic' ? 'png' : 'wav';
                 const storagePath = `users/${user.uid}/studyspaces/${selectedStudySpace.id}/${type}.${fileExtension}`;
+    
+                setGenerationLogs(prev => [...prev, `Step 2: Uploading ${type} to storage... Path: ${storagePath}`]);
                 
-                setGenerationLogs(prev => [...prev, `Step 2: Uploading ${type} to storage...`]);
-                const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
-                setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded.`]);
-
-                // Correctly prepare the object for Firestore
+                let downloadUrl;
+                try {
+                    downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
+                    setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded. URL: ${downloadUrl}`]);
+                } catch (uploadError) {
+                    setGenerationLogs(prev => [...prev, `ERROR: Upload failed - ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`]);
+                    throw uploadError;
+                }
+    
                 dataForDb = { ...result };
                 if (type === 'infographic') {
-                    // Overwrite the temporary dataURI imageUrl with the final storage URL
                     dataForDb.imageUrl = downloadUrl;
+                    setGenerationLogs(prev => [...prev, `-> Set imageUrl to: ${downloadUrl}`]);
                 } else { // podcast
-                    // Add the final storage URL and remove the temporary dataURI
                     dataForDb.podcastAudioUrl = downloadUrl;
                     delete dataForDb.podcastAudio;
+                    setGenerationLogs(prev => [...prev, `-> Set podcastAudioUrl to: ${downloadUrl}`]);
                 }
             } else {
                 switch (type) {
@@ -914,13 +934,16 @@ function StudySpacesPage() {
                 }
             }
             
+            setGenerationLogs(prev => [...prev, `Step 3: Saving to database...`]);
             updateSelectedStudySpace(current => ({ generatedContent: { ...current.generatedContent, [type]: dataForDb }}));
+            setGenerationLogs(prev => [...prev, `-> Success: Saved to database.`]);
+            
             setActiveGeneratedView(type as any);
 
         } catch (e: any) {
             console.error(`Error generating ${type}:`, e);
             const description = e.message || `An unknown error occurred while generating the ${type}.`;
-            setGenerationLogs(prev => [...prev, `ERROR: ${description}`]);
+            setGenerationLogs(prev => [...prev, `❌ ERROR: ${description}`]);
             toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
         } finally {
             setIsGenerating(null);

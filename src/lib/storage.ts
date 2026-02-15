@@ -4,12 +4,38 @@ import { FirebaseStorage, ref, uploadString, getDownloadURL, deleteObject, listA
 
 // Helper to upload a data URL string to Firebase Storage
 export async function uploadDataUrlToStorage(storage: FirebaseStorage, path: string, dataUrl: string): Promise<string> {
-    const storageRef = ref(storage, path);
-    if (!dataUrl.startsWith('data:')) {
-        throw new Error('Invalid Data URL. Must start with "data:".');
+    try {
+        console.log(`Starting upload to: ${path}`);
+        console.log(`Data URL length: ${dataUrl.length}, starts with: ${dataUrl.substring(0, 50)}...`);
+        
+        if (!dataUrl || typeof dataUrl !== 'string') {
+            throw new Error('Invalid dataUrl: must be a non-empty string');
+        }
+        
+        if (!dataUrl.startsWith('data:')) {
+            throw new Error(`Invalid Data URL. Must start with "data:". Actual: ${dataUrl.substring(0, 30)}...`);
+        }
+
+        const storageRef = ref(storage, path);
+        console.log('Uploading to Firebase Storage...');
+        
+        const snapshot = await uploadString(storageRef, dataUrl, 'data_url');
+        console.log('Upload successful, getting download URL...');
+        
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        console.log(`Download URL obtained: ${downloadUrl}`);
+        
+        return downloadUrl;
+    } catch (error) {
+        console.error('Storage upload error details:', {
+            error,
+            path,
+            dataUrlPreview: dataUrl?.substring(0, 100),
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            errorStack: error instanceof Error ? error.stack : undefined
+        });
+        throw new Error(`Failed to upload to storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    const snapshot = await uploadString(storageRef, dataUrl, 'data_url');
-    return await getDownloadURL(snapshot.ref);
 }
 
 // Helper to delete a folder and its contents
