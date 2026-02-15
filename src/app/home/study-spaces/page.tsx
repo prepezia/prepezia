@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -884,11 +885,16 @@ function StudySpacesPage() {
                 const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
                 setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded.`]);
 
-                dataForDb = { ...result, [type === 'infographic' ? 'imageUrl' : 'podcastAudioUrl']: downloadUrl };
-                
-                if (type === 'infographic') delete dataForDb.imageUrl;
-                if (type === 'podcast') delete dataForDb.podcastAudio;
-
+                // Correctly prepare the object for Firestore
+                dataForDb = { ...result };
+                if (type === 'infographic') {
+                    // Overwrite the temporary dataURI imageUrl with the final storage URL
+                    dataForDb.imageUrl = downloadUrl;
+                } else { // podcast
+                    // Add the final storage URL and remove the temporary dataURI
+                    dataForDb.podcastAudioUrl = downloadUrl;
+                    delete dataForDb.podcastAudio;
+                }
             } else {
                 switch (type) {
                     case 'flashcards':
