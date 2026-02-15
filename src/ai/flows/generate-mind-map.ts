@@ -2,8 +2,6 @@
 /**
  * @fileOverview A flow to generate a mind map from content.
  * - generateMindMap - A function that handles mind map generation.
- * - GenerateMindMapInput - The input type.
- * - GenerateMindMapOutput - The return type.
  */
 
 import {ai} from '@/ai/genkit';
@@ -51,7 +49,7 @@ Convert the provided source content into a structured mind map.
 ### CRITICAL RULES:
 1.  **HIERARCHY:** You **MUST** create a hierarchical structure with a single root node. This root node must have at least 2-4 main child nodes (branches). Each of these main branches **MUST** also have their own child nodes (sub-branches). The mind map should be at least 3 levels deep.
 2.  **NOTES:** For **EVERY SINGLE NODE** you create (including the root and all children), you **MUST** provide a concise, one-sentence explanation in the 'note' field.
-3.  **CHILDREN PROPERTY:** If a node has no sub-topics, you **MUST OMIT** the 'children' property for that node entirely. Do not include an empty 'children' array.
+3.  **CHILDREN PROPERTY:** The 'children' array must ONLY contain valid node objects (with 'title' and 'note'). If a node has no sub-topics, you **MUST OMIT** the 'children' property for that node entirely. Do not include an empty \`children: []\` array, and do not include \`null\` or empty \`{}\` objects as elements in the \`children\` array.
 
 ### CONTEXT:
 {{#if topic}}
