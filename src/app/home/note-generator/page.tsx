@@ -529,13 +529,9 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 const dataUrl = type === 'infographic' 
                     ? (result as GenerateInfographicOutput).imageUrl 
                     : (result as GeneratePodcastFromSourcesOutput).podcastAudio;
-                
-                if (!dataUrl) {
-                    throw new Error(`No data URL returned from ${type} generation`);
-                }
-                
-                if (!dataUrl.startsWith('data:')) {
-                    console.warn(`Unexpected data URL format: ${dataUrl.substring(0, 100)}`);
+
+                if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+                    throw new Error(`AI returned an invalid data format for ${type}. Cannot upload.`);
                 }
                 
                 const fileExtension = type === 'infographic' ? 'png' : 'wav';
