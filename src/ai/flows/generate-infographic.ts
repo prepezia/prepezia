@@ -24,13 +24,6 @@ const GenerateInfographicInputSchema = z.object({
 export type GenerateInfographicInput = z.infer<typeof GenerateInfographicInputSchema>;
 
 const GenerateInfographicOutputSchema = z.object({
-  imageUrl: z.string().optional().describe("The data URI of the generated infographic image, if successful."),
-  prompt: z.string().optional().describe("The prompt used to generate the image for debugging purposes."),
-  keyPoints: z.array(z.object({
-    title: z.string(),
-    summary: z.string()
-  })).optional().describe("The extracted key points for reference"),
-  logs: z.array(z.string()).optional().describe("Debugging logs from the generation process."),
   fallbackHtml: z.string().optional().describe("The HTML content for a fallback infographic if image generation fails."),
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
@@ -70,20 +63,14 @@ export const generateInfographic = ai.defineFlow({
     inputSchema: GenerateInfographicInputSchema,
     outputSchema: GenerateInfographicOutputSchema,
 }, async (input) => {
-    const logs = ['Starting infographic generation...'];
-    
     // Step 1: Extract key points
-    logs.push('Step 1: Extracting key points from content...');
     const keyPoints = await extractKeyPointsFlow(input);
-    logs.push(`-> Success: Extracted ${keyPoints.length} key points.`);
 
     // Step 2: Generate HTML design from the key points
-    logs.push('Step 2: Generating HTML design for infographic...');
     const fallbackHtml = generateInfographicHtml(keyPoints, input.topic || 'Key Insights');
-    logs.push('-> Success: HTML generated.');
 
     // The client will handle the rendering to an image and the upload.
-    return { fallbackHtml, keyPoints, logs };
+    return { fallbackHtml };
 });
 
 // Helper function to generate a well-styled HTML string

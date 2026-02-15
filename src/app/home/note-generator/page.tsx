@@ -52,7 +52,7 @@ type GeneratedContent = {
   flashcards?: GenerateFlashcardsOutput['flashcards'];
   quiz?: GenerateQuizOutput['quiz'];
   deck?: GenerateSlideDeckOutput;
-  infographic?: Omit<GenerateInfographicOutput, 'imageUrl' | 'fallbackHtml'> & { imageUrl?: string };
+  infographic?: { imageUrl?: string };
   podcast?: Omit<GeneratePodcastFromSourcesOutput, 'podcastAudio'> & { podcastAudioUrl?: string };
   mindMap?: GenerateMindMapOutput['mindMap'];
 };
@@ -120,9 +120,9 @@ async function generatePngFromHtml(htmlContent: string): Promise<string> {
     const container = document.createElement('div');
     container.innerHTML = htmlContent;
     // The root element inside the HTML string is what we need to render
-    const elementToRender = container.firstElementChild as HTMLElement;
+    const elementToRender = container.firstElementChild;
     
-    if (!elementToRender) {
+    if (!elementToRender || !(elementToRender instanceof HTMLElement)) {
         throw new Error("Invalid HTML content for rendering.");
     }
     
@@ -345,7 +345,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
   const { data: note, loading: noteLoading } = useDoc<Note>(noteDocRef);
 
   const [isGenerating, setIsGenerating] = useState<keyof GeneratedContent | null>(null);
-  const [generationLogs, setGenerationLogs] = useState<string[]>([]);
   
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -533,7 +532,6 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         if (!note || !user || !storage) return;
         setIsGenerating(type);
         setIsGenerateDialogOpen(false);
-        setGenerationLogs([`Step 1: Generating ${type}...`]);
     
         try {
             const inputBase = {
@@ -545,52 +543,27 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     
             let dataForDb: any;
             
-            if (type === 'infographic' || type === 'podcast') {
-                setGenerationLogs(prev => [...prev, `Step 1a: Calling AI to generate ${type}...`]);
+            if (type === 'infographic') {
+                const result = await generateInfographic({ ...inputBase, style: 'educational', maxPoints: 5 });
                 
-                const result = type === 'infographic'
-                    ? await generateInfographic({ ...inputBase, style: 'educational', maxPoints: 5 })
-                    : await generatePodcastFromSources(inputBase);
-                
-                setGenerationLogs(prev => [...prev, `-> AI generation complete.`]);
-    
-                let dataUrl: string | undefined;
-                if (type === 'infographic') {
-                    const infographicResult = result as GenerateInfographicOutput;
-                    if (infographicResult.imageUrl) {
-                        dataUrl = infographicResult.imageUrl;
-                    } else if (infographicResult.fallbackHtml) {
-                        setGenerationLogs(prev => [...prev, `Step 1b: Primary generation failed. Rendering fallback HTML to PNG...`]);
-                        dataUrl = await generatePngFromHtml(infographicResult.fallbackHtml);
-                        setGenerationLogs(prev => [...prev, `-> Fallback PNG generated.`]);
-                    }
-                } else { // podcast
-                    dataUrl = (result as GeneratePodcastFromSourcesOutput).podcastAudio;
+                if (!result.fallbackHtml) {
+                    throw new Error(`AI failed to return HTML for the infographic.`);
                 }
-                
-                if (!dataUrl) {
-                    throw new Error(`AI failed to return image data or fallback HTML for ${type}.`);
-                }
-    
-                if (!dataUrl.startsWith('data:')) {
-                    throw new Error(`Invalid Data URL format received from generation: ${dataUrl.substring(0, 100)}...`);
-                }
-                
-                const fileExtension = type === 'infographic' ? 'png' : 'wav';
-                const storagePath = `users/${user.uid}/notes/${note.id}/${type}.${fileExtension}`;
-    
-                setGenerationLogs(prev => [...prev, `Step 2: Uploading ${type} to storage... Path: ${storagePath}`]);
+
+                const dataUrl = await generatePngFromHtml(result.fallbackHtml);
+                const storagePath = `users/${user.uid}/notes/${note.id}/infographic.png`;
                 const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
-                setGenerationLogs(prev => [...prev, `-> Success: ${type} uploaded. URL: ${downloadUrl}`]);
-    
-                dataForDb = { ...result };
-                if (type === 'infographic') {
-                    dataForDb.imageUrl = downloadUrl;
-                    delete dataForDb.fallbackHtml;
-                } else { // podcast
-                    dataForDb.podcastAudioUrl = downloadUrl;
-                    delete dataForDb.podcastAudio;
+                dataForDb = { imageUrl: downloadUrl };
+
+            } else if (type === 'podcast') {
+                const result = await generatePodcastFromSources(inputBase);
+                if (!result.podcastAudio) {
+                    throw new Error(`AI failed to return audio data for the podcast.`);
                 }
+                const storagePath = `users/${user.uid}/notes/${note.id}/podcast.wav`;
+                const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, result.podcastAudio);
+                dataForDb = { podcastScript: result.podcastScript, podcastAudioUrl: downloadUrl };
+
             } else {
                 switch (type) {
                     case 'mindMap':
@@ -610,16 +583,12 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 }
             }
     
-            setGenerationLogs(prev => [...prev, `Step 3: Saving to Firestore...`]);
             await updateNoteInFirestore({ [`generatedContent.${type}`]: dataForDb });
-            setGenerationLogs(prev => [...prev, `-> Success: Saved to Firestore.`]);
-            
             setActiveView(type);
     
         } catch (e: any) {
             console.error(`Error generating ${type}:`, e);
             const description = e.message || `An unknown error occurred while generating the ${type}.`;
-            setGenerationLogs(prev => [...prev, `❌ ERROR: ${description}`]);
             toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
         } finally {
             setIsGenerating(null);
@@ -902,13 +871,10 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                             <CardContent className="space-y-6">
                                 {isGenerating && (
                                     <div className="p-4 rounded-md bg-secondary/50">
-                                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                                        <h4 className="font-semibold flex items-center gap-2">
                                             <Loader2 className="h-4 w-4 animate-spin" />
-                                            Generating {isGenerating}...
+                                            Generating {isGenerating}... Please wait.
                                         </h4>
-                                        <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-y-auto whitespace-pre-wrap">
-                                            {generationLogs.join('\n')}
-                                        </pre>
                                     </div>
                                 )}
 
@@ -1344,7 +1310,7 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
     );
 }
 
-function InfographicView({ infographic, onBack, topic }: { infographic: { prompt: string; imageUrl?: string }, onBack: () => void, topic: string }) {
+function InfographicView({ infographic, onBack, topic }: { infographic: { imageUrl?: string }, onBack: () => void, topic: string }) {
     const { toast } = useToast();
     
     const handleDownload = () => {
@@ -1383,10 +1349,6 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { prompt
                         </AlertDescription>
                     </Alert>
                 )}
-                <details className="w-full max-w-2xl text-xs text-muted-foreground">
-                    <summary className="cursor-pointer">View generation prompt</summary>
-                    <p className="pt-2">{infographic.prompt}</p>
-                </details>
             </CardContent>
         </Card>
     );
@@ -1434,7 +1396,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
             <CardHeader>
                  <div className="flex justify-between items-start">
                     <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
                         <Button onClick={handleDownload} variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
                         <Button onClick={handleExpandAll} variant="ghost" size="icon"><Plus className="h-4 w-4"/></Button>
                         <Button onClick={handleCollapseAll} variant="ghost" size="icon"><Minus className="h-4 w-4"/></Button>
