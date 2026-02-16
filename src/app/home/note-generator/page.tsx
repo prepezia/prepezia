@@ -1406,7 +1406,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
                 <CardDescription>A visual breakdown of the key concepts.</CardDescription>
             </CardHeader>
             <CardContent>
-                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={initialOpen} />
+                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
             </CardContent>
         </Card>
     );
@@ -1419,4 +1419,3 @@ export default function NoteGeneratorPageWrapper() {
         </Suspense>
     )
 }
-
