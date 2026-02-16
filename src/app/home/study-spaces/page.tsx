@@ -975,6 +975,41 @@ function StudySpacesPage() {
     });
   };
 
+    const handleSaveSpaceOffline = async () => {
+    if (!selectedStudySpace?.generatedContent) {
+        toast({ description: "No generated content to save for offline use." });
+        return;
+    }
+
+    toast({ title: "Saving for Offline...", description: "Your generated media files will be downloaded." });
+
+    let downloadedCount = 0;
+    const content = selectedStudySpace.generatedContent;
+    const spaceName = selectedStudySpace.name.replace(/\s+/g, '_');
+
+    if (content.infographic?.imageUrl) {
+        try {
+            await downloadUrl(content.infographic.imageUrl, `infographic_${spaceName}.png`);
+            downloadedCount++;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Infographic Download Failed" });
+        }
+    }
+    if (content.podcast?.podcastAudioUrl) {
+        try {
+            await downloadUrl(content.podcast.podcastAudioUrl, `podcast_${spaceName}.wav`);
+            downloadedCount++;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Podcast Download Failed" });
+        }
+    }
+
+    if (downloadedCount > 0) {
+        toast({ title: "Media files downloaded", description: "Infographics and podcasts have been saved to your device." });
+    } else {
+        toast({ title: "No media to download", description: "Your text-based content is automatically available offline once viewed." });
+    }
+  };
   
   if (viewState === 'create') {
     return <CreateStudySpaceView onCreate={handleCreateStudySpace} onBack={handleBackToList} />
@@ -982,12 +1017,21 @@ function StudySpacesPage() {
 
   if (viewState === 'edit' && selectedStudySpace) {
     const header = (
-        <HomeHeader left={
-             <Button variant="outline" onClick={handleBackToList}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to All Spaces
-            </Button>
-        }/>
+        <HomeHeader
+            left={
+                <Button variant="outline" onClick={handleBackToList}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to All Spaces
+                </Button>
+            }
+            right={
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={handleSaveSpaceOffline}>
+                        <Save className="h-4 w-4"/>
+                    </Button>
+                </div>
+            }
+        />
     );
 
     const generationOptions: { name: string; icon: React.ElementType; type: keyof GeneratedContent }[] = [
@@ -2017,7 +2061,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
                 <CardDescription>A visual breakdown of the key concepts.</CardDescription>
             </CardHeader>
             <CardContent>
-                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
+                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={initialOpen} />
                 <div className="absolute -left-[9999px] top-0 w-[1200px]" aria-hidden="true">
                     <InteractiveMindMap ref={exportMindMapRef} data={mindMap} initialOpen={true} />
                 </div>
