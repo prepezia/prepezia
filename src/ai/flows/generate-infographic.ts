@@ -27,6 +27,40 @@ const GenerateInfographicOutputSchema = z.object({
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
+const extractKeyPointsPrompt = ai.definePrompt({
+    name: 'extractKeyPointsPrompt',
+    model: 'googleai/gemini-1.5-pro',
+    input: {
+        schema: z.object({
+            content: z.string().optional(),
+            sources: z.array(SourceSchema).optional(),
+            maxPoints: z.number().default(5),
+            academicLevel: z.string().optional(),
+        })
+    },
+    output: {
+        format: 'json',
+        schema: z.array(z.object({
+            title: z.string(),
+            summary: z.string()
+        }))
+    },
+    prompt: `Extract the {{{maxPoints}}} most important, distinct key points from the following content. Each point must have a very short, catchy title (2-3 words) and a concise one-sentence summary (max 15 words).
+
+Academic Level: {{{academicLevel}}}
+Content:
+{{#if content}}
+{{{content}}}
+{{else}}
+    {{#each sources}}
+- {{this.name}}: {{#if this.data}}{{media url=this.data contentType=this.contentType}}{{else}}{{this.url}}{{/if}}
+    {{/each}}
+{{/if}}
+
+Return ONLY the JSON array of objects, with keys "title" and "summary". Do not add any other text or commentary.`
+});
+
+
 // Flow 1: Extract key points from content
 const extractKeyPointsFlow = ai.defineFlow({
   name: 'extractKeyPointsFlow',
@@ -41,17 +75,7 @@ const extractKeyPointsFlow = ai.defineFlow({
     summary: z.string()
   })),
 }, async (input) => {
-  const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-pro',
-    prompt: `Extract the ${input.maxPoints} most important, distinct key points from the following content. Each point must have a very short, catchy title (2-3 words) and a concise one-sentence summary (max 15 words).
-
-Academic Level: ${input.academicLevel || 'general'}
-Content:
-${input.content || input.sources?.map(s => `${s.name}: ${s.data || s.url}`).join('\n')}
-
-Return ONLY the JSON array of objects, with keys "title" and "summary". Do not add any other text or commentary.`,
-    output: { format: 'json' }
-  });
+  const { output } = await extractKeyPointsPrompt(input);
   if (!output || !Array.isArray(output) || output.length === 0) {
     throw new Error("The AI model failed to extract key points in the expected format.");
   }
