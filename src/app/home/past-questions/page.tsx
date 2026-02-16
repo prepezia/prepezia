@@ -1,6 +1,6 @@
 
 
-"use client";
+'use client';
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -621,15 +621,13 @@ function Timer({ durationInSeconds }: { durationInSeconds: number }) {
 
 
 function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic: string }) {
+    const [shuffledQuestions, setShuffledQuestions] = useState(() => [...questions].sort(() => Math.random() - 0.5));
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
     const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
     const [score, setScore] = useState(0);
     
-    const currentQuestion = questions[currentQuestionIndex];
-    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
-
     const handleAnswerSelect = (answer: string) => {
         if (isAnswered) return;
         setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
@@ -638,7 +636,7 @@ function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic:
     
     const handleSeeResults = () => {
         let finalScore = 0;
-        questions.forEach((q, index) => {
+        shuffledQuestions.forEach((q, index) => {
             if(selectedAnswers[index] === q.correctAnswer) finalScore++;
         });
         setScore(finalScore);
@@ -646,6 +644,7 @@ function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic:
     };
 
     const handleRestart = () => {
+        setShuffledQuestions(prev => [...prev].sort(() => Math.random() - 0.5));
         setCurrentQuestionIndex(0);
         setSelectedAnswers({});
         setShowExplanation({});
@@ -659,14 +658,17 @@ function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic:
             <Card>
                 <CardHeader>
                     <CardTitle>Quiz Results for "{topic}"</CardTitle>
-                    <CardDescription>You scored {score} out of {questions.length}</CardDescription>
+                    <CardDescription>You scored {score} out of {shuffledQuestions.length}</CardDescription>
                 </CardHeader>
-                <CardContent><Progress value={(score / questions.length) * 100} className="w-full mb-4" /><div className="space-y-4">{questions.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
+                <CardContent><Progress value={(score / shuffledQuestions.length) * 100} className="w-full mb-4" /><div className="space-y-4">{shuffledQuestions.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
                 <CardFooter><Button onClick={handleRestart}>Take Again</Button></CardFooter>
             </Card>
             </div>
         )
     }
+
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
+    const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
@@ -674,10 +676,10 @@ function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic:
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="flex items-center gap-2"><FileQuestion className="text-primary"/> {topic}</CardTitle>
-                    <Timer durationInSeconds={questions.length * 90} />
+                    <Timer durationInSeconds={shuffledQuestions.length * 90} />
                 </div>
-                <CardDescription>Question {currentQuestionIndex + 1} of {questions.length}</CardDescription>
-                <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full" />
+                <CardDescription>Question {currentQuestionIndex + 1} of {shuffledQuestions.length}</CardDescription>
+                <Progress value={((currentQuestionIndex + 1) / shuffledQuestions.length) * 100} className="w-full" />
             </CardHeader>
             <CardContent>
                 <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
@@ -706,7 +708,7 @@ function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic:
             </CardContent>
             <CardFooter className="justify-between">
                 <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}>Previous</Button>
-                {currentQuestionIndex < questions.length - 1 ? (
+                {currentQuestionIndex < shuffledQuestions.length - 1 ? (
                      <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button>
                 ) : (
                     <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>

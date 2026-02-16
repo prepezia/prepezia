@@ -1198,13 +1198,14 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
 }
 
 function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: (score: number, total: number) => void, topic: string }) {
+    const [shuffledQuiz, setShuffledQuiz] = useState(() => [...quiz].sort(() => Math.random() - 0.5));
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
     const [score, setScore] = useState(0);
     const { toast } = useToast();
 
-    if (!quiz || quiz.length === 0) {
+    if (!shuffledQuiz || shuffledQuiz.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -1220,15 +1221,26 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         if (selectedAnswers[currentQuestionIndex] !== undefined) return;
         setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
     };
+
     const handleSeeResults = () => {
         let finalScore = 0;
-        quiz.forEach((q, index) => { if(selectedAnswers[index] === q.correctAnswer) finalScore++; });
+        shuffledQuiz.forEach((q, index) => { if(selectedAnswers[index] === q.correctAnswer) finalScore++; });
         setScore(finalScore);
         setQuizState('results');
     };
+
     const handleFinishAndGoBack = () => {
-        onBack(score, quiz.length);
-    }
+        onBack(score, shuffledQuiz.length);
+    };
+
+    const handleRestart = () => {
+        setShuffledQuiz(prev => [...prev].sort(() => Math.random() - 0.5));
+        setCurrentQuestionIndex(0);
+        setSelectedAnswers({});
+        setScore(0);
+        setQuizState('in-progress');
+    };
+
     const handlePrint = () => {
         const printContent = document.getElementById('quiz-results-print-area')?.innerHTML;
         if (!printContent) return;
@@ -1245,18 +1257,18 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     if (quizState === 'results') {
         return (
             <Card>
-                <CardHeader><div className="flex justify-between items-start"><Button onClick={handleFinishAndGoBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {quiz.length}</CardDescription></CardHeader>
-                <CardContent id="quiz-results-print-area"><Progress value={(score / quiz.length) * 100} className="w-full mb-4" /><div className="space-y-4">{quiz.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
-                <CardFooter><Button onClick={() => setQuizState('in-progress')}>Take Again</Button></CardFooter>
+                <CardHeader><div className="flex justify-between items-start"><Button onClick={handleFinishAndGoBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {shuffledQuiz.length}</CardDescription></CardHeader>
+                <CardContent id="quiz-results-print-area"><Progress value={(score / shuffledQuiz.length) * 100} className="w-full mb-4" /><div className="space-y-4">{shuffledQuiz.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
+                <CardFooter><Button onClick={handleRestart}>Take Again</Button></CardFooter>
             </Card>
         );
     }
     
-    const currentQuestion = quiz[currentQuestionIndex];
+    const currentQuestion = shuffledQuiz[currentQuestionIndex];
     const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
     return (
         <Card>
-            <CardHeader><Button onClick={() => onBack(0,0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" /></CardHeader>
+            <CardHeader><Button onClick={() => onBack(0,0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {shuffledQuiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / shuffledQuiz.length) * 100} className="w-full" /></CardHeader>
             <CardContent>
                 <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
                 <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswers[currentQuestionIndex]} disabled={isAnswered}>
@@ -1271,11 +1283,12 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
             </CardContent>
             <CardFooter className="justify-between">
                 <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}>Previous</Button>
-                {currentQuestionIndex < quiz.length - 1 ? <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button> : <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>}
+                {currentQuestionIndex < shuffledQuiz.length - 1 ? <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button> : <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>}
             </CardFooter>
         </Card>
     );
 }
+
 
 function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack: () => void }) {
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -1311,27 +1324,12 @@ function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack
 }
 
 function InfographicView({ infographic, onBack, topic }: { infographic: { imageUrl?: string }, onBack: () => void, topic: string }) {
-    const { toast } = useToast();
-    
-    const handleDownload = () => {
-        if (!infographic.imageUrl) {
-            toast({ variant: 'destructive', title: 'Image Not Available' });
-            return;
-        }
-        const link = document.createElement('a');
-        link.href = infographic.imageUrl;
-        link.download = `infographic_${topic.replace(/\s+/g, '_')}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-    
     return (
         <Card>
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
-                    <Button onClick={handleDownload} variant="ghost" size="icon" disabled={!infographic.imageUrl}><Download className="h-4 w-4"/></Button>
+                    <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
                 </div>
                 <CardTitle className="pt-4 flex items-center gap-2"> Infographic for "{topic}"</CardTitle>
                 <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
