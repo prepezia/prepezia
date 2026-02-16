@@ -79,11 +79,10 @@ const generatePodcastFlow = ai.defineFlow(
   async input => {
     // Step 1: Generate the script
     const {output} = await podcastScriptPrompt(input);
-    const podcastScript = output!.script;
-
-    if (!podcastScript) {
-        throw new Error("Failed to generate podcast script.");
+    if (!output || !output.script) {
+        throw new Error("The AI model failed to generate a podcast script.");
     }
+    const podcastScript = output.script;
 
     // Step 2: Generate the audio from the script
     const {media} = await ai.generate({

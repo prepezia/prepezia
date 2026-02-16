@@ -76,7 +76,10 @@ User's Career Objectives:
       },
       async input => {
         const {output} = await careerAdvisorPrompt(input);
-        return output!;
+        if (!output) {
+          throw new Error("The AI model failed to produce a valid response.");
+        }
+        return output;
       }
     );
   }

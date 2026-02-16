@@ -53,6 +53,9 @@ ${input.content || input.sources?.map(s => `${s.name}: ${s.data || s.url}`).join
 Return ONLY the JSON array of objects, with keys "title" and "summary". Do not add any other text or commentary.`,
     output: { format: 'json' }
   });
+  if (!output || !Array.isArray(output)) {
+    throw new Error("The AI model failed to extract key points in the expected format.");
+  }
   return output as any;
 });
 

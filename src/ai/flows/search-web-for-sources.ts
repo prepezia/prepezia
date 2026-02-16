@@ -10,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const SearchWebForSourcesInputSchema = z.object({
   query: z.string().describe('The search query to find resources for.'),
@@ -54,7 +54,10 @@ export async function searchWebForSources(input: SearchWebForSourcesInput): Prom
       },
       async input => {
         const {output} = await prompt(input);
-        return output!;
+        if (!output) {
+          throw new Error("The AI model failed to produce a valid response.");
+        }
+        return output;
       }
     );
   }

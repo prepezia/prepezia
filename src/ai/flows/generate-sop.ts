@@ -69,7 +69,10 @@ Generate the SOP draft now.`,
     },
     async input => {
       const {output} = await generateSopPrompt(input);
-      return output!;
+      if (!output) {
+        throw new Error("The AI model failed to produce a valid response.");
+      }
+      return output;
     }
   );
 

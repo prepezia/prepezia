@@ -77,7 +77,10 @@ Please find 3-5 currently active job postings from reputable job boards (like Li
       },
       async input => {
         const {output} = await prompt(input);
-        return output!;
+        if (!output) {
+          throw new Error("The AI model failed to produce a valid response.");
+        }
+        return output;
       }
     );
   }

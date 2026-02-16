@@ -81,7 +81,10 @@ const generateFlashcardsFlow = ai.defineFlow({
   },
   async input => {
     const {output} = await generateFlashcardsPrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error("The AI model failed to produce a valid response.");
+    }
+    return output;
   }
 );
 

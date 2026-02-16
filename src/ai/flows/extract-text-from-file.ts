@@ -46,7 +46,10 @@ const extractTextFromFileFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await extractTextPrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error("The AI model failed to produce a valid response.");
+    }
+    return output;
   }
 );
 

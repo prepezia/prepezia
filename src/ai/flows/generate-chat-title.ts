@@ -50,7 +50,10 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
     },
     async ({history}) => {
       const {output} = await generateChatTitlePrompt({history});
-      return output!;
+      if (!output) {
+        throw new Error("The AI model failed to produce a valid response.");
+      }
+      return output;
     }
   );
   return generateChatTitleFlow(input);
