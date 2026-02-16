@@ -23,7 +23,7 @@ const GenerateInfographicInputSchema = z.object({
 export type GenerateInfographicInput = z.infer<typeof GenerateInfographicInputSchema>;
 
 const GenerateInfographicOutputSchema = z.object({
-  fallbackHtml: z.string().optional().describe("The HTML content for a fallback infographic if image generation fails."),
+  imageDataUrl: z.string().describe("A data URI of the generated infographic image."),
 });
 export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutputSchema>;
 
@@ -52,7 +52,7 @@ ${input.content || input.sources?.map(s => `${s.name}: ${s.data || s.url}`).join
 Return ONLY the JSON array of objects, with keys "title" and "summary". Do not add any other text or commentary.`,
     output: { format: 'json' }
   });
-  if (!output || !Array.isArray(output)) {
+  if (!output || !Array.isArray(output) || output.length === 0) {
     throw new Error("The AI model failed to extract key points in the expected format.");
   }
   return output as any;
@@ -65,62 +65,42 @@ export const generateInfographic = ai.defineFlow({
     inputSchema: GenerateInfographicInputSchema,
     outputSchema: GenerateInfographicOutputSchema,
 }, async (input) => {
-    // Step 1: Extract key points
+    // Step 1: Extract key points using the text model
     const keyPoints = await extractKeyPointsFlow(input);
 
-    // Step 2: Generate an icon for each key point in parallel
-    const keyPointsWithIcons = await Promise.all(
-        keyPoints.map(async (point) => {
-            try {
-                const { media } = await ai.generate({
-                    model: 'googleai/imagen-4.0-fast-generate-001',
-                    prompt: `A simple, minimalist, flat, 2D vector-style icon representing the concept: "${point.title}". The icon should have a transparent background, suitable for placing on a white infographic.`,
-                });
+    // Step 2: Build the detailed prompt for the image model
+    const topic = input.topic || 'Key Insights';
+    const keyPointsText = keyPoints.map((p, i) => `Point ${i + 1} Title: ${p.title}\nPoint ${i + 1} Summary: ${p.summary}`).join('\n\n');
 
-                if (!media || !media.url) {
-                    return { ...point, iconDataUrl: null };
-                }
-                return { ...point, iconDataUrl: media.url };
-            } catch (e) {
-                console.error(`Failed to generate icon for "${point.title}":`, e);
-                return { ...point, iconDataUrl: null };
-            }
-        })
-    );
+    const imagePrompt = `You are an expert graphic designer. Create a clean, modern, professional infographic with a vertical A4-style layout.
+    
+**CRITICAL INSTRUCTION:** You **MUST** use the following text VERBATIM. Do not change, add, or remove any words from the provided title and summaries. Render the text perfectly and legibly.
 
-    // Step 3: Generate HTML design from the key points and icons
-    const fallbackHtml = generateInfographicHtml(keyPointsWithIcons, input.topic || 'Key Insights');
+**Main Title:** ${topic}
 
-    // The client will handle the rendering to an image and the upload.
-    return { fallbackHtml };
+**Key Points to Include:**
+${keyPointsText}
+
+**Design Guidelines:**
+- Visual Style: ${input.style || 'educational'}. Use a professional and minimal color palette.
+- For each key point, create a simple, relevant icon or illustration.
+- Ensure all text is perfectly readable against the background. The typography must be clean and professional.
+- Add a small, unobtrusive "Prepezia" logo or text at the very bottom, centered.
+- The overall design should be high-quality and suitable for a presentation or study guide.
+`;
+
+    // Step 3: Generate the single infographic image using the image model
+    const { media } = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-image',
+        prompt: imagePrompt,
+        config: {
+            responseModalities: ['TEXT', 'IMAGE'], // 'TEXT' is required for this model, even if we only need the image
+        },
+    });
+
+    if (!media || !media.url) {
+        throw new Error("The AI failed to generate an infographic image.");
+    }
+    
+    return { imageDataUrl: media.url };
 });
-
-// Helper function to generate a well-styled HTML string
-function generateInfographicHtml(keyPoints: { title: string; summary: string; iconDataUrl: string | null }[], topic: string): string {
-    const content = `
-      <div style="width: 800px; padding: 40px; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; border: 1px solid #e2e8f0; display: flex; flex-direction: column;">
-        <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #E53E3E; margin-bottom: 30px;">
-            <h1 style="font-size: 38px; font-weight: 800; color: #1a202c; margin: 0;">${topic}</h1>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 30px; flex-grow: 1;">
-          ${keyPoints.map((point) => `
-            <div style="display: flex; flex-direction: row; align-items: flex-start; gap: 20px;">
-              ${point.iconDataUrl ? `
-                <div style="width: 60px; height: 60px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <img src="${point.iconDataUrl}" alt="${point.title} icon" style="width: 40px; height: 40px; object-fit: contain;" />
-                </div>
-              ` : `
-                <div style="width: 60px; height: 60px; flex-shrink: 0;"></div>
-              `}
-              <div style="flex-grow: 1;">
-                <h2 style="font-size: 20px; font-weight: 700; color: #2d3748; margin: 0 0 8px 0;">${point.title}</h2>
-                <p style="font-size: 15px; color: #4a5568; margin: 0; line-height: 1.6;">${point.summary}</p>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-        <p style="text-align: center; font-size: 14px; color: #a0aec0; margin-top: 40px; font-weight: 600; padding-top: 20px; border-top: 1px solid #e2e8f0;">Prepezia</p>
-      </div>
-    `;
-    return content;
-}

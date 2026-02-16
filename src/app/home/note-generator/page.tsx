@@ -115,33 +115,6 @@ async function downloadUrl(url: string, filename: string) {
     }
 }
 
-// Client-side helper to render HTML to a PNG data URL
-async function generatePngFromHtml(htmlContent: string): Promise<string> {
-    const container = document.createElement('div');
-    container.innerHTML = htmlContent;
-    // The root element inside the HTML string is what we need to render
-    const elementToRender = container.firstElementChild;
-    
-    if (!elementToRender || !(elementToRender instanceof HTMLElement)) {
-        throw new Error("Invalid HTML content for rendering.");
-    }
-    
-    // Temporarily append to body to ensure styles are applied
-    document.body.appendChild(elementToRender);
-    
-    try {
-        const dataUrl = await toPng(elementToRender, {
-            cacheBust: true,
-            backgroundColor: 'white',
-            pixelRatio: 2
-        });
-        return dataUrl;
-    } finally {
-        // Clean up the element from the DOM
-        document.body.removeChild(elementToRender);
-    }
-}
-
 function NoteGeneratorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -546,13 +519,12 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             if (type === 'infographic') {
                 const result = await generateInfographic({ ...inputBase, style: 'educational', maxPoints: 5 });
                 
-                if (!result.fallbackHtml) {
-                    throw new Error(`AI failed to return HTML for the infographic.`);
+                if (!result.imageDataUrl) {
+                    throw new Error(`AI failed to return image data for the infographic.`);
                 }
 
-                const dataUrl = await generatePngFromHtml(result.fallbackHtml);
                 const storagePath = `users/${user.uid}/notes/${note.id}/infographic.png`;
-                const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, dataUrl);
+                const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, result.imageDataUrl);
                 dataForDb = { imageUrl: downloadUrl };
 
             } else if (type === 'podcast') {
