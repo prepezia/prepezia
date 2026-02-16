@@ -134,10 +134,10 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-                                        AI-Powered StudySpaces
+                                        Prepare easier, with Prepezia.
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
-                                        Upload your notes, PDFs, and even YouTube links to create a unified knowledge base.
+                                        Your AI-powered learning partner for research, exam prep, and career growth. Learn faster, test smarter, and unlock your full potential.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold sm:w-auto">
@@ -299,8 +299,8 @@ export default function Home() {
         <section id="features" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto px-5 md:px-6">
             <div className="text-center mb-12">
-              <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Amazing Services & Features For You</h2>
-              <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster and test smarter.</p>
+              <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Prepezia: Prepare Easier</h2>
+              <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster, test smarter, and build your career.</p>
             </div>
             <div className="mx-auto grid max-w-sm grid-cols-1 gap-8 md:mx-0 md:max-w-none md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
