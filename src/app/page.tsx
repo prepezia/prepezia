@@ -133,9 +133,6 @@ export default function Home() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
-                                    <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="h-8 w-24" />
-                                    </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         AI-Powered StudySpaces
                                     </h1>
@@ -166,9 +163,6 @@ export default function Home() {
                          <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
-                                    <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="h-8 w-24" />
-                                    </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Dynamic Note Generation
                                     </h1>
@@ -198,9 +192,6 @@ export default function Home() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
-                                     <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="h-8 w-24" />
-                                    </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Ghana Past Questions Hub
                                     </h1>
@@ -230,9 +221,6 @@ export default function Home() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
-                                     <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="h-8 w-24" />
-                                    </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Generate Notes & Podcasts
                                     </h1>
@@ -262,9 +250,6 @@ export default function Home() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
-                                     <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="h-8 w-24" />
-                                    </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         AI Deep Dive Research
                                     </h1>
