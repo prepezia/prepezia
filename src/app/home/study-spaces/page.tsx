@@ -334,7 +334,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
             </Dialog>
             <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
             <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader><Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/><DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter></DialogContent></Dialog>
-            <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add to your study space.</DialogDescription></DialogHeader>{isSearching ? (<div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>) : searchResults.length > 0 ? (<div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => {if (checked) {setSelectedWebSources(prev => [...prev, result]);} else {setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));}}} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}<DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add to Study Space</Button></DialogFooter></DialogContent></Dialog>
+            <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add to your study space.</DialogDescription></DialogHeader>{isSearching ? (<div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>) : searchResults.length > 0 ? (<div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => {if (checked) {setSelectedWebSources(prev => [...prev, result]);} else {setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));}}} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}<DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter></DialogContent></Dialog>
         </>
     );
 }
@@ -1860,13 +1860,14 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
 }
 
 function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], onBack: (score: number, total: number) => void, topic: string }) {
+    const [shuffledQuiz, setShuffledQuiz] = useState(() => [...quiz].sort(() => Math.random() - 0.5));
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [quizState, setQuizState] = useState<'in-progress' | 'results'>('in-progress');
     const [score, setScore] = useState(0);
     const { toast } = useToast();
 
-    if (!quiz || quiz.length === 0) {
+    if (!shuffledQuiz || shuffledQuiz.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -1882,15 +1883,26 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         if (selectedAnswers[currentQuestionIndex] !== undefined) return;
         setSelectedAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
     };
+
     const handleSeeResults = () => {
         let finalScore = 0;
-        quiz.forEach((q, index) => { if(selectedAnswers[index] === q.correctAnswer) finalScore++; });
+        shuffledQuiz.forEach((q, index) => { if(selectedAnswers[index] === q.correctAnswer) finalScore++; });
         setScore(finalScore);
         setQuizState('results');
     };
+
     const handleFinishAndGoBack = () => {
-        onBack(score, quiz.length);
-    }
+        onBack(score, shuffledQuiz.length);
+    };
+
+    const handleRestart = () => {
+        setShuffledQuiz(prev => [...prev].sort(() => Math.random() - 0.5));
+        setCurrentQuestionIndex(0);
+        setSelectedAnswers({});
+        setScore(0);
+        setQuizState('in-progress');
+    };
+
     const handlePrint = () => {
         const printContent = document.getElementById('quiz-results-print-area')?.innerHTML;
         if (!printContent) return;
@@ -1907,18 +1919,18 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
     if (quizState === 'results') {
         return (
             <Card>
-                <CardHeader><div className="flex justify-between items-start"><Button onClick={handleFinishAndGoBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {quiz.length}</CardDescription></CardHeader>
-                <CardContent id="quiz-results-print-area"><Progress value={(score / quiz.length) * 100} className="w-full mb-4" /><div className="space-y-4">{quiz.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
-                <CardFooter><Button onClick={() => setQuizState('in-progress')}>Take Again</Button></CardFooter>
+                <CardHeader><div className="flex justify-between items-start"><Button onClick={handleFinishAndGoBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><Button onClick={handlePrint} variant="ghost" size="icon"><Printer className="h-4 w-4"/></Button></div><CardTitle className="pt-4">Quiz Results for "{topic}"</CardTitle><CardDescription>You scored {score} out of {shuffledQuiz.length}</CardDescription></CardHeader>
+                <CardContent id="quiz-results-print-area"><Progress value={(score / shuffledQuiz.length) * 100} className="w-full mb-4" /><div className="space-y-4">{shuffledQuiz.map((q, index) => (<Card key={index} className={cn(selectedAnswers[index] === q.correctAnswer ? "border-green-500" : "border-destructive")}><CardHeader><p className="font-semibold">{index + 1}. {q.questionText}</p></CardHeader><CardContent><p className="text-sm">Your answer: <span className={cn("font-bold", selectedAnswers[index] === q.correctAnswer ? "text-green-500" : "text-destructive")}>{selectedAnswers[index] || "Not answered"}</span></p><p className="text-sm">Correct answer: <span className="font-bold text-green-500">{q.correctAnswer}</span></p><details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Show Explanation</summary><p className="pt-1">{q.explanation}</p></details></CardContent></Card>))}</div></CardContent>
+                <CardFooter><Button onClick={handleRestart}>Take Again</Button></CardFooter>
             </Card>
         );
     }
     
-    const currentQuestion = quiz[currentQuestionIndex];
+    const currentQuestion = shuffledQuiz[currentQuestionIndex];
     const isAnswered = selectedAnswers[currentQuestionIndex] !== undefined;
     return (
         <Card>
-            <CardHeader><Button onClick={() => onBack(0,0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {quiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / quiz.length) * 100} className="w-full" /></CardHeader>
+            <CardHeader><Button onClick={() => onBack(0,0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button><CardTitle className="pt-4 flex items-center gap-2"> Quiz for "{topic}"</CardTitle><CardDescription>Question {currentQuestionIndex + 1} of {shuffledQuiz.length}</CardDescription><Progress value={((currentQuestionIndex + 1) / shuffledQuiz.length) * 100} className="w-full" /></CardHeader>
             <CardContent>
                 <p className="font-semibold text-lg mb-4">{currentQuestion.questionText}</p>
                 <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswers[currentQuestionIndex]} disabled={isAnswered}>
@@ -1933,7 +1945,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
             </CardContent>
             <CardFooter className="justify-between">
                 <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}>Previous</Button>
-                {currentQuestionIndex < quiz.length - 1 ? <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button> : <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>}
+                {currentQuestionIndex < shuffledQuiz.length - 1 ? <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={!isAnswered}>Next</Button> : <Button onClick={handleSeeResults} disabled={!isAnswered}>See Results</Button>}
             </CardFooter>
         </Card>
     );
