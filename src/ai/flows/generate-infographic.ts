@@ -29,7 +29,7 @@ export type GenerateInfographicOutput = z.infer<typeof GenerateInfographicOutput
 
 const extractKeyPointsPrompt = ai.definePrompt({
     name: 'extractKeyPointsPrompt',
-    model: 'googleai/gemini-1.5-pro',
+    model: 'googleai/gemini-2.5-flash',
     input: {
         schema: z.object({
             content: z.string().optional(),
