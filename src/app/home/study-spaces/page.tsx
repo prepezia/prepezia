@@ -319,7 +319,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
                                             {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                            <span className="flex-1 min-w-0 truncate">{s.name}</span>
+                                            <span className="flex-1 min-w-0 break-all">{s.name}</span>
                                             <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                                         </li>
                                     ))}
@@ -334,7 +334,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
             </Dialog>
             <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}><DialogContent><DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader><Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter></DialogContent></Dialog>
             <Dialog open={isUrlModalOpen} onOpenChange={setIsUrlModalOpen}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader><Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/><DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter></DialogContent></Dialog>
-            <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add to your study space.</DialogDescription></DialogHeader>{isSearching ? (<div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>) : searchResults.length > 0 ? (<div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => {if (checked) {setSelectedWebSources(prev => [...prev, result]);} else {setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));}}} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}<DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter></DialogContent></Dialog>
+            <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Web Search Results</DialogTitle><DialogDescription>Select the resources you want to add to your study space.</DialogDescription></DialogHeader>{isSearching ? (<div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>) : searchResults.length > 0 ? (<div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => {if (checked) {setSelectedWebSources(prev => [...prev, result]);} else {setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));}}} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm break-words">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline break-all">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}<DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter></DialogContent></Dialog>
         </>
     );
 }
@@ -1205,6 +1205,15 @@ function StudySpacesPage() {
                                 <Button onClick={() => setIsAddSourcesOpen(true)}>Add More Sources</Button>
                             </CardHeader>
                             <CardContent>
+                                {isDirty && (
+                                    <Alert variant="default" className="mb-4 border-primary/20 bg-primary/5 text-primary">
+                                        <Sparkles className="h-4 w-4" />
+                                        <AlertTitle>Sources Updated</AlertTitle>
+                                        <AlertDescription>
+                                            Regenerate content like quizzes or podcasts to include your new additions.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
                                 {selectedStudySpace.sources.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">No sources added yet. Click &quot;Add More Sources&quot; to begin.</p>
                                 ) : (
@@ -1218,7 +1227,7 @@ function StudySpacesPage() {
                                             {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                            <span className="flex-1 min-w-0 truncate">{s.name}</span>
+                                            <span className="flex-1 min-w-0 break-all">{s.name}</span>
                                             <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                                 <Trash2 className="w-4 h-4 text-destructive" />
                                             </Button>
@@ -1695,7 +1704,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                                     {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                                     {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                                     {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                                    <span className="flex-1 min-w-0 truncate">{s.name}</span>
+                                                    <span className="flex-1 min-w-0 break-all">{s.name}</span>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                                         <Trash2 className="w-4 h-4 text-destructive" />
                                                     </Button>
@@ -1736,7 +1745,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                         {isSearching ? (
                             <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /><p className="text-sm text-muted-foreground mt-4">Searching...</p></div>
                         ) : searchResults.length > 0 ? (
-                            <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => {if (checked) {setSelectedWebSources(prev => [...prev, result]);} else {setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));}}} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}
+                            <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-6 px-6 border-y"><div className="py-4 space-y-2">{searchResults.map((result, index) => (<div key={index} className="flex items-start space-x-3 p-3 border rounded-md bg-secondary/50"><Checkbox id={`search-result-${index}`} onCheckedChange={(checked) => {if (checked) {setSelectedWebSources(prev => [...prev, result]);} else {setSelectedWebSources(prev => prev.filter(r => r.url !== result.url));}}} checked={selectedWebSources.some(s => s.url === result.url)}/><div className="grid gap-1.5 leading-none flex-1 min-w-0"><label htmlFor={`search-result-${index}`} className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-sm break-words">{result.title}</label><p className="text-xs text-muted-foreground">{result.snippet}</p><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline break-all">{result.url}</a></div></div>))}</div></div>) : (<div className="text-center py-10 text-muted-foreground">No results found. Try a different search term.</div>)}
                         <DialogFooter><Button variant="outline" onClick={() => setIsSearchModalOpen(false)}>Cancel</Button><Button onClick={handleAddSelectedSources}>Add Selected</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>

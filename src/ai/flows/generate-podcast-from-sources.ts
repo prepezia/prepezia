@@ -45,7 +45,7 @@ const podcastScriptPrompt = ai.definePrompt({
             script: z.string().describe('The full podcast script as a string, with speaker lines clearly marked as "Zia:" or "Jay:".')
         })
     },
-    prompt: `You are a scriptwriter for an educational podcast called "Learn with Zia". Your task is to create a conversational script based on the provided source material.
+    prompt: `You are a scriptwriter for an educational podcast called "Prep with Zia". Your task is to create a conversational script based on the provided source material.
 
     ### CHARACTERS:
     - **Zia:** The lead host. Energetic, enthusiastic, and great at making complex topics accessible.
@@ -54,7 +54,7 @@ const podcastScriptPrompt = ai.definePrompt({
     ### INSTRUCTIONS:
     1.  Read the source material below.
     2.  Write a conversational podcast script between Zia and Jay that is approximately 300-400 words long.
-    3.  The script should start with Zia saying: "Hey everyone, welcome back to Learn with Zia!"
+    3.  The script should start with Zia saying: "Hey everyone, welcome back to Prep with Zia!"
     4.  Use banter, analogies, and frequent affirmations (e.g., "Exactly!", "That's a great point, Jay.", "Right, so...").
     5.  Ensure the conversation flows naturally and covers the key points from the source material.
     6.  The entire output must be just the script text, with each line prefixed by the speaker's name (e.g., "Zia: ...", "Jay: ...").
