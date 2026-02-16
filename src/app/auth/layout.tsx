@@ -11,8 +11,7 @@ export default function AuthLayout({
         <div className="w-full max-w-md">
             <div className="flex justify-center mb-6">
                 <Link href="/" className="flex items-center gap-2">
-                    <Logo className="w-10 h-10" />
-                    <span className="font-headline text-2xl font-semibold text-primary">Prepezia</span>
+                    <Logo className="h-12 w-36" />
                 </Link>
             </div>
             {children}

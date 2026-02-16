@@ -134,8 +134,7 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                     <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6" />
-                                        <span className="font-semibold text-primary">Prepezia</span>
+                                        <Logo className="h-8 w-24" />
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         AI-Powered StudySpaces
@@ -168,8 +167,7 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                     <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6" />
-                                        <span className="font-semibold text-primary">Prepezia</span>
+                                        <Logo className="h-8 w-24" />
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Dynamic Note Generation
@@ -201,8 +199,7 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                      <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6" />
-                                        <span className="font-semibold text-primary">Prepezia</span>
+                                        <Logo className="h-8 w-24" />
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Ghana Past Questions Hub
@@ -234,8 +231,7 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                      <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6" />
-                                        <span className="font-semibold text-primary">Prepezia</span>
+                                        <Logo className="h-8 w-24" />
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Generate Notes & Podcasts
@@ -267,8 +263,7 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                      <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6" />
-                                        <span className="font-semibold text-primary">Prepezia</span>
+                                        <Logo className="h-8 w-24" />
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         AI Deep Dive Research
