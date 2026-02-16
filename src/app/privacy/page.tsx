@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
               ) : privacyData?.content ? (
                 <div className="prose dark:prose-invert max-w-none">
                     <div className="not-prose space-y-2 mb-8">
-                        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Privacy Policy for Learn with Temi</h1>
+                        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Privacy Policy for Prepezia</h1>
                         <p className="text-sm text-muted-foreground"><strong>Last Updated:</strong> {lastUpdated}</p>
                     </div>
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>{privacyData.content}</ReactMarkdown>

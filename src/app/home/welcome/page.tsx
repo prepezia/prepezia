@@ -89,7 +89,7 @@ export default function WelcomePage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-secondary/50 p-4">
       <div className="w-full max-w-md">
         <div className="mb-6 flex justify-center">
-             <Logo className="h-12 w-12 text-primary" />
+             <Logo className="h-12 w-12" />
         </div>
         <Card>
           <CardHeader className="text-center">

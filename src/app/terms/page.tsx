@@ -51,7 +51,7 @@ export default function TermsOfUsePage() {
               ) : termsData?.content ? (
                 <div className="prose dark:prose-invert max-w-none">
                   <div className="not-prose space-y-2 mb-8">
-                      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Terms of Use for Learn with Temi</h1>
+                      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Terms of Use for Prepezia</h1>
                       <p className="text-sm text-muted-foreground"><strong>Last Updated:</strong> {lastUpdated}</p>
                   </div>
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>{termsData.content}</ReactMarkdown>

@@ -49,7 +49,7 @@ export default function Home() {
 
   const testimonials = [
     {
-      quote: "Learn with Temi changed the game for my WASSCE prep. The AI chat helped me understand concepts I was stuck on for weeks.",
+      quote: "Prepezia changed the game for my WASSCE prep. The AI chat helped me understand concepts I was stuck on for weeks.",
       name: "Ama Serwaa",
       title: "WASSCE Candidate",
     },
@@ -134,8 +134,8 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                     <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6 text-primary" />
-                                        <span className="font-semibold text-primary">Learn with Temi</span>
+                                        <Logo className="w-6 h-6" />
+                                        <span className="font-semibold text-primary">Prepezia</span>
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         AI-Powered StudySpaces
@@ -168,8 +168,8 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                     <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6 text-primary" />
-                                        <span className="font-semibold text-primary">Learn with Temi</span>
+                                        <Logo className="w-6 h-6" />
+                                        <span className="font-semibold text-primary">Prepezia</span>
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Dynamic Note Generation
@@ -201,8 +201,8 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                      <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6 text-primary" />
-                                        <span className="font-semibold text-primary">Learn with Temi</span>
+                                        <Logo className="w-6 h-6" />
+                                        <span className="font-semibold text-primary">Prepezia</span>
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Ghana Past Questions Hub
@@ -234,8 +234,8 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                      <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6 text-primary" />
-                                        <span className="font-semibold text-primary">Learn with Temi</span>
+                                        <Logo className="w-6 h-6" />
+                                        <span className="font-semibold text-primary">Prepezia</span>
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Generate Notes & Podcasts
@@ -267,8 +267,8 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 text-center md:text-left">
                                      <div className="flex items-center gap-2 justify-center md:justify-start">
-                                        <Logo className="w-6 h-6 text-primary" />
-                                        <span className="font-semibold text-primary">Learn with Temi</span>
+                                        <Logo className="w-6 h-6" />
+                                        <span className="font-semibold text-primary">Prepezia</span>
                                     </div>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         AI Deep Dive Research
@@ -370,7 +370,7 @@ export default function Home() {
                 <div className="space-y-4 text-center md:text-left">
                   <h2 className="font-headline text-3xl md:text-4xl font-bold">Learn On The Go</h2>
                   <p className="text-lg max-w-md mx-auto md:mx-0 opacity-90">
-                    Download the Learn with Temi app to access all your study materials, chats, and notes anytime, anywhere.
+                    Download the Prepezia app to access all your study materials, chats, and notes anytime, anywhere.
                   </p>
                   <div className="flex flex-col sm:flex-row justify-center md:justify-start space-x-0 sm:space-x-4 space-y-4 sm:space-y-0 mt-6">
                     <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-primary-foreground text-primary px-4 py-3 text-sm font-medium transition-colors hover:bg-primary-foreground/90">
@@ -404,7 +404,7 @@ export default function Home() {
                 <div className="relative h-80 md:h-96 w-full hidden md:block">
                   <Image
                       src="https://picsum.photos/seed/app-mockup/800/800"
-                      alt="Learn with Temi mobile app mockup"
+                      alt="Prepezia mobile app mockup"
                       fill
                       className="object-contain"
                       data-ai-hint="app mockup"

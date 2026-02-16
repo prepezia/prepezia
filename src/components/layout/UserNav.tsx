@@ -200,9 +200,9 @@ export function UserNav() {
 
   async function handleShare() {
     const shareData = {
-      title: 'Learn with Temi',
-      text: 'Supercharge your studies with Learn with Temi, an AI-powered learning app for Ghanaian students!',
-      url: "https://www.learnwithtemi.com",
+      title: 'Prepezia',
+      text: 'Supercharge your studies with Prepezia, an AI-powered learning app for Ghanaian students!',
+      url: "https://www.prepezia.com",
     };
     if (navigator.share && navigator.canShare(shareData)) {
       await navigator.share(shareData).catch(error => console.error('Error sharing:', error));
@@ -306,10 +306,10 @@ export function UserNav() {
                 </AccordionTrigger>
                 <AccordionContent className="pb-4 px-4 pt-0">
                   <div className="space-y-4 pt-2">
-                    <p className="text-sm text-muted-foreground">Share the joy of learning. Invite your friends to join Learn with Temi.</p>
+                    <p className="text-sm text-muted-foreground">Share the joy of learning. Invite your friends to join Prepezia.</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" asChild><a href="https://wa.me/?text=Check%20out%20Learn%20with%20Temi%2C%20an%20AI-powered%20learning%20app%20for%20Ghanaian%20students!%20https%3A%2F%2Fwww.learnwithtemi.com" target="_blank" rel="noopener noreferrer">WhatsApp</a></Button>
-                      <Button variant="outline" asChild><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.learnwithtemi.com" target="_blank" rel="noopener noreferrer">Facebook</a></Button>
+                      <Button variant="outline" asChild><a href="https://wa.me/?text=Check%20out%20Prepezia%2C%20an%20AI-powered%20learning%20app%20for%20Ghanaian%20students!%20https%3A%2F%2Fwww.prepezia.com" target="_blank" rel="noopener noreferrer">WhatsApp</a></Button>
+                      <Button variant="outline" asChild><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.prepezia.com" target="_blank" rel="noopener noreferrer">Facebook</a></Button>
                     </div>
                     <Button className="w-full" onClick={handleShare}>More ways to share...</Button>
                   </div>
@@ -335,8 +335,8 @@ export function UserNav() {
                     <p className="text-sm text-muted-foreground mb-4 pt-2">Have questions? We are here to help.</p>
                     <div className="flex justify-around mb-4 text-center">
                         <a href="tel:0277777155" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Phone className="w-5 h-5"/></div><span className="text-xs">Call Us</span></a>
-                        <a href="mailto:support@learnwithTemi.com" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Mail className="w-5 h-5"/></div><span className="text-xs">Email Us</span></a>
-                        <a href="https://www.learnwithtemi.com" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Globe className="w-5 h-5"/></div><span className="text-xs">Website</span></a>
+                        <a href="mailto:support@prepezia.com" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Mail className="w-5 h-5"/></div><span className="text-xs">Email Us</span></a>
+                        <a href="https://www.prepezia.com" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 text-primary hover:underline"><div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"><Globe className="w-5 h-5"/></div><span className="text-xs">Website</span></a>
                     </div>
                     <Separator className="my-4 bg-border/50" />
                     <h4 className="font-semibold mb-4 text-center text-sm pt-2">Follow Us</h4>

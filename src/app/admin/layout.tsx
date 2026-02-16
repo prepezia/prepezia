@@ -43,8 +43,8 @@ function AdminSidebar() {
     <>
         <div className="flex h-16 items-center border-b px-4 shrink-0">
             <Link href="/admin" className="flex items-center gap-2 font-semibold">
-                <Logo className="w-7 h-7 text-primary" />
-                <span className="text-lg">Temi Admin</span>
+                <Logo className="w-7 h-7" />
+                <span className="text-lg">Prepezia Admin</span>
             </Link>
         </div>
         <div className="flex-1 overflow-y-auto">

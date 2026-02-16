@@ -140,9 +140,9 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-6 flex justify-center">
           <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-10 w-10 text-primary" />
+            <Logo className="h-10 w-10" />
             <span className="font-headline text-2xl font-semibold text-primary">
-              Learn with Temi
+              Prepezia
             </span>
           </Link>
         </div>

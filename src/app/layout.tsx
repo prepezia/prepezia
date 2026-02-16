@@ -4,8 +4,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Learn with Temi',
-  description: 'A high-end educational research and exam prep tool for students in Ghana.',
+  title: 'Prepezia',
+  description: 'Prepezia: Your AI-powered learning partner for research and exam prep.',
 };
 
 export default function RootLayout({
