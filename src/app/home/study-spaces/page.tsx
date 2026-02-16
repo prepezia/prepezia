@@ -319,7 +319,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
                                             {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                            <span className="flex-1 min-w-0 break-words">{s.name}</span>
+                                            <span className="flex-1 min-w-0 truncate">{s.name}</span>
                                             <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                                         </li>
                                     ))}
@@ -387,7 +387,7 @@ function StudySpacesPage() {
 
   const calculateAndUpdateProgress = useCallback(() => {
     if (!selectedStudySpace) return;
-    const { interactionProgress: ip, progress: currentProgress, status: currentStatus } = selectedStudySpace;
+    const { interactionProgress: ip } = selectedStudySpace;
     if (!ip) return;
 
     let totalProgress = 0;
@@ -400,7 +400,7 @@ function StudySpacesPage() {
     const finalProgress = Math.min(Math.round(totalProgress), 100);
     const status = finalProgress >= 100 ? 'Completed' : (finalProgress > 0 ? 'In Progress' : 'Not Started');
     
-    if (finalProgress !== currentProgress || status !== currentStatus) {
+    if (finalProgress !== selectedStudySpace.progress || status !== selectedStudySpace.status) {
         updateSelectedStudySpace({ progress: finalProgress, status });
     }
   }, [selectedStudySpace, updateSelectedStudySpace]);
@@ -975,8 +975,8 @@ function StudySpacesPage() {
     });
   };
 
-    const handleSaveSpaceOffline = async () => {
-    if (!selectedStudySpace?.generatedContent) {
+  const handleSaveSpaceOffline = async (space: StudySpace) => {
+    if (!space.generatedContent) {
         toast({ description: "No generated content to save for offline use." });
         return;
     }
@@ -984,8 +984,8 @@ function StudySpacesPage() {
     toast({ title: "Saving for Offline...", description: "Your generated media files will be downloaded." });
 
     let downloadedCount = 0;
-    const content = selectedStudySpace.generatedContent;
-    const spaceName = selectedStudySpace.name.replace(/\s+/g, '_');
+    const content = space.generatedContent;
+    const spaceName = space.name.replace(/\s+/g, '_');
 
     if (content.infographic?.imageUrl) {
         try {
@@ -1026,7 +1026,7 @@ function StudySpacesPage() {
             }
             right={
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={handleSaveSpaceOffline}>
+                    <Button variant="outline" size="icon" onClick={() => handleSaveSpaceOffline(selectedStudySpace)}>
                         <Save className="h-4 w-4"/>
                     </Button>
                 </div>
@@ -1218,7 +1218,7 @@ function StudySpacesPage() {
                                             {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                             {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                            <span className="flex-1 min-w-0 break-words">{s.name}</span>
+                                            <span className="flex-1 min-w-0 truncate">{s.name}</span>
                                             <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                                 <Trash2 className="w-4 h-4 text-destructive" />
                                             </Button>
@@ -1403,20 +1403,27 @@ function StudySpacesPage() {
               <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {studySpaces.slice(0, visibleCount).map(space => (
-                          <Card key={space.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={() => handleSelectStudySpace(space)}>
-                              <CardHeader>
-                                  <CardTitle>{space.name}</CardTitle>
-                                  <CardDescription>{space.description}</CardDescription>
-                              </CardHeader>
-                              <CardContent className="flex-grow">
-                                  <p className="text-sm font-bold text-primary">{space.sources.length} sources</p>
-                                  {space.status !== 'Not Started' && typeof space.progress === 'number' && (
-                                    <div className="mt-2">
-                                        <Progress value={space.progress} className="h-2" />
-                                        <p className="text-xs text-muted-foreground mt-1">{space.status} - {Math.round(space.progress)}%</p>
-                                    </div>
-                                  )}
-                              </CardContent>
+                          <Card key={space.id} className="flex flex-col cursor-pointer hover:shadow-lg transition-shadow relative">
+                              <div className="flex-grow" onClick={() => handleSelectStudySpace(space)}>
+                                <CardHeader>
+                                    <CardTitle className="truncate">{space.name}</CardTitle>
+                                    <CardDescription className="line-clamp-2">{space.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm font-bold text-primary">{space.sources.length} source{space.sources.length !== 1 && 's'}</p>
+                                    {space.status !== 'Not Started' && typeof space.progress === 'number' && (
+                                      <div className="mt-2">
+                                          <Progress value={space.progress} className="h-2" />
+                                          <p className="text-xs text-muted-foreground mt-1">{space.status} - {Math.round(space.progress)}%</p>
+                                      </div>
+                                    )}
+                                </CardContent>
+                              </div>
+                               <CardFooter>
+                                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleSaveSpaceOffline(space); }}>
+                                        <Save className="mr-2 h-4 w-4" /> Save Offline
+                                    </Button>
+                               </CardFooter>
                                <div className="absolute top-1 right-1">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -1688,7 +1695,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                                     {s.type === 'website' && <Globe className="w-4 h-4 mt-0.5"/>}
                                                     {s.type === 'youtube' && <Youtube className="w-4 h-4 mt-0.5"/>}
                                                     {s.type === 'clipboard' && <ClipboardPaste className="w-4 h-4 mt-0.5"/>}
-                                                    <span className="flex-1 min-w-0 break-words">{s.name}</span>
+                                                    <span className="flex-1 min-w-0 truncate">{s.name}</span>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={() => handleDeleteSource(i)}>
                                                         <Trash2 className="w-4 h-4 text-destructive" />
                                                     </Button>
@@ -2061,7 +2068,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
                 <CardDescription>A visual breakdown of the key concepts.</CardDescription>
             </CardHeader>
             <CardContent>
-                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={initialOpen} />
+                <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
                 <div className="absolute -left-[9999px] top-0 w-[1200px]" aria-hidden="true">
                     <InteractiveMindMap ref={exportMindMapRef} data={mindMap} initialOpen={true} />
                 </div>
