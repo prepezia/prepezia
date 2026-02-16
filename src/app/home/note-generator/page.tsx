@@ -900,12 +900,12 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                                         {option.name}
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <Button size="sm" variant="outline" onClick={() => setActiveView(option.type as ActiveView)}>
-                                                            <Eye className="mr-2 h-4 w-4"/> View
+                                                        <Button size="icon" variant="outline" onClick={() => setActiveView(option.type as ActiveView)}>
+                                                            <Eye className="h-4 w-4"/>
                                                         </Button>
                                                         {(option.type === 'infographic' || option.type === 'podcast') && (
-                                                            <Button size="sm" variant="outline" onClick={() => handleDownloadMedia(option.type as 'infographic' | 'podcast')}>
-                                                                <Download className="mr-2 h-4 w-4"/> Download
+                                                            <Button size="icon" variant="outline" onClick={() => handleDownloadMedia(option.type as 'infographic' | 'podcast')}>
+                                                                <Download className="h-4 w-4"/>
                                                             </Button>
                                                         )}
                                                         <DropdownMenu>
@@ -1359,6 +1359,7 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
     const [mindMapKey, setMindMapKey] = useState(Date.now());
     const { toast } = useToast();
     const mindMapRef = useRef<HTMLDivElement>(null);
+    const exportMindMapRef = useRef<HTMLDivElement>(null);
 
     const handleExpandAll = () => {
         setIsAllExpanded(true);
@@ -1371,14 +1372,14 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
     };
     
     const handleDownload = useCallback(() => {
-        if (!mindMapRef.current) {
-            toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find the mind map element.' });
+        if (!exportMindMapRef.current) {
+            toast({ variant: 'destructive', title: 'Download failed', description: 'Could not find the mind map element for export.' });
             return;
         }
 
         toast({ title: 'Generating image...', description: 'Please wait a moment.' });
 
-        toPng(mindMapRef.current, { cacheBust: true, backgroundColor: 'white', pixelRatio: 2 })
+        toPng(exportMindMapRef.current, { cacheBust: true, backgroundColor: 'white', pixelRatio: 2 })
             .then((dataUrl) => {
                 const link = document.createElement('a');
                 link.download = `${topic.replace(/\s+/g, '_')}_mindmap.png`;
@@ -1407,6 +1408,9 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
             </CardHeader>
             <CardContent>
                 <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />
+                <div className="absolute -left-[9999px] top-0 w-[1200px]" aria-hidden="true">
+                    <InteractiveMindMap ref={exportMindMapRef} data={mindMap} initialOpen={true} />
+                </div>
             </CardContent>
         </Card>
     );
