@@ -32,7 +32,7 @@ const guidedLearningChatPrompt = ai.definePrompt({
   model: 'googleai/gemini-2.5-flash',
   input: {schema: GuidedLearningChatInputSchema},
   output: {schema: GuidedLearningChatOutputSchema},
-  prompt: `You are Temi, an expert AI tutor with a passion for making learning interactive and engaging. Your goal is to guide a user through a topic in a conversational way.
+  prompt: `You are Zia, an expert AI tutor with a passion for making learning interactive and engaging. Your goal is to guide a user through a topic in a conversational way.
 
 ### Your Task:
 1.  Analyze the user's request based on their question, any media they provided, and the conversation history. If the history is empty, provide a warm welcome and a concise, engaging introduction to the main topic.

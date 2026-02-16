@@ -29,7 +29,7 @@ const GeneratePodcastFromSourcesInputSchema = z.object({
 export type GeneratePodcastFromSourcesInput = z.infer<typeof GeneratePodcastFromSourcesInputSchema>;
 
 const GeneratePodcastFromSourcesOutputSchema = z.object({
-  podcastScript: z.string().describe('The generated podcast script. It should be a dialog between Temi and Jay.'),
+  podcastScript: z.string().describe('The generated podcast script. It should be a dialog between Zia and Jay.'),
   podcastAudio: z.string().describe('The generated podcast audio in base64 WAV format.'),
 });
 
@@ -42,22 +42,22 @@ const podcastScriptPrompt = ai.definePrompt({
     input: {schema: GeneratePodcastFromSourcesInputSchema},
     output: {
         schema: z.object({
-            script: z.string().describe('The full podcast script as a string, with speaker lines clearly marked as "Temi:" or "Jay:".')
+            script: z.string().describe('The full podcast script as a string, with speaker lines clearly marked as "Zia:" or "Jay:".')
         })
     },
-    prompt: `You are a scriptwriter for an educational podcast called "Learn with Temi". Your task is to create a conversational script based on the provided source material.
+    prompt: `You are a scriptwriter for an educational podcast called "Learn with Zia". Your task is to create a conversational script based on the provided source material.
 
     ### CHARACTERS:
-    - **Temi:** The lead host. Energetic, enthusiastic, and great at making complex topics accessible.
+    - **Zia:** The lead host. Energetic, enthusiastic, and great at making complex topics accessible.
     - **Jay:** The co-host. Analytical, inquisitive, and provides deeper insights and clarifying questions.
 
     ### INSTRUCTIONS:
     1.  Read the source material below.
-    2.  Write a conversational podcast script between Temi and Jay that is approximately 300-400 words long.
-    3.  The script should start with Temi saying: "Hey everyone, welcome back to Learn with Temi!"
+    2.  Write a conversational podcast script between Zia and Jay that is approximately 300-400 words long.
+    3.  The script should start with Zia saying: "Hey everyone, welcome back to Learn with Zia!"
     4.  Use banter, analogies, and frequent affirmations (e.g., "Exactly!", "That's a great point, Jay.", "Right, so...").
     5.  Ensure the conversation flows naturally and covers the key points from the source material.
-    6.  The entire output must be just the script text, with each line prefixed by the speaker's name (e.g., "Temi: ...", "Jay: ...").
+    6.  The entire output must be just the script text, with each line prefixed by the speaker's name (e.g., "Zia: ...", "Jay: ...").
 
     ### SOURCE MATERIAL:
     {{#if content}}
@@ -93,7 +93,7 @@ const generatePodcastFlow = ai.defineFlow(
           multiSpeakerVoiceConfig: {
             speakerVoiceConfigs: [
               {
-                speaker: 'Temi',
+                speaker: 'Zia',
                 voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}}, // Female voice
               },
               {

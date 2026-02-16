@@ -1389,7 +1389,7 @@ function StudySpacesPage() {
               <Plus className="mr-2 h-4 w-4" /> Create New
           </Button>
         </div>
-        <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, TEMI, to get answers and insights based solely on your materials.</p>
+        <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, Zia, to get answers and insights based solely on your materials.</p>
         
         <div className="pt-8">
           <h2 className="text-2xl font-headline font-bold mb-4">Your Spaces</h2>

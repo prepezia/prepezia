@@ -46,7 +46,7 @@ export async function interactiveChatWithSources(input: InteractiveChatWithSourc
       model: 'googleai/gemini-2.5-flash',
       input: {schema: InteractiveChatWithSourcesInputSchema},
       output: {schema: InteractiveChatWithSourcesOutputSchema},
-      prompt: `You are TEMI, an expert AI research assistant. Your task is to answer the user's question based *only* on the provided sources. You must be extremely precise and follow all rules exactly.
+      prompt: `You are Zia, an expert AI research assistant. Your task is to answer the user's question based *only* on the provided sources. You must be extremely precise and follow all rules exactly.
 
 ### Instructions:
 1.  **Read and Understand:** Read the user's question and all the provided sources carefully.
