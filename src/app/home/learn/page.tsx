@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from 'react';
@@ -294,66 +295,77 @@ function GuidedLearningPage() {
 
   }, [user, firestore, router, submitMessage, toast]);
 
-  useEffect(() => {
-    if (chatsLoading) return;
-
-    // Handle initial load and setting the active chat.
-    // Also handles updates from Firestore.
-    if (savedChats) {
-      if (activeChat) {
-        const updatedActiveChat = savedChats.find(c => c.id === activeChat.id);
-        if (updatedActiveChat) {
-          // If the chat history length is different, update the state.
-          // This is a simple way to detect changes without deep comparison.
-          if (updatedActiveChat.history.length !== activeChat.history.length) {
-            setActiveChat(updatedActiveChat);
-          }
+    const handleMicClick = useCallback(() => {
+        if (speakingMessageId && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setSpeakingMessageId(null);
+            return;
+        }
+        if (!recognitionRef.current) {
+            toast({ variant: 'destructive', title: 'Not Supported', description: 'Speech recognition is not supported by your browser.' });
+            return;
+        }
+        if (isListening) {
+            recognitionRef.current.stop();
         } else {
-          // The active chat was deleted, so fall back to the newest one.
-          setActiveChat(savedChats[0] || null);
+            recognitionRef.current.start();
+            setIsListening(true);
         }
-      } else if (savedChats.length > 0) {
-        // No active chat, so set the newest one as active.
-        setActiveChat(savedChats[0]);
-      } else {
-        // No chats at all. `startNewChat` will be triggered by other logic if needed.
-        setActiveChat(null);
-      }
-    }
+    }, [isListening, speakingMessageId, toast]);
 
-    const startWithVoice = searchParams.get('voice') === 'true';
+    useEffect(() => {
+        if (chatsLoading || !user) return;
 
-    if (!voiceInitRef.current) {
-        const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
-        if (pendingPromptJSON) {
-            sessionStorage.removeItem('pending_guided_learning_prompt');
-            try {
-                const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
-                startNewChat(pendingPrompt);
-            } catch(e) {
-                console.error("Failed to parse pending prompt.", e);
-            }
-            return;
-        }
-
-        if (startWithVoice) {
-            voiceInitRef.current = true;
-            if (savedChats && savedChats.length > 0) {
-                 setActiveChat(savedChats[0]);
+        if (savedChats) {
+            if (activeChat) {
+                const updatedActiveChat = savedChats.find(c => c.id === activeChat.id);
+                if (updatedActiveChat) {
+                    if (updatedActiveChat.history.length !== activeChat.history.length) {
+                        setActiveChat(updatedActiveChat);
+                    }
+                } else {
+                    setActiveChat(savedChats[0] || null);
+                }
+            } else if (savedChats.length > 0) {
+                setActiveChat(savedChats[0]);
             } else {
-                startNewChat();
+                setActiveChat(null);
             }
-            setTimeout(() => handleMicClick(), 200); 
-            router.replace('/home/learn', { scroll: false });
-            return;
         }
-    }
-    
-    if (!chatsLoading && (!savedChats || savedChats.length === 0)) {
-        startNewChat();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedChats, chatsLoading]);
+
+        const startWithVoice = searchParams.get('voice') === 'true';
+
+        if (!voiceInitRef.current) {
+            const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
+            if (pendingPromptJSON) {
+                sessionStorage.removeItem('pending_guided_learning_prompt');
+                try {
+                    const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
+                    startNewChat(pendingPrompt);
+                } catch(e) {
+                    console.error("Failed to parse pending prompt.", e);
+                }
+                return;
+            }
+
+            if (startWithVoice) {
+                voiceInitRef.current = true;
+                if (savedChats && savedChats.length > 0) {
+                     setActiveChat(savedChats[0]);
+                } else {
+                    startNewChat();
+                }
+                setTimeout(() => handleMicClick(), 200); 
+                router.replace('/home/learn', { scroll: false });
+                return;
+            }
+        }
+        
+        if (!chatsLoading && (!savedChats || savedChats.length === 0)) {
+            startNewChat();
+        }
+    }, [savedChats, chatsLoading, user, startNewChat, router, handleMicClick, searchParams, activeChat]);
 
   const handleSelectChat = (chatId: string) => {
     const chat = savedChats?.find(c => c.id === chatId);
@@ -413,26 +425,6 @@ function GuidedLearningPage() {
       console.warn("Speech Recognition API not supported in this browser.");
     }
   }, [activeChat, submitMessage, toast]);
-
-
-  const handleMicClick = () => {
-    if (speakingMessageId && audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        setSpeakingMessageId(null);
-        return;
-    }
-    if (!recognitionRef.current) {
-        toast({ variant: 'destructive', title: 'Not Supported', description: 'Speech recognition is not supported by your browser.' });
-        return;
-    }
-    if (isListening) {
-        recognitionRef.current.stop();
-    } else {
-        recognitionRef.current.start();
-        setIsListening(true);
-    }
-  };
 
   const ChatSidebarContent = ({ isMobile = false }) => (
     <>
@@ -634,5 +626,7 @@ export default function GuidedLearningPageWrapper() {
         </Suspense>
     );
 }
+
+    
 
     
