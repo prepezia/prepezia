@@ -459,25 +459,6 @@ function GuidedLearningPage() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="absolute top-4 left-4 z-50 md:hidden">
-          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-              <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                      <Menu className="h-6 w-6" />
-                  </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
-                    <SheetHeader className="p-4 border-b text-left">
-                        <SheetTitle>My Chats</SheetTitle>
-                        <SheetDescription className="sr-only">
-                            A list of your past conversations.
-                        </SheetDescription>
-                    </SheetHeader>
-                  <ChatSidebarContent isMobile />
-              </SheetContent>
-          </Sheet>
-      </div>
-
       <div className="flex-1 flex min-h-0">
         {/* Desktop Sidebar */}
         <aside className="w-72 flex-col border-r bg-secondary/50 hidden md:flex">
@@ -491,8 +472,26 @@ function GuidedLearningPage() {
         <main className="flex-1 flex flex-col bg-card">
             {activeChat ? (
                 <>
-                    <div className="p-4 border-b flex justify-between items-center gap-4">
-                        <h3 className="font-semibold text-lg truncate" title={activeChat.topic}>
+                    <div className="p-4 border-b flex items-center gap-2">
+                        <div className="md:hidden">
+                            <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <Menu className="h-6 w-6" />
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent side="left" className="p-0 flex flex-col w-[80%]">
+                                        <SheetHeader className="p-4 border-b text-left">
+                                            <SheetTitle>My Chats</SheetTitle>
+                                            <SheetDescription className="sr-only">
+                                                A list of your past conversations.
+                                            </SheetDescription>
+                                        </SheetHeader>
+                                    <ChatSidebarContent isMobile />
+                                </SheetContent>
+                            </Sheet>
+                        </div>
+                        <h3 className="font-semibold text-lg truncate flex-1 text-center md:text-left" title={activeChat.topic}>
                             {activeChat.topic}
                         </h3>
                         <Button variant="outline" size="icon" onClick={() => downloadChatHistory(activeChat)} title="Download chat history">
