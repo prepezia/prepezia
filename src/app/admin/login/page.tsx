@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/icons/Logo"
 import Link from "next/link"
-import { ConfirmationResult, signInWithEmailAndPassword, User } from "firebase/auth"
+import { ConfirmationResult, signInWithEmailAndPassword, User, setPersistence, browserLocalPersistence } from "firebase/auth"
 import { doc, updateDoc } from "firebase/firestore"
 import { sendPhoneOtp } from "@/lib/auth-utils"
 
@@ -71,6 +71,9 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
+      // Set persistence to local to keep the admin signed in
+      await setPersistence(auth, browserLocalPersistence);
+        
       // Step 1: Authenticate with email and password
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
