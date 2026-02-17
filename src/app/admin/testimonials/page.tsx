@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -89,18 +90,6 @@ export default function AdminTestimonialsPage() {
         resolver: zodResolver(testimonialSchema),
         defaultValues: { name: "", title: "", text: "" },
     });
-
-    useEffect(() => {
-        if (!loading && firestore && testimonials?.length === 0) {
-          const seedData = async () => {
-            for (const t of seedTestimonials) {
-              await addDoc(collection(firestore, 'testimonials'), { ...t, createdAt: serverTimestamp() });
-            }
-            toast({ title: "Testimonials Seeded", description: "5 sample testimonials have been added." });
-          };
-          seedData();
-        }
-    }, [loading, testimonials, firestore, toast]);
 
     const handleOpenDialog = (testimonial: Testimonial | null) => {
         setCurrentTestimonial(testimonial);
