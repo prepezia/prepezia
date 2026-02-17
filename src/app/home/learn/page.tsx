@@ -73,7 +73,7 @@ function GuidedLearningPage() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const voiceInitRef = useRef(false);
+  const isInitialized = useRef(false);
 
   // Voice & Audio state
   const [isListening, setIsListening] = useState(false);
@@ -265,6 +265,10 @@ function GuidedLearningPage() {
       return;
     }
     
+    // Clear view while creating new chat
+    setActiveChat(null);
+    setIsLoading(true);
+
     const newChatData = {
         userId: user.uid,
         topic: prompt?.question || 'New Chat',
@@ -277,20 +281,26 @@ function GuidedLearningPage() {
     try {
         const docRef = await addDoc(collection(firestore, 'users', user.uid, 'guided_chats'), newChatData);
 
+        const tempChat: SavedChat = {
+            ...newChatData,
+            id: docRef.id,
+            createdAt: Timestamp.now()
+        };
+        
+        // KEY CHANGE: Immediately set the new chat as active
+        setActiveChat(tempChat);
+        
         if(prompt) {
-            // Need to create a temporary SavedChat object to pass to submitMessage
-            const tempChat: SavedChat = {
-                ...newChatData,
-                id: docRef.id,
-                createdAt: Timestamp.now()
-            };
-            submitMessage(prompt.question, tempChat, { media: prompt.media });
+            // Now submitMessage will have the correct activeChat context
+            await submitMessage(prompt.question, tempChat, { media: prompt.media });
         }
         
         router.replace('/home/learn', { scroll: false });
     } catch(e) {
         console.error("Failed to create new chat:", e);
         toast({ variant: 'destructive', title: 'Failed to start chat.' });
+    } finally {
+        setIsLoading(false);
     }
 
   }, [user, firestore, router, submitMessage, toast]);
@@ -314,58 +324,62 @@ function GuidedLearningPage() {
         }
     }, [isListening, speakingMessageId, toast]);
 
-    useEffect(() => {
-        if (chatsLoading || !user) return;
+  // Main effect for initialization and chat synchronization
+  useEffect(() => {
+    if (chatsLoading || !user) return;
 
-        if (savedChats) {
-            if (activeChat) {
-                const updatedActiveChat = savedChats.find(c => c.id === activeChat.id);
-                if (updatedActiveChat) {
-                    if (updatedActiveChat.history.length !== activeChat.history.length) {
-                        setActiveChat(updatedActiveChat);
-                    }
-                } else {
-                    setActiveChat(savedChats[0] || null);
-                }
-            } else if (savedChats.length > 0) {
-                setActiveChat(savedChats[0]);
-            } else {
-                setActiveChat(null);
-            }
+    if (!isInitialized.current) {
+      // This initialization logic should only run once.
+      isInitialized.current = true;
+
+      const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
+      if (pendingPromptJSON) {
+        sessionStorage.removeItem('pending_guided_learning_prompt');
+        try {
+          const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
+          startNewChat(pendingPrompt);
+        } catch(e) {
+          console.error("Failed to parse pending prompt.", e);
         }
-
-        const startWithVoice = searchParams.get('voice') === 'true';
-
-        if (!voiceInitRef.current) {
-            const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
-            if (pendingPromptJSON) {
-                sessionStorage.removeItem('pending_guided_learning_prompt');
-                try {
-                    const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
-                    startNewChat(pendingPrompt);
-                } catch(e) {
-                    console.error("Failed to parse pending prompt.", e);
-                }
-                return;
-            }
-
-            if (startWithVoice) {
-                voiceInitRef.current = true;
-                if (savedChats && savedChats.length > 0) {
-                     setActiveChat(savedChats[0]);
-                } else {
-                    startNewChat();
-                }
-                setTimeout(() => handleMicClick(), 200); 
-                router.replace('/home/learn', { scroll: false });
-                return;
-            }
+        return; // Stop further execution this render
+      }
+      
+      const startWithVoice = searchParams.get('voice') === 'true';
+      if (startWithVoice) {
+        router.replace('/home/learn', { scroll: false });
+        if (savedChats && savedChats.length > 0) {
+          setActiveChat(savedChats[0]);
+          setTimeout(() => handleMicClick(), 200); 
+        } else {
+          startNewChat().then(() => {
+            setTimeout(() => handleMicClick(), 200);
+          });
         }
-        
-        if (!chatsLoading && (!savedChats || savedChats.length === 0)) {
-            startNewChat();
+        return; // Stop further execution
+      }
+
+      // Default behavior if no prompt or voice start
+      if (savedChats && savedChats.length > 0) {
+        if (!activeChat) {
+          setActiveChat(savedChats[0]);
         }
-    }, [savedChats, chatsLoading, user, startNewChat, router, handleMicClick, searchParams, activeChat]);
+      } else if (savedChats) { // savedChats is not null, but empty
+        startNewChat();
+      }
+    } else {
+      // This runs after initialization to keep the active chat in sync
+      if (activeChat && savedChats) {
+        const updatedActiveChat = savedChats.find(c => c.id === activeChat.id);
+        if (updatedActiveChat && updatedActiveChat.history.length !== activeChat.history.length) {
+          setActiveChat(updatedActiveChat);
+        } else if (!updatedActiveChat) {
+          // The active chat was deleted, fall back to the most recent one.
+          setActiveChat(savedChats[0] || null);
+        }
+      }
+    }
+    
+  }, [savedChats, chatsLoading, user, router, handleMicClick, startNewChat, searchParams, activeChat]);
 
   const handleSelectChat = (chatId: string) => {
     const chat = savedChats?.find(c => c.id === chatId);
@@ -390,7 +404,7 @@ function GuidedLearningPage() {
       e.preventDefault();
       if (activeChat && chatInputRef.current) {
           const content = chatInputRef.current.value;
-          submitMessage(content, activeChat);
+          submitMessage(content, activeChat, { isVoiceInput: false });
           chatInputRef.current.value = '';
       }
   };
