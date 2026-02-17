@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -118,6 +117,7 @@ export default function AdminLayout({
         }
     }, [user, loading, isAdmin, router, isLoginPage]);
     
+    // This is the primary loading state. It handles waiting for `useUser` to resolve.
     if (loading && !isLoginPage) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -126,11 +126,15 @@ export default function AdminLayout({
         );
     }
 
+    // If on the login page, just render children without the layout shell.
     if (isLoginPage) {
         return <>{children}</>;
     }
     
-    if (!isAdmin && !loading) {
+    // After loading, if the user is still not an admin, they should not see the admin content.
+    // The useEffect will have already initiated a redirect, so we can show a loader
+    // to prevent a flash of content they shouldn't see.
+    if (!isAdmin) {
       return (
           <div className="flex h-screen w-full items-center justify-center bg-background">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
