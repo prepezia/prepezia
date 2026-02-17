@@ -10,6 +10,13 @@ service firebase.storage {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Past questions should be publicly readable for easy access in the app,
+    // but only writable by admins.
+    match /past_questions/{allPaths=**} {
+      allow read;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
     // --- Public Files ---
     // Any file in the 'public/' directory is readable by anyone.
     // Writing to the public folder is disabled to prevent abuse.

@@ -1,6 +1,10 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useCollection, useFirestore, useStorage, useUser } from "@/firebase";
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, DocumentData } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   Card,
   CardHeader,
@@ -31,6 +35,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -40,21 +54,34 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities } from "@/lib/ghana-universities";
 
-// Mock data for existing questions
-const mockQuestions = [
-    { id: 1, level: "WASSCE", subject: "Core Mathematics", year: "2023", fileName: "wassce_math_2023.pdf", university: "", schoolFaculty: "" },
-    { id: 2, level: "BECE", subject: "Integrated Science", year: "2022", fileName: "bece_science_2022.pdf", university: "", schoolFaculty: "" },
-    { id: 3, level: "University", university: "University of Ghana", schoolFaculty: "Business School", subject: "ECON 101", year: "2023 Mid-Sem", fileName: "ug_econ101_midsem.pdf"},
-    { id: 4, level: "WASSCE", subject: "Social Studies", year: "2023", fileName: "wassce_social_studies_2023.pdf", university: "", schoolFaculty: "" },
-];
+interface PastQuestion extends DocumentData {
+    id: string;
+    level: string;
+    subject: string;
+    year: string;
+    fileName: string;
+    university?: string;
+    schoolFaculty?: string;
+    storagePath: string;
+}
 
 export default function AdminPastQuestionsPage() {
-    const [questions, setQuestions] = useState(mockQuestions);
+    const firestore = useFirestore();
+    const storage = useStorage();
+    const { user } = useUser();
+    const { toast } = useToast();
+
+    const questionsRef = useMemo(() => firestore ? collection(firestore, 'past_questions') : null, [firestore]);
+    const { data: questions, loading } = useCollection<PastQuestion>(questionsRef);
+
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Form state
     const [level, setLevel] = useState("");
@@ -63,8 +90,6 @@ export default function AdminPastQuestionsPage() {
     const [course, setCourse] = useState("");
     const [year, setYear] = useState("");
     const [file, setFile] = useState<File | null>(null);
-
-    const { toast } = useToast();
 
     const resetForm = () => {
         setLevel("");
@@ -75,9 +100,8 @@ export default function AdminPastQuestionsPage() {
         setFile(null);
     }
 
-    const handleUpload = () => {
-        // Form validation
-        if (!level || !course || !year || !file) {
+    const handleUpload = async () => {
+        if (!file || !level || !course || !year) {
             toast({ variant: 'destructive', title: "Missing fields", description: "Please fill out all required fields and select a file."});
             return;
         }
@@ -85,26 +109,68 @@ export default function AdminPastQuestionsPage() {
             toast({ variant: 'destructive', title: "Missing University", description: "Please select a university."});
             return;
         }
+        if (!storage || !firestore || !user) {
+            toast({ variant: 'destructive', title: "Initialization Error", description: "Could not connect to Firebase services." });
+            return;
+        }
 
-        // Create new question object
-        const newQuestion = {
-            id: Date.now(),
-            level,
-            university: level === 'University' ? university : "",
-            schoolFaculty: level === 'University' ? schoolFaculty : "",
-            subject: course,
-            year,
-            fileName: file.name
-        };
+        setIsSubmitting(true);
+        try {
+            const storagePath = `past_questions/${file.name}_${Date.now()}`;
+            const storageRef = ref(storage, storagePath);
 
-        // In a real app, you would upload the file to storage here.
-        // For now, we just add it to our mock data state.
-        setQuestions(prev => [newQuestion, ...prev]);
+            await uploadBytes(storageRef, file);
+            const downloadUrl = await getDownloadURL(storageRef);
 
-        toast({ title: "Upload Successful", description: `${file.name} has been uploaded.`});
-        resetForm();
-        setIsUploadDialogOpen(false);
+            await addDoc(collection(firestore, "past_questions"), {
+                level,
+                university: level === 'University' ? university : "",
+                schoolFaculty: level === 'University' ? schoolFaculty : "",
+                subject: course,
+                year,
+                fileName: file.name,
+                fileUrl: downloadUrl,
+                storagePath: storagePath,
+                uploadedAt: serverTimestamp()
+            });
+
+            toast({ title: "Upload Successful", description: `${file.name} has been added.`});
+            resetForm();
+            setIsUploadDialogOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: "Upload Failed", description: error.message || "An error occurred during file upload." });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+
+    const openDeleteDialog = (question: PastQuestion) => {
+        setQuestionToDelete(question);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleDelete = async () => {
+        if (!questionToDelete || !storage || !firestore) {
+            toast({ variant: 'destructive', title: "Error", description: "Could not perform deletion." });
+            return;
+        }
+
+        try {
+            // Delete file from storage
+            const fileRef = ref(storage, questionToDelete.storagePath);
+            await deleteObject(fileRef);
+
+            // Delete document from Firestore
+            await deleteDoc(doc(firestore, "past_questions", questionToDelete.id));
+            
+            toast({ title: "Deleted", description: `${questionToDelete.fileName} has been deleted.` });
+        } catch (error: any) {
+             toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message || "Could not delete the question." });
+        } finally {
+            setIsDeleteDialogOpen(false);
+            setQuestionToDelete(null);
+        }
+    }
 
     return (
         <>
@@ -120,43 +186,47 @@ export default function AdminPastQuestionsPage() {
                     </Button>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Details</TableHead>
-                                <TableHead>Year</TableHead>
-                                <TableHead>File Name</TableHead>
-                                <TableHead className="w-[50px] text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {questions.map((q) => (
-                                <TableRow key={q.id}>
-                                    <TableCell>
-                                        <div className="font-medium">{q.subject}</div>
-                                        <div className="text-sm text-muted-foreground">
-                                            {q.level}
-                                            {q.university && ` • ${q.university}`}
-                                            {q.schoolFaculty && ` • ${q.schoolFaculty}`}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{q.year}</TableCell>
-                                    <TableCell className="text-muted-foreground">{q.fileName}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuItem><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Details</TableHead>
+                                    <TableHead>Year</TableHead>
+                                    <TableHead>File Name</TableHead>
+                                    <TableHead className="w-[50px] text-right">Actions</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {questions?.map((q) => (
+                                    <TableRow key={q.id}>
+                                        <TableCell>
+                                            <div className="font-medium">{q.subject}</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {q.level}
+                                                {q.university && ` • ${q.university}`}
+                                                {q.schoolFaculty && ` • ${q.schoolFaculty}`}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{q.year}</TableCell>
+                                        <TableCell className="text-muted-foreground">{q.fileName}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => openDeleteDialog(q)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
                 </CardContent>
             </Card>
 
@@ -214,11 +284,29 @@ export default function AdminPastQuestionsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleUpload}>Upload</Button>
+                        <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                        <Button onClick={handleUpload} disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Upload
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete "{questionToDelete?.fileName}" from the database and storage.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

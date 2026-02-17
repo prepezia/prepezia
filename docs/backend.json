@@ -149,6 +149,29 @@
         }
       },
       "required": ["name", "title", "text", "createdAt"]
+    },
+    "PastQuestion": {
+      "title": "Past Question",
+      "description": "Represents a single past exam paper file and its metadata.",
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["BECE", "WASSCE", "University"]
+        },
+        "subject": { "type": "string" },
+        "year": { "type": "string" },
+        "university": { "type": "string" },
+        "schoolFaculty": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileUrl": { "type": "string", "format": "uri" },
+        "storagePath": { "type": "string" },
+        "uploadedAt": {
+            "type": "string",
+            "format": "date-time"
+        }
+      },
+      "required": ["level", "subject", "year", "fileName", "fileUrl", "storagePath", "uploadedAt"]
     }
   },
   "auth": {
@@ -176,6 +199,12 @@
         "$ref": "#/entities/Testimonial"
       },
       "description": "Stores user testimonials for the landing page."
+    },
+    "/past_questions/{questionId}": {
+      "schema": {
+        "$ref": "#/entities/PastQuestion"
+      },
+      "description": "Stores uploaded past exam question papers."
     }
   }
 }
