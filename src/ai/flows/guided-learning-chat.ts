@@ -18,6 +18,7 @@ const GuidedLearningChatInputSchema = z.object({
   history: z.array(ChatMessageSchema).describe('The history of the conversation so far.'),
   mediaDataUri: z.string().optional().describe('An optional data URI for an image or file to provide context.'),
   mediaContentType: z.string().optional().describe('The MIME type of the media file.'),
+  interests: z.array(z.string()).optional().describe("A list of the user's interests for personalized analogies."),
 });
 export type GuidedLearningChatInput = z.infer<typeof GuidedLearningChatInputSchema>;
 
@@ -33,6 +34,13 @@ const guidedLearningChatPrompt = ai.definePrompt({
   input: {schema: GuidedLearningChatInputSchema},
   output: {schema: GuidedLearningChatOutputSchema},
   prompt: `You are Zia, an expert AI tutor with a passion for making learning interactive and engaging. Your goal is to guide a user through a topic in a conversational way.
+
+{{#if interests.length}}
+### User's Personal Interests:
+A list of topics the user is interested in: {{#each interests}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}.
+
+**IMPORTANT:** When explaining complex topics, try to use analogies related to these interests to make your explanations more engaging and relatable for the user.
+{{/if}}
 
 ### Your Task:
 1.  Analyze the user's request based on their question, any media they provided, and the conversation history. If the history is empty, provide a warm welcome and a concise, engaging introduction to the main topic.

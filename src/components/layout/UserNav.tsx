@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import {
@@ -99,6 +100,7 @@ const editProfileSchema = z.object({
   name: z.string().min(1, "Name cannot be empty."),
   email: z.string().email("Please enter a valid email."),
   educationalLevel: z.string().optional(),
+  interests: z.string().optional(),
 });
 
 const changePasswordSchema = z.object({
@@ -278,6 +280,10 @@ export function UserNav() {
                                 <span className="font-semibold">Educational Level:</span>
                                 <span className="text-muted-foreground ml-2">{firestoreUser?.educationalLevel || "N/A"}</span>
                             </div>
+                            <div>
+                                <span className="font-semibold">Interests:</span>
+                                <span className="text-muted-foreground ml-2">{firestoreUser?.interests?.join(', ') || "N/A"}</span>
+                            </div>
                             <Separator />
                             <div className="flex flex-wrap gap-2 pt-2">
                                 <Button size="sm" variant="outline" onClick={() => setIsEditProfileOpen(true)}><Edit className="mr-2 h-4 w-4"/> Edit</Button>
@@ -443,6 +449,7 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
             name: user?.displayName || "",
             email: user?.email || "",
             educationalLevel: "",
+            interests: "",
         },
     });
 
@@ -452,6 +459,7 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
                 name: user.displayName || "",
                 email: user.email || "",
                 educationalLevel: firestoreUser?.educationalLevel || "",
+                interests: firestoreUser?.interests?.join(', ') || "",
             });
         }
     }, [user, firestoreUser, form]);
@@ -462,7 +470,7 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
         
         let hasChanges = false;
         try {
-            const firestoreUpdates: { name?: string, educationalLevel?: string } = {};
+            const firestoreUpdates: { name?: string, educationalLevel?: string, interests?: string[] } = {};
 
             // Check for name change
             if (values.name !== user.displayName) {
@@ -474,6 +482,16 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
             // Check for educational level change
             if (values.educationalLevel && values.educationalLevel !== firestoreUser?.educationalLevel) {
                 firestoreUpdates.educationalLevel = values.educationalLevel;
+                hasChanges = true;
+            }
+            
+            // Check for interests change
+            const interestsArray = values.interests
+                ? values.interests.split(',').map(item => item.trim()).filter(Boolean).slice(0, 5)
+                : [];
+            
+            if (JSON.stringify(interestsArray) !== JSON.stringify(firestoreUser?.interests || [])) {
+                firestoreUpdates.interests = interestsArray;
                 hasChanges = true;
             }
             
@@ -539,6 +557,14 @@ function EditProfileDialog({ open, onOpenChange, user, isEmailPasswordProvider, 
                                 ))}
                                 </SelectContent>
                             </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                     <FormField control={form.control} name="interests" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Your Interests</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g., Football, Music, Movies" /></FormControl>
+                            <FormDescription>List up to 5 interests, separated by commas. The AI will use these to personalize explanations.</FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}/>

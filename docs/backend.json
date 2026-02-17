@@ -57,6 +57,13 @@
                 "Professional",
                 "Other"
             ]
+        },
+        "interests": {
+            "type": "array",
+            "description": "A list of the user's interests, used by the AI to personalize explanations.",
+            "items": {
+                "type": "string"
+            }
         }
       },
       "required": ["name", "email", "createdAt"]

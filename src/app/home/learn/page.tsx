@@ -25,7 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Progress } from '@/components/ui/progress';
-import { useUser, useFirestore, useCollection } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc } from '@/firebase';
 import { doc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, serverTimestamp, Timestamp, DocumentData, CollectionReference, DocumentReference } from "firebase/firestore";
 
 // Types
@@ -62,6 +62,14 @@ function GuidedLearningPage() {
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
+
+  const userDocRef = useMemo(() => {
+    if (user && firestore) {
+      return doc(firestore, 'users', user.uid);
+    }
+    return null;
+  }, [user, firestore]);
+  const { data: firestoreUser } = useDoc(userDocRef);
 
   // State
   const [activeChat, setActiveChat] = useState<SavedChat | null>(null);
@@ -205,7 +213,8 @@ function GuidedLearningPage() {
                 content: typeof h.content === 'string' ? h.content : h.content.text,
             })),
             mediaDataUri: options?.media?.dataUri,
-            mediaContentType: options?.media?.contentType
+            mediaContentType: options?.media?.contentType,
+            interests: firestoreUser?.interests,
         });
 
         const fullResponseContent = `${response.answer}\n\n**${response.followUpQuestion}**`;
@@ -257,7 +266,7 @@ function GuidedLearningPage() {
     } finally {
         setIsLoading(false);
     }
-  }, [isLoading, toast, updateActiveChatInFirestore, handlePlayAudio, user, firestore]);
+  }, [isLoading, toast, updateActiveChatInFirestore, handlePlayAudio, user, firestore, firestoreUser]);
   
   const startNewChat = useCallback(async (prompt?: PendingPrompt) => {
     if (!user || !firestore) {
