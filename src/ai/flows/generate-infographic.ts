@@ -2,6 +2,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import Jimp from 'jimp';
 
 const SourceSchema = z.object({
     type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
@@ -126,5 +127,13 @@ ${keyPointsText}
         throw new Error("The AI failed to generate an infographic image.");
     }
     
-    return { imageDataUrl: media.url };
+    // Step 4: Compress the generated image
+    const base64Data = media.url.split(',')[1];
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    const image = await Jimp.read(imageBuffer);
+    const compressedBuffer = await image.quality(85).getBufferAsync(Jimp.MIME_JPEG);
+    const compressedDataUrl = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`;
+
+    return { imageDataUrl: compressedDataUrl };
 });

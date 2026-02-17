@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import wav from 'wav';
+import { Mp3Encoder } from 'lamejs';
 
 const SourceSchema = z.object({
     type: z.enum(['pdf', 'text', 'audio', 'website', 'youtube', 'image', 'clipboard']),
@@ -30,7 +30,7 @@ export type GeneratePodcastFromSourcesInput = z.infer<typeof GeneratePodcastFrom
 
 const GeneratePodcastFromSourcesOutputSchema = z.object({
   podcastScript: z.string().describe('The generated podcast script. It should be a dialog between Zia and Jay.'),
-  podcastAudio: z.string().describe('The generated podcast audio in base64 WAV format.'),
+  podcastAudio: z.string().describe('The generated podcast audio in base64 MP3 format.'),
 });
 
 export type GeneratePodcastFromSourcesOutput = z.infer<typeof GeneratePodcastFromSourcesOutputSchema>;
@@ -115,7 +115,7 @@ const generatePodcastFlow = ai.defineFlow(
       media.url.substring(media.url.indexOf(',') + 1),
       'base64'
     );
-    const podcastAudio = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
+    const podcastAudio = 'data:audio/mpeg;base64,' + (await toMp3(audioBuffer));
 
     return {
       podcastScript: podcastScript,
@@ -130,29 +130,40 @@ export async function generatePodcastFromSources(
   return generatePodcastFlow(input);
 }
 
-async function toWav(
-  pcmData: Buffer,
-  channels = 1,
-  rate = 24000,
-  sampleWidth = 2
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
+async function toMp3(
+    pcmData: Buffer,
+    channels = 1,
+    sampleRate = 24000
+  ): Promise<string> {
+    const mp3Encoder = new Mp3Encoder(channels, sampleRate, 128); // 128 kbps bitrate
+  
+    // The TTS service returns 16-bit PCM, so we create an Int16Array view on the buffer
+    const pcmAsInt16 = new Int16Array(pcmData.buffer, pcmData.byteOffset, pcmData.length / 2);
+  
+    const sampleBlockSize = 1152; // LAME-defined block size
+    const mp3Data = [];
+  
+    for (let i = 0; i < pcmAsInt16.length; i += sampleBlockSize) {
+      const sampleChunk = pcmAsInt16.subarray(i, i + sampleBlockSize);
+      const mp3buf = mp3Encoder.encodeBuffer(sampleChunk);
+      if (mp3buf.length > 0) {
+        mp3Data.push(mp3buf);
+      }
+    }
+  
+    const mp3buf = mp3Encoder.flush();
+    if (mp3buf.length > 0) {
+      mp3Data.push(mp3buf);
+    }
+  
+    // Concatenate all MP3 buffers
+    const totalLength = mp3Data.reduce((acc, buf) => acc + buf.length, 0);
+    const mp3Buffer = new Uint8Array(totalLength);
+    let offset = 0;
+    mp3Data.forEach(buf => {
+      mp3Buffer.set(buf, offset);
+      offset += buf.length;
     });
-
-    let bufs = [] as any[];
-    writer.on('error', reject);
-    writer.on('data', function (d) {
-      bufs.push(d);
-    });
-    writer.on('end', function () {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
+  
+    return Buffer.from(mp3Buffer).toString('base64');
 }
