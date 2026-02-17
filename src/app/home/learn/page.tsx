@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from 'react';
@@ -193,7 +192,7 @@ function GuidedLearningPage() {
     
     const updatedHistoryForRequest = [...(chatContext.history || []), userMessage];
     
-    // Optimistically update the UI. Firestore will sync this change across devices.
+    // Optimistically update the UI.
     setActiveChat(prev => prev ? { ...prev, history: updatedHistoryForRequest } : null);
     setIsLoading(true);
 
@@ -216,6 +215,10 @@ function GuidedLearningPage() {
         };
         
         const finalHistory = [...updatedHistoryForRequest, assistantMessage];
+        
+        // Optimistically update with AI response
+        setActiveChat(prev => prev ? { ...prev, history: finalHistory } : null);
+
         const progress = Math.min((finalHistory.length / 10) * 100, 100);
         const currentStatus = chatContext.status === 'Not Started' ? 'In Progress' : (progress >= 100 ? 'Completed' : 'In Progress');
 
@@ -294,6 +297,30 @@ function GuidedLearningPage() {
   useEffect(() => {
     if (chatsLoading) return;
 
+    // Handle initial load and setting the active chat.
+    // Also handles updates from Firestore.
+    if (savedChats) {
+      if (activeChat) {
+        const updatedActiveChat = savedChats.find(c => c.id === activeChat.id);
+        if (updatedActiveChat) {
+          // If the chat history length is different, update the state.
+          // This is a simple way to detect changes without deep comparison.
+          if (updatedActiveChat.history.length !== activeChat.history.length) {
+            setActiveChat(updatedActiveChat);
+          }
+        } else {
+          // The active chat was deleted, so fall back to the newest one.
+          setActiveChat(savedChats[0] || null);
+        }
+      } else if (savedChats.length > 0) {
+        // No active chat, so set the newest one as active.
+        setActiveChat(savedChats[0]);
+      } else {
+        // No chats at all. `startNewChat` will be triggered by other logic if needed.
+        setActiveChat(null);
+      }
+    }
+
     const startWithVoice = searchParams.get('voice') === 'true';
 
     if (!voiceInitRef.current) {
@@ -305,7 +332,6 @@ function GuidedLearningPage() {
                 startNewChat(pendingPrompt);
             } catch(e) {
                 console.error("Failed to parse pending prompt.", e);
-                if (savedChats && savedChats.length > 0) setActiveChat(savedChats[0]);
             }
             return;
         }
@@ -323,9 +349,7 @@ function GuidedLearningPage() {
         }
     }
     
-    if (savedChats && savedChats.length > 0) {
-        if (!activeChat) setActiveChat(savedChats[0]);
-    } else if (savedChats && savedChats.length === 0) {
+    if (!chatsLoading && (!savedChats || savedChats.length === 0)) {
         startNewChat();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -467,7 +491,7 @@ function GuidedLearningPage() {
 
         {/* Main Chat Area */}
         <main className="flex-1 flex flex-col bg-card">
-            {chatsLoading ? (
+            {chatsLoading && !activeChat ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
@@ -586,7 +610,7 @@ function GuidedLearningPage() {
                 </>
             ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                     <p className="text-muted-foreground">Select a chat or start a new one.</p>
                 </div>
             )}
         </main>
@@ -611,3 +635,4 @@ export default function GuidedLearningPageWrapper() {
     );
 }
 
+    
