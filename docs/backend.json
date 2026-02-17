@@ -124,6 +124,31 @@
             "deck": { "type": "object" },
             "mindmap": { "type": "object" }
         }
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "Represents a user testimonial for display on the landing page.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the person giving the testimonial."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title or role of the person (e.g., 'WASSCE Candidate')."
+        },
+        "text": {
+          "type": "string",
+          "description": "The full text content of the testimonial."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the testimonial was added."
+        }
+      },
+      "required": ["name", "title", "text", "createdAt"]
     }
   },
   "auth": {
@@ -145,6 +170,12 @@
     "/notes/{noteId}": {
         "schema": { "$ref": "#/entities/RecentNote" },
         "description": "Top-level collection for all user notes."
+    },
+    "/testimonials/{testimonialId}": {
+      "schema": {
+        "$ref": "#/entities/Testimonial"
+      },
+      "description": "Stores user testimonials for the landing page."
     }
   }
 }

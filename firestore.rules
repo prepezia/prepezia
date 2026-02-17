@@ -29,5 +29,12 @@ service cloud.firestore {
         allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
         allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
+
+    // Testimonials can be read by anyone.
+    // Testimonials can only be created, updated, or deleted by an admin.
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if request.auth != null && isAppAdmin();
+    }
   }
 }

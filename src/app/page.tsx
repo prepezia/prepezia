@@ -7,15 +7,29 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import LandingHeader from '@/components/layout/LandingHeader';
 import LandingFooter from '@/components/layout/LandingFooter';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { Logo } from "@/components/icons/Logo";
 import Autoplay from "embla-carousel-autoplay";
 import { cn } from "@/lib/utils";
+import { useCollection, useFirestore } from "@/firebase";
+import { collection, DocumentData } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface Testimonial extends DocumentData {
+  id: string;
+  name: string;
+  title: string;
+  text: string;
+}
 
 export default function Home() {
+  const firestore = useFirestore();
+  const testimonialsRef = React.useMemo(() => firestore ? collection(firestore, 'testimonials') : null, [firestore]);
+  const { data: testimonials, loading: testimonialsLoading } = useCollection<Testimonial>(testimonialsRef);
+
   const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
   const carouselImage2 = PlaceHolderImages.find(p => p.id === 'carousel2')!;
   const carouselImage3 = PlaceHolderImages.find(p => p.id === 'carousel3')!;
@@ -46,24 +60,6 @@ export default function Home() {
   const testimonialsPlugin = React.useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
   );
-
-  const testimonials = [
-    {
-      quote: "Prepezia changed the game for my WASSCE prep. The AI chat helped me understand concepts I was stuck on for weeks.",
-      name: "Ama Serwaa",
-      title: "WASSCE Candidate",
-    },
-    {
-      quote: "The podcast generator is pure genius! I listen to my notes on the go. It's like having a personal study group in my pocket.",
-      name: "Kofi Mensah",
-      title: "University of Ghana Student",
-    },
-    {
-      quote: "As a BECE student, the past questions hub was invaluable. The AI roadmap showed me exactly where to focus my revision.",
-      name: "Adwoa Agyapong",
-      title: "BECE Candidate",
-    },
-  ];
 
   const features = [
     {
@@ -98,7 +94,7 @@ export default function Home() {
       title: 'Podcast Generation',
       imageUrl: carouselImage4.imageUrl,
       imageHint: carouselImage4.imageHint,
-      tags: ['Audio Overview', 'On The Go', 'Temi & Jay', 'Conversational'],
+      tags: ['Audio Overview', 'On The Go', 'Zia & Jay', 'Conversational'],
       color: 'bg-purple-50 dark:bg-purple-900/50',
       tagColor: 'bg-purple-200 dark:bg-purple-800/60',
     },
@@ -326,11 +322,16 @@ export default function Home() {
               }}
             >
               <CarouselContent>
-                {testimonials.map((testimonial, index) => (
-                  <CarouselItem key={index}>
+                {testimonialsLoading && (
+                    <CarouselItem>
+                        <div className="p-1"><Skeleton className="h-48 w-full" /></div>
+                    </CarouselItem>
+                )}
+                {testimonials && testimonials.map((testimonial) => (
+                  <CarouselItem key={testimonial.id}>
                     <div className="p-1">
                       <TestimonialCard
-                        quote={testimonial.quote}
+                        quote={testimonial.text}
                         name={testimonial.name}
                         title={testimonial.title}
                       />
