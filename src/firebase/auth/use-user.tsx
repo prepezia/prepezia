@@ -16,9 +16,11 @@ export const useUser = () => {
 
   useEffect(() => {
     if (!auth) {
-      setLoading(false);
+      // Firebase context might not be ready yet.
+      // The hook's initial state is `loading: true`, so we just wait.
       return;
     }
+    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       
