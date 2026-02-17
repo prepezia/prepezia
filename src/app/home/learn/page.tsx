@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText, Menu, X } from 'lucide-react';
+import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText, Menu, X, Download } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import {
@@ -115,6 +115,49 @@ function GuidedLearningPage() {
           return newActiveChat;
       });
   }, []);
+
+  const downloadChatHistory = (chat: SavedChat) => {
+    let content = `Topic: ${chat.topic}\n`;
+    content += `Date: ${new Date(chat.createdAt).toLocaleString()}\n\n`;
+    content += '------------------------------------\n\n';
+
+    chat.history.forEach(msg => {
+        const role = msg.role === 'user' ? 'You' : 'Zia';
+        let messageContent = '';
+        if (typeof msg.content === 'string') {
+            messageContent = msg.content;
+        } else {
+            messageContent = `[Attachment: ${msg.content.media.name}] ${msg.content.text}`;
+        }
+        content += `${role}:\n${messageContent}\n\n------------------------------------\n\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${chat.topic.replace(/[\W_]+/g,"_")}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: 'Chat history downloaded.' });
+  };
+
+  const handleDownloadAudio = async (text: string, messageId: string) => {
+        toast({ title: "Preparing audio for download..." });
+        try {
+            const ttsResponse = await textToSpeech({ text });
+            const link = document.createElement('a');
+            link.href = ttsResponse.audio;
+            link.download = `zia_response_${messageId}.wav`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Audio Download Failed', description: 'Could not generate or download AI speech.'});
+        }
+    };
 
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {
@@ -448,6 +491,15 @@ function GuidedLearningPage() {
         <main className="flex-1 flex flex-col bg-card">
             {activeChat ? (
                 <>
+                    <div className="p-4 border-b flex justify-between items-center gap-4">
+                        <h3 className="font-semibold text-lg truncate" title={activeChat.topic}>
+                            {activeChat.topic}
+                        </h3>
+                        <Button variant="outline" size="icon" onClick={() => downloadChatHistory(activeChat)} title="Download chat history">
+                            <Download className="h-4 w-4" />
+                        </Button>
+                    </div>
+
                     <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
@@ -478,13 +530,14 @@ function GuidedLearningPage() {
                                                 </div>
                                              )}
                                              {msg.role === 'assistant' && typeof msg.content === 'string' && !msg.isError && (
-                                                <div className="text-right mt-2">
+                                                <div className="text-right mt-2 flex items-center justify-end gap-2">
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
                                                         onClick={() => { if(typeof msg.content === 'string') handlePlayAudio(msg.id, msg.content); }}
                                                         disabled={isLoading}
+                                                        title="Play audio"
                                                     >
                                                         {generatingAudioId === msg.id ? (
                                                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -493,6 +546,16 @@ function GuidedLearningPage() {
                                                         ) : (
                                                             <Volume2 className="h-4 w-4" />
                                                         )}
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
+                                                        onClick={() => { if (typeof msg.content === 'string') handleDownloadAudio(msg.content, msg.id); }}
+                                                        disabled={isLoading}
+                                                        title="Download audio"
+                                                    >
+                                                        <Download className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             )}
