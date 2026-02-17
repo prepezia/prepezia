@@ -2,12 +2,8 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { UserNav } from "@/components/layout/UserNav";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { guidedLearningChat, GuidedLearningChatOutput } from '@/ai/flows/guided-learning-chat';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
 import { generateChatTitle } from '@/ai/flows/generate-chat-title';
@@ -16,6 +12,8 @@ import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, Loader2, Mic, Pause, Plus, Send, Trash2, User, Volume2, FileText, Menu, X, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import {
@@ -25,10 +23,10 @@ import {
   SheetTitle,
   SheetDescription,
   SheetTrigger,
-  SheetClose,
 } from "@/components/ui/sheet";
-import { Logo } from '@/components/icons/Logo';
 import { Progress } from '@/components/ui/progress';
+import { useUser, useFirestore, useCollection } from '@/firebase';
+import { doc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, serverTimestamp, Timestamp, DocumentData, CollectionReference, DocumentReference } from "firebase/firestore";
 
 // Types
 type ChatMessageContent = string | {
@@ -43,11 +41,12 @@ type ChatMessage = {
   isError?: boolean;
 };
 
-type SavedChat = {
+interface SavedChat extends DocumentData {
   id: string;
+  userId: string;
   topic: string;
   history: ChatMessage[];
-  createdAt: string;
+  createdAt: Timestamp;
   progress?: number;
   status?: 'Not Started' | 'In Progress' | 'Completed';
 };
@@ -61,12 +60,12 @@ function GuidedLearningPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { user } = useUser();
+  const firestore = useFirestore();
 
   // State
-  const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
   const [activeChat, setActiveChat] = useState<SavedChat | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Refs
@@ -81,21 +80,18 @@ function GuidedLearningPage() {
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Save chats to localStorage whenever they change
-  useEffect(() => {
-    try {
-        if (isMounted) {
-            localStorage.setItem('learnwithtemi_guided_chats', JSON.stringify(savedChats));
-        }
-    } catch (e) {
-        console.error("Failed to save chats", e);
+  const chatsQuery = useMemo(() => {
+    if (user && firestore) {
+        return query(
+            collection(firestore, 'users', user.uid, 'guided_chats'),
+            orderBy('createdAt', 'desc')
+        ) as CollectionReference<SavedChat>;
     }
-  }, [savedChats, isMounted]);
-  
+    return null;
+  }, [user, firestore]);
+
+  const { data: savedChats, loading: chatsLoading } = useCollection<SavedChat>(chatsQuery);
+
   // Scroll to bottom of chat
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -103,22 +99,18 @@ function GuidedLearningPage() {
     }
   }, [activeChat?.history]);
 
-  const updateActiveChat = useCallback((updates: Partial<SavedChat>) => {
-      setActiveChat(prevActiveChat => {
-          if (!prevActiveChat) return null;
-          const newActiveChat = { ...prevActiveChat, ...updates };
-
-          setSavedChats(prevSavedChats => 
-              prevSavedChats.map(c => c.id === newActiveChat.id ? newActiveChat : c)
-          );
-          
-          return newActiveChat;
+  const updateActiveChatInFirestore = useCallback((chatId: string, updates: Partial<Omit<SavedChat, 'id'>>) => {
+      if (!user || !firestore) return;
+      const chatDocRef = doc(firestore, 'users', user.uid, 'guided_chats', chatId);
+      updateDoc(chatDocRef, updates).catch(err => {
+          console.error("Failed to update chat in Firestore:", err);
+          toast({ variant: 'destructive', title: "Save failed", description: "Could not save your changes to the server." });
       });
-  }, []);
+  }, [user, firestore, toast]);
 
   const downloadChatHistory = (chat: SavedChat) => {
     let content = `Topic: ${chat.topic}\n`;
-    content += `Date: ${new Date(chat.createdAt).toLocaleString()}\n\n`;
+    content += `Date: ${new Date(chat.createdAt.seconds * 1000).toLocaleString()}\n\n`;
     content += '------------------------------------\n\n';
 
     chat.history.forEach(msg => {
@@ -191,7 +183,7 @@ function GuidedLearningPage() {
     chatContext: SavedChat, 
     options?: { media?: PendingPrompt['media'], isVoiceInput?: boolean }
   ) => {
-    if ((!content.trim() && !options?.media) || isLoading) return;
+    if ((!content.trim() && !options?.media) || isLoading || !user || !firestore) return;
 
     const userMessageContent: ChatMessageContent = options?.media
         ? { text: content, media: options.media }
@@ -201,7 +193,8 @@ function GuidedLearningPage() {
     
     const updatedHistoryForRequest = [...(chatContext.history || []), userMessage];
     
-    updateActiveChat({ history: updatedHistoryForRequest });
+    // Optimistically update the UI. Firestore will sync this change across devices.
+    setActiveChat(prev => prev ? { ...prev, history: updatedHistoryForRequest } : null);
     setIsLoading(true);
 
     try {
@@ -223,11 +216,10 @@ function GuidedLearningPage() {
         };
         
         const finalHistory = [...updatedHistoryForRequest, assistantMessage];
-        
-        const progress = Math.min((finalHistory.length / 10) * 100, 100); // 10 messages = 100%
+        const progress = Math.min((finalHistory.length / 10) * 100, 100);
         const currentStatus = chatContext.status === 'Not Started' ? 'In Progress' : (progress >= 100 ? 'Completed' : 'In Progress');
 
-        updateActiveChat({ history: finalHistory, progress, status: currentStatus });
+        updateActiveChatInFirestore(chatContext.id, { history: finalHistory, progress, status: currentStatus });
         
         const isFirstAssistantMessage = finalHistory.filter(m => m.role === 'assistant' && !m.isError).length === 1;
 
@@ -235,13 +227,13 @@ function GuidedLearningPage() {
             (async () => {
                 try {
                     const titleResult = await generateChatTitle({
-                        history: finalHistory.slice(0, 2).map(m => ({ // Send first user & assistant message
+                        history: finalHistory.slice(0, 2).map(m => ({
                             role: m.role,
                             content: typeof m.content === 'string' ? m.content : m.content.text,
                         }))
                     });
                     if (titleResult.title) {
-                        updateActiveChat({ topic: titleResult.title });
+                        updateActiveChatInFirestore(chatContext.id, { topic: titleResult.title });
                     }
                 } catch(e) {
                     console.error("Failed to generate chat title:", e);
@@ -256,49 +248,54 @@ function GuidedLearningPage() {
     } catch (e: any) {
         console.error("Guided learning chat error", e);
         const errorMessage: ChatMessage = { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I encountered an error. Please try again.", isError: true };
-        updateActiveChat({ history: [...updatedHistoryForRequest, errorMessage] });
+        updateActiveChatInFirestore(chatContext.id, { history: [...updatedHistoryForRequest, errorMessage] });
         toast({ variant: "destructive", title: "AI Error", description: e.message });
     } finally {
         setIsLoading(false);
     }
-  }, [isLoading, toast, updateActiveChat, handlePlayAudio]);
+  }, [isLoading, toast, updateActiveChatInFirestore, handlePlayAudio, user, firestore]);
   
-  const startNewChat = useCallback((prompt?: PendingPrompt) => {
-    const newChat: SavedChat = {
-        id: `chat-${Date.now()}`,
+  const startNewChat = useCallback(async (prompt?: PendingPrompt) => {
+    if (!user || !firestore) {
+      toast({ variant: 'destructive', title: 'User not signed in.' });
+      return;
+    }
+    
+    const newChatData = {
+        userId: user.uid,
         topic: prompt?.question || 'New Chat',
         history: [],
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
         progress: 0,
         status: 'Not Started',
     };
     
-    setSavedChats(prev => [newChat, ...prev]);
-    setActiveChat(newChat);
-    
-    if(prompt) {
-        submitMessage(prompt.question, newChat, { media: prompt.media });
-    }
-    
-    router.replace('/home/learn', { scroll: false });
-  }, [router, submitMessage]);
-
-  // Load chats on mount and handle initial actions
-  useEffect(() => {
-    let initialChats: SavedChat[] = [];
     try {
-        const storedChats = localStorage.getItem('learnwithtemi_guided_chats');
-        if (storedChats) {
-            initialChats = JSON.parse(storedChats);
+        const docRef = await addDoc(collection(firestore, 'users', user.uid, 'guided_chats'), newChatData);
+
+        if(prompt) {
+            // Need to create a temporary SavedChat object to pass to submitMessage
+            const tempChat: SavedChat = {
+                ...newChatData,
+                id: docRef.id,
+                createdAt: Timestamp.now()
+            };
+            submitMessage(prompt.question, tempChat, { media: prompt.media });
         }
-    } catch (e) {
-        console.error("Failed to load chats from localStorage", e);
+        
+        router.replace('/home/learn', { scroll: false });
+    } catch(e) {
+        console.error("Failed to create new chat:", e);
+        toast({ variant: 'destructive', title: 'Failed to start chat.' });
     }
 
-    setSavedChats(initialChats);
+  }, [user, firestore, router, submitMessage, toast]);
+
+  useEffect(() => {
+    if (chatsLoading) return;
+
     const startWithVoice = searchParams.get('voice') === 'true';
 
-    // Router.replace will remove the search param, so we need to check if the action has already run
     if (!voiceInitRef.current) {
         const pendingPromptJSON = sessionStorage.getItem('pending_guided_learning_prompt');
         if (pendingPromptJSON) {
@@ -307,16 +304,16 @@ function GuidedLearningPage() {
                 const pendingPrompt: PendingPrompt = JSON.parse(pendingPromptJSON);
                 startNewChat(pendingPrompt);
             } catch(e) {
-                console.error("Failed to parse pending prompt, loading normally.", e);
-                if (initialChats.length > 0) setActiveChat(initialChats[0]);
+                console.error("Failed to parse pending prompt.", e);
+                if (savedChats && savedChats.length > 0) setActiveChat(savedChats[0]);
             }
             return;
         }
 
         if (startWithVoice) {
             voiceInitRef.current = true;
-            if (initialChats.length > 0) {
-                 setActiveChat(initialChats[0]);
+            if (savedChats && savedChats.length > 0) {
+                 setActiveChat(savedChats[0]);
             } else {
                 startNewChat();
             }
@@ -326,33 +323,31 @@ function GuidedLearningPage() {
         }
     }
     
-    if (initialChats.length > 0) {
-        if (!activeChat) setActiveChat(initialChats[0]);
-    } else {
+    if (savedChats && savedChats.length > 0) {
+        if (!activeChat) setActiveChat(savedChats[0]);
+    } else if (savedChats && savedChats.length === 0) {
         startNewChat();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [savedChats, chatsLoading]);
 
   const handleSelectChat = (chatId: string) => {
-    const chat = savedChats.find(c => c.id === chatId);
+    const chat = savedChats?.find(c => c.id === chatId);
     if (chat) {
       setActiveChat(chat);
     }
   };
 
-  const handleDeleteChat = (chatId: string) => {
-    setSavedChats(prev => {
-        const updatedChats = prev.filter(c => c.id !== chatId);
-        if (activeChat?.id === chatId) {
-            if (updatedChats.length > 0) {
-                setActiveChat(updatedChats[0]);
-            } else {
-                startNewChat();
-            }
-        }
-        return updatedChats;
-    });
+  const handleDeleteChat = async (chatId: string) => {
+    if (!user || !firestore) return;
+    try {
+        await deleteDoc(doc(firestore, 'users', user.uid, 'guided_chats', chatId));
+        toast({ title: 'Chat Deleted' });
+        // The active chat will update automatically via the useCollection hook
+    } catch (e) {
+        console.error("Failed to delete chat:", e);
+        toast({ variant: 'destructive', title: 'Deletion Failed' });
+    }
   };
   
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -427,7 +422,9 @@ function GuidedLearningPage() {
        </div>
        <ScrollArea className="flex-1">
             <div className="p-2 space-y-1">
-                {savedChats.map(chat => (
+                {chatsLoading ? (
+                    <div className="p-4 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto"/></div>
+                ) : savedChats?.map(chat => (
                     <div
                         key={chat.id}
                         onClick={() => {
@@ -470,7 +467,11 @@ function GuidedLearningPage() {
 
         {/* Main Chat Area */}
         <main className="flex-1 flex flex-col bg-card">
-            {activeChat ? (
+            {chatsLoading ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            ) : activeChat ? (
                 <>
                     <div className="p-4 border-b flex items-center gap-2">
                         <div className="md:hidden">
@@ -610,7 +611,3 @@ export default function GuidedLearningPageWrapper() {
     );
 }
 
-
-
-
-    

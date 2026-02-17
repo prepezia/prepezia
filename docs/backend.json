@@ -172,6 +172,24 @@
         }
       },
       "required": ["level", "subject", "year", "fileName", "fileUrl", "storagePath", "uploadedAt"]
+    },
+    "GuidedChat": {
+        "title": "Guided Learning Chat",
+        "description": "Represents a single guided learning conversation session.",
+        "type": "object",
+        "properties": {
+            "userId": { "type": "string", "description": "The ID of the user who owns this chat." },
+            "topic": { "type": "string", "description": "The title of the chat session." },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "progress": { "type": "number", "description": "The completion progress of the chat." },
+            "status": { "type": "string", "enum": ["Not Started", "In Progress", "Completed"] },
+            "history": {
+                "type": "array",
+                "description": "The full conversation history.",
+                "items": { "type": "object" }
+            }
+        },
+        "required": ["userId", "topic", "createdAt"]
     }
   },
   "auth": {
@@ -183,6 +201,10 @@
         "$ref": "#/entities/UserProfile"
       },
       "description": "Stores public user profile information."
+    },
+    "/users/{userId}/guided_chats/{chatId}": {
+        "schema": { "$ref": "#/entities/GuidedChat" },
+        "description": "Stores a user's individual guided learning chat sessions."
     },
     "/legal_content/{documentId}": {
       "schema": {

@@ -15,6 +15,11 @@ service cloud.firestore {
       allow list: if request.auth != null && isAppAdmin();
       // Any authenticated user can create or update their own document.
       allow create, update: if request.auth != null && request.auth.uid == userId;
+
+      // Users can manage their own guided learning chats.
+      match /guided_chats/{chatId} {
+        allow read, write, delete, create: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Legal content can be read by any authenticated user.
