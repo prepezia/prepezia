@@ -62,6 +62,5 @@ export const universities = [
   "Advanced Business University College",
   "Data Link Institute of Business & Technology",
   "Heritage Christian University College",
-  "Knutsford University College",
   "Catholic Institute of Business and Technology"
 ];
