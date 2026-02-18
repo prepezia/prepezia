@@ -47,6 +47,7 @@ import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Trash2, Eye, Loader2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
 
 interface FeedbackItem extends DocumentData {
     id: string;
