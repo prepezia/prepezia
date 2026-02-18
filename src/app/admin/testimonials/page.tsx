@@ -72,7 +72,7 @@ export default function AdminTestimonialsPage() {
     const { data: testimonials, loading } = useCollection<Testimonial>(testimonialsRef);
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [currentTestimonial, setCurrentTestimonial] = useState<Testimonial | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -93,7 +93,7 @@ export default function AdminTestimonialsPage() {
 
     const handleOpenDeleteDialog = (testimonial: Testimonial) => {
         setCurrentTestimonial(testimonial);
-        setShowDeleteConfirm(true);
+        setIsDeleteConfirmOpen(true);
     }
 
     const onSubmit = async (values: z.infer<typeof testimonialSchema>) => {
@@ -108,7 +108,7 @@ export default function AdminTestimonialsPage() {
                 await addDoc(collection(firestore, "testimonials"), { ...values, createdAt: serverTimestamp() });
                 toast({ title: "Success", description: "New testimonial added." });
             }
-            handleDialogChange(false);
+            setIsDialogOpen(false);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not save testimonial." });
         } finally {
@@ -121,34 +121,34 @@ export default function AdminTestimonialsPage() {
         try {
             await deleteDoc(doc(firestore, "testimonials", currentTestimonial.id));
             toast({ title: "Success", description: "Testimonial deleted." });
-            handleDeleteConfirmChange(false);
+            setIsDeleteConfirmOpen(false);
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not delete testimonial." });
         }
     }
 
+    // Robust cleanup handlers
     const handleDialogChange = (open: boolean) => {
         setIsDialogOpen(open);
         if (!open) {
-            // Delay data reset to allow Radix UI to clean up body locks correctly
             setTimeout(() => {
                 setCurrentTestimonial(null);
                 form.reset({ name: "", title: "", text: "" });
-            }, 150);
+            }, 200);
         }
     }
 
     const handleDeleteConfirmChange = (open: boolean) => {
-        setShowDeleteConfirm(open);
+        setIsDeleteConfirmOpen(open);
         if (!open) {
             setTimeout(() => {
                 setCurrentTestimonial(null);
-            }, 150);
+            }, 200);
         }
     }
 
   return (
-    <>
+    <div className="space-y-6">
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -162,6 +162,8 @@ export default function AdminTestimonialsPage() {
             <CardContent>
                 {loading ? (
                     <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                ) : !testimonials || testimonials.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-12">No testimonials found.</p>
                 ) : (
                     <Table>
                         <TableHeader>
@@ -172,7 +174,7 @@ export default function AdminTestimonialsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {testimonials?.map((testimonial) => (
+                            {testimonials.map((testimonial) => (
                                 <TableRow key={testimonial.id}>
                                     <TableCell>
                                         <div className="font-medium">{testimonial.name}</div>
@@ -184,7 +186,7 @@ export default function AdminTestimonialsPage() {
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
+                                            <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onClick={() => handleOpenDialog(testimonial)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleOpenDeleteDialog(testimonial)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -230,7 +232,7 @@ export default function AdminTestimonialsPage() {
             </DialogContent>
         </Dialog>
         
-        <AlertDialog open={showDeleteConfirm} onOpenChange={handleDeleteConfirmChange}>
+        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={handleDeleteConfirmChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -242,6 +244,6 @@ export default function AdminTestimonialsPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </>
+    </div>
   );
 }

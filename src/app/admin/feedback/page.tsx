@@ -52,10 +52,9 @@ interface FeedbackItem extends DocumentData {
     id: string;
     title: string;
     description: string;
-    submittedBy: string;
+    userId: string;
     userEmail: string;
     userName: string;
-    date: Timestamp;
     status: "New" | "In Progress" | "Resolved";
     adminAction?: string;
     fileUrl?: string;
@@ -98,7 +97,7 @@ export default function AdminFeedbackPage() {
               adminAction,
           });
           toast({ title: "Success", description: "Feedback updated successfully." });
-          handleOpenChange(false);
+          setIsDetailOpen(false);
       } catch (error: any) {
           toast({ variant: "destructive", title: "Update Failed", description: error.message });
       } finally {
@@ -116,14 +115,15 @@ export default function AdminFeedbackPage() {
       }
   };
 
+  // Safe cleanup handler
   const handleOpenChange = (open: boolean) => {
       setIsDetailOpen(open);
       if (!open) {
-          // Delay data reset to allow Radix UI to clean up body locks correctly
+          // Delay cleanup to ensure animations finish and scroll lock is released
           setTimeout(() => {
               setSelectedFeedback(null);
               setAdminAction("");
-          }, 150);
+          }, 200);
       }
   };
 
