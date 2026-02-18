@@ -78,9 +78,10 @@
         "userEmail": { "type": "string" },
         "title": { "type": "string" },
         "description": { "type": "string" },
-        "status": { "type": "string", "enum": ["New", "In Progress", "Resolved"] },
+        "status": { "type": "string", "enum": ["New", "In Progress", "Done"] },
         "adminAction": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "fileUrl": { "type": "string", "format": "uri" }
       },
       "required": ["userId", "title", "description", "status", "createdAt"]
     },
@@ -182,8 +183,8 @@
           "type": "string",
           "enum": ["BECE", "WASSCE", "University"]
         },
-        "subject": { "type": "string" },
-        "courseCode": { "type": "string" },
+        "subject": { "type": "string", "description": "The course or subject title (e.g., Microeconomics)" },
+        "courseCode": { "type": "string", "description": "The specific course code (e.g., Econ 401)" },
         "year": { "type": "string" },
         "university": { "type": "string" },
         "schoolFaculty": { "type": "string" },
