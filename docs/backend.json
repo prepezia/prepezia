@@ -183,6 +183,7 @@
           "enum": ["BECE", "WASSCE", "University"]
         },
         "subject": { "type": "string" },
+        "courseCode": { "type": "string" },
         "year": { "type": "string" },
         "university": { "type": "string" },
         "schoolFaculty": { "type": "string" },

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -61,6 +62,7 @@ interface PastQuestion extends DocumentData {
     id: string;
     level: string;
     subject: string;
+    courseCode?: string;
     year: string;
     fileName: string;
     university?: string;
@@ -74,7 +76,7 @@ export default function AdminPastQuestionsPage() {
     const { user } = useUser();
     const { toast } = useToast();
 
-    const questionsRef = useMemo(() => firestore ? collection(firestore, 'past_questions') as CollectionReference<PastQuestion> : null, [firestore]);
+    const questionsRef = useMemo(() => firestore ? collection(firestore, 'past_questions') as any : null, [firestore]);
     const { data: questions, loading } = useCollection<PastQuestion>(questionsRef);
 
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -86,14 +88,22 @@ export default function AdminPastQuestionsPage() {
     const [level, setLevel] = useState("");
     const [university, setUniversity] = useState("");
     const [schoolFaculty, setSchoolFaculty] = useState("");
+    const [courseCode, setCourseCode] = useState("");
     const [course, setCourse] = useState("");
     const [year, setYear] = useState("");
     const [file, setFile] = useState<File | null>(null);
+
+    // Smart Suggestions - Unique values from previously uploaded questions
+    const suggestedFaculties = useMemo(() => Array.from(new Set(questions?.map(q => q.schoolFaculty).filter(Boolean))), [questions]);
+    const suggestedCourseCodes = useMemo(() => Array.from(new Set(questions?.map(q => q.courseCode).filter(Boolean))), [questions]);
+    const suggestedSubjects = useMemo(() => Array.from(new Set(questions?.map(q => q.subject).filter(Boolean))), [questions]);
+    const suggestedYears = useMemo(() => Array.from(new Set(questions?.map(q => q.year).filter(Boolean))), [questions]);
 
     const resetForm = () => {
         setLevel("");
         setUniversity("");
         setSchoolFaculty("");
+        setCourseCode("");
         setCourse("");
         setYear("");
         setFile(null);
@@ -115,7 +125,9 @@ export default function AdminPastQuestionsPage() {
 
         setIsSubmitting(true);
         try {
-            const storagePath = `past_questions/${file.name}_${Date.now()}`;
+            // Clean file name to avoid weird encoding issues in paths
+            const cleanedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const storagePath = `past_questions/${cleanedFileName}_${Date.now()}`;
             const storageRef = ref(storage, storagePath);
 
             await uploadBytes(storageRef, file);
@@ -125,6 +137,7 @@ export default function AdminPastQuestionsPage() {
                 level,
                 university: level === 'University' ? university : "",
                 schoolFaculty: level === 'University' ? schoolFaculty : "",
+                courseCode: courseCode || "",
                 subject: course,
                 year,
                 fileName: file.name,
@@ -217,7 +230,10 @@ export default function AdminPastQuestionsPage() {
                                 {questions?.map((q) => (
                                     <TableRow key={q.id}>
                                         <TableCell>
-                                            <div className="font-medium">{q.subject}</div>
+                                            <div className="font-medium">
+                                                {q.courseCode && <span className="text-primary mr-2">[{q.courseCode}]</span>}
+                                                {q.subject}
+                                            </div>
                                             <div className="text-sm text-muted-foreground">
                                                 {q.level}
                                                 {q.university && ` • ${q.university}`}
@@ -225,7 +241,7 @@ export default function AdminPastQuestionsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>{q.year}</TableCell>
-                                        <TableCell className="text-muted-foreground">{q.fileName}</TableCell>
+                                        <TableCell className="text-muted-foreground truncate max-w-[200px]">{q.fileName}</TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -246,10 +262,10 @@ export default function AdminPastQuestionsPage() {
             </Card>
 
             <Dialog open={isUploadDialogOpen} onOpenChange={handleUploadDialogChange}>
-                <DialogContent className="sm:max-w-[480px]">
+                <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
                         <DialogTitle>Upload New Past Question</DialogTitle>
-                        <DialogDescription>Fill in the details for the exam paper you are uploading.</DialogDescription>
+                        <DialogDescription>Fill in the details. Smart suggestions will appear as you type in recurring fields.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
@@ -277,19 +293,62 @@ export default function AdminPastQuestionsPage() {
                         {level === 'University' && (
                             <div className="space-y-2">
                                 <Label htmlFor="schoolFaculty">School / Faculty (optional)</Label>
-                                <Input id="schoolFaculty" value={schoolFaculty} onChange={(e) => setSchoolFaculty(e.target.value)} placeholder="e.g., Business School, Medical School" />
-                                <p className="text-xs text-muted-foreground">If the school/faculty doesn't exist, it will be created.</p>
+                                <Input 
+                                    id="schoolFaculty" 
+                                    value={schoolFaculty} 
+                                    onChange={(e) => setSchoolFaculty(e.target.value)} 
+                                    placeholder="e.g., Business School, Medical School" 
+                                    list="faculties-list"
+                                />
+                                <datalist id="faculties-list">
+                                    {suggestedFaculties.map(f => <option key={f as string} value={f as string} />)}
+                                </datalist>
                             </div>
                         )}
-                        <div className="space-y-2">
-                            <Label htmlFor="course">Course / Subject *</Label>
-                            <Input id="course" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="e.g., Core Mathematics" />
-                             <p className="text-xs text-muted-foreground">If the course doesn't exist, it will be created.</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="courseCode">Course Code</Label>
+                                <Input 
+                                    id="courseCode" 
+                                    value={courseCode} 
+                                    onChange={(e) => setCourseCode(e.target.value)} 
+                                    placeholder="e.g., ECON 401" 
+                                    list="codes-list"
+                                />
+                                <datalist id="codes-list">
+                                    {suggestedCourseCodes.map(c => <option key={c as string} value={c as string} />)}
+                                </datalist>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="year">Year *</Label>
+                                <Input 
+                                    id="year" 
+                                    value={year} 
+                                    onChange={(e) => setYear(e.target.value)} 
+                                    placeholder="e.g., 2023 or 2024 Mid-Sem" 
+                                    list="years-list"
+                                />
+                                <datalist id="years-list">
+                                    {suggestedYears.map(y => <option key={y as string} value={y as string} />)}
+                                </datalist>
+                            </div>
                         </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="year">Year *</Label>
-                            <Input id="year" value={year} onChange={(e) => setYear(e.target.value)} placeholder="e.g., 2023 or 2024 Mid-Sem" />
+                            <Label htmlFor="course">Course / Subject Title *</Label>
+                            <Input 
+                                id="course" 
+                                value={course} 
+                                onChange={(e) => setCourse(e.target.value)} 
+                                placeholder="e.g., Microeconomics" 
+                                list="subjects-list"
+                            />
+                            <datalist id="subjects-list">
+                                {suggestedSubjects.map(s => <option key={s as string} value={s as string} />)}
+                            </datalist>
                         </div>
+
                          <div className="space-y-2">
                             <Label htmlFor="file">Exam File *</Label>
                             <Input id="file" type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" />

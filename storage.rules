@@ -5,11 +5,11 @@ service firebase.storage {
   match /b/{bucket}/o {
     
     function isAppAdmin() {
-      // Robust admin check: Check for primary admin email OR the isAdmin flag in Firestore
+      // Robust admin check: Prioritize the primary admin email
+      // Then check Firestore for the isAdmin flag
       return request.auth != null && (
         request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
-        (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) && 
-         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true
       );
     }
 
