@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, type DocumentData } from "firebase/firestore";
 import { useForm } from "react-hook-form";
@@ -33,7 +33,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
     DialogFooter,
   } from "@/components/ui/dialog";
 import {
@@ -66,14 +65,6 @@ const testimonialSchema = z.object({
     text: z.string().min(1, "Testimonial text is required."),
 });
 
-const seedTestimonials = [
-    { name: "Ama Serwaa", title: "WASSCE Candidate", text: "Prepezia changed the game for my WASSCE prep. The AI chat helped me understand concepts I was stuck on for weeks." },
-    { name: "Kofi Mensah", title: "University of Ghana Student", text: "The podcast generator is pure genius! I listen to my notes on the go. It's like having a personal study group in my pocket." },
-    { name: "Adwoa Agyapong", title: "BECE Candidate", text: "The past questions hub was invaluable. The AI roadmap showed me exactly where to focus my revision." },
-    { name: "Yaw Boakye", title: "Ashesi University Student", text: "Study Spaces let me combine my lecture notes with YouTube videos. Chatting with the AI to get summaries is incredibly powerful." },
-    { name: "Fatima Ibrahim", title: "KNUST Graduate", text: "The CV Improver helped me land my first job out of uni. The AI suggestions were spot on and made my CV look so much more professional." },
-];
-
 export default function AdminTestimonialsPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -82,7 +73,7 @@ export default function AdminTestimonialsPage() {
     const { data: testimonials, loading } = useCollection<Testimonial>(testimonialsRef);
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [currentTestimonial, setCurrentTestimonial] = useState<Testimonial | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -103,7 +94,7 @@ export default function AdminTestimonialsPage() {
 
     const handleOpenDeleteDialog = (testimonial: Testimonial) => {
         setCurrentTestimonial(testimonial);
-        setIsDeleteDialogOpen(true);
+        setShowDeleteConfirm(true);
     }
 
     const onSubmit = async (values: z.infer<typeof testimonialSchema>) => {
@@ -111,12 +102,10 @@ export default function AdminTestimonialsPage() {
         setIsSubmitting(true);
         try {
             if (currentTestimonial) {
-                // Update
                 const testimonialDoc = doc(firestore, "testimonials", currentTestimonial.id);
                 await updateDoc(testimonialDoc, values);
                 toast({ title: "Success", description: "Testimonial updated." });
             } else {
-                // Create
                 await addDoc(collection(firestore, "testimonials"), { ...values, createdAt: serverTimestamp() });
                 toast({ title: "Success", description: "New testimonial added." });
             }
@@ -133,7 +122,7 @@ export default function AdminTestimonialsPage() {
         try {
             await deleteDoc(doc(firestore, "testimonials", currentTestimonial.id));
             toast({ title: "Success", description: "Testimonial deleted." });
-            setIsDeleteDialogOpen(false);
+            setShowDeleteConfirm(false);
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not delete testimonial." });
         }
@@ -222,15 +211,15 @@ export default function AdminTestimonialsPage() {
             </DialogContent>
         </Dialog>
         
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>This will permanently delete this testimonial.</AlertDialogDescription>
+                    <AlertDialogDescription>This will permanently delete this testimonial from the database.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
