@@ -5,7 +5,7 @@ service cloud.firestore {
 
     function isAppAdmin() {
       // Check if the requesting user's document has the isAdmin flag set to true.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     match /users/{userId} {
