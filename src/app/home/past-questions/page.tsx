@@ -84,10 +84,7 @@ export default function PastQuestionsPage() {
     const [examDuration, setExamDuration] = useState(20);
 
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
-    const [currentExamId, setCurrentExamId] = useState<number>(0);
-
     const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
-    const [questionsCurrentPage, setQuestionsCurrentPage] = useState(0);
 
     // Merged institutions
     const allUniversities = useMemo(() => {
@@ -102,15 +99,11 @@ export default function PastQuestionsPage() {
         ? allUniversities.filter(name => allQuestions?.some(q => q.university === name))
         : [], [allQuestions, selections.examBody, allUniversities]);
 
-    const faculties = useMemo(() => selections.university && allQuestions
-        ? Array.from(new Set(allQuestions.filter(q => q.university === selections.university).map(q => q.schoolFaculty).filter(Boolean) as string[]))
-        : [], [allQuestions, selections.university]);
-
     const subjects = useMemo(() => {
         if (!allQuestions || !selections.examBody) return [];
         let filtered = allQuestions.filter(q => q.level === selections.examBody);
         if (selections.examBody === 'University') {
-            filtered = filtered.filter(q => q.university === selections.university && (!selections.schoolFaculty || q.schoolFaculty === selections.schoolFaculty));
+            filtered = filtered.filter(q => q.university === selections.university);
         }
         return Array.from(new Set(filtered.map(q => q.subject)));
     }, [allQuestions, selections]);
@@ -119,7 +112,7 @@ export default function PastQuestionsPage() {
         if (!allQuestions || !selections.subject) return [];
         let filtered = allQuestions.filter(q => q.level === selections.examBody && q.subject === selections.subject);
         if (selections.examBody === 'University') {
-            filtered = filtered.filter(q => q.university === selections.university && (!selections.schoolFaculty || q.schoolFaculty === selections.schoolFaculty));
+            filtered = filtered.filter(q => q.university === selections.university);
         }
         return Array.from(new Set(filtered.map(q => q.year)));
     }, [allQuestions, selections]);
@@ -187,7 +180,6 @@ export default function PastQuestionsPage() {
                 examResults: `Score: ${finalScore}/${questions.length}`,
                 studentLevel: selections.examBody,
                 university: selections.university,
-                department: selections.schoolFaculty,
                 course: selections.subject
             });
             setResults(result);
@@ -285,11 +277,11 @@ export default function PastQuestionsPage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div><CardTitle className="text-2xl">Results: {examScore}/{questions.length}</CardTitle><CardDescription>{selections.subject} ({selections.year})</CardDescription></div>
                         <Button onClick={() => {
-                            const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results}, ...savedExams];
+                            const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!}, ...savedExams];
                             setSavedExams(updated);
                             saveExamsToStorage(updated);
                             toast({ title: "Saved" });
-                        }}><Save className="mr-2"/>Save</Button>
+                        }}><Save className="mr-2"/>Save Session</Button>
                     </CardHeader>
                     <CardContent>
                         <Tabs defaultValue="roadmap">
@@ -362,7 +354,7 @@ function ExamModeView({ questions, topic, durationMinutes, onSubmit }: { questio
         <div className="p-4 max-w-4xl mx-auto space-y-6">
             <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm sticky top-0 z-10">
                 <div className="flex items-center gap-4 text-xl font-mono"><TimerIcon className="h-5 w-5"/>{Math.floor(time/60)}:{(time%60).toString().padStart(2,'0')}</div>
-                <Button variant="outline" onClick={() => onSubmit(ans)}>Submit</Button>
+                <Button variant="outline" onClick={() => onSubmit(ans)}>Submit Exam</Button>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <Card className="lg:col-span-3">

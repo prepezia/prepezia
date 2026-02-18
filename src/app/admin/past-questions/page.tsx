@@ -445,7 +445,7 @@ export default function AdminPastQuestionsPage() {
                             <Input placeholder="Institution Name" value={newUniName} onChange={e => setNewUniName(e.target.value)} />
                             <Button onClick={handleAddUniversity} disabled={!newUniName.trim()}><Plus className="h-4 w-4"/></Button>
                         </div>
-                        <Separator />
+                        <div className="h-px bg-border w-full my-2" />
                         <div className="max-h-[300px] overflow-y-auto space-y-2">
                             {customUnis?.map(uni => (
                                 <div key={uni.id} className="flex justify-between items-center p-2 rounded bg-secondary/50">
@@ -471,5 +471,3 @@ export default function AdminPastQuestionsPage() {
         </div>
     );
 }
-
-const Separator = () => <div className="h-px bg-border w-full my-2" />;

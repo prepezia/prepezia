@@ -6,7 +6,7 @@ service cloud.firestore {
       return request.auth != null && (
         request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2' ||
         request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
       );
     }
 
