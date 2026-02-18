@@ -1,7 +1,11 @@
+/**
+ * @fileOverview A comprehensive list of Ghanaian universities for selection in the app.
+ * To add a new university, simply add a new string to the array below.
+ */
 
 export const universities = [
-  // Major public universities
-  "University of Ghana",
+  // Major Public Universities
+  "University of Ghana (UG)",
   "Kwame Nkrumah University of Science and Technology (KNUST)",
   "University of Cape Coast (UCC)",
   "University of Education, Winneba (UEW)",
@@ -10,18 +14,14 @@ export const universities = [
   "University of Health and Allied Sciences (UHAS)",
   "University of Energy and Natural Resources (UENR)",
   "Ghana Institute of Management and Public Administration (GIMPA)",
+  "Ghana Communication Technology University (GCTU)",
+  "Akenten Appiah-Menka University of Skills Training and Entrepreneurial Development (AAMUSTED)",
+  "Simon Diedong Dombo University of Business and Integrated Development Studies (SDD-UBIDS)",
+  "University of Environment and Sustainable Development (UESD)",
   "Ghana Institute of Journalism (GIJ)",
   "National Film and Television Institute (NAFTI)",
 
-  // Major private universities
-  "Ashesi University",
-  "Valley View University",
-  "Central University",
-  "Regent University College of Science and Technology",
-  "Pentecost University College",
-  "Methodist University College Ghana",
-  "Wisconsin International University College",
-  "Presbyterian University College",
+  // Technical Universities
   "Accra Technical University",
   "Koforidua Technical University",
   "Takoradi Technical University",
@@ -30,8 +30,18 @@ export const universities = [
   "Ho Technical University",
   "Cape Coast Technical University",
   "Tamale Technical University",
+  "Bolgatanga Technical University",
+  "Wa Technical University",
   
-  // Additional Universities & Colleges
+  // Major Private Universities
+  "Ashesi University",
+  "Valley View University",
+  "Central University",
+  "Regent University College of Science and Technology",
+  "Pentecost University College",
+  "Methodist University College Ghana",
+  "Wisconsin International University College",
+  "Presbyterian University College",
   "Academic City University College",
   "BlueCrest University College",
   "Lancaster University Ghana",
@@ -51,5 +61,7 @@ export const universities = [
   "Mountcrest University College",
   "Advanced Business University College",
   "Data Link Institute of Business & Technology",
-  "Heritage Christian University College"
+  "Heritage Christian University College",
+  "Knutsford University College",
+  "Catholic Institute of Business and Technology"
 ];

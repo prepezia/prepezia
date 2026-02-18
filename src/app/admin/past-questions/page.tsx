@@ -1,9 +1,8 @@
-
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useCollection, useFirestore, useStorage, useUser } from "@/firebase";
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, type DocumentData, type CollectionReference, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, updateDoc, serverTimestamp, deleteDoc, doc, type DocumentData, type CollectionReference, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   Card,
@@ -69,6 +68,7 @@ interface PastQuestion extends DocumentData {
     schoolFaculty?: string;
     durationMinutes?: number;
     storagePath: string;
+    fileUrl: string;
 }
 
 export default function AdminPastQuestionsPage() {
@@ -87,6 +87,7 @@ export default function AdminPastQuestionsPage() {
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
+    const [editingQuestion, setEditingQuestion] = useState<PastQuestion | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Filtering state
@@ -136,32 +137,63 @@ export default function AdminPastQuestionsPage() {
         setYear("");
         setDuration("20");
         setFile(null);
+        setEditingQuestion(null);
     }
 
-    const handleUpload = async () => {
-        if (!file || !level || !course || !year) {
-            toast({ variant: 'destructive', title: "Missing fields", description: "Please fill out all required fields and select a file."});
+    const handleEditQuestion = (q: PastQuestion) => {
+        setEditingQuestion(q);
+        setLevel(q.level);
+        setUniversity(q.university || "");
+        setSchoolFaculty(q.schoolFaculty || "");
+        setCourseCode(q.courseCode || "");
+        setCourse(q.subject);
+        setYear(q.year);
+        setDuration(q.durationMinutes?.toString() || "20");
+        setIsUploadDialogOpen(true);
+    };
+
+    const handleSave = async () => {
+        if (!editingQuestion && !file) {
+            toast({ variant: 'destructive', title: "Missing File", description: "Please select a file to upload."});
+            return;
+        }
+        if (!level || !course || !year) {
+            toast({ variant: 'destructive', title: "Missing fields", description: "Please fill out all required fields."});
             return;
         }
         if (level === 'University' && !university) {
             toast({ variant: 'destructive', title: "Missing University", description: "Please select a university."});
             return;
         }
-        if (!storage || !firestore || !user) {
+        if (!firestore || !user) {
             toast({ variant: 'destructive', title: "Initialization Error", description: "Could not connect to Firebase services." });
             return;
         }
 
         setIsSubmitting(true);
         try {
-            const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const storagePath = `past_questions/${Date.now()}_${cleanName}`;
-            const storageReference = ref(storage, storagePath);
+            let finalFileUrl = editingQuestion?.fileUrl || "";
+            let finalStoragePath = editingQuestion?.storagePath || "";
 
-            const snapshot = await uploadBytes(storageReference, file);
-            const downloadUrl = await getDownloadURL(snapshot.ref);
+            // Handle new file upload if provided
+            if (file && storage) {
+                // If editing, delete the old file first
+                if (editingQuestion?.storagePath) {
+                    try {
+                        await deleteObject(ref(storage, editingQuestion.storagePath));
+                    } catch (e) {
+                        console.warn("Could not delete old file during update:", e);
+                    }
+                }
 
-            await addDoc(collection(firestore, "past_questions"), {
+                const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                finalStoragePath = `past_questions/${Date.now()}_${cleanName}`;
+                const storageReference = ref(storage, finalStoragePath);
+                const snapshot = await uploadBytes(storageReference, file);
+                finalFileUrl = await getDownloadURL(snapshot.ref);
+            }
+
+            const data = {
                 level,
                 university: level === 'University' ? university : "",
                 schoolFaculty: level === 'University' ? schoolFaculty : "",
@@ -169,18 +201,26 @@ export default function AdminPastQuestionsPage() {
                 subject: course,
                 year,
                 durationMinutes: parseInt(duration) || 20,
-                fileName: file.name,
-                fileUrl: downloadUrl,
-                storagePath: storagePath,
-                uploadedAt: serverTimestamp()
-            });
+                fileName: file ? file.name : editingQuestion!.fileName,
+                fileUrl: finalFileUrl,
+                storagePath: finalStoragePath,
+                updatedAt: serverTimestamp(),
+                ...(editingQuestion ? {} : { uploadedAt: serverTimestamp() })
+            };
 
-            toast({ title: "Upload Successful", description: `${file.name} has been added.`});
+            if (editingQuestion) {
+                await updateDoc(doc(firestore, "past_questions", editingQuestion.id), data);
+                toast({ title: "Updated Successful", description: `The paper has been updated.`});
+            } else {
+                await addDoc(collection(firestore, "past_questions"), data);
+                toast({ title: "Upload Successful", description: `${file!.name} has been added.`});
+            }
+
             handleUploadDialogChange(false);
         } catch (error: any) {
             toast({ 
                 variant: 'destructive', 
-                title: "Upload Failed", 
+                title: "Operation Failed", 
                 description: `Error: ${error.message}.` 
             });
         } finally {
@@ -210,12 +250,15 @@ export default function AdminPastQuestionsPage() {
 
     const handleUploadDialogChange = (open: boolean) => {
         setIsUploadDialogOpen(open);
-        if (!open) setTimeout(resetForm, 150);
+        if (!open) setTimeout(resetForm, 300);
     };
 
     const handleDeleteConfirmChange = (open: boolean) => {
         setIsDeleteDialogOpen(open);
-        if (!open) setQuestionToDelete(null);
+        if (!open) {
+            // Safe delay before clearing data to prevent UI glitches
+            setTimeout(() => setQuestionToDelete(null), 300);
+        }
     };
 
     return (
@@ -313,7 +356,7 @@ export default function AdminPastQuestionsPage() {
                                                         <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent>
-                                                        <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEditQuestion(q)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => openDeleteDialog(q)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -330,7 +373,7 @@ export default function AdminPastQuestionsPage() {
             <Dialog open={isUploadDialogOpen} onOpenChange={handleUploadDialogChange}>
                 <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
-                        <DialogTitle>Upload New Past Question</DialogTitle>
+                        <DialogTitle>{editingQuestion ? "Edit Past Question" : "Upload New Past Question"}</DialogTitle>
                         <DialogDescription>Fill in the details. Smart suggestions will appear as you type.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -423,19 +466,20 @@ export default function AdminPastQuestionsPage() {
                         </div>
 
                          <div className="space-y-2">
-                            <Label htmlFor="file">Exam File * (Word, PDF, Images)</Label>
+                            <Label htmlFor="file">{editingQuestion ? "Replace Exam File (optional)" : "Exam File * (Word, PDF, Images)"}</Label>
                             <div className="flex items-center gap-2">
                                 <Input id="file" type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" className="cursor-pointer" />
                                 {file && <FileText className="h-5 w-5 text-primary shrink-0" />}
                             </div>
+                            {editingQuestion && !file && <p className="text-xs text-muted-foreground truncate">Current: {editingQuestion.fileName}</p>}
                             <p className="text-[10px] text-muted-foreground">Supported: PDF, Word, Images.</p>
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => handleUploadDialogChange(false)} disabled={isSubmitting}>Cancel</Button>
-                        <Button onClick={handleUpload} disabled={isSubmitting}>
+                        <Button onClick={handleSave} disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            Upload
+                            {editingQuestion ? "Save Changes" : "Upload"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -450,8 +494,11 @@ export default function AdminPastQuestionsPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                        <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Delete
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
