@@ -71,9 +71,10 @@ export default function AdminTestimonialsPage() {
     const testimonialsRef = useMemo(() => firestore ? collection(firestore, 'testimonials') as CollectionReference<Testimonial> : null, [firestore]);
     const { data: testimonials, loading } = useCollection<Testimonial>(testimonialsRef);
 
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [currentTestimonial, setCurrentTestimonial] = useState<Testimonial | null>(null);
+    // Dialog state
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [activeItem, setActiveItem] = useState<Testimonial | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const form = useForm<z.infer<typeof testimonialSchema>>({
@@ -81,34 +82,54 @@ export default function AdminTestimonialsPage() {
         defaultValues: { name: "", title: "", text: "" },
     });
 
-    const handleOpenDialog = (testimonial: Testimonial | null) => {
-        setCurrentTestimonial(testimonial);
-        if (testimonial) {
-            form.reset({ name: testimonial.name, title: testimonial.title, text: testimonial.text });
+    const handleOpenForm = (item: Testimonial | null) => {
+        setActiveItem(item);
+        if (item) {
+            form.reset({ name: item.name, title: item.title, text: item.text });
         } else {
             form.reset({ name: "", title: "", text: "" });
         }
-        setIsDialogOpen(true);
+        setIsFormOpen(true);
     };
 
-    const handleOpenDeleteDialog = (testimonial: Testimonial) => {
-        setCurrentTestimonial(testimonial);
-        setIsDeleteConfirmOpen(true);
+    const handleCloseForm = (open: boolean) => {
+        setIsFormOpen(open);
+        if (!open) {
+            // Delay clearing active item to prevent UI freeze
+            setTimeout(() => {
+                setActiveItem(null);
+                form.reset({ name: "", title: "", text: "" });
+            }, 300);
+        }
+    }
+
+    const handleOpenDelete = (item: Testimonial) => {
+        setActiveItem(item);
+        setIsDeleteOpen(true);
+    }
+
+    const handleCloseDelete = (open: boolean) => {
+        setIsDeleteOpen(open);
+        if (!open) {
+            setTimeout(() => {
+                setActiveItem(null);
+            }, 300);
+        }
     }
 
     const onSubmit = async (values: z.infer<typeof testimonialSchema>) => {
         if (!firestore) return;
         setIsSubmitting(true);
         try {
-            if (currentTestimonial) {
-                const testimonialDoc = doc(firestore, "testimonials", currentTestimonial.id);
-                await updateDoc(testimonialDoc, values);
+            if (activeItem) {
+                const docRef = doc(firestore, "testimonials", activeItem.id);
+                await updateDoc(docRef, values);
                 toast({ title: "Success", description: "Testimonial updated." });
             } else {
                 await addDoc(collection(firestore, "testimonials"), { ...values, createdAt: serverTimestamp() });
                 toast({ title: "Success", description: "New testimonial added." });
             }
-            setIsDialogOpen(false);
+            handleCloseForm(false);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not save testimonial." });
         } finally {
@@ -117,33 +138,13 @@ export default function AdminTestimonialsPage() {
     };
 
     const handleDelete = async () => {
-        if (!firestore || !currentTestimonial) return;
+        if (!firestore || !activeItem) return;
         try {
-            await deleteDoc(doc(firestore, "testimonials", currentTestimonial.id));
+            await deleteDoc(doc(firestore, "testimonials", activeItem.id));
             toast({ title: "Success", description: "Testimonial deleted." });
-            setIsDeleteConfirmOpen(false);
+            handleCloseDelete(false);
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not delete testimonial." });
-        }
-    }
-
-    // Robust cleanup handlers
-    const handleDialogChange = (open: boolean) => {
-        setIsDialogOpen(open);
-        if (!open) {
-            setTimeout(() => {
-                setCurrentTestimonial(null);
-                form.reset({ name: "", title: "", text: "" });
-            }, 200);
-        }
-    }
-
-    const handleDeleteConfirmChange = (open: boolean) => {
-        setIsDeleteConfirmOpen(open);
-        if (!open) {
-            setTimeout(() => {
-                setCurrentTestimonial(null);
-            }, 200);
         }
     }
 
@@ -155,7 +156,7 @@ export default function AdminTestimonialsPage() {
                     <CardTitle>Testimonials Management</CardTitle>
                     <CardDescription>Manage the testimonials displayed on the homepage.</CardDescription>
                 </div>
-                <Button onClick={() => handleOpenDialog(null)}>
+                <Button onClick={() => handleOpenForm(null)}>
                     <Plus className="mr-2 h-4 w-4" /> Add Testimonial
                 </Button>
             </CardHeader>
@@ -174,21 +175,21 @@ export default function AdminTestimonialsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {testimonials.map((testimonial) => (
-                                <TableRow key={testimonial.id}>
+                            {testimonials.map((t) => (
+                                <TableRow key={t.id}>
                                     <TableCell>
-                                        <div className="font-medium">{testimonial.name}</div>
-                                        <div className="text-sm text-muted-foreground">{testimonial.title}</div>
+                                        <div className="font-medium">{t.name}</div>
+                                        <div className="text-xs text-muted-foreground">{t.title}</div>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground max-w-lg truncate">{testimonial.text}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground max-w-lg truncate">{t.text}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleOpenDialog(testimonial)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleOpenDeleteDialog(testimonial)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleOpenForm(t)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleOpenDelete(t)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -200,39 +201,39 @@ export default function AdminTestimonialsPage() {
             </CardContent>
         </Card>
 
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+        <Dialog open={isFormOpen} onOpenChange={handleCloseForm}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{currentTestimonial ? 'Edit Testimonial' : 'Add New Testimonial'}</DialogTitle>
+                    <DialogTitle>{activeItem ? 'Edit Testimonial' : 'Add New Testimonial'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
                      <div className="space-y-1">
                         <Label htmlFor="name">Name</Label>
                         <Input id="name" {...form.register("name")} />
-                        {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
+                        {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
                     </div>
                      <div className="space-y-1">
                         <Label htmlFor="title">Title / Role</Label>
                         <Input id="title" {...form.register("title")} placeholder="e.g., WASSCE Candidate" />
-                        {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
+                        {form.formState.errors.title && <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>}
                     </div>
                      <div className="space-y-1">
                         <Label htmlFor="text">Testimonial Text</Label>
                         <Textarea id="text" {...form.register("text")} rows={5} />
-                        {form.formState.errors.text && <p className="text-sm text-destructive">{form.formState.errors.text.message}</p>}
+                        {form.formState.errors.text && <p className="text-xs text-destructive">{form.formState.errors.text.message}</p>}
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => handleDialogChange(false)}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => handleCloseForm(false)}>Cancel</Button>
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            {currentTestimonial ? 'Save Changes' : 'Add Testimonial'}
+                            {activeItem ? 'Save Changes' : 'Add Testimonial'}
                         </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
         
-        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={handleDeleteConfirmChange}>
+        <AlertDialog open={isDeleteOpen} onOpenChange={handleCloseDelete}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>

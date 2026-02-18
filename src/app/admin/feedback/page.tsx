@@ -72,32 +72,46 @@ export default function AdminFeedbackPage() {
 
   const { data: feedbackItems, loading } = useCollection<FeedbackItem>(feedbackQuery as any);
 
-  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  // Separate states for the selection and the dialog visibility to prevent UI freeze
+  const [selectedItem, setSelectedItem] = useState<FeedbackItem | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   
-  // Local edit state
-  const [status, setStatus] = useState<FeedbackItem["status"]>("New");
-  const [adminAction, setAdminAction] = useState("");
+  // Dialog-specific form state
+  const [editStatus, setEditStatus] = useState<FeedbackItem["status"]>("New");
+  const [editAction, setEditAction] = useState("");
 
   const handleOpenDetails = (item: FeedbackItem) => {
-      setSelectedFeedback(item);
-      setStatus(item.status || "New");
-      setAdminAction(item.adminAction || "");
-      setIsDetailOpen(true);
+      setSelectedItem(item);
+      setEditStatus(item.status || "New");
+      setEditAction(item.adminAction || "");
+      setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = (open: boolean) => {
+      setIsDialogOpen(open);
+      // We do NOT clear selectedItem immediately. 
+      // This is the key to preventing the UI freeze bug.
+      // If we clear it while the dialog is animating closed, 
+      // Radix can get stuck.
+      if (!open) {
+          setTimeout(() => {
+              setSelectedItem(null);
+          }, 300);
+      }
   };
 
   const handleUpdateFeedback = async () => {
-      if (!firestore || !selectedFeedback) return;
+      if (!firestore || !selectedItem) return;
       setIsUpdating(true);
       try {
-          const feedbackDoc = doc(firestore, "feedback", selectedFeedback.id);
+          const feedbackDoc = doc(firestore, "feedback", selectedItem.id);
           await updateDoc(feedbackDoc, {
-              status,
-              adminAction,
+              status: editStatus,
+              adminAction: editAction,
           });
           toast({ title: "Success", description: "Feedback updated successfully." });
-          setIsDetailOpen(false);
+          handleCloseDialog(false);
       } catch (error: any) {
           toast({ variant: "destructive", title: "Update Failed", description: error.message });
       } finally {
@@ -112,18 +126,6 @@ export default function AdminFeedbackPage() {
           toast({ title: "Deleted", description: "Feedback report removed." });
       } catch (error: any) {
           toast({ variant: "destructive", title: "Delete Failed", description: error.message });
-      }
-  };
-
-  // Safe cleanup handler
-  const handleOpenChange = (open: boolean) => {
-      setIsDetailOpen(open);
-      if (!open) {
-          // Delay cleanup to ensure animations finish and scroll lock is released
-          setTimeout(() => {
-              setSelectedFeedback(null);
-              setAdminAction("");
-          }, 200);
       }
   };
 
@@ -157,12 +159,12 @@ export default function AdminFeedbackPage() {
                     <TableRow key={item.id}>
                         <TableCell className="font-medium max-w-xs truncate">{item.title}</TableCell>
                         <TableCell>
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium">{item.userName}</span>
-                                <span className="text-xs text-muted-foreground">{item.userEmail}</span>
+                            <div className="flex flex-col text-xs">
+                                <span className="font-medium">{item.userName}</span>
+                                <span className="text-muted-foreground">{item.userEmail}</span>
                             </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground">
                             {item.createdAt ? format(new Date(item.createdAt.seconds * 1000), "MMM d, yyyy") : "N/A"}
                         </TableCell>
                         <TableCell>
@@ -196,26 +198,26 @@ export default function AdminFeedbackPage() {
         </CardContent>
         </Card>
 
-        <Dialog open={isDetailOpen} onOpenChange={handleOpenChange}>
+        <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Feedback Details</DialogTitle>
                     <DialogDescription>
-                        Submitted by {selectedFeedback?.userName} ({selectedFeedback?.userEmail})
+                        Submitted by {selectedItem?.userName} ({selectedItem?.userEmail})
                     </DialogDescription>
                 </DialogHeader>
                 
-                {selectedFeedback && (
+                {selectedItem && (
                     <div className="grid gap-6 py-4">
                         <div className="space-y-2">
-                            <h4 className="font-bold text-lg">{selectedFeedback.title}</h4>
+                            <h4 className="font-bold text-lg">{selectedItem.title}</h4>
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-4 rounded-md border">
-                                {selectedFeedback.description}
+                                {selectedItem.description}
                             </p>
-                            {selectedFeedback.fileUrl && (
+                            {selectedItem.fileUrl && (
                                 <div className="pt-2">
                                     <Button asChild variant="outline" size="sm">
-                                        <a href={selectedFeedback.fileUrl} target="_blank" rel="noopener noreferrer">
+                                        <a href={selectedItem.fileUrl} target="_blank" rel="noopener noreferrer">
                                             <ExternalLink className="mr-2 h-4 w-4" /> View Attachment
                                         </a>
                                     </Button>
@@ -228,7 +230,7 @@ export default function AdminFeedbackPage() {
                         <div className="space-y-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Update Status</Label>
-                                <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+                                <Select value={editStatus} onValueChange={(v: any) => setEditStatus(v)}>
                                     <SelectTrigger id="status">
                                         <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
@@ -245,8 +247,8 @@ export default function AdminFeedbackPage() {
                                 <Textarea 
                                     id="admin-action" 
                                     placeholder="Describe the steps taken to address this feedback..." 
-                                    value={adminAction}
-                                    onChange={(e) => setAdminAction(e.target.value)}
+                                    value={editAction}
+                                    onChange={(e) => setEditAction(e.target.value)}
                                     rows={5}
                                 />
                             </div>
@@ -255,7 +257,7 @@ export default function AdminFeedbackPage() {
                 )}
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => handleCloseDialog(false)}>Cancel</Button>
                     <Button onClick={handleUpdateFeedback} disabled={isUpdating}>
                         {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         <Save className="mr-2 h-4 w-4" /> Save Changes

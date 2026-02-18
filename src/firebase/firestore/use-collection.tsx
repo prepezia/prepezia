@@ -1,12 +1,8 @@
 'use client';
 
 import { useState, useEffect, useContext } from 'react';
-import { collection, onSnapshot, Query, DocumentData, QuerySnapshot, CollectionReference } from 'firebase/firestore';
+import { onSnapshot, Query, DocumentData, QuerySnapshot, CollectionReference, FirestoreError } from 'firebase/firestore';
 import { FirebaseContext } from '../provider';
-
-interface UseCollectionOptions<T> {
-  // Add any options if needed, for example, for error handling
-}
 
 export const useCollection = <T extends DocumentData>(
   query: Query<T> | CollectionReference<T> | null
@@ -14,9 +10,11 @@ export const useCollection = <T extends DocumentData>(
   const { firestore } = useContext(FirebaseContext);
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<FirestoreError | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
 
     if (!firestore || !query) {
       setData(null);
@@ -28,8 +26,9 @@ export const useCollection = <T extends DocumentData>(
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setData(items);
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching collection: ", error);
+    }, (err) => {
+      console.error("Error fetching collection: ", err);
+      setError(err);
       setData(null);
       setLoading(false);
     });
@@ -37,5 +36,5 @@ export const useCollection = <T extends DocumentData>(
     return () => unsubscribe();
   }, [firestore, query]);
 
-  return { data, loading };
+  return { data, loading, error };
 };
