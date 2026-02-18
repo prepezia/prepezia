@@ -17,7 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -195,54 +195,101 @@ export default function PastQuestionsPage() {
             <>
                 <HomeHeader />
                 <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <div className="flex justify-between items-center">
-                        <h1 className="text-3xl font-bold">Past Questions</h1>
-                        <Button onClick={() => setIsNewExamDialogOpen(true)} disabled={questionsLoading}>New Exam</Button>
-                    </div>
-                    {savedExams.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {savedExams.map(exam => (
-                                <Card key={exam.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => {
-                                    setSelections(exam.selections);
-                                    setQuestions(exam.questions);
-                                    setExamAnswers(exam.examAnswers);
-                                    setExamScore(exam.examScore);
-                                    setResults(exam.results);
-                                    setViewState('results');
-                                }}>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg">{exam.selections.subject}</CardTitle>
-                                        <CardDescription>{exam.date} • Score: {exam.examScore}/{exam.questions.length}</CardDescription>
-                                    </CardHeader>
-                                </Card>
-                            ))}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-4xl font-headline font-bold">Past Questions Hub</h1>
+                            <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
                         </div>
-                    ) : <p className="text-center text-muted-foreground py-20">No saved sessions yet.</p>}
+                        <Button 
+                            onClick={() => setIsNewExamDialogOpen(true)} 
+                            disabled={questionsLoading}
+                            size="lg"
+                            className="bg-primary hover:bg-primary/90 font-semibold"
+                        >
+                            Take New Exam
+                        </Button>
+                    </div>
+
+                    <div className="mt-8">
+                        {savedExams.length === 0 ? (
+                            <Card className="flex flex-col items-center justify-center p-12 border-dashed border-2">
+                                <h3 className="text-2xl font-bold mb-2">No Saved Exams</h3>
+                                <p className="text-muted-foreground">Your completed exam sessions will appear here.</p>
+                            </Card>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {savedExams.map(exam => (
+                                    <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
+                                        setSelections(exam.selections);
+                                        setQuestions(exam.questions);
+                                        setExamAnswers(exam.examAnswers);
+                                        setExamScore(exam.examScore);
+                                        setResults(exam.results);
+                                        setViewState('results');
+                                    }}>
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">{exam.selections.subject}</CardTitle>
+                                            <CardDescription>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <Calendar className="h-3 w-3" /> {exam.date}
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <CheckCircle className="h-3 w-3 text-green-500" /> Score: {exam.examScore}/{exam.questions.length}
+                                                </div>
+                                            </CardDescription>
+                                        </CardHeader>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     <Dialog open={isNewExamDialogOpen} onOpenChange={setIsNewExamDialogOpen}>
-                        <DialogContent>
-                            <DialogHeader><DialogTitle>New Exam</DialogTitle></DialogHeader>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>New Exam Session</DialogTitle>
+                                <DialogDescription>Select the details of the exam paper you want to practice.</DialogDescription>
+                            </DialogHeader>
                             <div className="space-y-4 py-4">
-                                <Select onValueChange={v => setSelections({examBody: v, university: "", schoolFaculty: "", subject: "", year: ""})} value={selections.examBody}>
-                                    <SelectTrigger><SelectValue placeholder="Level" /></SelectTrigger>
-                                    <SelectContent>{examBodies.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                                </Select>
-                                {selections.examBody === 'University' && (
-                                    <Select onValueChange={v => setSelections(p => ({...p, university: v, schoolFaculty: "", subject: "", year: ""}))} value={selections.university}>
-                                        <SelectTrigger><SelectValue placeholder="University" /></SelectTrigger>
-                                        <SelectContent>{universities.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                                <div className="space-y-2">
+                                    <Label>Exam Level</Label>
+                                    <Select onValueChange={v => setSelections({examBody: v, university: "", schoolFaculty: "", subject: "", year: ""})} value={selections.examBody}>
+                                        <SelectTrigger><SelectValue placeholder="Select level..." /></SelectTrigger>
+                                        <SelectContent>{examBodies.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                     </Select>
+                                </div>
+
+                                {selections.examBody === 'University' && (
+                                    <div className="space-y-2 text-left">
+                                        <Label>Institution</Label>
+                                        <Select onValueChange={v => setSelections(p => ({...p, university: v, schoolFaculty: "", subject: "", year: ""}))} value={selections.university}>
+                                            <SelectTrigger><SelectValue placeholder="Select institution..." /></SelectTrigger>
+                                            <SelectContent className="max-h-[300px]">
+                                                {universities.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 )}
-                                <Select onValueChange={v => setSelections(p => ({...p, subject: v, year: ""}))} value={selections.subject} disabled={!selections.examBody}>
-                                    <SelectTrigger><SelectValue placeholder="Subject" /></SelectTrigger>
-                                    <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <Select onValueChange={v => setSelections(p => ({...p, year: v}))} value={selections.year} disabled={!selections.subject}>
-                                    <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
-                                    <SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
-                                </Select>
+
+                                <div className="space-y-2 text-left">
+                                    <Label>Subject</Label>
+                                    <Select onValueChange={v => setSelections(p => ({...p, subject: v, year: ""}))} value={selections.subject} disabled={!selections.examBody}>
+                                        <SelectTrigger><SelectValue placeholder="Select subject..." /></SelectTrigger>
+                                        <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2 text-left">
+                                    <Label>Year</Label>
+                                    <Select onValueChange={v => setSelections(p => ({...p, year: v}))} value={selections.year} disabled={!selections.subject}>
+                                        <SelectTrigger><SelectValue placeholder="Select year..." /></SelectTrigger>
+                                        <SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <DialogFooter><Button onClick={handleStart} className="w-full">Start</Button></DialogFooter>
+                            <DialogFooter>
+                                <Button onClick={handleStart} className="w-full h-12 text-base font-bold">Continue</Button>
+                            </DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </div>
@@ -252,57 +299,130 @@ export default function PastQuestionsPage() {
 
     if (viewState === 'mode-select') {
         return (
-            <><HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2"/></Button>} />
-            <div className="p-8 max-w-2xl mx-auto space-y-8 flex-1 flex flex-col justify-center">
-                <div className="text-center space-y-2"><h2 className="text-3xl font-bold">Choose Mode</h2><p className="text-muted-foreground">Practice or simulate the real thing.</p></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="hover:border-primary cursor-pointer transition-all" onClick={() => handleSelectMode('trial')}><CardHeader><CardTitle>Trial</CardTitle><CardDescription>Hints and instant AI explanations.</CardDescription></CardHeader></Card>
-                    <Card className="hover:border-primary cursor-pointer transition-all" onClick={() => handleSelectMode('exam')}><CardHeader><CardTitle>Exam</CardTitle><CardDescription>Timed test without assistance.</CardDescription></CardHeader></Card>
+            <>
+                <HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2 h-4 w-4"/></Button>} />
+                <div className="p-8 max-w-2xl mx-auto space-y-8 flex-1 flex flex-col justify-center">
+                    <div className="text-center space-y-2">
+                        <h2 className="text-3xl font-headline font-bold">Choose Mode</h2>
+                        <p className="text-muted-foreground">Practice or simulate the real exam environment.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card 
+                            className="hover:border-primary cursor-pointer transition-all hover:shadow-md p-6 flex flex-col gap-4" 
+                            onClick={() => handleSelectMode('trial')}
+                        >
+                            <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                <Sparkles className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold">Trial Mode</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Perfect for learning. Get instant AI explanations and hints for every question.</p>
+                            </div>
+                        </Card>
+                        <Card 
+                            className="hover:border-primary cursor-pointer transition-all hover:shadow-md p-6 flex flex-col gap-4" 
+                            onClick={() => handleSelectMode('exam')}
+                        >
+                            <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                                <TimerIcon className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold">Exam Mode</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Timed simulation. Test yourself under pressure with no assistance until the end.</p>
+                            </div>
+                        </Card>
+                    </div>
                 </div>
-            </div></>
+            </>
         );
     }
 
     if (viewState === 'taking') {
-        const header = <HomeHeader left={<Button variant="outline" onClick={() => setViewState('mode-select')}><ArrowLeft className="mr-2"/></Button>} />;
-        if (isLoading) return <>{header}<div className="flex-1 flex flex-col items-center justify-center"><Loader2 className="animate-spin text-primary"/><p className="mt-4">Preparing questions...</p></div></>;
-        return <>{header}{examMode === 'trial' ? <TrialModeView questions={questions} topic={selections.subject} onFinish={handleSubmitForReview} /> : <ExamModeView questions={questions} topic={selections.subject} durationMinutes={examDuration} onSubmit={handleSubmitForReview} />}</>;
+        const header = <HomeHeader left={<Button variant="outline" onClick={() => setViewState('mode-select')}><ArrowLeft className="mr-2 h-4 w-4"/></Button>} />;
+        if (isLoading) return (
+            <>
+                {header}
+                <div className="flex-1 flex flex-col items-center justify-center">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary"/>
+                    <p className="mt-4 text-muted-foreground font-medium">Preparing your AI-powered exam...</p>
+                </div>
+            </>
+        );
+        return (
+            <>
+                {header}
+                {examMode === 'trial' ? (
+                    <TrialModeView questions={questions} topic={selections.subject} onFinish={handleSubmitForReview} />
+                ) : (
+                    <ExamModeView questions={questions} topic={selections.subject} durationMinutes={examDuration} onSubmit={handleSubmitForReview} />
+                )}
+            </>
+        );
     }
 
     if (viewState === 'results') {
         return (
-            <><HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2"/></Button>} />
-            <div className="p-4 max-w-4xl mx-auto space-y-6">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div><CardTitle className="text-2xl">Results: {examScore}/{questions.length}</CardTitle><CardDescription>{selections.subject} ({selections.year})</CardDescription></div>
-                        <Button onClick={() => {
-                            const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!}, ...savedExams];
-                            setSavedExams(updated);
-                            saveExamsToStorage(updated);
-                            toast({ title: "Saved" });
-                        }}><Save className="mr-2"/>Save Session</Button>
-                    </CardHeader>
-                    <CardContent>
-                        <Tabs defaultValue="roadmap">
-                            <TabsList className="grid grid-cols-2"><TabsTrigger value="roadmap">Revision Roadmap</TabsTrigger><TabsTrigger value="corrections">Corrections</TabsTrigger></TabsList>
-                            <TabsContent value="roadmap" className="p-4 prose dark:prose-invert max-w-none">
-                                {isLoading ? <Loader2 className="animate-spin mx-auto"/> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{results?.revisionRoadmap || "No roadmap available."}</ReactMarkdown>}
-                            </TabsContent>
-                            <TabsContent value="corrections" className="space-y-4 mt-4">
-                                {questions.map((q, i) => (
-                                    <div key={i} className={cn("p-4 border rounded-lg", examAnswers[i] === q.correctAnswer ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30")}>
-                                        <p className="font-semibold">{i+1}. {q.questionText}</p>
-                                        <p className="text-sm mt-2">Your: <span className="font-bold">{examAnswers[i] || "Skipped"}</span></p>
-                                        <p className="text-sm">Correct: <span className="font-bold text-green-600">{q.correctAnswer}</span></p>
-                                        <div className="mt-2 text-xs italic opacity-80">{q.explanation}</div>
-                                    </div>
-                                ))}
-                            </TabsContent>
-                        </Tabs>
-                    </CardContent>
-                </Card>
-            </div></>
+            <>
+                <HomeHeader left={<Button variant="outline" onClick={() => setViewState('select')}><ArrowLeft className="mr-2 h-4 w-4"/></Button>} />
+                <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+                    <Card>
+                        <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div>
+                                <CardTitle className="text-2xl font-headline">Results: {examScore}/{questions.length}</CardTitle>
+                                <CardDescription>{selections.subject} - {selections.year}</CardDescription>
+                            </div>
+                            <Button onClick={() => {
+                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!}, ...savedExams];
+                                setSavedExams(updated);
+                                saveExamsToStorage(updated);
+                                toast({ title: "Session Saved", description: "Your results have been added to your hub." });
+                            }}>
+                                <Save className="mr-2 h-4 w-4"/> Save Session
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            <Tabs defaultValue="roadmap">
+                                <TabsList className="grid grid-cols-2 bg-secondary">
+                                    <TabsTrigger value="roadmap">AI Revision Roadmap</TabsTrigger>
+                                    <TabsTrigger value="corrections">Corrections</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="roadmap" className="mt-6">
+                                    {isLoading ? (
+                                        <div className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-primary"/></div>
+                                    ) : (
+                                        <div className="prose dark:prose-invert max-w-none p-4 rounded-lg border bg-secondary/20">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{results?.revisionRoadmap || "No roadmap available."}</ReactMarkdown>
+                                        </div>
+                                    )}
+                                </TabsContent>
+                                <TabsContent value="corrections" className="space-y-4 mt-6">
+                                    {questions.map((q, i) => (
+                                        <div key={i} className={cn("p-4 border rounded-lg", examAnswers[i] === q.correctAnswer ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30")}>
+                                            <p className="font-semibold">{i+1}. {q.questionText}</p>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                                                <div className="text-sm">
+                                                    <span className="text-muted-foreground block">Your Answer:</span>
+                                                    <span className={cn("font-bold", examAnswers[i] === q.correctAnswer ? "text-green-600" : "text-destructive")}>
+                                                        {examAnswers[i] || "Skipped"}
+                                                    </span>
+                                                </div>
+                                                <div className="text-sm">
+                                                    <span className="text-muted-foreground block">Correct Answer:</span>
+                                                    <span className="font-bold text-green-600">{q.correctAnswer}</span>
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 p-3 bg-background rounded border text-xs italic">
+                                                <p className="font-semibold not-italic mb-1">Explanation:</p>
+                                                {q.explanation}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
+                </div>
+            </>
         );
     }
 
@@ -319,21 +439,64 @@ function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion
     const isCorrect = ans === q.correctAnswer;
 
     return (
-        <div className="p-4 max-w-2xl mx-auto space-y-6">
-            <div className="space-y-2"><div className="flex justify-between text-sm"><span>Question {index+1}/{questions.length}</span></div><Progress value={((index+1)/questions.length)*100} /></div>
-            <Card>
-                <CardHeader><CardTitle>{q.questionText}</CardTitle></CardHeader>
+        <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
+            <div className="space-y-3">
+                <div className="flex justify-between items-end text-sm">
+                    <span className="font-medium">Question {index+1} of {questions.length}</span>
+                    <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}%</span>
+                </div>
+                <Progress value={((index+1)/questions.length)*100} className="h-2" />
+            </div>
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-xl leading-relaxed">{q.questionText}</CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-3">
                     {q.options.map((opt, i) => (
-                        <div key={i} className={cn("flex items-center p-4 border rounded-lg cursor-pointer transition-all", !checked && ans === opt && "border-primary bg-primary/5", checked && opt === q.correctAnswer && "border-green-500 bg-green-50", checked && ans === opt && !isCorrect && "border-destructive bg-destructive/5")} onClick={() => !checked && setAns(opt)}>
-                            <div className={cn("w-4 h-4 rounded-full border mr-3", ans === opt && "bg-primary border-primary")}/>
-                            <span className="text-sm">{opt}</span>
+                        <div 
+                            key={i} 
+                            className={cn(
+                                "flex items-center p-4 border rounded-xl cursor-pointer transition-all active:scale-[0.98]",
+                                !checked && ans === opt && "border-primary bg-primary/5 ring-1 ring-primary",
+                                checked && opt === q.correctAnswer && "border-green-500 bg-green-50 ring-1 ring-green-500",
+                                checked && ans === opt && !isCorrect && "border-destructive bg-destructive/5 ring-1 ring-destructive"
+                            )} 
+                            onClick={() => !checked && setAns(opt)}
+                        >
+                            <div className={cn(
+                                "w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center shrink-0", 
+                                ans === opt ? "border-primary" : "border-muted-foreground/30"
+                            )}>
+                                {ans === opt && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                            </div>
+                            <span className="text-sm font-medium">{opt}</span>
                         </div>
                     ))}
-                    {checked && <Alert className={cn("mt-4", isCorrect ? "bg-green-50" : "bg-destructive/5")}><div className="flex gap-2"><Lightbulb className="h-4 w-4"/><AlertDescription><p className="font-bold">{isCorrect ? "Correct!" : "Incorrect"}</p><p className="text-xs mt-1">{q.explanation}</p></AlertDescription></div></Alert>}
+                    
+                    {checked && (
+                        <Alert className={cn("mt-6", isCorrect ? "bg-green-50 border-green-200" : "bg-destructive/5 border-destructive/20")}>
+                            <div className="flex gap-3">
+                                {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600" /> : <AlertCircle className="h-5 w-5 text-destructive" />}
+                                <AlertDescription>
+                                    <p className={cn("font-bold text-base", isCorrect ? "text-green-700" : "text-destructive")}>
+                                        {isCorrect ? "Spot on!" : "Not quite right."}
+                                    </p>
+                                    <p className="text-sm mt-1 text-foreground/80 leading-relaxed">{q.explanation}</p>
+                                </AlertDescription>
+                            </div>
+                        </Alert>
+                    )}
                 </CardContent>
-                <CardFooter className="justify-end gap-2">
-                    {!checked ? <Button onClick={() => { setChecked(true); setAll(p => ({...p, [index]: ans || ""})) }} disabled={!ans}>Check</Button> : <Button onClick={() => { if(index < questions.length - 1) { setIndex(i => i+1); setAns(null); setChecked(false); } else onFinish(all); }}>{index === questions.length - 1 ? "Finish" : "Next"}</Button>}
+                <CardFooter className="justify-end gap-3 pt-6">
+                    {!checked ? (
+                        <Button onClick={() => { setChecked(true); setAll(p => ({...p, [index]: ans || ""})) }} disabled={!ans} size="lg" className="w-full sm:w-auto">
+                            Check Answer
+                        </Button>
+                    ) : (
+                        <Button onClick={() => { if(index < questions.length - 1) { setIndex(i => i+1); setAns(null); setChecked(false); } else onFinish(all); }} size="lg" className="w-full sm:w-auto">
+                            {index === questions.length - 1 ? "Complete Trial" : "Next Question"} <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    )}
                 </CardFooter>
             </Card>
         </div>
@@ -346,30 +509,103 @@ function ExamModeView({ questions, topic, durationMinutes, onSubmit }: { questio
     const [time, setTime] = useState(durationMinutes * 60);
 
     useEffect(() => {
-        const t = setInterval(() => setTime(v => { if(v <= 1) { clearInterval(t); onSubmit(ans); return 0; } return v - 1; }), 1000);
+        const t = setInterval(() => setTime(v => { 
+            if(v <= 1) { 
+                clearInterval(t); 
+                onSubmit(ans); 
+                return 0; 
+            } 
+            return v - 1; 
+        }), 1000);
         return () => clearInterval(t);
     }, [ans, onSubmit]);
 
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
     return (
-        <div className="p-4 max-w-4xl mx-auto space-y-6">
-            <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm sticky top-0 z-10">
-                <div className="flex items-center gap-4 text-xl font-mono"><TimerIcon className="h-5 w-5"/>{Math.floor(time/60)}:{(time%60).toString().padStart(2,'0')}</div>
-                <Button variant="outline" onClick={() => onSubmit(ans)}>Submit Exam</Button>
+        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
+            <div className="flex justify-between items-center bg-card p-4 rounded-xl border shadow-sm sticky top-0 z-10">
+                <div className={cn(
+                    "flex items-center gap-3 text-2xl font-mono font-bold",
+                    time < 300 ? "text-destructive animate-pulse" : "text-primary"
+                )}>
+                    <TimerIcon className="h-6 w-6"/> {formatTime(time)}
+                </div>
+                <Button variant="outline" onClick={() => onSubmit(ans)} className="font-bold border-primary text-primary hover:bg-primary hover:text-white">
+                    Submit Exam
+                </Button>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <Card className="lg:col-span-3">
-                    <CardHeader><CardTitle>{questions[index].questionText}</CardTitle></CardHeader>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <Card className="lg:col-span-3 shadow-md">
+                    <CardHeader>
+                        <CardTitle className="text-xl leading-relaxed">{questions[index].questionText}</CardTitle>
+                    </CardHeader>
                     <CardContent className="space-y-3">
                         {questions[index].options.map((opt, i) => (
-                            <div key={i} className={cn("flex items-center p-4 border rounded-lg cursor-pointer", ans[index] === opt && "border-primary bg-primary/5")} onClick={() => setAns(p => ({...p, [index]: opt}))}>
-                                <div className={cn("w-4 h-4 rounded-full border mr-3", ans[index] === opt && "bg-primary border-primary")}/>
-                                <span className="text-sm">{opt}</span>
+                            <div 
+                                key={i} 
+                                className={cn(
+                                    "flex items-center p-4 border rounded-xl cursor-pointer transition-all hover:bg-secondary/50", 
+                                    ans[index] === opt && "border-primary bg-primary/5 ring-1 ring-primary"
+                                )} 
+                                onClick={() => setAns(p => ({...p, [index]: opt}))}
+                            >
+                                <div className={cn(
+                                    "w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center shrink-0", 
+                                    ans[index] === opt ? "border-primary" : "border-muted-foreground/30"
+                                )}>
+                                    {ans[index] === opt && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                                </div>
+                                <span className="text-sm font-medium">{opt}</span>
                             </div>
                         ))}
                     </CardContent>
-                    <CardFooter className="justify-between"><Button variant="ghost" onClick={() => setIndex(i => i-1)} disabled={index === 0}>Prev</Button><Button onClick={() => setIndex(i => i+1)} disabled={index === questions.length-1}>Next</Button></CardFooter>
+                    <CardFooter className="justify-between pt-6 border-t mt-4">
+                        <Button variant="ghost" onClick={() => setIndex(i => i-1)} disabled={index === 0}>
+                            <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                        </Button>
+                        <span className="text-sm font-medium text-muted-foreground">Q{index+1} / {questions.length}</span>
+                        <Button variant="ghost" onClick={() => setIndex(i => i+1)} disabled={index === questions.length-1}>
+                            Next <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    </CardFooter>
                 </Card>
-                <Card><CardHeader><CardTitle className="text-sm uppercase text-muted-foreground">Progress</CardTitle></CardHeader><CardContent><div className="grid grid-cols-5 gap-2">{questions.map((_, i) => <button key={i} onClick={() => setIndex(i)} className={cn("h-8 w-8 rounded text-xs border font-bold", index === i ? "bg-primary text-primary-foreground border-primary" : ans[i] ? "bg-secondary" : "bg-background")}>{i+1}</button>)}</div></CardContent></Card>
+                <Card className="shadow-sm border-2">
+                    <CardHeader className="pb-3 border-b">
+                        <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground font-bold">Exam Navigator</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                        <div className="grid grid-cols-5 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+                            {questions.map((_, i) => (
+                                <button 
+                                    key={i} 
+                                    onClick={() => setIndex(i)} 
+                                    className={cn(
+                                        "h-10 w-full rounded-lg text-xs border-2 font-bold transition-all", 
+                                        index === i ? "bg-primary text-primary-foreground border-primary shadow-inner" : (ans[i] ? "bg-green-100 border-green-200 text-green-700" : "bg-background border-muted hover:border-muted-foreground/50")
+                                    )}
+                                >
+                                    {i+1}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="mt-6 space-y-2">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className="w-3 h-3 bg-primary rounded shadow-sm" /> Current
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className="w-3 h-3 bg-green-100 border border-green-200 rounded" /> Answered
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className="w-3 h-3 bg-background border border-muted rounded" /> Unanswered
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
