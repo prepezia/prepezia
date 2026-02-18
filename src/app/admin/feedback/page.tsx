@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -99,7 +98,7 @@ export default function AdminFeedbackPage() {
               adminAction,
           });
           toast({ title: "Success", description: "Feedback updated successfully." });
-          setIsDetailOpen(false);
+          handleOpenChange(false);
       } catch (error: any) {
           toast({ variant: "destructive", title: "Update Failed", description: error.message });
       } finally {
@@ -120,8 +119,11 @@ export default function AdminFeedbackPage() {
   const handleOpenChange = (open: boolean) => {
       setIsDetailOpen(open);
       if (!open) {
-          setSelectedFeedback(null);
-          setAdminAction("");
+          // Delay data reset to allow Radix UI to clean up body locks correctly
+          setTimeout(() => {
+              setSelectedFeedback(null);
+              setAdminAction("");
+          }, 150);
       }
   };
 

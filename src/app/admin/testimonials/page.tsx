@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, type DocumentData } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, type DocumentData, type CollectionReference } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -69,7 +68,7 @@ export default function AdminTestimonialsPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
     
-    const testimonialsRef = useMemo(() => firestore ? collection(firestore, 'testimonials') : null, [firestore]);
+    const testimonialsRef = useMemo(() => firestore ? collection(firestore, 'testimonials') as CollectionReference<Testimonial> : null, [firestore]);
     const { data: testimonials, loading } = useCollection<Testimonial>(testimonialsRef);
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -109,7 +108,7 @@ export default function AdminTestimonialsPage() {
                 await addDoc(collection(firestore, "testimonials"), { ...values, createdAt: serverTimestamp() });
                 toast({ title: "Success", description: "New testimonial added." });
             }
-            setIsDialogOpen(false);
+            handleDialogChange(false);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not save testimonial." });
         } finally {
@@ -122,7 +121,7 @@ export default function AdminTestimonialsPage() {
         try {
             await deleteDoc(doc(firestore, "testimonials", currentTestimonial.id));
             toast({ title: "Success", description: "Testimonial deleted." });
-            setShowDeleteConfirm(false);
+            handleDeleteConfirmChange(false);
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not delete testimonial." });
         }
@@ -131,14 +130,20 @@ export default function AdminTestimonialsPage() {
     const handleDialogChange = (open: boolean) => {
         setIsDialogOpen(open);
         if (!open) {
-            setCurrentTestimonial(null);
+            // Delay data reset to allow Radix UI to clean up body locks correctly
+            setTimeout(() => {
+                setCurrentTestimonial(null);
+                form.reset({ name: "", title: "", text: "" });
+            }, 150);
         }
     }
 
     const handleDeleteConfirmChange = (open: boolean) => {
         setShowDeleteConfirm(open);
         if (!open) {
-            setCurrentTestimonial(null);
+            setTimeout(() => {
+                setCurrentTestimonial(null);
+            }, 150);
         }
     }
 

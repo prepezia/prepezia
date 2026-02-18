@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
+// @ts-ignore
 import { Mp3Encoder } from 'lamejs';
 
 const SourceSchema = z.object({
@@ -90,17 +91,8 @@ const generatePodcastFlow = ai.defineFlow(
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
-          multiSpeakerVoiceConfig: {
-            speakerVoiceConfigs: [
-              {
-                speaker: 'Zia',
-                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Achernar'}}, // Female voice
-              },
-              {
-                speaker: 'Jay',
-                voiceConfig: {prebuiltVoiceConfig: {voiceName: 'Algenib'}}, // Male voice
-              },
-            ],
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Achernar' },
           },
         },
       },

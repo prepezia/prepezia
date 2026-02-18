@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from 'react';
@@ -232,7 +230,7 @@ function GuidedLearningPage() {
         const progress = Math.min((finalHistory.length / 10) * 100, 100);
         const currentStatus = chatContext.status === 'Not Started' ? 'In Progress' : (progress >= 100 ? 'Completed' : 'In Progress');
 
-        updateActiveChatInFirestore(chatContext.id, { history: finalHistory, progress, status: currentStatus });
+        updateActiveChatInFirestore(chatContext.id, { history: finalHistory, progress, status: currentStatus as any });
         
         const isFirstAssistantMessage = finalHistory.filter(m => m.role === 'assistant' && !m.isError).length === 1;
 
@@ -284,7 +282,7 @@ function GuidedLearningPage() {
         history: [],
         createdAt: serverTimestamp(),
         progress: 0,
-        status: 'Not Started',
+        status: 'Not Started' as const,
     };
     
     try {
@@ -296,7 +294,7 @@ function GuidedLearningPage() {
             createdAt: Timestamp.now()
         };
         
-        // KEY CHANGE: Immediately set the new chat as active
+        // Immediately set the new chat as active
         setActiveChat(tempChat);
         
         if(prompt) {
@@ -649,7 +647,3 @@ export default function GuidedLearningPageWrapper() {
         </Suspense>
     );
 }
-
-    
-
-    

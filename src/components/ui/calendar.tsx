@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import * as React from "react"
@@ -56,8 +54,9 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-        IconNext: () => <ChevronRight className="h-4 w-4" />,
+        Chevron: ({ ...props }) => props.orientation === 'left' 
+            ? <ChevronLeft className="h-4 w-4" /> 
+            : <ChevronRight className="h-4 w-4" />,
         ...props.components,
       }}
       {...props}

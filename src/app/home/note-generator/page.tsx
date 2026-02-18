@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -144,7 +142,7 @@ function NoteGeneratorPage() {
   return <NoteListPage onSelectNote={handleSelectNote} onCreateNew={handleCreateNew} />;
 }
 
-function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (string) => void, onCreateNew: () => void }) {
+function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (id: string) => void, onCreateNew: () => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const storage = useStorage();
@@ -768,7 +766,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 <p className="text-muted-foreground">{note.level}</p>
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0">
-                                <div id="note-content-area" className="prose dark:prose-invert w-full max-w-none h-full overflow-y-auto rounded-md border p-4">
+                                <div id="note-content-area" className="prose dark:prose-invert w-full max-none h-full overflow-y-auto rounded-md border p-4">
                                     {pages.length > 0 ? (
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
                                             {pages[currentPage]}

@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
 import { useCollection, useFirestore, useStorage, useUser } from "@/firebase";
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, DocumentData } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, type DocumentData, type CollectionReference } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   Card,
@@ -75,7 +74,7 @@ export default function AdminPastQuestionsPage() {
     const { user } = useUser();
     const { toast } = useToast();
 
-    const questionsRef = useMemo(() => firestore ? collection(firestore, 'past_questions') : null, [firestore]);
+    const questionsRef = useMemo(() => firestore ? collection(firestore, 'past_questions') as CollectionReference<PastQuestion> : null, [firestore]);
     const { data: questions, loading } = useCollection<PastQuestion>(questionsRef);
 
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -135,8 +134,7 @@ export default function AdminPastQuestionsPage() {
             });
 
             toast({ title: "Upload Successful", description: `${file.name} has been added.`});
-            resetForm();
-            setIsUploadDialogOpen(false);
+            handleUploadDialogChange(false);
         } catch (error: any) {
             toast({ variant: 'destructive', title: "Upload Failed", description: error.message || "An error occurred during file upload." });
         } finally {
@@ -174,14 +172,18 @@ export default function AdminPastQuestionsPage() {
     const handleUploadDialogChange = (open: boolean) => {
         setIsUploadDialogOpen(open);
         if (!open) {
-            resetForm();
+            setTimeout(() => {
+                resetForm();
+            }, 150);
         }
     };
 
     const handleDeleteConfirmChange = (open: boolean) => {
         setIsDeleteDialogOpen(open);
         if (!open) {
-            setQuestionToDelete(null);
+            setTimeout(() => {
+                setQuestionToDelete(null);
+            }, 150);
         }
     };
 
