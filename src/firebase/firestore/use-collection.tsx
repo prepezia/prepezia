@@ -24,7 +24,7 @@ export const useCollection = <T extends DocumentData>(
 
     const unsubscribe = onSnapshot(query, (snapshot: QuerySnapshot<T>) => {
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      setData(items);
+      setData(items as T[]);
       setLoading(false);
     }, (err) => {
       console.error("Error fetching collection: ", err);
