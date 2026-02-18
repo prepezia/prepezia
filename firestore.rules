@@ -4,10 +4,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAppAdmin() {
-      // Definitive admin check using both primary email AND your verified UID from debug info
+      // Direct UID and Email check for prioritized admin access
       return request.auth != null && (
-        request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
         request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2' ||
+        request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
       );
     }

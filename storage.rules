@@ -4,27 +4,25 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    function isAppAdmin() {
-      // Primary admin check using both Email and the verified UID from your debug console
-      return request.auth != null && (
-        request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
-        request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2'
+    // Past questions folder - Direct UID Fast-Pass for your account
+    match /past_questions/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (
+        request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2' || 
+        request.auth.token.email == 'nextinnovationafrica@gmail.com'
       );
     }
 
-    // --- User-Specific Files ---
+    // User-Specific Files
     match /users/{userId}/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAppAdmin());
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || 
+        request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2'
+      );
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Past questions folder - accessible only by Admins for writing
-    match /past_questions/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if isAppAdmin();
-    }
-
-    // --- Public Files ---
+    // Public Files
     match /public/{allPaths=**} {
       allow read: if true;
       allow write: if false;

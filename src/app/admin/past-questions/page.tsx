@@ -54,7 +54,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit, Loader2, Bug, ChevronDown, ChevronUp } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2, Bug, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities } from "@/lib/ghana-universities";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -99,7 +99,7 @@ export default function AdminPastQuestionsPage() {
     const [year, setYear] = useState("");
     const [file, setFile] = useState<File | null>(null);
 
-    // Smart Suggestions: Extract unique values from existing questions
+    // Deriving Smart Suggestions from existing data
     const suggestedFaculties = useMemo(() => Array.from(new Set(questions?.map(q => q.schoolFaculty).filter(Boolean))), [questions]);
     const suggestedCourseCodes = useMemo(() => Array.from(new Set(questions?.map(q => q.courseCode).filter(Boolean))), [questions]);
     const suggestedSubjects = useMemo(() => Array.from(new Set(questions?.map(q => q.subject).filter(Boolean))), [questions]);
@@ -131,13 +131,12 @@ export default function AdminPastQuestionsPage() {
 
         setIsSubmitting(true);
         try {
-            // Path Sanitization: Remove spaces and special characters from filename
+            // Path Sanitization: Replace spaces and special characters with underscores
             const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
             const storagePath = `past_questions/${Date.now()}_${cleanName}`;
             const storageReference = ref(storage, storagePath);
 
-            // Logging upload attempt for debugging
-            console.log("Admin Upload Path:", storagePath);
+            console.log("Admin Uploading to:", storagePath);
 
             const snapshot = await uploadBytes(storageReference, file);
             const downloadUrl = await getDownloadURL(snapshot.ref);
@@ -158,7 +157,7 @@ export default function AdminPastQuestionsPage() {
             toast({ title: "Upload Successful", description: `${file.name} has been added.`});
             handleUploadDialogChange(false);
         } catch (error: any) {
-            console.error("Storage/Firestore Error:", error);
+            console.error("Upload Error:", error);
             toast({ 
                 variant: 'destructive', 
                 title: "Upload Failed", 
@@ -361,7 +360,11 @@ export default function AdminPastQuestionsPage() {
 
                          <div className="space-y-2">
                             <Label htmlFor="file">Exam File * (Word, PDF, Images)</Label>
-                            <Input id="file" type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" />
+                            <div className="flex items-center gap-2">
+                                <Input id="file" type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" className="cursor-pointer" />
+                                {file && <FileText className="h-5 w-5 text-primary shrink-0" />}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Supported: PDF, Word (.doc, .docx), Images.</p>
                         </div>
                     </div>
                     <DialogFooter>
@@ -405,21 +408,21 @@ export default function AdminPastQuestionsPage() {
                         </div>
                         <CollapsibleContent className="pt-4 space-y-2">
                             <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="font-bold">Auth Status:</div>
+                                <div className="font-bold text-red-900">Auth Status:</div>
                                 <div>{userLoading ? "Loading..." : (user ? "Logged In" : "Logged Out")}</div>
                                 
-                                <div className="font-bold">UID:</div>
+                                <div className="font-bold text-red-900">UID:</div>
                                 <div className="font-mono truncate">{user?.uid || "N/A"}</div>
                                 
-                                <div className="font-bold">Email:</div>
+                                <div className="font-bold text-red-900">Email:</div>
                                 <div>{user?.email || "N/A"}</div>
                                 
-                                <div className="font-bold">Admin Flag (Client):</div>
+                                <div className="font-bold text-red-900">Admin Flag (Client):</div>
                                 <div className={isAdmin ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
                                     {isAdmin ? "True" : "False"}
                                 </div>
 
-                                <div className="font-bold">Storage Service:</div>
+                                <div className="font-bold text-red-900">Storage Service:</div>
                                 <div>{storage ? "Available" : "Missing"}</div>
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-4 italic">
