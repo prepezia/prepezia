@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +20,7 @@ import {
   } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference } from "firebase/firestore";
+import { Label } from "@/components/ui/label";
 
 interface PastQuestion extends DocumentData {
     id: string;
@@ -375,7 +376,7 @@ export default function PastQuestionsPage() {
             </>
         );
     }
-    // Other view states remain the same
+    
     if (viewState === 'mode-select') {
         return (
              <>
@@ -418,7 +419,7 @@ export default function PastQuestionsPage() {
         }
 
         if (examMode === 'trial') {
-            return <>{header}<TrialModeView questions={questions} topic={selections.subject} /></>;
+            return <>{header}<TrialModeView questions={questions} topic={selections.subject} onFinish={handleSubmitForReview} /></>;
         }
         
         if (examMode === 'exam') {
@@ -575,7 +576,249 @@ export default function PastQuestionsPage() {
     return null;
 }
 
-// These are placeholders from note-generator, can be kept as is.
-function TrialModeView({ questions, topic }: { questions: QuizQuestion[], topic: string }) { return <Card><CardContent>Trial Mode Placeholder</CardContent></Card> }
-function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[], topic: string, onSubmit: (answers: Record<number, string>) => void }) { return <Card><CardContent>Exam Mode Placeholder</CardContent></Card> }
-function Timer({ durationInSeconds }: { durationInSeconds: number }) { return <div>Timer Placeholder</div> }
+function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion[], topic: string, onFinish: (answers: Record<number, string>) => void }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+    const [isAnswered, setIsAnswered] = useState(false);
+    const [allAnswers, setAllAnswers] = useState<Record<number, string>>({});
+    
+    const currentQuestion = questions[currentIndex];
+
+    const handleCheck = () => {
+        if (!selectedAnswer) return;
+        setIsAnswered(true);
+        setAllAnswers(prev => ({ ...prev, [currentIndex]: selectedAnswer }));
+    };
+
+    const handleNext = () => {
+        if (currentIndex < questions.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+            setSelectedAnswer(null);
+            setIsAnswered(false);
+        } else {
+            onFinish(allAnswers);
+        }
+    };
+
+    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+
+    return (
+        <div className="p-4 max-w-2xl mx-auto space-y-6">
+            <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm font-medium">
+                    <span>Question {currentIndex + 1} of {questions.length}</span>
+                    <span>{Math.round(((currentIndex + 1) / questions.length) * 100)}%</span>
+                </div>
+                <Progress value={((currentIndex + 1) / questions.length) * 100} className="h-2" />
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-xl">{currentQuestion.questionText}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <RadioGroup 
+                        onValueChange={(val) => !isAnswered && setSelectedAnswer(val)} 
+                        value={selectedAnswer || ""}
+                        className="space-y-3"
+                    >
+                        {currentQuestion.options.map((option, i) => (
+                            <div key={i} className={cn(
+                                "flex items-center space-x-3 p-4 border rounded-lg transition-colors cursor-pointer",
+                                !isAnswered && selectedAnswer === option && "border-primary bg-primary/5",
+                                isAnswered && option === currentQuestion.correctAnswer && "border-green-500 bg-green-50 dark:bg-green-900/20",
+                                isAnswered && selectedAnswer === option && option !== currentQuestion.correctAnswer && "border-destructive bg-destructive/5",
+                                !isAnswered && "hover:border-primary/50"
+                            )} onClick={() => !isAnswered && setSelectedAnswer(option)}>
+                                <RadioGroupItem value={option} id={`q-${currentIndex}-opt-${i}`} disabled={isAnswered} />
+                                <Label htmlFor={`q-${currentIndex}-opt-${i}`} className="flex-1 cursor-pointer font-normal">
+                                    {option}
+                                </Label>
+                                {isAnswered && option === currentQuestion.correctAnswer && <CheckCircle className="h-5 w-5 text-green-600" />}
+                                {isAnswered && selectedAnswer === option && option !== currentQuestion.correctAnswer && <XCircle className="h-5 w-5 text-destructive" />}
+                            </div>
+                        ))}
+                    </RadioGroup>
+
+                    {isAnswered && (
+                        <Alert className={cn("mt-6", isCorrect ? "bg-green-50 border-green-200" : "bg-destructive/5 border-destructive/20")}>
+                            <div className="flex gap-3">
+                                {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600" /> : <AlertCircle className="h-5 w-5 text-destructive" />}
+                                <div className="space-y-1">
+                                    <AlertTitle className={cn("font-bold", isCorrect ? "text-green-800" : "text-destructive")}>
+                                        {isCorrect ? "Correct!" : "Incorrect"}
+                                    </AlertTitle>
+                                    <AlertDescription className="text-sm">
+                                        <p className="font-semibold mb-2">AI Explanation:</p>
+                                        <p className="opacity-90">{currentQuestion.explanation}</p>
+                                    </AlertDescription>
+                                </div>
+                            </div>
+                        </Alert>
+                    )}
+                </CardContent>
+                <CardFooter className="flex justify-end gap-3 border-t pt-6">
+                    {!isAnswered ? (
+                        <Button onClick={handleCheck} disabled={!selectedAnswer}>Check Answer</Button>
+                    ) : (
+                        <Button onClick={handleNext}>
+                            {currentIndex === questions.length - 1 ? "Finish & Review" : "Next Question"}
+                            <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    )}
+                </CardFooter>
+            </Card>
+        </div>
+    );
+}
+
+function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[], topic: string, onSubmit: (answers: Record<number, string>) => void }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [answers, setAnswers] = useState<Record<number, string>>({});
+    const [isFinished, setIsFinished] = useState(false);
+
+    const handleSelect = (answer: string) => {
+        setAnswers(prev => ({ ...prev, [currentIndex]: answer }));
+    };
+
+    const handleNext = () => {
+        if (currentIndex < questions.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+        }
+    };
+
+    const handlePrev = () => {
+        if (currentIndex > 0) {
+            setCurrentIndex(prev => prev - 1);
+        }
+    };
+
+    const handleTimeUp = () => {
+        onSubmit(answers);
+    };
+
+    return (
+        <div className="p-4 max-w-4xl mx-auto space-y-6">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-card p-4 rounded-lg border shadow-sm sticky top-0 z-10">
+                <div className="flex items-center gap-4">
+                    <Timer durationInSeconds={questions.length * 60} onTimeUp={handleTimeUp} />
+                    <Separator orientation="vertical" className="h-8" />
+                    <span className="text-sm font-medium">Question {currentIndex + 1} of {questions.length}</span>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsFinished(true)}>Submit Exam</Button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="lg:col-span-3 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-xl">{questions[currentIndex].questionText}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <RadioGroup 
+                                onValueChange={handleSelect} 
+                                value={answers[currentIndex] || ""}
+                                className="space-y-3"
+                            >
+                                {questions[currentIndex].options.map((option, i) => (
+                                    <div key={i} className={cn(
+                                        "flex items-center space-x-3 p-4 border rounded-lg transition-colors cursor-pointer",
+                                        answers[currentIndex] === option ? "border-primary bg-primary/5" : "hover:border-primary/50"
+                                    )} onClick={() => handleSelect(option)}>
+                                        <RadioGroupItem value={option} id={`exam-opt-${i}`} />
+                                        <Label htmlFor={`exam-opt-${i}`} className="flex-1 cursor-pointer font-normal">
+                                            {option}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </RadioGroup>
+                        </CardContent>
+                        <CardFooter className="justify-between border-t pt-6">
+                            <Button variant="ghost" onClick={handlePrev} disabled={currentIndex === 0}>
+                                <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                            </Button>
+                            <Button onClick={handleNext} disabled={currentIndex === questions.length - 1}>
+                                Next <ChevronRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </div>
+
+                <div className="space-y-4">
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Navigator</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-5 gap-2">
+                                {questions.map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setCurrentIndex(i)}
+                                        className={cn(
+                                            "h-8 w-8 rounded-md text-xs font-bold transition-all border",
+                                            currentIndex === i ? "bg-primary text-primary-foreground border-primary" : (answers[i] ? "bg-secondary text-secondary-foreground" : "bg-background hover:border-primary/50")
+                                        )}
+                                    >
+                                        {i + 1}
+                                    </button>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            <Dialog open={isFinished} onOpenChange={setIsFinished}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Ready to submit?</DialogTitle>
+                        <DialogDescription>
+                            You have answered {Object.keys(answers).length} out of {questions.length} questions. Once submitted, you cannot change your answers.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsFinished(false)}>Keep Reviewing</Button>
+                        <Button onClick={() => onSubmit(answers)}>Submit Exam</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+function Timer({ durationInSeconds, onTimeUp }: { durationInSeconds: number, onTimeUp: () => void }) {
+    const [timeLeft, setTimeLeft] = useState(durationInSeconds);
+    const hasCalledEnd = useRef(false);
+
+    useEffect(() => {
+        if (timeLeft <= 0) {
+            if (!hasCalledEnd.current) {
+                hasCalledEnd.current = true;
+                onTimeUp();
+            }
+            return;
+        }
+
+        const timer = setInterval(() => {
+            setTimeLeft(prev => prev - 1);
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [timeLeft, onTimeUp]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return (
+        <div className={cn("flex items-center gap-2 font-mono text-xl", timeLeft < 60 ? "text-destructive animate-pulse" : "text-primary")}>
+            <TimerIcon className="h-5 w-5" />
+            {formatTime(timeLeft)}
+        </div>
+    );
+}
