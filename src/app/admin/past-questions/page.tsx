@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useCollection, useFirestore, useStorage, useUser } from "@/firebase";
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, type DocumentData, type CollectionReference } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, type DocumentData } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   Card,
@@ -54,9 +54,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit, Loader2 } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2, Bug, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities } from "@/lib/ghana-universities";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface PastQuestion extends DocumentData {
     id: string;
@@ -73,7 +74,7 @@ interface PastQuestion extends DocumentData {
 export default function AdminPastQuestionsPage() {
     const firestore = useFirestore();
     const storage = useStorage();
-    const { user } = useUser();
+    const { user, isAdmin, loading: userLoading } = useUser();
     const { toast } = useToast();
 
     const questionsRef = useMemo(() => firestore ? collection(firestore, 'past_questions') as any : null, [firestore]);
@@ -83,6 +84,7 @@ export default function AdminPastQuestionsPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDebugOpen, setIsDebugOpen] = useState(false);
     
     // Form state
     const [level, setLevel] = useState("");
@@ -93,7 +95,7 @@ export default function AdminPastQuestionsPage() {
     const [year, setYear] = useState("");
     const [file, setFile] = useState<File | null>(null);
 
-    // Smart Suggestions - Unique values from previously uploaded questions
+    // Smart Suggestions
     const suggestedFaculties = useMemo(() => Array.from(new Set(questions?.map(q => q.schoolFaculty).filter(Boolean))), [questions]);
     const suggestedCourseCodes = useMemo(() => Array.from(new Set(questions?.map(q => q.courseCode).filter(Boolean))), [questions]);
     const suggestedSubjects = useMemo(() => Array.from(new Set(questions?.map(q => q.subject).filter(Boolean))), [questions]);
@@ -125,13 +127,23 @@ export default function AdminPastQuestionsPage() {
 
         setIsSubmitting(true);
         try {
-            // Clean file name to avoid weird encoding issues in paths
-            const cleanedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const storagePath = `past_questions/${cleanedFileName}_${Date.now()}`;
-            const storageRef = ref(storage, storagePath);
+            // Path Sanitization: Replace spaces and special characters with underscores
+            const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const storagePath = `past_questions/${Date.now()}_${safeFileName}`;
+            const storageReference = ref(storage, storagePath);
 
-            await uploadBytes(storageRef, file);
-            const downloadUrl = await getDownloadURL(storageRef);
+            // Detailed logging for debugging
+            console.log("Starting upload...", { 
+                fileName: file.name, 
+                safeFileName, 
+                storagePath, 
+                contentType: file.type,
+                userEmail: user.email,
+                isAdmin 
+            });
+
+            const snapshot = await uploadBytes(storageReference, file);
+            const downloadUrl = await getDownloadURL(snapshot.ref);
 
             await addDoc(collection(firestore, "past_questions"), {
                 level,
@@ -149,7 +161,12 @@ export default function AdminPastQuestionsPage() {
             toast({ title: "Upload Successful", description: `${file.name} has been added.`});
             handleUploadDialogChange(false);
         } catch (error: any) {
-            toast({ variant: 'destructive', title: "Upload Failed", description: error.message || "An error occurred during file upload." });
+            console.error("Upload Error Detailed:", error);
+            toast({ 
+                variant: 'destructive', 
+                title: "Upload Failed", 
+                description: `Error: ${error.message}. Please check System Debug Info at the bottom of the page.` 
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -167,16 +184,12 @@ export default function AdminPastQuestionsPage() {
         }
 
         try {
-            // Delete file from storage
             const fileRef = ref(storage, questionToDelete.storagePath);
             await deleteObject(fileRef);
-
-            // Delete document from Firestore
             await deleteDoc(doc(firestore, "past_questions", questionToDelete.id));
-            
             toast({ title: "Deleted", description: `${questionToDelete.fileName} has been deleted.` });
         } catch (error: any) {
-             toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message || "Could not delete the question." });
+             toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message });
         } finally {
             handleDeleteConfirmChange(false);
         }
@@ -201,7 +214,7 @@ export default function AdminPastQuestionsPage() {
     };
 
     return (
-        <>
+        <div className="space-y-8 pb-20">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
@@ -265,7 +278,7 @@ export default function AdminPastQuestionsPage() {
                 <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
                         <DialogTitle>Upload New Past Question</DialogTitle>
-                        <DialogDescription>Fill in the details. Smart suggestions will appear as you type in recurring fields.</DialogDescription>
+                        <DialogDescription>Fill in the details. Smart suggestions will appear as you type.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
@@ -297,7 +310,7 @@ export default function AdminPastQuestionsPage() {
                                     id="schoolFaculty" 
                                     value={schoolFaculty} 
                                     onChange={(e) => setSchoolFaculty(e.target.value)} 
-                                    placeholder="e.g., Business School, Medical School" 
+                                    placeholder="e.g., Business School" 
                                     list="faculties-list"
                                 />
                                 <datalist id="faculties-list">
@@ -308,7 +321,7 @@ export default function AdminPastQuestionsPage() {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="courseCode">Course Code</Label>
+                                <Label htmlFor="courseCode">Course Code (e.g. ECON 401)</Label>
                                 <Input 
                                     id="courseCode" 
                                     value={courseCode} 
@@ -326,7 +339,7 @@ export default function AdminPastQuestionsPage() {
                                     id="year" 
                                     value={year} 
                                     onChange={(e) => setYear(e.target.value)} 
-                                    placeholder="e.g., 2023 or 2024 Mid-Sem" 
+                                    placeholder="e.g., 2023" 
                                     list="years-list"
                                 />
                                 <datalist id="years-list">
@@ -350,7 +363,7 @@ export default function AdminPastQuestionsPage() {
                         </div>
 
                          <div className="space-y-2">
-                            <Label htmlFor="file">Exam File *</Label>
+                            <Label htmlFor="file">Exam File * (Word, PDF, Images)</Label>
                             <Input id="file" type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" />
                         </div>
                     </div>
@@ -378,6 +391,47 @@ export default function AdminPastQuestionsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </>
+
+            {/* DEBUG PANEL */}
+            <Card className="border-dashed border-red-200 bg-red-50/30">
+                <CardHeader className="py-3">
+                    <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen}>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-800">
+                                <Bug className="h-4 w-4" /> System Debug Info (Use for Troubleshooting)
+                            </CardTitle>
+                            <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                    {isDebugOpen ? <ChevronUp className="h-4 w-4"/> : <ChevronDown className="h-4 w-4"/>}
+                                </Button>
+                            </CollapsibleTrigger>
+                        </div>
+                        <CollapsibleContent className="pt-4 space-y-2">
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="font-bold">Auth Status:</div>
+                                <div>{userLoading ? "Loading..." : (user ? "Logged In" : "Logged Out")}</div>
+                                
+                                <div className="font-bold">UID:</div>
+                                <div className="font-mono truncate">{user?.uid || "N/A"}</div>
+                                
+                                <div className="font-bold">Email:</div>
+                                <div>{user?.email || "N/A"}</div>
+                                
+                                <div className="font-bold">Admin Flag (Client):</div>
+                                <div className={isAdmin ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                                    {isAdmin ? "True" : "False"}
+                                </div>
+
+                                <div className="font-bold">Storage Service:</div>
+                                <div>{storage ? "Available" : "Missing"}</div>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-4 italic">
+                                Note: If "Admin Flag" is False, the server will block uploads even if you are logged in.
+                            </p>
+                        </CollapsibleContent>
+                    </Collapsible>
+                </CardHeader>
+            </Card>
+        </div>
     );
 }

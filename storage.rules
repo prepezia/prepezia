@@ -4,34 +4,29 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
+    // Direct and simple admin check
     function isAppAdmin() {
-      // Robust admin check: Prioritize the primary admin email
-      // Then check Firestore for the isAdmin flag
       return request.auth != null && (
         request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true
+        (request.auth.token.email_verified == true && request.auth.token.email == 'nextinnovationafrica@gmail.com')
       );
     }
 
     // --- User-Specific Files ---
-    // Users can read/write their own folder.
-    // Admins can read user folders to view feedback attachments.
     match /users/{userId}/{allPaths=**} {
       allow read: if request.auth != null && (request.auth.uid == userId || isAppAdmin());
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Past questions should be publicly readable for easy access in the app,
-    // but only writable by admins.
+    // Past questions
     match /past_questions/{allPaths=**} {
-      allow read;
+      allow read: if request.auth != null;
       allow write: if isAppAdmin();
     }
 
     // --- Public Files ---
-    // Any file in the 'public/' directory is readable by anyone.
     match /public/{allPaths=**} {
-      allow read;
+      allow read: if true;
       allow write: if false;
     }
   }
