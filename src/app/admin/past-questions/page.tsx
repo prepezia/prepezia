@@ -181,7 +181,7 @@ export default function AdminPastQuestionsPage() {
     const handleDeleteConfirmChange = (open: boolean) => {
         setIsDeleteDialogOpen(open);
         if (!open) {
-            setTimeout(() => setQuestionToDelete(null), 200);
+            setQuestionToDelete(null);
         }
     };
 

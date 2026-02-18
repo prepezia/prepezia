@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
@@ -50,7 +50,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Textarea } from "../ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
-import { useUser, useAuth, useDoc, useStorage } from "@/firebase";
+import { useUser, useAuth, useDoc, useStorage, useFirestore } from "@/firebase";
 import {
   signOut,
   sendEmailVerification,

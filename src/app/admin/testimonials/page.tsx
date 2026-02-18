@@ -131,14 +131,14 @@ export default function AdminTestimonialsPage() {
     const handleDialogChange = (open: boolean) => {
         setIsDialogOpen(open);
         if (!open) {
-            setTimeout(() => setCurrentTestimonial(null), 200);
+            setCurrentTestimonial(null);
         }
     }
 
     const handleDeleteConfirmChange = (open: boolean) => {
         setShowDeleteConfirm(open);
         if (!open) {
-            setTimeout(() => setCurrentTestimonial(null), 200);
+            setCurrentTestimonial(null);
         }
     }
 

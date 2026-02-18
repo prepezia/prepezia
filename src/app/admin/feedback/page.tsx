@@ -120,11 +120,8 @@ export default function AdminFeedbackPage() {
   const handleOpenChange = (open: boolean) => {
       setIsDetailOpen(open);
       if (!open) {
-          // Small delay to ensure the Radix UI cleanup is complete before resetting state
-          setTimeout(() => {
-              setSelectedFeedback(null);
-              setAdminAction("");
-          }, 200);
+          setSelectedFeedback(null);
+          setAdminAction("");
       }
   };
 
