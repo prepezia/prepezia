@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -43,6 +44,7 @@ interface PastQuestion extends DocumentData {
     university?: string;
     schoolFaculty?: string;
     durationMinutes?: number;
+    extractedText?: string;
 }
 
 type ViewState = 'select' | 'mode-select' | 'taking' | 'results';
@@ -151,13 +153,24 @@ export default function PastQuestionsPage() {
         setViewState('taking');
         setIsLoading(true);
         try {
+            const paper = allQuestions?.find(q => 
+                q.level === selections.examBody && 
+                q.subject === selections.subject && 
+                q.year === selections.year &&
+                (!selections.university || q.university === selections.university)
+            );
+
+            // Use the extracted text if available for high-fidelity quiz generation
+            const sourceContent = paper?.extractedText || `Generate high-quality MCQ questions for ${selections.subject} ${selections.examBody} ${selections.year}.`;
+
             const result = await generateQuiz({
-                context: 'note-generator',
+                context: 'past-question',
                 topic: `${selections.subject} - ${selections.year}`,
                 academicLevel: selections.examBody as any,
-                content: `Generate 20 MCQ questions for ${selections.subject} ${selections.examBody} ${selections.year}.`
+                content: sourceContent
             });
-            setQuestions(result.quiz.slice(0, 20));
+            
+            setQuestions(result.quiz);
         } catch (e: any) {
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setViewState('mode-select');
@@ -430,70 +443,123 @@ export default function PastQuestionsPage() {
 
 function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion[], topic: string, onFinish: (answers: Record<number, string>) => void }) {
     const [index, setIndex] = useState(0);
-    const [ans, setAns] = useState<string | null>(null);
-    const [checked, setChecked] = useState(false);
-    const [all, setAll] = useState<Record<number, string>>({});
+    const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+    const [isAnswered, setIsAnswered] = useState(false);
+    const [allAnswers, setAllAnswers] = useState<Record<number, string>>({});
     
     const q = questions[index];
-    const isCorrect = ans === q.correctAnswer;
+    const isCorrect = selectedAnswer === q.correctAnswer;
+
+    const handleAnswerSelect = (val: string) => {
+        if (isAnswered) return;
+        setSelectedAnswer(val);
+    };
+
+    const handleCheck = () => {
+        setIsAnswered(true);
+        setAllAnswers(prev => ({ ...prev, [index]: selectedAnswer || "" }));
+    };
+
+    const handleNext = () => {
+        if (index < questions.length - 1) {
+            setIndex(prev => prev + 1);
+            setSelectedAnswer(null);
+            setIsAnswered(false);
+        } else {
+            onFinish(allAnswers);
+        }
+    };
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
             <div className="space-y-3">
                 <div className="flex justify-between items-end text-sm">
-                    <span className="font-medium">Question {index+1} of {questions.length}</span>
+                    <span className="font-medium font-headline">Question {index+1} of {questions.length}</span>
                     <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}%</span>
                 </div>
                 <Progress value={((index+1)/questions.length)*100} className="h-2" />
             </div>
-            <Card className="shadow-lg">
+
+            <Card className="shadow-lg border-2">
                 <CardHeader>
-                    <CardTitle className="text-xl leading-relaxed">{q.questionText}</CardTitle>
+                    <CardTitle className="text-xl leading-relaxed font-headline">{q.questionText}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                    {q.options.map((opt, i) => (
-                        <div 
-                            key={i} 
-                            className={cn(
-                                "flex items-center p-4 border rounded-xl cursor-pointer transition-all active:scale-[0.98]",
-                                !checked && ans === opt && "border-primary bg-primary/5 ring-1 ring-primary",
-                                checked && opt === q.correctAnswer && "border-green-500 bg-green-50 ring-1 ring-green-500",
-                                checked && ans === opt && !isCorrect && "border-destructive bg-destructive/5 ring-1 ring-destructive"
-                            )} 
-                            onClick={() => !checked && setAns(opt)}
-                        >
-                            <div className={cn(
-                                "w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center shrink-0", 
-                                ans === opt ? "border-primary" : "border-muted-foreground/30"
-                            )}>
-                                {ans === opt && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                            </div>
-                            <span className="text-sm font-medium">{opt}</span>
-                        </div>
-                    ))}
-                    
-                    {checked && (
-                        <Alert className={cn("mt-6", isCorrect ? "bg-green-50 border-green-200" : "bg-destructive/5 border-destructive/20")}>
-                            <div className="flex gap-3">
-                                {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600" /> : <AlertCircle className="h-5 w-5 text-destructive" />}
-                                <AlertDescription>
-                                    <p className={cn("font-bold text-base", isCorrect ? "text-green-700" : "text-destructive")}>
-                                        {isCorrect ? "Spot on!" : "Not quite right."}
-                                    </p>
-                                    <p className="text-sm mt-1 text-foreground/80 leading-relaxed">{q.explanation}</p>
-                                </AlertDescription>
-                            </div>
-                        </Alert>
+                <CardContent className="space-y-4">
+                    <RadioGroup 
+                        value={selectedAnswer || ""} 
+                        onValueChange={handleAnswerSelect}
+                        disabled={isAnswered}
+                        className="space-y-3"
+                    >
+                        {q.options.map((option, i) => {
+                            const isOptionCorrect = option === q.correctAnswer;
+                            const isOptionSelected = selectedAnswer === option;
+                            
+                            return (
+                                <div 
+                                    key={i} 
+                                    className={cn(
+                                        "flex items-center space-x-3 space-y-0 p-4 rounded-xl border-2 transition-all cursor-pointer",
+                                        !isAnswered && isOptionSelected && "bg-primary/5 border-primary shadow-sm",
+                                        isAnswered && isOptionCorrect && "bg-green-100 dark:bg-green-900/50 border-green-500",
+                                        isAnswered && isOptionSelected && !isOptionCorrect && "bg-red-100 dark:bg-red-900/50 border-destructive",
+                                        !isOptionSelected && "hover:bg-secondary/50 border-border"
+                                    )} 
+                                    onClick={() => handleAnswerSelect(option)}
+                                >
+                                    <RadioGroupItem value={option} id={`option-${i}`} />
+                                    <Label htmlFor={`option-${i}`} className="font-medium flex-1 cursor-pointer text-base leading-tight">
+                                        {option}
+                                    </Label>
+                                    {isAnswered && isOptionCorrect && <CheckCircle className="text-green-500 shrink-0 h-5 w-5" />}
+                                    {isAnswered && isOptionSelected && !isOptionCorrect && <XCircle className="text-destructive shrink-0 h-5 w-5" />}
+                                </div>
+                            );
+                        })}
+                    </RadioGroup>
+
+                    {isAnswered && (
+                        <Card className="mt-6 bg-secondary/30 border-primary/20">
+                            <CardHeader className="flex-row items-center gap-2 pb-2">
+                                <Lightbulb className="w-5 h-5 text-yellow-500" />
+                                <CardTitle className="text-base font-bold">Explanation</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground leading-relaxed italic">
+                                    {q.explanation}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {!isAnswered && q.hint && (
+                        <details className="mt-4 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-dashed">
+                            <summary className="cursor-pointer font-semibold flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 text-primary" />
+                                Need a hint?
+                            </summary>
+                            <p className="pt-2 pl-6">{q.hint}</p>
+                        </details>
                     )}
                 </CardContent>
-                <CardFooter className="justify-end gap-3 pt-6">
-                    {!checked ? (
-                        <Button onClick={() => { setChecked(true); setAll(p => ({...p, [index]: ans || ""})) }} disabled={!ans} size="lg" className="w-full sm:w-auto">
+                <CardFooter className="justify-end gap-3 pt-6 border-t mt-4">
+                    {!isAnswered ? (
+                        <Button 
+                            onClick={handleCheck} 
+                            disabled={!selectedAnswer} 
+                            size="lg" 
+                            className="w-full sm:w-auto font-bold"
+                        >
                             Check Answer
                         </Button>
                     ) : (
-                        <Button onClick={() => { if(index < questions.length - 1) { setIndex(i => i+1); setAns(null); setChecked(false); } else onFinish(all); }} size="lg" className="w-full sm:w-auto">
-                            {index === questions.length - 1 ? "Complete Trial" : "Next Question"} <ArrowRight className="ml-2 h-4 w-4" />
+                        <Button 
+                            onClick={handleNext} 
+                            size="lg" 
+                            className="w-full sm:w-auto font-bold bg-primary hover:bg-primary/90"
+                        >
+                            {index === questions.length - 1 ? "Complete Trial" : "Next Question"} 
+                            <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     )}
                 </CardFooter>

@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow to generate a quiz from content.
@@ -18,7 +19,7 @@ const SourceSchema = z.object({
 });
 
 const GenerateQuizInputSchema = z.object({
-  context: z.enum(['note-generator', 'study-space']).describe("The context from which the request originates."),
+  context: z.enum(['note-generator', 'study-space', 'past-question']).describe("The context from which the request originates."),
   topic: z.string().optional().describe("The topic of the content (used in 'note-generator' context)."),
   academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
   content: z.string().optional().describe("The source text content (for note generation)."),
@@ -44,12 +45,13 @@ const generateQuizPrompt = ai.definePrompt({
   model: 'googleai/gemini-2.5-flash',
   input: {schema: GenerateQuizInputSchema},
   output: {schema: GenerateQuizOutputSchema},
-  prompt: `You are an AI expert in creating educational assessments. Your task is to generate a multiple-choice quiz based on the provided text content.
+  prompt: `You are an AI expert in creating educational assessments. Your task is to generate a comprehensive multiple-choice quiz based on the provided text content.
 
 ### INSTRUCTIONS:
-1.  Read the content provided below.
-2.  Generate between 10 and 15 multiple-choice questions. Each question must have exactly 4 options.
-3.  For each question, you MUST provide:
+1.  Read the content provided below thoroughly.
+2.  Generate as many high-quality multiple-choice questions as possible, up to a maximum of 50 questions. Each question must have exactly 4 options.
+3.  Ensure the questions cover the breadth and depth of the provided material.
+4.  For each question, you MUST provide:
     *   **questionText**: The question itself.
     *   **options**: An array of 4 strings representing the possible answers.
     *   **correctAnswer**: The string of the correct answer, which must be one of the provided options.
@@ -58,7 +60,7 @@ const generateQuizPrompt = ai.definePrompt({
 
 {{#if topic}}
 ### CONTEXT:
-This quiz is for a student studying the topic of **"{{{topic}}}"** at the **"{{{academicLevel}}}"** level. The source content is a set of notes. You are encouraged to include some questions that, while not explicitly answered in the notes, are highly relevant to the topic and appropriate for the academic level. This tests for broader understanding.
+This quiz is for a student studying the topic of **"{{{topic}}}"** at the **"{{{academicLevel}}}"** level. The source content is a set of notes or a past exam paper. You are encouraged to include questions that test both direct recall and deep understanding of the concepts.
 {{else}}
 ### CONTEXT:
 This quiz must be generated **strictly** from the provided source content from a Study Space. All questions, answers, and explanations must be directly derivable from the text. Do not include information outside of this text.
@@ -75,8 +77,11 @@ This quiz must be generated **strictly** from the provided source content from a
 {{/if}}
 \`\`\`
 
-Generate the quiz now.
+Generate the quiz now. Ensure all JSON formatting is perfect.
 `,
+  config: {
+    maxOutputTokens: 16384,
+  }
 });
 
 const generateQuizFlow = ai.defineFlow({

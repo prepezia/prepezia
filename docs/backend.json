@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -191,6 +192,7 @@
         "fileName": { "type": "string" },
         "fileUrl": { "type": "string", "format": "uri" },
         "storagePath": { "type": "string" },
+        "extractedText": { "type": "string", "description": "The full text content extracted from the file." },
         "uploadedAt": {
             "type": "string",
             "format": "date-time"

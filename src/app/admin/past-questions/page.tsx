@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -56,6 +57,7 @@ import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Trash2, Edit, Loader2, FileText, Search, Filter, Settings2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities as staticUnis } from "@/lib/ghana-universities";
+import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
 
 interface PastQuestion extends DocumentData {
     id: string;
@@ -69,6 +71,7 @@ interface PastQuestion extends DocumentData {
     durationMinutes?: number;
     storagePath: string;
     fileUrl: string;
+    extractedText?: string;
 }
 
 export default function AdminPastQuestionsPage() {
@@ -205,11 +208,28 @@ export default function AdminPastQuestionsPage() {
         try {
             let finalFileUrl = editingQuestion?.fileUrl || "";
             let finalStoragePath = editingQuestion?.storagePath || "";
+            let finalExtractedText = editingQuestion?.extractedText || "";
 
             if (file && storage) {
                 if (editingQuestion?.storagePath) {
                     try { await deleteObject(ref(storage, editingQuestion.storagePath)); } catch (e) {}
                 }
+                
+                // 1. Extract text from file first
+                toast({ title: "Extracting text...", description: "AI is processing the document content." });
+                const dataUri = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(file);
+                });
+                const extractionResult = await extractTextFromFile({
+                    fileDataUri: dataUri,
+                    fileContentType: file.type,
+                });
+                finalExtractedText = extractionResult.extractedText;
+
+                // 2. Upload to storage
                 const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                 finalStoragePath = `past_questions/${Date.now()}_${cleanName}`;
                 const storageReference = ref(storage, finalStoragePath);
@@ -228,6 +248,7 @@ export default function AdminPastQuestionsPage() {
                 fileName: file ? file.name : editingQuestion!.fileName,
                 fileUrl: finalFileUrl,
                 storagePath: finalStoragePath,
+                extractedText: finalExtractedText,
                 updatedAt: serverTimestamp(),
                 ...(editingQuestion ? {} : { uploadedAt: serverTimestamp() })
             };
@@ -242,6 +263,7 @@ export default function AdminPastQuestionsPage() {
 
             handleUploadDialogChange(false);
         } catch (error: any) {
+            console.error("Save failed:", error);
             toast({ variant: 'destructive', title: "Failed", description: error.message });
         } finally {
             setIsSubmitting(false);
@@ -277,7 +299,7 @@ export default function AdminPastQuestionsPage() {
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setIsUniManagementOpen(true)}>
                         <Settings2 className="mr-2 h-4 w-4" />
-                        Universities
+                        Institutions
                     </Button>
                     <Button onClick={() => setIsUploadDialogOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
@@ -369,7 +391,7 @@ export default function AdminPastQuestionsPage() {
                 <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
                         <DialogTitle>{editingQuestion ? "Edit Paper" : "Upload Paper"}</DialogTitle>
-                        <DialogDescription>Fill in the details for the examination paper.</DialogDescription>
+                        <DialogDescription>Fill in the details for the examination paper. AI will extract questions from the file.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
