@@ -214,9 +214,10 @@ export default function PastQuestionsPage() {
                             <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
                         </div>
                         <Button 
+                            variant="outline"
                             onClick={() => setIsNewExamDialogOpen(true)} 
                             disabled={questionsLoading}
-                            className="bg-primary hover:bg-primary/90 font-semibold w-fit self-end"
+                            className="bg-primary hover:bg-primary/90 font-semibold w-fit text-primary-foreground self-end"
                         >
                             Take New Exam
                         </Button>
@@ -474,7 +475,7 @@ function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion
         <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
             <div className="space-y-3">
                 <div className="flex justify-between items-end text-sm">
-                    <span className="font-medium font-headline">Question {index+1} of {questions.length}</span>
+                    <span className="font-medium font-headline">Trial Mode - Part 1: Question {index+1} of {questions.length}</span>
                     <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}%</span>
                 </div>
                 <Progress value={((index+1)/questions.length)*100} className="h-2" />
@@ -556,7 +557,7 @@ function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion
                         <Button 
                             onClick={handleNext} 
                             size="lg" 
-                            className="w-full sm:w-auto font-bold bg-primary hover:bg-primary/90"
+                            className="w-full sm:w-auto font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
                         >
                             {index === questions.length - 1 ? "Complete Trial" : "Next Question"} 
                             <ArrowRight className="ml-2 h-4 w-4" />
