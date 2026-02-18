@@ -19,7 +19,7 @@ import {
   } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -195,16 +195,15 @@ export default function PastQuestionsPage() {
             <>
                 <HomeHeader />
                 <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                        <div className="flex-1">
                             <h1 className="text-4xl font-headline font-bold">Past Questions Hub</h1>
                             <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
                         </div>
                         <Button 
                             onClick={() => setIsNewExamDialogOpen(true)} 
                             disabled={questionsLoading}
-                            size="lg"
-                            className="bg-primary hover:bg-primary/90 font-semibold"
+                            className="bg-primary hover:bg-primary/90 font-semibold w-fit self-end"
                         >
                             Take New Exam
                         </Button>
