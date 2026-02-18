@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useCollection, useFirestore, useStorage, useUser } from "@/firebase";
 import { collection, addDoc, serverTimestamp, deleteDoc, doc, type DocumentData, type CollectionReference, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -54,10 +54,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit, Loader2, Bug, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities } from "@/lib/ghana-universities";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface PastQuestion extends DocumentData {
     id: string;
@@ -74,7 +73,7 @@ interface PastQuestion extends DocumentData {
 export default function AdminPastQuestionsPage() {
     const firestore = useFirestore();
     const storage = useStorage();
-    const { user, isAdmin, loading: userLoading } = useUser();
+    const { user } = useUser();
     const { toast } = useToast();
 
     const questionsQuery = useMemo(() => {
@@ -88,7 +87,6 @@ export default function AdminPastQuestionsPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isDebugOpen, setIsDebugOpen] = useState(false);
     
     // Form state
     const [level, setLevel] = useState("");
@@ -136,8 +134,6 @@ export default function AdminPastQuestionsPage() {
             const storagePath = `past_questions/${Date.now()}_${cleanName}`;
             const storageReference = ref(storage, storagePath);
 
-            console.log("Admin Uploading to:", storagePath);
-
             const snapshot = await uploadBytes(storageReference, file);
             const downloadUrl = await getDownloadURL(snapshot.ref);
 
@@ -157,11 +153,10 @@ export default function AdminPastQuestionsPage() {
             toast({ title: "Upload Successful", description: `${file.name} has been added.`});
             handleUploadDialogChange(false);
         } catch (error: any) {
-            console.error("Upload Error:", error);
             toast({ 
                 variant: 'destructive', 
                 title: "Upload Failed", 
-                description: `Error: ${error.message}. Ensure your UID is listed in the security rules.` 
+                description: `Error: ${error.message}.` 
             });
         } finally {
             setIsSubmitting(false);
@@ -252,15 +247,17 @@ export default function AdminPastQuestionsPage() {
                                         <TableCell>{q.year}</TableCell>
                                         <TableCell className="text-muted-foreground truncate max-w-[200px]">{q.fileName}</TableCell>
                                         <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => openDeleteDialog(q)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            <div className="flex justify-end">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuItem disabled><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => openDeleteDialog(q)} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -391,47 +388,6 @@ export default function AdminPastQuestionsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
-            {/* DEBUG PANEL */}
-            <Card className="border-dashed border-red-200 bg-red-50/30">
-                <CardHeader className="py-3">
-                    <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen}>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-800">
-                                <Bug className="h-4 w-4" /> System Debug Info (Use for Troubleshooting)
-                            </CardTitle>
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                    {isDebugOpen ? <ChevronUp className="h-4 w-4"/> : <ChevronDown className="h-4 w-4"/>}
-                                </Button>
-                            </CollapsibleTrigger>
-                        </div>
-                        <CollapsibleContent className="pt-4 space-y-2">
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="font-bold text-red-900">Auth Status:</div>
-                                <div>{userLoading ? "Loading..." : (user ? "Logged In" : "Logged Out")}</div>
-                                
-                                <div className="font-bold text-red-900">UID:</div>
-                                <div className="font-mono truncate">{user?.uid || "N/A"}</div>
-                                
-                                <div className="font-bold text-red-900">Email:</div>
-                                <div>{user?.email || "N/A"}</div>
-                                
-                                <div className="font-bold text-red-900">Admin Flag (Client):</div>
-                                <div className={isAdmin ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
-                                    {isAdmin ? "True" : "False"}
-                                </div>
-
-                                <div className="font-bold text-red-900">Storage Service:</div>
-                                <div>{storage ? "Available" : "Missing"}</div>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground mt-4 italic">
-                                Note: If "Admin Flag" is False, the server will block uploads even if you are logged in.
-                            </p>
-                        </CollapsibleContent>
-                    </Collapsible>
-                </CardHeader>
-            </Card>
         </div>
     );
 }
