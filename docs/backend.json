@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserProfile": {
@@ -199,6 +198,16 @@
       },
       "required": ["level", "subject", "year", "fileName", "fileUrl", "storagePath", "uploadedAt"]
     },
+    "CustomUniversity": {
+      "title": "Custom University",
+      "description": "A university added manually by an admin.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "addedAt"]
+    },
     "GuidedChat": {
         "title": "Guided Learning Chat",
         "description": "Represents a single guided learning conversation session.",
@@ -257,6 +266,10 @@
         "$ref": "#/entities/PastQuestion"
       },
       "description": "Stores uploaded past exam question papers."
+    },
+    "/custom_universities/{universityId}": {
+      "schema": { "$ref": "#/entities/CustomUniversity" },
+      "description": "Stores universities added by administrators."
     }
   }
 }

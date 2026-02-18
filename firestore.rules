@@ -1,10 +1,8 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAppAdmin() {
-      // Direct UID and Email check for prioritized admin access
       return request.auth != null && (
         request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2' ||
         request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
@@ -20,6 +18,11 @@ service cloud.firestore {
       match /guided_chats/{chatId} {
         allow read, write, delete, create: if request.auth != null && request.auth.uid == userId;
       }
+    }
+
+    match /custom_universities/{uniId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAppAdmin();
     }
 
     match /feedback/{feedbackId} {
