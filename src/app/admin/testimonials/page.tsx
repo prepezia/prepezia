@@ -109,7 +109,7 @@ export default function AdminTestimonialsPage() {
                 await addDoc(collection(firestore, "testimonials"), { ...values, createdAt: serverTimestamp() });
                 toast({ title: "Success", description: "New testimonial added." });
             }
-            setIsDialogOpen(false);
+            handleDialogChange(false);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not save testimonial." });
         } finally {
@@ -122,9 +122,23 @@ export default function AdminTestimonialsPage() {
         try {
             await deleteDoc(doc(firestore, "testimonials", currentTestimonial.id));
             toast({ title: "Success", description: "Testimonial deleted." });
-            setShowDeleteConfirm(false);
+            handleDeleteConfirmChange(false);
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not delete testimonial." });
+        }
+    }
+
+    const handleDialogChange = (open: boolean) => {
+        setIsDialogOpen(open);
+        if (!open) {
+            setTimeout(() => setCurrentTestimonial(null), 200);
+        }
+    }
+
+    const handleDeleteConfirmChange = (open: boolean) => {
+        setShowDeleteConfirm(open);
+        if (!open) {
+            setTimeout(() => setCurrentTestimonial(null), 200);
         }
     }
 
@@ -179,7 +193,7 @@ export default function AdminTestimonialsPage() {
             </CardContent>
         </Card>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{currentTestimonial ? 'Edit Testimonial' : 'Add New Testimonial'}</DialogTitle>
@@ -201,7 +215,7 @@ export default function AdminTestimonialsPage() {
                         {form.formState.errors.text && <p className="text-sm text-destructive">{form.formState.errors.text.message}</p>}
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => handleDialogChange(false)}>Cancel</Button>
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                             {currentTestimonial ? 'Save Changes' : 'Add Testimonial'}
@@ -211,7 +225,7 @@ export default function AdminTestimonialsPage() {
             </DialogContent>
         </Dialog>
         
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={handleDeleteConfirmChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>

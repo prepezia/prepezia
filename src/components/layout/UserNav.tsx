@@ -25,6 +25,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -49,7 +50,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Textarea } from "../ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
-import { useUser, useAuth, useDoc } from "@/firebase";
+import { useUser, useAuth, useDoc, useStorage } from "@/firebase";
 import {
   signOut,
   sendEmailVerification,
@@ -59,9 +60,8 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from "firebase/auth";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { useFirestore } from "@/firebase";
 import { doc, updateDoc, serverTimestamp, deleteField, collection, addDoc } from "firebase/firestore";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Progress } from "../ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { educationalLevels } from "@/lib/education-levels";
@@ -115,6 +115,7 @@ export function UserNav() {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
+  const storage = useStorage();
   const { user } = useUser();
   const { toast } = useToast();
 
@@ -156,16 +157,26 @@ export function UserNav() {
   });
 
   async function onFeedbackSubmit(values: z.infer<typeof feedbackSchema>) {
-    if (!firestore || !user) return;
+    if (!firestore || !user || !storage) return;
     
     setIsFeedbackSubmitting(true);
     try {
+        let fileUrl = "";
+        
+        if (values.file) {
+            const storagePath = `users/${user.uid}/feedback/${Date.now()}_${values.file.name}`;
+            const fileRef = storageRef(storage, storagePath);
+            const uploadResult = await uploadBytes(fileRef, values.file);
+            fileUrl = await getDownloadURL(uploadResult.ref);
+        }
+
         await addDoc(collection(firestore, "feedback"), {
             userId: user.uid,
             userName: user.displayName || "Anonymous User",
             userEmail: user.email || "N/A",
             title: values.title,
             description: values.description,
+            fileUrl: fileUrl,
             status: "New",
             createdAt: serverTimestamp(),
         });

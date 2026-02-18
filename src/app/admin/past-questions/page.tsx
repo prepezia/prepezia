@@ -167,10 +167,23 @@ export default function AdminPastQuestionsPage() {
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message || "Could not delete the question." });
         } finally {
-            setIsDeleteDialogOpen(false);
-            setQuestionToDelete(null);
+            handleDeleteConfirmChange(false);
         }
     }
+
+    const handleUploadDialogChange = (open: boolean) => {
+        setIsUploadDialogOpen(open);
+        if (!open) {
+            resetForm();
+        }
+    };
+
+    const handleDeleteConfirmChange = (open: boolean) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+            setTimeout(() => setQuestionToDelete(null), 200);
+        }
+    };
 
     return (
         <>
@@ -230,10 +243,7 @@ export default function AdminPastQuestionsPage() {
                 </CardContent>
             </Card>
 
-            <Dialog open={isUploadDialogOpen} onOpenChange={(isOpen) => {
-                if (!isOpen) resetForm();
-                setIsUploadDialogOpen(isOpen);
-            }}>
+            <Dialog open={isUploadDialogOpen} onOpenChange={handleUploadDialogChange}>
                 <DialogContent className="sm:max-w-[480px]">
                     <DialogHeader>
                         <DialogTitle>Upload New Past Question</DialogTitle>
@@ -284,7 +294,7 @@ export default function AdminPastQuestionsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                        <Button variant="outline" onClick={() => handleUploadDialogChange(false)} disabled={isSubmitting}>Cancel</Button>
                         <Button onClick={handleUpload} disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                             Upload
@@ -293,7 +303,7 @@ export default function AdminPastQuestionsPage() {
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteConfirmChange}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>

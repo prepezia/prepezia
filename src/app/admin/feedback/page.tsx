@@ -44,7 +44,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Trash2, Eye, Loader2, Save } from "lucide-react";
+import { MoreHorizontal, Trash2, Eye, Loader2, Save, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -59,6 +59,7 @@ interface FeedbackItem extends DocumentData {
     date: Timestamp;
     status: "New" | "In Progress" | "Resolved";
     adminAction?: string;
+    fileUrl?: string;
     createdAt: Timestamp;
 }
 
@@ -73,7 +74,7 @@ export default function AdminFeedbackPage() {
 
   const { data: feedbackItems, loading } = useCollection<FeedbackItem>(feedbackQuery as any);
 
-  const [selectedFeedback, setSelectedStudyFeedback] = useState<FeedbackItem | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   
@@ -82,7 +83,7 @@ export default function AdminFeedbackPage() {
   const [adminAction, setAdminAction] = useState("");
 
   const handleOpenDetails = (item: FeedbackItem) => {
-      setSelectedStudyFeedback(item);
+      setSelectedFeedback(item);
       setStatus(item.status || "New");
       setAdminAction(item.adminAction || "");
       setIsDetailOpen(true);
@@ -113,6 +114,17 @@ export default function AdminFeedbackPage() {
           toast({ title: "Deleted", description: "Feedback report removed." });
       } catch (error: any) {
           toast({ variant: "destructive", title: "Delete Failed", description: error.message });
+      }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+      setIsDetailOpen(open);
+      if (!open) {
+          // Small delay to ensure the Radix UI cleanup is complete before resetting state
+          setTimeout(() => {
+              setSelectedFeedback(null);
+              setAdminAction("");
+          }, 200);
       }
   };
 
@@ -185,7 +197,7 @@ export default function AdminFeedbackPage() {
         </CardContent>
         </Card>
 
-        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <Dialog open={isDetailOpen} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Feedback Details</DialogTitle>
@@ -200,6 +212,15 @@ export default function AdminFeedbackPage() {
                         <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-4 rounded-md border">
                             {selectedFeedback?.description}
                         </p>
+                        {selectedFeedback?.fileUrl && (
+                            <div className="pt-2">
+                                <Button asChild variant="outline" size="sm">
+                                    <a href={selectedFeedback.fileUrl} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" /> View Attachment
+                                    </a>
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
                     <Separator />
@@ -233,7 +254,7 @@ export default function AdminFeedbackPage() {
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleUpdateFeedback} disabled={isUpdating}>
                         {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         <Save className="mr-2 h-4 w-4" /> Save Changes
