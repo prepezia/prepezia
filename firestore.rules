@@ -22,6 +22,14 @@ service cloud.firestore {
       }
     }
 
+    // Feedback rules
+    match /feedback/{feedbackId} {
+      // Any user can create feedback.
+      allow create: if request.auth != null;
+      // Only admins can view, update, or delete feedback.
+      allow read, list, update, delete: if request.auth != null && isAppAdmin();
+    }
+
     // Legal content can be read by any authenticated user.
     // Legal content can only be written by an admin.
     match /legal_content/{docId} {

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import {
@@ -62,7 +61,7 @@ import {
 } from "firebase/auth";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { useFirestore } from "@/firebase";
-import { doc, updateDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, deleteField, collection, addDoc } from "firebase/firestore";
 import { Progress } from "../ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { educationalLevels } from "@/lib/education-levels";
@@ -126,6 +125,7 @@ export function UserNav() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isVerificationLoading, setIsVerificationLoading] = useState(false);
+  const [isFeedbackSubmitting, setIsFeedbackSubmitting] = useState(false);
 
   const isEmailPasswordProvider = user ? user.providerData.some(p => p.providerId === 'password') : false;
 
@@ -155,11 +155,29 @@ export function UserNav() {
     defaultValues: { title: "", description: "", file: undefined },
   });
 
-  function onFeedbackSubmit(values: z.infer<typeof feedbackSchema>) {
-    console.log("Feedback submitted:", values);
-    feedbackForm.reset();
-    setIsFeedbackOpen(false);
-    toast({ title: "Feedback Submitted", description: "Thank you!" });
+  async function onFeedbackSubmit(values: z.infer<typeof feedbackSchema>) {
+    if (!firestore || !user) return;
+    
+    setIsFeedbackSubmitting(true);
+    try {
+        await addDoc(collection(firestore, "feedback"), {
+            userId: user.uid,
+            userName: user.displayName || "Anonymous User",
+            userEmail: user.email || "N/A",
+            title: values.title,
+            description: values.description,
+            status: "New",
+            createdAt: serverTimestamp(),
+        });
+
+        feedbackForm.reset();
+        setIsFeedbackOpen(false);
+        toast({ title: "Feedback Submitted", description: "Thank you! Our team will review this shortly." });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Submission Failed", description: error.message || "Could not send feedback." });
+    } finally {
+        setIsFeedbackSubmitting(false);
+    }
   }
 
   const handleLogout = async () => {
@@ -355,6 +373,11 @@ export function UserNav() {
                     </div>
                 </AccordionContent>
               </AccordionItem>
+              <AccordionItem value="feedback" className="border-b-0 bg-background border rounded-lg shadow-sm">
+                <AccordionTrigger className="hover:no-underline p-4 text-base font-medium flex-1 justify-start" onClick={(e) => { e.preventDefault(); setIsFeedbackOpen(true); }}>
+                    <MessageSquareWarning className="mr-3 h-5 w-5" /> Send Feedback
+                </AccordionTrigger>
+              </AccordionItem>
             </Accordion>
           </div>
           <div className="p-4 border-t mt-auto">
@@ -429,7 +452,12 @@ export function UserNav() {
                     <FormField control={feedbackForm.control} name="file" render={({ field: { onChange, onBlur, name, ref } }) => (
                         <FormItem><FormLabel>Attach File (optional)</FormLabel><FormControl><Input type="file" onChange={(e) => onChange(e.target.files ? e.target.files[0] : undefined)} onBlur={onBlur} name={name} ref={ref} accept="image/*,.pdf" /></FormControl><FormDescription className="text-xs">Supported: Images, PDF (Max 5MB)</FormDescription><FormMessage /></FormItem>
                     )}/>
-                    <DialogFooter><Button type="submit">Submit Feedback</Button></DialogFooter>
+                    <DialogFooter>
+                        <Button type="submit" disabled={isFeedbackSubmitting}>
+                            {isFeedbackSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Submit Feedback
+                        </Button>
+                    </DialogFooter>
                 </form>
             </Form>
         </DialogContent>
@@ -667,5 +695,3 @@ function ChangePasswordDialog({ open, onOpenChange, user, auth }: any) {
         </Dialog>
     )
 }
-
-    

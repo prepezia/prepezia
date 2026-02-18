@@ -68,6 +68,22 @@
       },
       "required": ["name", "email", "createdAt"]
     },
+    "UserFeedback": {
+      "title": "User Feedback",
+      "description": "Represents a bug report or suggestion submitted by a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["New", "In Progress", "Resolved"] },
+        "adminAction": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "description", "status", "createdAt"]
+    },
     "LegalDocument": {
       "title": "Legal Document",
       "description": "Stores the content for legal pages like Terms of Use or Privacy Policy.",
@@ -212,6 +228,10 @@
     "/users/{userId}/guided_chats/{chatId}": {
         "schema": { "$ref": "#/entities/GuidedChat" },
         "description": "Stores a user's individual guided learning chat sessions."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": { "$ref": "#/entities/UserFeedback" },
+      "description": "Stores user bug reports and suggestions."
     },
     "/legal_content/{documentId}": {
       "schema": {
