@@ -1,3 +1,4 @@
+
 export const universities = [
   // Major public universities
   "University of Ghana",
@@ -30,17 +31,25 @@ export const universities = [
   "Cape Coast Technical University",
   "Tamale Technical University",
   
-  // Other universities and colleges
-  "African University College of Communications",
-  "All Nations University College",
-  "Catholic University College of Ghana",
-  "Christian Service University College",
+  // Additional Universities & Colleges
+  "Academic City University College",
+  "BlueCrest University College",
+  "Lancaster University Ghana",
+  "Webster University Ghana",
+  "Radford University College",
+  "Kings University College",
   "Garden City University College",
-  "Ghana Baptist University College",
+  "All Nations University",
+  "Christian Service University College",
+  "Catholic University College of Ghana",
+  "African University College of Communications (AUCC)",
   "Islamic University College, Ghana",
   "Knutsford University College",
-  "Lancaster University, Ghana",
   "Maranatha University College",
-  "Radford University College",
-  "Webster University Ghana Campus",
+  "Spiritan University College",
+  "Zenith University College",
+  "Mountcrest University College",
+  "Advanced Business University College",
+  "Data Link Institute of Business & Technology",
+  "Heritage Christian University College"
 ];

@@ -42,6 +42,7 @@ interface PastQuestion extends DocumentData {
     year: string;
     university?: string;
     schoolFaculty?: string;
+    durationMinutes?: number;
 }
 
 type ViewState = 'select' | 'mode-select' | 'taking' | 'results';
@@ -76,6 +77,7 @@ export default function PastQuestionsPage() {
 
     const [examAnswers, setExamAnswers] = useState<Record<number, string>>({});
     const [examScore, setExamScore] = useState(0);
+    const [examDuration, setExamDuration] = useState(20);
 
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
     const [currentExamId, setCurrentExamId] = useState<number>(0);
@@ -149,6 +151,16 @@ export default function PastQuestionsPage() {
             toast({ variant: 'destructive', title: 'Please complete all selections.' });
             return;
         }
+        
+        // Find matching duration from the papers
+        const matchingPaper = allQuestions?.find(q => 
+            q.level === selections.examBody && 
+            q.subject === selections.subject && 
+            q.year === selections.year &&
+            (!selections.university || q.university === selections.university)
+        );
+        
+        setExamDuration(matchingPaper?.durationMinutes || 20);
         setCurrentExamId(0);
         setIsNewExamDialogOpen(false);
         setViewState('mode-select');
@@ -423,7 +435,7 @@ export default function PastQuestionsPage() {
         }
         
         if (examMode === 'exam') {
-            return <>{header}<ExamModeView questions={questions} topic={selections.subject} onSubmit={handleSubmitForReview} /></>;
+            return <>{header}<ExamModeView questions={questions} topic={selections.subject} durationMinutes={examDuration} onSubmit={handleSubmitForReview} /></>;
         }
     }
 
@@ -672,7 +684,7 @@ function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion
     );
 }
 
-function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[], topic: string, onSubmit: (answers: Record<number, string>) => void }) {
+function ExamModeView({ questions, topic, durationMinutes, onSubmit }: { questions: QuizQuestion[], topic: string, durationMinutes: number, onSubmit: (answers: Record<number, string>) => void }) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, string>>({});
     const [isFinished, setIsFinished] = useState(false);
@@ -701,7 +713,7 @@ function ExamModeView({ questions, topic, onSubmit }: { questions: QuizQuestion[
         <div className="p-4 max-w-4xl mx-auto space-y-6">
             <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-card p-4 rounded-lg border shadow-sm sticky top-0 z-10">
                 <div className="flex items-center gap-4">
-                    <Timer durationInSeconds={questions.length * 60} onTimeUp={handleTimeUp} />
+                    <Timer durationInSeconds={durationMinutes * 60} onTimeUp={handleTimeUp} />
                     <Separator orientation="vertical" className="h-8" />
                     <span className="text-sm font-medium">Question {currentIndex + 1} of {questions.length}</span>
                 </div>

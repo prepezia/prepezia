@@ -188,6 +188,7 @@
         "year": { "type": "string" },
         "university": { "type": "string" },
         "schoolFaculty": { "type": "string" },
+        "durationMinutes": { "type": "number", "description": "Time limit for the exam in minutes." },
         "fileName": { "type": "string" },
         "fileUrl": { "type": "string", "format": "uri" },
         "storagePath": { "type": "string" },

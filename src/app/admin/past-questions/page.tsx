@@ -54,7 +54,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit, Loader2, FileText } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2, FileText, Search, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities } from "@/lib/ghana-universities";
 
@@ -67,6 +67,7 @@ interface PastQuestion extends DocumentData {
     fileName: string;
     university?: string;
     schoolFaculty?: string;
+    durationMinutes?: number;
     storagePath: string;
 }
 
@@ -88,6 +89,12 @@ export default function AdminPastQuestionsPage() {
     const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
+    // Filtering state
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterLevel, setFilterLevel] = useState("All");
+    const [filterUni, setFilterUniversity] = useState("All");
+    const [filterYear, setFilterYear] = useState("All");
+
     // Form state
     const [level, setLevel] = useState("");
     const [university, setUniversity] = useState("");
@@ -95,6 +102,7 @@ export default function AdminPastQuestionsPage() {
     const [courseCode, setCourseCode] = useState("");
     const [course, setCourse] = useState("");
     const [year, setYear] = useState("");
+    const [duration, setDuration] = useState("20");
     const [file, setFile] = useState<File | null>(null);
 
     // Deriving Smart Suggestions from existing data
@@ -103,6 +111,22 @@ export default function AdminPastQuestionsPage() {
     const suggestedSubjects = useMemo(() => Array.from(new Set(questions?.map(q => q.subject).filter(Boolean))), [questions]);
     const suggestedYears = useMemo(() => Array.from(new Set(questions?.map(q => q.year).filter(Boolean))), [questions]);
 
+    // Unique options for filter selects
+    const uniOptions = useMemo(() => ["All", ...Array.from(new Set(questions?.map(q => q.university).filter(Boolean)))], [questions]);
+    const yearOptions = useMemo(() => ["All", ...Array.from(new Set(questions?.map(q => q.year).filter(Boolean)))], [questions]);
+
+    const filteredQuestions = useMemo(() => {
+        if (!questions) return [];
+        return questions.filter(q => {
+            const matchesSearch = q.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                q.courseCode?.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesLevel = filterLevel === "All" || q.level === filterLevel;
+            const matchesUni = filterUni === "All" || q.university === filterUni;
+            const matchesYear = filterYear === "All" || q.year === filterYear;
+            return matchesSearch && matchesLevel && matchesUni && matchesYear;
+        });
+    }, [questions, searchTerm, filterLevel, filterUni, filterYear]);
+
     const resetForm = () => {
         setLevel("");
         setUniversity("");
@@ -110,6 +134,7 @@ export default function AdminPastQuestionsPage() {
         setCourseCode("");
         setCourse("");
         setYear("");
+        setDuration("20");
         setFile(null);
     }
 
@@ -129,7 +154,6 @@ export default function AdminPastQuestionsPage() {
 
         setIsSubmitting(true);
         try {
-            // Path Sanitization: Replace spaces and special characters with underscores
             const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
             const storagePath = `past_questions/${Date.now()}_${cleanName}`;
             const storageReference = ref(storage, storagePath);
@@ -144,6 +168,7 @@ export default function AdminPastQuestionsPage() {
                 courseCode: courseCode || "",
                 subject: course,
                 year,
+                durationMinutes: parseInt(duration) || 20,
                 fileName: file.name,
                 fileUrl: downloadUrl,
                 storagePath: storagePath,
@@ -169,10 +194,7 @@ export default function AdminPastQuestionsPage() {
     };
 
     const handleDelete = async () => {
-        if (!questionToDelete || !storage || !firestore) {
-            toast({ variant: 'destructive', title: "Error", description: "Could not perform deletion." });
-            return;
-        }
+        if (!questionToDelete || !storage || !firestore) return;
 
         try {
             const fileRef = ref(storage, questionToDelete.storagePath);
@@ -188,50 +210,87 @@ export default function AdminPastQuestionsPage() {
 
     const handleUploadDialogChange = (open: boolean) => {
         setIsUploadDialogOpen(open);
-        if (!open) {
-            setTimeout(() => {
-                resetForm();
-            }, 150);
-        }
+        if (!open) setTimeout(resetForm, 150);
     };
 
     const handleDeleteConfirmChange = (open: boolean) => {
         setIsDeleteDialogOpen(open);
-        if (!open) {
-            setTimeout(() => {
-                setQuestionToDelete(null);
-            }, 150);
-        }
+        if (!open) setQuestionToDelete(null);
     };
 
     return (
         <div className="space-y-8 pb-20">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Past Questions</h1>
+                    <p className="text-muted-foreground">Manage the repository of examination papers.</p>
+                </div>
+                <Button onClick={() => setIsUploadDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Upload Question
+                </Button>
+            </div>
+
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Past Questions</CardTitle>
-                        <CardDescription>Upload and manage past questions for all exam bodies.</CardDescription>
+                <CardHeader>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search subject..."
+                                className="pl-8"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Select value={filterLevel} onValueChange={setFilterLevel}>
+                            <SelectTrigger>
+                                <Filter className="mr-2 h-4 w-4 opacity-50" />
+                                <SelectValue placeholder="Level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Levels</SelectItem>
+                                <SelectItem value="BECE">BECE</SelectItem>
+                                <SelectItem value="WASSCE">WASSCE</SelectItem>
+                                <SelectItem value="University">University</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterUni} onValueChange={setFilterUniversity}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="University" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {uniOptions.map(uni => <SelectItem key={uni as string} value={uni as string}>{uni as string}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterYear} onValueChange={setFilterYear}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {yearOptions.map(yr => <SelectItem key={yr as string} value={yr as string}>{yr as string}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <Button onClick={() => setIsUploadDialogOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Upload Question
-                    </Button>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
                         <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                    ) : filteredQuestions.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">No questions found matching your filters.</div>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Details</TableHead>
                                     <TableHead>Year</TableHead>
+                                    <TableHead>Duration</TableHead>
                                     <TableHead>File Name</TableHead>
                                     <TableHead className="w-[50px] text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {questions?.map((q) => (
+                                {filteredQuestions.map((q) => (
                                     <TableRow key={q.id}>
                                         <TableCell>
                                             <div className="font-medium">
@@ -245,6 +304,7 @@ export default function AdminPastQuestionsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>{q.year}</TableCell>
+                                        <TableCell>{q.durationMinutes || 20} mins</TableCell>
                                         <TableCell className="text-muted-foreground truncate max-w-[200px]">{q.fileName}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end">
@@ -274,17 +334,24 @@ export default function AdminPastQuestionsPage() {
                         <DialogDescription>Fill in the details. Smart suggestions will appear as you type.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="level">Level *</Label>
-                            <Select value={level} onValueChange={(value) => { setLevel(value); setUniversity(""); }}>
-                                <SelectTrigger id="level"><SelectValue placeholder="Select an exam level..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="BECE">BECE</SelectItem>
-                                    <SelectItem value="WASSCE">WASSCE</SelectItem>
-                                    <SelectItem value="University">University</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="level">Level *</Label>
+                                <Select value={level} onValueChange={(value) => { setLevel(value); setUniversity(""); }}>
+                                    <SelectTrigger id="level"><SelectValue placeholder="Select level..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="BECE">BECE</SelectItem>
+                                        <SelectItem value="WASSCE">WASSCE</SelectItem>
+                                        <SelectItem value="University">University</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="duration">Exam Duration (mins) *</Label>
+                                <Input id="duration" type="number" value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g., 60" />
+                            </div>
                         </div>
+
                         {level === 'University' && (
                              <div className="space-y-2">
                                 <Label htmlFor="university">University *</Label>
@@ -361,7 +428,7 @@ export default function AdminPastQuestionsPage() {
                                 <Input id="file" type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" className="cursor-pointer" />
                                 {file && <FileText className="h-5 w-5 text-primary shrink-0" />}
                             </div>
-                            <p className="text-[10px] text-muted-foreground">Supported: PDF, Word (.doc, .docx), Images.</p>
+                            <p className="text-[10px] text-muted-foreground">Supported: PDF, Word, Images.</p>
                         </div>
                     </div>
                     <DialogFooter>
