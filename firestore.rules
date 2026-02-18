@@ -4,57 +4,44 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAppAdmin() {
-      // Robust admin check: Check for primary admin email OR the isAdmin flag in the user document
+      // Definitive admin check using both primary email AND your verified UID from debug info
       return request.auth != null && (
         request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
+        request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2' ||
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
       );
     }
 
     match /users/{userId} {
-      // An admin can read any user document. A regular user can only read their own.
       allow get: if request.auth != null && (request.auth.uid == userId || isAppAdmin());
-      // An admin can list all users.
       allow list: if request.auth != null && isAppAdmin();
-      // Any authenticated user can create or update their own document.
       allow create, update: if request.auth != null && request.auth.uid == userId;
 
-      // Users can manage their own guided learning chats.
       match /guided_chats/{chatId} {
         allow read, write, delete, create: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Feedback rules
     match /feedback/{feedbackId} {
-      // Any user can create feedback.
       allow create: if request.auth != null;
-      // Only admins can view, update, or delete feedback.
       allow read, list, update, delete: if request.auth != null && isAppAdmin();
     }
 
-    // Legal content can be read by any authenticated user.
-    // Legal content can only be written by an admin.
     match /legal_content/{docId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && isAppAdmin();
     }
     
-    // Users can only read/write/delete notes that they own.
     match /notes/{noteId} {
         allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
         allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
-    // Testimonials can be read by anyone.
-    // Testimonials can only be created, updated, or deleted by an admin.
     match /testimonials/{testimonialId} {
       allow read: if true;
       allow write: if request.auth != null && isAppAdmin();
     }
 
-    // Past Questions can be read by any authenticated user.
-    // Past Questions can only be created, updated, or deleted by an admin.
     match /past_questions/{questionId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && isAppAdmin();

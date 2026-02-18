@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useCollection, useFirestore, useStorage, useUser } from "@/firebase";
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, type DocumentData } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, type DocumentData, type CollectionReference, query, orderBy } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   Card,
@@ -77,8 +77,12 @@ export default function AdminPastQuestionsPage() {
     const { user, isAdmin, loading: userLoading } = useUser();
     const { toast } = useToast();
 
-    const questionsRef = useMemo(() => firestore ? collection(firestore, 'past_questions') as any : null, [firestore]);
-    const { data: questions, loading } = useCollection<PastQuestion>(questionsRef);
+    const questionsQuery = useMemo(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'past_questions'), orderBy('uploadedAt', 'desc')) as CollectionReference<PastQuestion>;
+    }, [firestore]);
+
+    const { data: questions, loading } = useCollection<PastQuestion>(questionsQuery);
 
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -95,7 +99,7 @@ export default function AdminPastQuestionsPage() {
     const [year, setYear] = useState("");
     const [file, setFile] = useState<File | null>(null);
 
-    // Smart Suggestions
+    // Smart Suggestions: Extract unique values from existing questions
     const suggestedFaculties = useMemo(() => Array.from(new Set(questions?.map(q => q.schoolFaculty).filter(Boolean))), [questions]);
     const suggestedCourseCodes = useMemo(() => Array.from(new Set(questions?.map(q => q.courseCode).filter(Boolean))), [questions]);
     const suggestedSubjects = useMemo(() => Array.from(new Set(questions?.map(q => q.subject).filter(Boolean))), [questions]);
@@ -127,20 +131,13 @@ export default function AdminPastQuestionsPage() {
 
         setIsSubmitting(true);
         try {
-            // Path Sanitization: Replace spaces and special characters with underscores
-            const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const storagePath = `past_questions/${Date.now()}_${safeFileName}`;
+            // Path Sanitization: Remove spaces and special characters from filename
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const storagePath = `past_questions/${Date.now()}_${cleanName}`;
             const storageReference = ref(storage, storagePath);
 
-            // Detailed logging for debugging
-            console.log("Starting upload...", { 
-                fileName: file.name, 
-                safeFileName, 
-                storagePath, 
-                contentType: file.type,
-                userEmail: user.email,
-                isAdmin 
-            });
+            // Logging upload attempt for debugging
+            console.log("Admin Upload Path:", storagePath);
 
             const snapshot = await uploadBytes(storageReference, file);
             const downloadUrl = await getDownloadURL(snapshot.ref);
@@ -161,11 +158,11 @@ export default function AdminPastQuestionsPage() {
             toast({ title: "Upload Successful", description: `${file.name} has been added.`});
             handleUploadDialogChange(false);
         } catch (error: any) {
-            console.error("Upload Error Detailed:", error);
+            console.error("Storage/Firestore Error:", error);
             toast({ 
                 variant: 'destructive', 
                 title: "Upload Failed", 
-                description: `Error: ${error.message}. Please check System Debug Info at the bottom of the page.` 
+                description: `Error: ${error.message}. Ensure your UID is listed in the security rules.` 
             });
         } finally {
             setIsSubmitting(false);
