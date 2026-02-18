@@ -109,7 +109,7 @@ export default function AdminTestimonialsPage() {
                 await addDoc(collection(firestore, "testimonials"), { ...values, createdAt: serverTimestamp() });
                 toast({ title: "Success", description: "New testimonial added." });
             }
-            handleDialogChange(false);
+            setIsDialogOpen(false);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not save testimonial." });
         } finally {
@@ -122,7 +122,7 @@ export default function AdminTestimonialsPage() {
         try {
             await deleteDoc(doc(firestore, "testimonials", currentTestimonial.id));
             toast({ title: "Success", description: "Testimonial deleted." });
-            handleDeleteConfirmChange(false);
+            setShowDeleteConfirm(false);
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Error', description: error.message || "Could not delete testimonial." });
         }

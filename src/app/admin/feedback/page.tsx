@@ -203,52 +203,54 @@ export default function AdminFeedbackPage() {
                     </DialogDescription>
                 </DialogHeader>
                 
-                <div className="grid gap-6 py-4">
-                    <div className="space-y-2">
-                        <h4 className="font-bold text-lg">{selectedFeedback?.title}</h4>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-4 rounded-md border">
-                            {selectedFeedback?.description}
-                        </p>
-                        {selectedFeedback?.fileUrl && (
-                            <div className="pt-2">
-                                <Button asChild variant="outline" size="sm">
-                                    <a href={selectedFeedback.fileUrl} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="mr-2 h-4 w-4" /> View Attachment
-                                    </a>
-                                </Button>
+                {selectedFeedback && (
+                    <div className="grid gap-6 py-4">
+                        <div className="space-y-2">
+                            <h4 className="font-bold text-lg">{selectedFeedback.title}</h4>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-4 rounded-md border">
+                                {selectedFeedback.description}
+                            </p>
+                            {selectedFeedback.fileUrl && (
+                                <div className="pt-2">
+                                    <Button asChild variant="outline" size="sm">
+                                        <a href={selectedFeedback.fileUrl} target="_blank" rel="noopener noreferrer">
+                                            <ExternalLink className="mr-2 h-4 w-4" /> View Attachment
+                                        </a>
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="status">Update Status</Label>
+                                <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+                                    <SelectTrigger id="status">
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="New">New</SelectItem>
+                                        <SelectItem value="In Progress">In Progress</SelectItem>
+                                        <SelectItem value="Resolved">Resolved</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
-                        )}
-                    </div>
 
-                    <Separator />
-
-                    <div className="space-y-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="status">Update Status</Label>
-                            <Select value={status} onValueChange={(v: any) => setStatus(v)}>
-                                <SelectTrigger id="status">
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="New">New</SelectItem>
-                                    <SelectItem value="In Progress">In Progress</SelectItem>
-                                    <SelectItem value="Resolved">Resolved</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="admin-action">Action Taken / Notes</Label>
-                            <Textarea 
-                                id="admin-action" 
-                                placeholder="Describe the steps taken to address this feedback..." 
-                                value={adminAction}
-                                onChange={(e) => setAdminAction(e.target.value)}
-                                rows={5}
-                            />
+                            <div className="grid gap-2">
+                                <Label htmlFor="admin-action">Action Taken / Notes</Label>
+                                <Textarea 
+                                    id="admin-action" 
+                                    placeholder="Describe the steps taken to address this feedback..." 
+                                    value={adminAction}
+                                    onChange={(e) => setAdminAction(e.target.value)}
+                                    rows={5}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 <DialogFooter>
                     <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
