@@ -24,6 +24,7 @@ const GenerateQuizInputSchema = z.object({
   academicLevel: z.string().optional().describe("The academic level (used in 'note-generator' context)."),
   content: z.string().optional().describe("The source text content (for note generation)."),
   sources: z.array(SourceSchema).optional().describe("An array of sources (for study spaces)."),
+  partNumber: z.number().optional().default(1).describe("For multi-part tests, which part are we generating."),
 });
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 
@@ -49,14 +50,19 @@ const generateQuizPrompt = ai.definePrompt({
 
 ### INSTRUCTIONS:
 1.  Read the content provided below thoroughly.
-2.  Generate as many high-quality multiple-choice questions as possible, up to a maximum of 50 questions. Each question must have exactly 4 options.
-3.  Ensure the questions cover the breadth and depth of the provided material.
+2.  Generate up to 50 high-quality multiple-choice questions. 
+3.  Each question must have exactly 4 options.
 4.  For each question, you MUST provide:
     *   **questionText**: The question itself.
     *   **options**: An array of 4 strings representing the possible answers.
     *   **correctAnswer**: The string of the correct answer, which must be one of the provided options.
     *   **hint**: An optional, short hint to guide the student if they are struggling.
-    *   **explanation**: A detailed explanation. This is crucial. Explain why the correct answer is right and why the other three options are incorrect.
+    *   **explanation**: A detailed explanation. Explain why the correct answer is right and why the other three options are incorrect.
+
+{{#if partNumber}}
+### BATCHING:
+This is **Part {{partNumber}}** of the material. If this is Part 2 or higher, ensure you are focusing on content that follows the previous parts to avoid duplication.
+{{/if}}
 
 {{#if topic}}
 ### CONTEXT:

@@ -44,6 +44,7 @@ interface PastQuestion extends DocumentData {
     university?: string;
     schoolFaculty?: string;
     durationMinutes?: number;
+    totalQuestions?: number;
     extractedText?: string;
 }
 
@@ -84,6 +85,8 @@ export default function PastQuestionsPage() {
     const [examAnswers, setExamAnswers] = useState<Record<number, string>>({});
     const [examScore, setExamScore] = useState(0);
     const [examDuration, setExamDuration] = useState(20);
+    const [totalQuestionsInPaper, setTotalQuestionsInPaper] = useState(20);
+    const [currentPart, setCurrentPart] = useState(1);
 
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
     const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
@@ -144,6 +147,8 @@ export default function PastQuestionsPage() {
         );
         
         setExamDuration(paper?.durationMinutes || 20);
+        setTotalQuestionsInPaper(paper?.totalQuestions || 20);
+        setCurrentPart(1);
         setIsNewExamDialogOpen(false);
         setViewState('mode-select');
     };
@@ -151,6 +156,10 @@ export default function PastQuestionsPage() {
     const handleSelectMode = async (mode: ExamMode) => {
         setExamMode(mode);
         setViewState('taking');
+        loadBatch(1);
+    };
+
+    const loadBatch = async (part: number) => {
         setIsLoading(true);
         try {
             const paper = allQuestions?.find(q => 
@@ -160,24 +169,25 @@ export default function PastQuestionsPage() {
                 (!selections.university || q.university === selections.university)
             );
 
-            // Use the extracted text if available for high-fidelity quiz generation
             const sourceContent = paper?.extractedText || `Generate high-quality MCQ questions for ${selections.subject} ${selections.examBody} ${selections.year}.`;
 
             const result = await generateQuiz({
                 context: 'past-question',
                 topic: `${selections.subject} - ${selections.year}`,
                 academicLevel: selections.examBody as any,
-                content: sourceContent
+                content: sourceContent,
+                partNumber: part
             });
             
             setQuestions(result.quiz);
+            setCurrentPart(part);
         } catch (e: any) {
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setViewState('mode-select');
         } finally {
             setIsLoading(false);
         }
-    };
+    }
 
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
@@ -357,7 +367,7 @@ export default function PastQuestionsPage() {
                 {header}
                 <div className="flex-1 flex flex-col items-center justify-center">
                     <Loader2 className="h-10 w-10 animate-spin text-primary"/>
-                    <p className="mt-4 text-muted-foreground font-medium">Preparing your AI-powered exam...</p>
+                    <p className="mt-4 text-muted-foreground font-medium">Preparing Part {currentPart} of your AI-powered exam...</p>
                 </div>
             </>
         );
@@ -365,7 +375,14 @@ export default function PastQuestionsPage() {
             <>
                 {header}
                 {examMode === 'trial' ? (
-                    <TrialModeView questions={questions} topic={selections.subject} onFinish={handleSubmitForReview} />
+                    <TrialModeView 
+                        questions={questions} 
+                        topic={selections.subject} 
+                        part={currentPart}
+                        totalQuestions={totalQuestionsInPaper}
+                        onNextPart={() => loadBatch(currentPart + 1)}
+                        onFinish={handleSubmitForReview} 
+                    />
                 ) : (
                     <ExamModeView questions={questions} topic={selections.subject} durationMinutes={examDuration} onSubmit={handleSubmitForReview} />
                 )}
@@ -442,14 +459,23 @@ export default function PastQuestionsPage() {
     return null;
 }
 
-function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion[], topic: string, onFinish: (answers: Record<number, string>) => void }) {
+function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onFinish }: { 
+    questions: QuizQuestion[], 
+    topic: string, 
+    part: number,
+    totalQuestions: number,
+    onNextPart: () => void,
+    onFinish: (answers: Record<number, string>) => void 
+}) {
     const [index, setIndex] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [isAnswered, setIsAnswered] = useState(false);
     const [allAnswers, setAllAnswers] = useState<Record<number, string>>({});
     
     const q = questions[index];
-    const isCorrect = selectedAnswer === q.correctAnswer;
+    const maxParts = Math.ceil(totalQuestions / 50) || 1;
+    const isEndOfBatch = index === questions.length - 1;
+    const hasNextPart = part < maxParts;
 
     const handleAnswerSelect = (val: string) => {
         if (isAnswered) return;
@@ -462,12 +488,17 @@ function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion
     };
 
     const handleNext = () => {
-        if (index < questions.length - 1) {
+        if (!isEndOfBatch) {
             setIndex(prev => prev + 1);
             setSelectedAnswer(null);
             setIsAnswered(false);
         } else {
-            onFinish(allAnswers);
+            if (hasNextPart) {
+                // Show part completion dialog or just next part
+                onNextPart();
+            } else {
+                onFinish(allAnswers);
+            }
         }
     };
 
@@ -475,8 +506,8 @@ function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion
         <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
             <div className="space-y-3">
                 <div className="flex justify-between items-end text-sm">
-                    <span className="font-medium font-headline">Trial Mode - Part 1: Question {index+1} of {questions.length}</span>
-                    <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}%</span>
+                    <span className="font-medium font-headline">Trial Mode - Part {part} of {maxParts}: Question {index+1} of {questions.length}</span>
+                    <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}% of part</span>
                 </div>
                 <Progress value={((index+1)/questions.length)*100} className="h-2" />
             </div>
@@ -543,26 +574,38 @@ function TrialModeView({ questions, topic, onFinish }: { questions: QuizQuestion
                         </details>
                     )}
                 </CardContent>
-                <CardFooter className="justify-end gap-3 pt-6 border-t mt-4">
-                    {!isAnswered ? (
-                        <Button 
-                            onClick={handleCheck} 
-                            disabled={!selectedAnswer} 
-                            size="lg" 
-                            className="w-full sm:w-auto font-bold"
-                        >
-                            Check Answer
-                        </Button>
-                    ) : (
-                        <Button 
-                            onClick={handleNext} 
-                            size="lg" 
-                            className="w-full sm:w-auto font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                            {index === questions.length - 1 ? "Complete Trial" : "Next Question"} 
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
+                <CardFooter className="flex-col gap-4 pt-6 border-t mt-4">
+                    {isEndOfBatch && isAnswered && hasNextPart && (
+                        <Alert className="bg-primary/5 border-primary/20 mb-2">
+                            <AlertCircle className="h-4 w-4 text-primary" />
+                            <AlertTitle className="font-bold">Part {part} Complete!</AlertTitle>
+                            <AlertDescription>
+                                You've finished this batch. There are a total of {totalQuestions} questions in this paper ({maxParts} parts). Click below to proceed to the next part.
+                            </AlertDescription>
+                        </Alert>
                     )}
+                    
+                    <div className="flex justify-end gap-3 w-full">
+                        {!isAnswered ? (
+                            <Button 
+                                onClick={handleCheck} 
+                                disabled={!selectedAnswer} 
+                                size="lg" 
+                                className="w-full sm:w-auto font-bold"
+                            >
+                                Check Answer
+                            </Button>
+                        ) : (
+                            <Button 
+                                onClick={handleNext} 
+                                size="lg" 
+                                className="w-full sm:w-auto font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+                            >
+                                {isEndOfBatch ? (hasNextPart ? "Proceed to Part " + (part + 1) : "Complete Trial") : "Next Question"} 
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
                 </CardFooter>
             </Card>
         </div>

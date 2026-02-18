@@ -54,7 +54,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit, Loader2, FileText, Search, Filter, Settings2 } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2, FileText, Search, Filter, Settings2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities as staticUnis } from "@/lib/ghana-universities";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
@@ -69,6 +69,7 @@ interface PastQuestion extends DocumentData {
     university?: string;
     schoolFaculty?: string;
     durationMinutes?: number;
+    totalQuestions?: number;
     storagePath: string;
     fileUrl: string;
     extractedText?: string;
@@ -114,6 +115,7 @@ export default function AdminPastQuestionsPage() {
     const [course, setCourse] = useState("");
     const [year, setYear] = useState("");
     const [duration, setDuration] = useState("20");
+    const [totalQuestions, setTotalQuestions] = useState("20");
     const [file, setFile] = useState<File | null>(null);
 
     const [newUniName, setNewUniName] = useState("");
@@ -153,6 +155,7 @@ export default function AdminPastQuestionsPage() {
         setCourse("");
         setYear("");
         setDuration("20");
+        setTotalQuestions("20");
         setFile(null);
         setEditingQuestion(null);
     }
@@ -166,6 +169,7 @@ export default function AdminPastQuestionsPage() {
         setCourse(q.subject);
         setYear(q.year);
         setDuration(q.durationMinutes?.toString() || "20");
+        setTotalQuestions(q.totalQuestions?.toString() || "20");
         setIsUploadDialogOpen(true);
     };
 
@@ -215,21 +219,42 @@ export default function AdminPastQuestionsPage() {
                     try { await deleteObject(ref(storage, editingQuestion.storagePath)); } catch (e) {}
                 }
                 
-                // 1. Extract text from file first
+                // AI Text Extraction
                 toast({ title: "Extracting text...", description: "AI is processing the document content." });
-                const dataUri = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target?.result as string);
-                    reader.onerror = (e) => reject(e);
-                    reader.readAsDataURL(file);
-                });
-                const extractionResult = await extractTextFromFile({
-                    fileDataUri: dataUri,
-                    fileContentType: file.type,
-                });
-                finalExtractedText = extractionResult.extractedText;
+                
+                try {
+                    const dataUri = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target?.result as string);
+                        reader.onerror = (e) => reject(e);
+                        reader.readAsDataURL(file);
+                    });
 
-                // 2. Upload to storage
+                    // Check for DOCX support (Flash models don't support it directly via media API)
+                    if (file.type.includes('word') || file.type.includes('officedocument.wordprocessingml.document')) {
+                        // Attempt to read small docx as raw text if possible, or warn
+                        // In this environment, we should guide user to PDF for extraction
+                        toast({ variant: 'destructive', title: "DOCX Extraction Limitation", description: "AI vision works best with PDFs. Content extraction might be limited." });
+                        
+                        // Fallback: Read as raw text if it's small, otherwise AI might fail
+                        const extractionResult = await extractTextFromFile({
+                            fileDataUri: dataUri,
+                            fileContentType: 'text/plain', // Force text interpretation if possible
+                        });
+                        finalExtractedText = extractionResult.extractedText;
+                    } else {
+                        const extractionResult = await extractTextFromFile({
+                            fileDataUri: dataUri,
+                            fileContentType: file.type,
+                        });
+                        finalExtractedText = extractionResult.extractedText;
+                    }
+                } catch (extractError: any) {
+                    console.error("AI Extraction failed:", extractError);
+                    toast({ variant: 'destructive', title: "AI Extraction Error", description: "Could not read text via AI. The file will still be uploaded, but quizzes might be less accurate." });
+                }
+
+                // Upload to storage
                 const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                 finalStoragePath = `past_questions/${Date.now()}_${cleanName}`;
                 const storageReference = ref(storage, finalStoragePath);
@@ -245,6 +270,7 @@ export default function AdminPastQuestionsPage() {
                 subject: course,
                 year,
                 durationMinutes: parseInt(duration) || 20,
+                totalQuestions: parseInt(totalQuestions) || 20,
                 fileName: file ? file.name : editingQuestion!.fileName,
                 fileUrl: finalFileUrl,
                 storagePath: finalStoragePath,
@@ -349,7 +375,7 @@ export default function AdminPastQuestionsPage() {
                                 <TableRow>
                                     <TableHead>Details</TableHead>
                                     <TableHead>Year</TableHead>
-                                    <TableHead>Duration</TableHead>
+                                    <TableHead>Stats</TableHead>
                                     <TableHead>File</TableHead>
                                     <TableHead className="w-[50px] text-right">Actions</TableHead>
                                 </TableRow>
@@ -367,7 +393,10 @@ export default function AdminPastQuestionsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>{q.year}</TableCell>
-                                        <TableCell>{q.durationMinutes || 20}m</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            <div>Time: {q.durationMinutes || 20}m</div>
+                                            <div>Qty: {q.totalQuestions || 20}</div>
+                                        </TableCell>
                                         <TableCell className="text-muted-foreground truncate max-w-[150px]">{q.fileName}</TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
@@ -394,11 +423,11 @@ export default function AdminPastQuestionsPage() {
                         <DialogDescription>Fill in the details for the examination paper. AI will extract questions from the file.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>Level *</Label>
                                 <Select value={level} onValueChange={setLevel}>
-                                    <SelectTrigger><SelectValue placeholder="Select level..." /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="BECE">BECE</SelectItem>
                                         <SelectItem value="WASSCE">WASSCE</SelectItem>
@@ -407,21 +436,32 @@ export default function AdminPastQuestionsPage() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Duration (mins) *</Label>
+                                <Label>Time (mins) *</Label>
                                 <Input type="number" value={duration} onChange={e => setDuration(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Total Qs *</Label>
+                                <Input type="number" value={totalQuestions} onChange={e => setTotalQuestions(e.target.value)} />
                             </div>
                         </div>
 
                         {level === 'University' && (
-                             <div className="space-y-2">
-                                <Label>University *</Label>
-                                <Select value={university} onValueChange={setUniversity}>
-                                    <SelectTrigger><SelectValue placeholder="Select institution..." /></SelectTrigger>
-                                    <SelectContent className="max-h-[300px]">
-                                        {allUniversities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <>
+                                <div className="space-y-2">
+                                    <Label>University *</Label>
+                                    <Select value={university} onValueChange={setUniversity}>
+                                        <SelectTrigger><SelectValue placeholder="Select institution..." /></SelectTrigger>
+                                        <SelectContent className="max-h-[300px]">
+                                            {allUniversities.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>School / Faculty</Label>
+                                    <Input value={schoolFaculty} onChange={e => setSchoolFaculty(e.target.value)} placeholder="e.g., Medical School" list="faculty-list" />
+                                    <datalist id="faculty-list">{suggestedFaculties.map(f => <option key={f as string} value={f as string} />)}</datalist>
+                                </div>
+                            </>
                         )}
                         
                         <div className="grid grid-cols-2 gap-4">
@@ -444,8 +484,9 @@ export default function AdminPastQuestionsPage() {
                         </div>
 
                          <div className="space-y-2">
-                            <Label>{editingQuestion ? "Replace File (optional)" : "File * (PDF, Word, Image)"}</Label>
+                            <Label>{editingQuestion ? "Replace File (optional)" : "File * (PDF works best)"}</Label>
                             <Input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" />
+                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Sparkles className="h-3 w-3" /> PDFs ensure the best AI extraction accuracy.</p>
                         </div>
                     </div>
                     <DialogFooter>

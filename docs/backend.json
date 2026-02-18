@@ -189,6 +189,7 @@
         "university": { "type": "string" },
         "schoolFaculty": { "type": "string" },
         "durationMinutes": { "type": "number", "description": "Time limit for the exam in minutes." },
+        "totalQuestions": { "type": "number", "description": "The total number of questions in the paper." },
         "fileName": { "type": "string" },
         "fileUrl": { "type": "string", "format": "uri" },
         "storagePath": { "type": "string" },
