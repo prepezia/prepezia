@@ -1,17 +1,9 @@
+
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useFirestore, useCollection } from "@/firebase";
-import { 
-  collection, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  orderBy, 
-  query, 
-  type DocumentData, 
-  type Timestamp 
-} from "firebase/firestore";
+import { useState, useMemo } from "react";
+import { useCollection, useFirestore } from "@/firebase";
+import { collection, doc, updateDoc, deleteDoc, query, orderBy, Timestamp, type DocumentData, type CollectionReference } from "firebase/firestore";
 import { format } from "date-fns";
 import {
   Card,
@@ -29,18 +21,12 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -51,86 +37,72 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { MoreHorizontal, Trash2, Eye, Loader2, Save, ExternalLink } from "lucide-react";
+import { Loader2, Eye, Trash2, FileText, ExternalLink } from "lucide-react";
 
 interface FeedbackItem extends DocumentData {
   id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
   title: string;
   description: string;
-  userId: string;
-  userEmail: string;
-  userName: string;
-  status: "New" | "In Progress" | "Resolved";
+  status: 'New' | 'In Progress' | 'Done';
   adminAction?: string;
-  fileUrl?: string;
   createdAt: Timestamp;
+  fileUrl?: string;
 }
 
 export default function AdminFeedbackPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  // 1. Data Fetching
   const feedbackQuery = useMemo(() => {
     if (!firestore) return null;
-    return query(collection(firestore, "feedback"), orderBy("createdAt", "desc"));
+    return query(collection(firestore, "feedback"), orderBy("createdAt", "desc")) as CollectionReference<FeedbackItem>;
   }, [firestore]);
 
-  const { data: feedbackItems, loading } = useCollection<FeedbackItem>(feedbackQuery as any);
+  const { data: feedbackItems, loading } = useCollection<FeedbackItem>(feedbackQuery);
 
-  // 2. Dialog and Selection State
-  // We keep 'isOpen' separate from 'selectedItem' to prevent Radix UI from freezing
-  // when the item is cleared while the dialog is still animating.
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // 3. Form State
-  const [editStatus, setEditStatus] = useState<FeedbackItem["status"]>("New");
-  const [editAction, setEditAction] = useState("");
+  // Form state for details dialog
+  const [status, setStatus] = useState<string>("");
+  const [actionPlan, setActionPlan] = useState<string>("");
 
-  // Sync form state when a new item is selected
-  useEffect(() => {
-    if (selectedFeedback) {
-      setEditStatus(selectedFeedback.status || "New");
-      setEditAction(selectedFeedback.adminAction || "");
-    }
-  }, [selectedFeedback]);
-
-  // 4. Action Handlers
   const handleOpenDetails = (item: FeedbackItem) => {
     setSelectedFeedback(item);
+    setStatus(item.status || "New");
+    setActionPlan(item.adminAction || "");
     setIsDetailsOpen(true);
   };
 
-  const handleCloseDetails = (open: boolean) => {
-    setIsDetailsOpen(open);
-    // CRITICAL: Delay clearing the data until the animation is likely finished
-    if (!open) {
-      setTimeout(() => {
-        setSelectedFeedback(null);
-        setEditAction("");
-      }, 300);
-    }
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    // Safe-close pattern: clear data only after animation
+    setTimeout(() => {
+      setSelectedFeedback(null);
+    }, 300);
   };
 
   const handleUpdateFeedback = async () => {
     if (!firestore || !selectedFeedback) return;
+
     setIsUpdating(true);
     try {
-      const feedbackDoc = doc(firestore, "feedback", selectedFeedback.id);
-      await updateDoc(feedbackDoc, {
-        status: editStatus,
-        adminAction: editAction,
+      const docRef = doc(firestore, "feedback", selectedFeedback.id);
+      await updateDoc(docRef, {
+        status: status,
+        adminAction: actionPlan,
       });
-      toast({ title: "Updated", description: "Feedback status and notes saved." });
-      handleCloseDetails(false);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: error.message });
+      toast({ title: "Feedback Updated", description: "Status and action plan have been saved." });
+      handleCloseDetails();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: err.message });
     } finally {
       setIsUpdating(false);
     }
@@ -140,9 +112,18 @@ export default function AdminFeedbackPage() {
     if (!firestore) return;
     try {
       await deleteDoc(doc(firestore, "feedback", id));
-      toast({ title: "Deleted", description: "Feedback report removed." });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Delete Failed", description: error.message });
+      toast({ title: "Feedback Deleted" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Deletion Failed", description: err.message });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "New": return <Badge variant="secondary">New</Badge>;
+      case "In Progress": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">In Progress</Badge>;
+      case "Done": return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Done</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -151,65 +132,41 @@ export default function AdminFeedbackPage() {
       <Card>
         <CardHeader>
           <CardTitle>User Feedback</CardTitle>
-          <CardDescription>
-            Review and manage bug reports and suggestions submitted by users.
-          </CardDescription>
+          <CardDescription>Manage bug reports and suggestions from your users.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </div>
+            <div className="flex justify-center items-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : !feedbackItems || feedbackItems.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">No feedback reports found.</p>
+            <div className="text-center py-20 text-muted-foreground">No feedback received yet.</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
                   <TableHead>User</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Title</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px] text-right">Actions</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {feedbackItems.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium max-w-xs truncate">{item.title}</TableCell>
                     <TableCell>
-                      <div className="flex flex-col text-xs">
-                        <span className="font-medium">{item.userName}</span>
-                        <span className="text-muted-foreground">{item.userEmail}</span>
-                      </div>
+                      <div className="font-medium">{item.userName}</div>
+                      <div className="text-xs text-muted-foreground">{item.userEmail}</div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {item.createdAt ? format(new Date(item.createdAt.seconds * 1000), "MMM d, yyyy") : "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        item.status === 'New' ? 'default' : 
-                        item.status === 'Resolved' ? 'secondary' : 'outline'
-                      }>
-                        {item.status}
-                      </Badge>
+                    <TableCell className="font-medium">{item.title}</TableCell>
+                    <TableCell>{getStatusBadge(item.status)}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.createdAt ? format(item.createdAt.toDate(), "MMM d, yyyy") : "N/A"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleOpenDetails(item)}>
-                            <Eye className="mr-2 h-4 w-4" /> View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteFeedback(item.id)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDetails(item)}><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteFeedback(item.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -219,69 +176,84 @@ export default function AdminFeedbackPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDetailsOpen} onOpenChange={handleCloseDetails}>
+      <Dialog open={isDetailsOpen} onOpenChange={(open) => !open && handleCloseDetails()}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Feedback Details</DialogTitle>
-            <DialogDescription>
-              Submitted by {selectedFeedback?.userName} ({selectedFeedback?.userEmail})
-            </DialogDescription>
+            <DialogDescription>Review user feedback and assign an action plan.</DialogDescription>
           </DialogHeader>
-          
           {selectedFeedback && (
-            <div className="grid gap-6 py-4">
-              <div className="space-y-2">
-                <h4 className="font-bold text-lg">{selectedFeedback.title}</h4>
-                <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-4 rounded-md border max-h-[200px] overflow-y-auto">
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">User</p>
+                  <p className="font-medium">{selectedFeedback.userName}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Email</p>
+                  <p className="font-medium">{selectedFeedback.userEmail}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Subject</p>
+                <p className="font-semibold text-base">{selectedFeedback.title}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Description</p>
+                <div className="mt-1 p-3 bg-secondary rounded-md text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">
                   {selectedFeedback.description}
                 </div>
-                {selectedFeedback.fileUrl && (
-                  <div className="pt-2">
-                    <Button asChild variant="outline" size="sm">
-                      <a href={selectedFeedback.fileUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-2 h-4 w-4" /> View Attachment
-                      </a>
-                    </Button>
-                  </div>
-                )}
               </div>
+
+              {selectedFeedback.fileUrl && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Attachment</p>
+                  <Button variant="outline" size="sm" className="mt-1" asChild>
+                    <a href={selectedFeedback.fileUrl} target="_blank" rel="noopener noreferrer">
+                      <FileText className="mr-2 h-4 w-4" />
+                      View Attachment
+                      <ExternalLink className="ml-2 h-3 w-3" />
+                    </a>
+                  </Button>
+                </div>
+              )}
 
               <Separator />
 
               <div className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={editStatus} onValueChange={(v: any) => setEditStatus(v)}>
-                    <SelectTrigger id="status">
+                  <label className="text-sm font-medium">Status</label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger>
                       <SelectValue placeholder="Update status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="New">New</SelectItem>
                       <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Resolved">Resolved</SelectItem>
+                      <SelectItem value="Done">Done</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="admin-action">Admin Action / Notes</Label>
+                  <label className="text-sm font-medium">Action Plan</label>
                   <Textarea 
-                    id="admin-action" 
-                    placeholder="Enter steps taken or internal notes..." 
-                    value={editAction}
-                    onChange={(e) => setEditAction(e.target.value)}
+                    placeholder="Describe the steps taken or to be taken..." 
+                    value={actionPlan} 
+                    onChange={(e) => setActionPlan(e.target.value)}
                     rows={4}
                   />
                 </div>
               </div>
             </div>
           )}
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleCloseDetails(false)}>Cancel</Button>
+            <Button variant="outline" onClick={handleCloseDetails}>Close</Button>
             <Button onClick={handleUpdateFeedback} disabled={isUpdating}>
               {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Save className="mr-2 h-4 w-4" /> Save Changes
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
