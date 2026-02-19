@@ -342,11 +342,14 @@ export default function PastQuestionsPage() {
                                             <CardHeader>
                                                 <div className="flex justify-between items-start pr-6 gap-2">
                                                     <CardTitle className="text-lg leading-tight">{exam.selections.subject}</CardTitle>
-                                                    {exam.status === 'In Progress' ? (
-                                                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 shrink-0">{progress}% Done</Badge>
-                                                    ) : (
-                                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shrink-0">Completed</Badge>
-                                                    )}
+                                                    <div className="flex flex-col items-end gap-1 shrink-0">
+                                                        {exam.status === 'In Progress' ? (
+                                                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{progress}% Done</Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completed</Badge>
+                                                        )}
+                                                        <Badge variant="secondary" className="text-[10px] uppercase font-bold">{exam.examMode === 'trial' ? 'Trial Mode' : 'Exam Mode'}</Badge>
+                                                    </div>
                                                 </div>
                                                 <CardDescription className="space-y-1">
                                                     <div className="font-medium text-foreground/80">{exam.selections.university || exam.selections.examBody}</div>
@@ -526,7 +529,7 @@ export default function PastQuestionsPage() {
                         <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
                             <div>
                                 <CardTitle className="text-2xl font-headline">Results: {examScore}/{allQuestionsInSession.length}</CardTitle>
-                                <CardDescription>{selections.subject} - {selections.year}</CardDescription>
+                                <CardDescription>{selections.subject} - {selections.year} ({examMode === 'trial' ? 'Trial Mode' : 'Exam Mode'})</CardDescription>
                             </div>
                             <Button onClick={() => {
                                 const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
