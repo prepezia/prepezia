@@ -54,7 +54,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit, Loader2, FileText, Search, Filter, Settings2, Sparkles } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2, Search, Filter, Settings2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities as staticUnis } from "@/lib/ghana-universities";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
@@ -93,21 +93,23 @@ export default function AdminPastQuestionsPage() {
         useMemo(() => firestore ? collection(firestore, 'custom_universities') as any : null, [firestore])
     );
 
-    // Dialog & UI state
+    // Visibility States
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isUniManagementOpen, setIsUniManagementOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    
+    // Selection States
     const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
     const [editingQuestion, setEditingQuestion] = useState<PastQuestion | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // Filtering state
+    // Filtering States
     const [searchTerm, setSearchTerm] = useState("");
     const [filterLevel, setFilterLevel] = useState("All");
     const [filterUni, setFilterUniversity] = useState("All");
     const [filterYear, setFilterYear] = useState("All");
 
-    // Form state
+    // Form States
     const [level, setLevel] = useState("");
     const [university, setUniversity] = useState("");
     const [schoolFaculty, setSchoolFaculty] = useState("");
@@ -117,16 +119,15 @@ export default function AdminPastQuestionsPage() {
     const [duration, setDuration] = useState("20");
     const [totalQuestions, setTotalQuestions] = useState("20");
     const [file, setFile] = useState<File | null>(null);
-
     const [newUniName, setNewUniName] = useState("");
 
-    // Merged university list
+    // Merged University List
     const allUniversities = useMemo(() => {
         const customNames = customUnis?.map(u => u.name) || [];
         return Array.from(new Set([...staticUnis, ...customNames])).sort();
     }, [customUnis]);
 
-    // Suggestions from existing data
+    // Smart Suggestions
     const suggestedFaculties = useMemo(() => Array.from(new Set(questions?.map(q => q.schoolFaculty).filter(Boolean))), [questions]);
     const suggestedCourseCodes = useMemo(() => Array.from(new Set(questions?.map(q => q.courseCode).filter(Boolean))), [questions]);
     const suggestedSubjects = useMemo(() => Array.from(new Set(questions?.map(q => q.subject).filter(Boolean))), [questions]);
@@ -147,6 +148,7 @@ export default function AdminPastQuestionsPage() {
         });
     }, [questions, searchTerm, filterLevel, filterUni, filterYear]);
 
+    // Dialog Handlers with Safe-Close Pattern
     const resetForm = () => {
         setLevel("");
         setUniversity("");
@@ -158,7 +160,21 @@ export default function AdminPastQuestionsPage() {
         setTotalQuestions("20");
         setFile(null);
         setEditingQuestion(null);
-    }
+    };
+
+    const handleUploadDialogChange = (open: boolean) => {
+        setIsUploadDialogOpen(open);
+        if (!open) {
+            setTimeout(resetForm, 300);
+        }
+    };
+
+    const handleDeleteDialogChange = (open: boolean) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+            setTimeout(() => setQuestionToDelete(null), 300);
+        }
+    };
 
     const handleEditQuestion = (q: PastQuestion) => {
         setEditingQuestion(q);
@@ -171,30 +187,6 @@ export default function AdminPastQuestionsPage() {
         setDuration(q.durationMinutes?.toString() || "20");
         setTotalQuestions(q.totalQuestions?.toString() || "20");
         setIsUploadDialogOpen(true);
-    };
-
-    const handleAddUniversity = async () => {
-        if (!newUniName.trim() || !firestore) return;
-        try {
-            await addDoc(collection(firestore, 'custom_universities'), {
-                name: newUniName.trim(),
-                addedAt: serverTimestamp()
-            });
-            setNewUniName("");
-            toast({ title: "University Added" });
-        } catch (e: any) {
-            toast({ variant: 'destructive', title: "Failed", description: e.message });
-        }
-    };
-
-    const handleDeleteUniversity = async (id: string) => {
-        if (!firestore) return;
-        try {
-            await deleteDoc(doc(firestore, 'custom_universities', id));
-            toast({ title: "University Removed" });
-        } catch (e: any) {
-            toast({ variant: 'destructive', title: "Failed", description: e.message });
-        }
     };
 
     const handleSave = async () => {
@@ -215,43 +207,31 @@ export default function AdminPastQuestionsPage() {
             let finalExtractedText = editingQuestion?.extractedText || "";
 
             if (file && storage) {
+                // Delete old file if replacing
                 if (editingQuestion?.storagePath) {
                     try { await deleteObject(ref(storage, editingQuestion.storagePath)); } catch (e) {}
                 }
                 
-                // AI Text Extraction
-                toast({ title: "Extracting text...", description: "AI is processing the document content." });
+                toast({ title: "Processing File", description: "AI is extracting content for your exam." });
                 
-                try {
-                    const dataUri = await new Promise<string>((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => resolve(e.target?.result as string);
-                        reader.onerror = (e) => reject(e);
-                        reader.readAsDataURL(file);
-                    });
+                const dataUri = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(file);
+                });
 
-                    // Check for DOCX support (Flash models don't support it directly via media API)
-                    if (file.type.includes('word') || file.type.includes('officedocument.wordprocessingml.document')) {
-                        toast({ variant: 'destructive', title: "DOCX Extraction Limitation", description: "AI vision works best with PDFs. Content extraction might be limited." });
-                        
-                        const extractionResult = await extractTextFromFile({
-                            fileDataUri: dataUri,
-                            fileContentType: 'text/plain', // Fallback to plain text interpretation
-                        });
-                        finalExtractedText = extractionResult.extractedText;
-                    } else {
-                        const extractionResult = await extractTextFromFile({
-                            fileDataUri: dataUri,
-                            fileContentType: file.type,
-                        });
-                        finalExtractedText = extractionResult.extractedText;
-                    }
-                } catch (extractError: any) {
-                    console.error("AI Extraction failed:", extractError);
-                    toast({ variant: 'destructive', title: "AI Extraction Error", description: "Could not read text via AI. The file will still be uploaded." });
+                try {
+                    const extractionResult = await extractTextFromFile({
+                        fileDataUri: dataUri,
+                        fileContentType: file.type.includes('word') ? 'text/plain' : file.type,
+                    });
+                    finalExtractedText = extractionResult.extractedText;
+                } catch (e) {
+                    console.error("AI Extraction failed", e);
+                    toast({ variant: 'destructive', title: "AI Extraction Note", description: "Could not read text via AI. The file will still be available." });
                 }
 
-                // Upload to storage
                 const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                 finalStoragePath = `past_questions/${Date.now()}_${cleanName}`;
                 const storageReference = ref(storage, finalStoragePath);
@@ -286,7 +266,6 @@ export default function AdminPastQuestionsPage() {
 
             handleUploadDialogChange(false);
         } catch (error: any) {
-            console.error("Save failed:", error);
             toast({ variant: 'destructive', title: "Failed", description: error.message });
         } finally {
             setIsSubmitting(false);
@@ -296,28 +275,45 @@ export default function AdminPastQuestionsPage() {
     const handleDelete = async () => {
         if (!questionToDelete || !storage || !firestore) return;
         
-        // Capture necessary data before clearing state
         const docId = questionToDelete.id;
         const storagePath = questionToDelete.storagePath;
 
-        // Immediately close dialog and clear selection to prevent UI freeze
-        setIsDeleteDialogOpen(false);
-        setQuestionToDelete(null);
+        // Close dialog first to prevent scroll-lock
+        handleDeleteDialogChange(false);
 
         try {
             if (storagePath) {
-                try { await deleteObject(ref(storage, storagePath)); } catch (e) {}
+                await deleteObject(ref(storage, storagePath)).catch(() => {});
             }
             await deleteDoc(doc(firestore, "past_questions", docId));
             toast({ title: "Deleted Successfully" });
         } catch (error: any) {
-             toast({ variant: 'destructive', title: 'Failed', description: error.message });
+             toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message });
         }
-    }
+    };
 
-    const handleUploadDialogChange = (open: boolean) => {
-        setIsUploadDialogOpen(open);
-        if (!open) setTimeout(resetForm, 300);
+    const handleAddUniversity = async () => {
+        if (!newUniName.trim() || !firestore) return;
+        try {
+            await addDoc(collection(firestore, 'custom_universities'), {
+                name: newUniName.trim(),
+                addedAt: serverTimestamp()
+            });
+            setNewUniName("");
+            toast({ title: "University Added" });
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: "Failed", description: e.message });
+        }
+    };
+
+    const handleDeleteUniversity = async (id: string) => {
+        if (!firestore) return;
+        try {
+            await deleteDoc(doc(firestore, 'custom_universities', id));
+            toast({ title: "University Removed" });
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: "Failed", description: e.message });
+        }
     };
 
     return (
@@ -325,16 +321,14 @@ export default function AdminPastQuestionsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Past Questions</h1>
-                    <p className="text-muted-foreground">Manage the repository of examination papers.</p>
+                    <p className="text-muted-foreground">Manage and categorize examination papers.</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setIsUniManagementOpen(true)}>
-                        <Settings2 className="mr-2 h-4 w-4" />
-                        Institutions
+                        <Settings2 className="mr-2 h-4 w-4" /> Institutions
                     </Button>
                     <Button onClick={() => setIsUploadDialogOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Upload Question
+                        <Plus className="mr-2 h-4 w-4" /> Upload Paper
                     </Button>
                 </div>
             </div>
@@ -373,7 +367,7 @@ export default function AdminPastQuestionsPage() {
                     {loading ? (
                         <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
                     ) : filteredQuestions.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">No matching papers found.</div>
+                        <div className="text-center py-12 text-muted-foreground">No papers found matching your criteria.</div>
                     ) : (
                         <Table>
                             <TableHeader>
@@ -406,7 +400,7 @@ export default function AdminPastQuestionsPage() {
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent>
+                                                <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => handleEditQuestion(q)}><Edit className="mr-2 h-4 w-4"/> Edit</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => { setQuestionToDelete(q); setIsDeleteDialogOpen(true); }} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>
@@ -425,7 +419,7 @@ export default function AdminPastQuestionsPage() {
                 <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
                         <DialogTitle>{editingQuestion ? "Edit Paper" : "Upload Paper"}</DialogTitle>
-                        <DialogDescription>Fill in the details for the examination paper. AI will extract questions from the file.</DialogDescription>
+                        <DialogDescription>Details for the examination paper. AI will process the file.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-3 gap-4">
@@ -489,14 +483,14 @@ export default function AdminPastQuestionsPage() {
                         </div>
 
                          <div className="space-y-2">
-                            <Label>{editingQuestion ? "Replace File (optional)" : "File * (PDF works best)"}</Label>
+                            <Label>{editingQuestion ? "Replace File (optional)" : "File * (PDF recommended)"}</Label>
                             <Input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" />
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Sparkles className="h-3 w-3" /> PDFs ensure the best AI extraction accuracy.</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Sparkles className="h-3 w-3" /> PDFs ensure maximum AI question accuracy.</p>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => handleUploadDialogChange(false)}>Cancel</Button>
-                        <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Save</Button>
+                        <Button variant="outline" onClick={() => handleUploadDialogChange(false)} disabled={isSubmitting}>Cancel</Button>
+                        <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Save Paper</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -527,12 +521,20 @@ export default function AdminPastQuestionsPage() {
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            {/* Delete Confirmation */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
                 <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Delete Paper?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the paper from the repository.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Paper?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure? This will permanently remove "{questionToDelete?.subject}" from the repository.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setQuestionToDelete(null)}>Cancel</AlertDialogCancel>
-                        <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
