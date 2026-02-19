@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow to generate a quiz from content.
@@ -50,7 +49,7 @@ const generateQuizPrompt = ai.definePrompt({
 
 ### INSTRUCTIONS:
 1.  Read the content provided below thoroughly.
-2.  Generate up to 50 high-quality multiple-choice questions. 
+2.  Generate up to 20 high-quality multiple-choice questions. We use a batch size of 20 to ensure stability and accuracy.
 3.  Each question must have exactly 4 options.
 4.  For each question, you MUST provide:
     *   **questionText**: The question itself.
@@ -60,8 +59,10 @@ const generateQuizPrompt = ai.definePrompt({
     *   **explanation**: A detailed explanation. Explain why the correct answer is right and why the other three options are incorrect.
 
 {{#if partNumber}}
-### BATCHING:
-This is **Part {{partNumber}}** of the material. If this is Part 2 or higher, ensure you are focusing on content that follows the previous parts to avoid duplication.
+### BATCHING (IMPORTANT):
+This is **Part {{partNumber}}** of the material. Each part contains 20 questions. 
+If this is Part 2 or higher, you MUST skip the content covered in the previous parts and generate questions for the next section of the text. 
+For example, if Part 1 covered the first 20 concepts, Part 2 should cover concepts 21-40.
 {{/if}}
 
 {{#if topic}}
@@ -83,7 +84,7 @@ This quiz must be generated **strictly** from the provided source content from a
 {{/if}}
 \`\`\`
 
-Generate the quiz now. Ensure all JSON formatting is perfect.
+Generate exactly 20 questions if the content allows. Ensure all JSON formatting is perfect.
 `,
   config: {
     maxOutputTokens: 16384,

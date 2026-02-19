@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -183,7 +182,8 @@ export default function PastQuestionsPage() {
             setQuestions(result.quiz);
             setCurrentPart(part);
         } catch (e: any) {
-            toast({ variant: 'destructive', title: 'Error', description: e.message });
+            console.error("Batch generation error:", e);
+            toast({ variant: 'destructive', title: 'Error', description: "An unexpected response was received from the server. Try again later." });
             setViewState('mode-select');
         } finally {
             setIsLoading(false);
@@ -475,7 +475,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onF
     const [allAnswers, setAllAnswers] = useState<Record<number, string>>({});
     
     const q = questions[index];
-    const maxParts = Math.ceil(totalQuestions / 50) || 1;
+    const maxParts = Math.ceil(totalQuestions / 20) || 1;
     const isEndOfBatch = index === questions.length - 1;
     const hasNextPart = part < maxParts;
 
@@ -496,7 +496,6 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onF
             setIsAnswered(false);
         } else {
             if (hasNextPart) {
-                // Show part completion dialog or just next part
                 onNextPart();
             } else {
                 onFinish(allAnswers);
