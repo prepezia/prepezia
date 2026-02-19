@@ -185,19 +185,14 @@ export default function PastQuestionsPage() {
 
             if (!paper) throw new Error("Paper metadata not found.");
 
-            // --- LAZY LOADING QUESTION BANK LOGIC ---
             const batchDocRef = doc(firestore, "past_questions", paper.id, "batches", part.toString());
             const batchSnap = await getDoc(batchDocRef);
 
             let batchQuestions: QuizQuestion[] = [];
 
             if (batchSnap.exists()) {
-                // Bank hit: Load instantly
-                console.log(`[Bank] Loading Part ${part} from cache.`);
                 batchQuestions = batchSnap.data().questions;
             } else {
-                // Bank miss: Generate and Save
-                console.log(`[Bank] Part ${part} not in cache. Generating...`);
                 const sourceContent = paper?.extractedText || `Generate high-quality MCQ questions for ${selections.subject} ${selections.examBody} ${selections.year}.`;
 
                 const result = await generateQuiz({
@@ -210,7 +205,6 @@ export default function PastQuestionsPage() {
                 
                 batchQuestions = result.quiz;
 
-                // Save to bank for future users
                 await setDoc(batchDocRef, {
                     questions: batchQuestions,
                     partNumber: part,
@@ -235,12 +229,12 @@ export default function PastQuestionsPage() {
         }
     }
 
-    const handleNextPart = (answersFromBatch: Record<number, string>) => {
+    const handleNextPart = useCallback((answersFromBatch: Record<number, string>) => {
         setExamAnswers(prev => ({ ...prev, ...answersFromBatch }));
         loadBatch(currentPart + 1);
-    };
+    }, [currentPart]);
 
-    const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
+    const handleSubmitForReview = useCallback(async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
         setViewState('results');
         
@@ -266,9 +260,9 @@ export default function PastQuestionsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [examAnswers, allQuestionsInSession, selections, toast]);
 
-    const handleSaveAndExit = (currentAnswers: Record<number, string>) => {
+    const handleSaveAndExit = useCallback((currentAnswers: Record<number, string>) => {
         const mergedAnswers = { ...examAnswers, ...currentAnswers };
         
         const score = allQuestionsInSession.reduce((acc, q, i) => {
@@ -295,7 +289,7 @@ export default function PastQuestionsPage() {
         saveExamsToStorage(updated);
         setViewState('select');
         toast({ title: "Progress Saved", description: "You can resume this session later from your hub." });
-    };
+    }, [examAnswers, allQuestionsInSession, currentPart, totalQuestionsInPaper, selections, examMode, results, savedExams, toast]);
 
     const handleResume = (exam: SavedExam) => {
         setSelections(exam.selections);
@@ -320,8 +314,6 @@ export default function PastQuestionsPage() {
             setViewState('results');
         } else {
             setViewState('taking');
-            // If resuming an in-progress part, we just stay there. 
-            // If they had finished a part but not started next, load next.
             const questionsAnsweredInCurrentBatch = Object.keys(exam.examAnswers).filter(k => {
                 const idx = parseInt(k);
                 return idx >= (exam.currentPart - 1) * 20 && idx < exam.currentPart * 20;
@@ -547,7 +539,8 @@ export default function PastQuestionsPage() {
                         part={currentPart}
                         onNextPart={handleNextPart}
                         onSaveAndExit={handleSaveAndExit}
-                        onSubmit={handleSubmitForReview} 
+                        onSubmit={handleSubmitForReview}
+                        onTimeout={handleSaveAndExit}
                     />
                 )}
             </>
@@ -784,7 +777,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
     );
 }
 
-function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part, onSubmit, onNextPart, onSaveAndExit }: { 
+function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part, onSubmit, onNextPart, onSaveAndExit, onTimeout }: { 
     questions: QuizQuestion[], 
     topic: string, 
     durationMinutes: number, 
@@ -792,7 +785,8 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
     part: number,
     onSubmit: (answers: Record<number, string>) => void,
     onNextPart: (answers: Record<number, string>) => void,
-    onSaveAndExit: (answers: Record<number, string>) => void
+    onSaveAndExit: (answers: Record<number, string>) => void,
+    onTimeout: (answers: Record<number, string>) => void
 }) {
     const [index, setIndex] = useState(0);
     const [ans, setAns] = useState<Record<number, string>>({});
@@ -804,18 +798,20 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
     const isEndOfBatch = index === questions.length - 1;
     const hasNextPart = part < totalParts;
 
+    const ansRef = useRef(ans);
+    useEffect(() => { ansRef.current = ans; }, [ans]);
+
     useEffect(() => {
-        const t = setInterval(() => setTime(v => { 
-            if(v <= 1) { 
-                clearInterval(t); 
-                if (hasNextPart) onNextPart(ans);
-                else onSubmit(ans); 
-                return 0; 
-            } 
-            return v - 1; 
-        }), 1000);
-        return () => clearInterval(t);
-    }, [ans, onSubmit, onNextPart, hasNextPart]);
+        if (time > 0) {
+            const t = setInterval(() => {
+                setTime(v => v - 1);
+            }, 1000);
+            return () => clearInterval(t);
+        } else {
+            // Time is up
+            onTimeout(ansRef.current);
+        }
+    }, [time, onTimeout]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
