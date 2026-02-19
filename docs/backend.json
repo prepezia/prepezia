@@ -201,6 +201,16 @@
       },
       "required": ["level", "subject", "year", "fileName", "fileUrl", "storagePath", "uploadedAt"]
     },
+    "CachedBatch": {
+      "title": "Cached Batch",
+      "description": "A set of AI-generated questions saved for a specific paper part.",
+      "type": "object",
+      "properties": {
+        "questions": { "type": "array" },
+        "partNumber": { "type": "number" },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "CustomUniversity": {
       "title": "Custom University",
       "description": "A university added manually by an admin.",
@@ -269,6 +279,10 @@
         "$ref": "#/entities/PastQuestion"
       },
       "description": "Stores uploaded past exam question papers."
+    },
+    "/past_questions/{questionId}/batches/{batchId}": {
+      "schema": { "$ref": "#/entities/CachedBatch" },
+      "description": "Stores pre-generated question batches for performance and cost saving."
     },
     "/custom_universities/{universityId}": {
       "schema": { "$ref": "#/entities/CustomUniversity" },

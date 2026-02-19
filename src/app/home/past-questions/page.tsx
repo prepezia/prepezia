@@ -34,7 +34,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, DocumentData, CollectionReference } from "firebase/firestore";
+import { collection, DocumentData, CollectionReference, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
 import { universities as staticUnis } from "@/lib/ghana-universities";
 
@@ -99,13 +99,11 @@ export default function PastQuestionsPage() {
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
     const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
 
-    // Merged institutions
     const allUniversities = useMemo(() => {
         const customNames = customUnis?.map(u => u.name) || [];
         return Array.from(new Set([...staticUnis, ...customNames])).sort();
     }, [customUnis]);
 
-    // Dynamic options
     const examBodies = useMemo(() => allQuestions ? Array.from(new Set(allQuestions.map(q => q.level))) : [], [allQuestions]);
     
     const universities = useMemo(() => selections.examBody === 'University'
@@ -173,8 +171,10 @@ export default function PastQuestionsPage() {
     };
 
     const loadBatch = async (part: number) => {
+        if (!firestore) return;
         setLoadingPart(part);
         setIsLoading(true);
+        
         try {
             const paper = allQuestions?.find(q => 
                 q.level === selections.examBody && 
@@ -183,27 +183,52 @@ export default function PastQuestionsPage() {
                 (!selections.university || q.university === selections.university)
             );
 
-            const sourceContent = paper?.extractedText || `Generate high-quality MCQ questions for ${selections.subject} ${selections.examBody} ${selections.year}.`;
+            if (!paper) throw new Error("Paper metadata not found.");
 
-            const result = await generateQuiz({
-                context: 'past-question',
-                topic: `${selections.subject} - ${selections.year}`,
-                academicLevel: selections.examBody as any,
-                content: sourceContent,
-                partNumber: part
-            });
+            // --- LAZY LOADING QUESTION BANK LOGIC ---
+            const batchDocRef = doc(firestore, "past_questions", paper.id, "batches", part.toString());
+            const batchSnap = await getDoc(batchDocRef);
+
+            let batchQuestions: QuizQuestion[] = [];
+
+            if (batchSnap.exists()) {
+                // Bank hit: Load instantly
+                console.log(`[Bank] Loading Part ${part} from cache.`);
+                batchQuestions = batchSnap.data().questions;
+            } else {
+                // Bank miss: Generate and Save
+                console.log(`[Bank] Part ${part} not in cache. Generating...`);
+                const sourceContent = paper?.extractedText || `Generate high-quality MCQ questions for ${selections.subject} ${selections.examBody} ${selections.year}.`;
+
+                const result = await generateQuiz({
+                    context: 'past-question',
+                    topic: `${selections.subject} - ${selections.year}`,
+                    academicLevel: selections.examBody as any,
+                    content: sourceContent,
+                    partNumber: part
+                });
+                
+                batchQuestions = result.quiz;
+
+                // Save to bank for future users
+                await setDoc(batchDocRef, {
+                    questions: batchQuestions,
+                    partNumber: part,
+                    generatedAt: serverTimestamp()
+                }).catch(e => console.warn("Failed to cache batch:", e));
+            }
             
-            setQuestions(result.quiz);
+            setQuestions(batchQuestions);
             setAllQuestionsInSession(prev => {
-                if (part === 1) return result.quiz;
-                // Avoid duplicates if reloading
-                if (prev.length >= part * 20) return prev;
-                return [...prev, ...result.quiz];
+                const combined = [...prev];
+                const startIdx = (part - 1) * 20;
+                combined.splice(startIdx, 20, ...batchQuestions);
+                return combined;
             });
             setCurrentPart(part);
         } catch (e: any) {
-            console.error("Batch generation error:", e);
-            toast({ variant: 'destructive', title: 'Error', description: "An unexpected response was received from the server. Try again later." });
+            console.error("Batch load error:", e);
+            toast({ variant: 'destructive', title: 'Error', description: "Could not load exam questions. Check your connection." });
             setViewState('mode-select');
         } finally {
             setIsLoading(false);
@@ -275,7 +300,7 @@ export default function PastQuestionsPage() {
     const handleResume = (exam: SavedExam) => {
         setSelections(exam.selections);
         setAllQuestionsInSession(exam.questions);
-        setQuestions(exam.questions.slice(-20)); 
+        setQuestions(exam.questions.slice((exam.currentPart-1)*20, exam.currentPart*20)); 
         setExamAnswers(exam.examAnswers);
         setExamScore(exam.examScore);
         setResults(exam.results);
@@ -295,7 +320,16 @@ export default function PastQuestionsPage() {
             setViewState('results');
         } else {
             setViewState('taking');
-            loadBatch(exam.currentPart + 1);
+            // If resuming an in-progress part, we just stay there. 
+            // If they had finished a part but not started next, load next.
+            const questionsAnsweredInCurrentBatch = Object.keys(exam.examAnswers).filter(k => {
+                const idx = parseInt(k);
+                return idx >= (exam.currentPart - 1) * 20 && idx < exam.currentPart * 20;
+            }).length;
+
+            if (questionsAnsweredInCurrentBatch >= 20 && (exam.currentPart * 20) < exam.totalQuestionsInPaper) {
+                loadBatch(exam.currentPart + 1);
+            }
         }
     };
 
@@ -351,7 +385,7 @@ export default function PastQuestionsPage() {
                                                         <Badge variant="secondary" className="text-[10px] uppercase font-bold">{exam.examMode === 'trial' ? 'Trial Mode' : 'Exam Mode'}</Badge>
                                                     </div>
                                                 </div>
-                                                <CardDescription className="space-y-1">
+                                                <CardDescription className="space-y-1 pt-2">
                                                     <div className="font-medium text-foreground/80">{exam.selections.university || exam.selections.examBody}</div>
                                                     {exam.selections.courseCode && <div className="text-xs text-primary font-semibold">{exam.selections.courseCode}</div>}
                                                     <div className="flex items-center gap-2 mt-2 pt-1 border-t">
@@ -888,7 +922,7 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
                                             index === i ? "bg-primary text-primary-foreground border-primary shadow-inner" : (ans[absIdx] ? "bg-green-100 border-green-200 text-green-700" : "bg-background border-muted hover:border-muted-foreground/50")
                                         )}
                                     >
-                                        {i+1}
+                                        {(part-1)*20 + i + 1}
                                     </button>
                                 );
                             })}
