@@ -229,12 +229,12 @@ export default function PastQuestionsPage() {
         }
     }
 
-    const handleNextPart = useCallback((answersFromBatch: Record<number, string>) => {
+    const handleNextPart = (answersFromBatch: Record<number, string>) => {
         setExamAnswers(prev => ({ ...prev, ...answersFromBatch }));
         loadBatch(currentPart + 1);
-    }, [currentPart]);
+    };
 
-    const handleSubmitForReview = useCallback(async (finalAnswers: Record<number, string>) => {
+    const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
         setViewState('results');
         
@@ -260,9 +260,9 @@ export default function PastQuestionsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [examAnswers, allQuestionsInSession, selections, toast]);
+    };
 
-    const handleSaveAndExit = useCallback((currentAnswers: Record<number, string>) => {
+    const handleSaveAndExit = (currentAnswers: Record<number, string>) => {
         const mergedAnswers = { ...examAnswers, ...currentAnswers };
         
         const score = allQuestionsInSession.reduce((acc, q, i) => {
@@ -289,7 +289,7 @@ export default function PastQuestionsPage() {
         saveExamsToStorage(updated);
         setViewState('select');
         toast({ title: "Progress Saved", description: "You can resume this session later from your hub." });
-    }, [examAnswers, allQuestionsInSession, currentPart, totalQuestionsInPaper, selections, examMode, results, savedExams, toast]);
+    };
 
     const handleResume = (exam: SavedExam) => {
         setSelections(exam.selections);
@@ -434,7 +434,7 @@ export default function PastQuestionsPage() {
                                         <Select onValueChange={v => setSelections(p => ({...p, university: v, schoolFaculty: "", subject: "", year: "", courseCode: ""}))} value={selections.university}>
                                             <SelectTrigger><SelectValue placeholder="Select institution..." /></SelectTrigger>
                                             <SelectContent className="max-h-[300px]">
-                                                {universities.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                                {allUniversities.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -578,7 +578,7 @@ export default function PastQuestionsPage() {
                                     {isLoading ? (
                                         <div className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-primary"/></div>
                                     ) : (
-                                        <div className="prose dark:prose-invert max-w-none p-4 rounded-lg border bg-secondary/20">
+                                        <div className="prose dark:prose-invert max-w-none">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{results?.revisionRoadmap || "No roadmap available."}</ReactMarkdown>
                                         </div>
                                     )}
@@ -808,7 +808,6 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
             }, 1000);
             return () => clearInterval(t);
         } else {
-            // Time is up
             onTimeout(ansRef.current);
         }
     }, [time, onTimeout]);
