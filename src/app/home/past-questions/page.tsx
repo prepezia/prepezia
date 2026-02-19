@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -19,7 +20,7 @@ import {
   } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -60,7 +61,10 @@ type SavedExam = {
     questions: QuizQuestion[];
     examAnswers: Record<number, string>;
     examScore: number;
-    results: AiAssessmentRevisionRoadmapOutput;
+    results: AiAssessmentRevisionRoadmapOutput | null;
+    status: 'Completed' | 'In Progress';
+    currentPart: number;
+    examMode: ExamMode;
 };
 
 export default function PastQuestionsPage() {
@@ -87,6 +91,7 @@ export default function PastQuestionsPage() {
     const [examDuration, setExamDuration] = useState(20);
     const [totalQuestionsInPaper, setTotalQuestionsInPaper] = useState(20);
     const [currentPart, setCurrentPart] = useState(1);
+    const [loadingPart, setLoadingPart] = useState(1);
 
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
     const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
@@ -160,6 +165,7 @@ export default function PastQuestionsPage() {
     };
 
     const loadBatch = async (part: number) => {
+        setLoadingPart(part);
         setIsLoading(true);
         try {
             const paper = allQuestions?.find(q => 
@@ -214,6 +220,60 @@ export default function PastQuestionsPage() {
         }
     };
 
+    const handleSaveAndExit = (currentAnswers: Record<number, string>) => {
+        const score = questions.reduce((acc, q, i) => currentAnswers[i] === q.correctAnswer ? acc + 1 : acc, 0);
+        const newExam: SavedExam = {
+            id: Date.now(),
+            date: new Date().toLocaleDateString(),
+            selections,
+            questions,
+            examAnswers: currentAnswers,
+            examScore: score,
+            results: null,
+            status: 'In Progress',
+            currentPart,
+            examMode
+        };
+        const updated = [newExam, ...savedExams.filter(e => e.id !== newExam.id)];
+        setSavedExams(updated);
+        saveExamsToStorage(updated);
+        setViewState('select');
+        toast({ title: "Progress Saved", description: "You can resume this session later from your hub." });
+    };
+
+    const handleResume = (exam: SavedExam) => {
+        setSelections(exam.selections);
+        setQuestions(exam.questions);
+        setExamAnswers(exam.examAnswers);
+        setExamScore(exam.examScore);
+        setResults(exam.results);
+        setExamMode(exam.examMode);
+        setCurrentPart(exam.currentPart);
+        
+        const paper = allQuestions?.find(q => 
+            q.level === exam.selections.examBody && 
+            q.subject === exam.selections.subject && 
+            q.year === exam.selections.year &&
+            (!exam.selections.university || q.university === exam.selections.university)
+        );
+        setTotalQuestionsInPaper(paper?.totalQuestions || 20);
+        setExamDuration(paper?.durationMinutes || 20);
+
+        if (exam.status === 'Completed') {
+            setViewState('results');
+        } else {
+            setViewState('taking');
+        }
+    };
+
+    const handleDeleteSavedExam = (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        const updated = savedExams.filter(exam => exam.id !== id);
+        setSavedExams(updated);
+        saveExamsToStorage(updated);
+        toast({ title: "Session Removed" });
+    };
+
     if (viewState === 'select') {
         return (
             <>
@@ -238,30 +298,48 @@ export default function PastQuestionsPage() {
                         {savedExams.length === 0 ? (
                             <Card className="flex flex-col items-center justify-center p-12 border-dashed border-2">
                                 <h3 className="text-2xl font-bold mb-2">No Saved Exams</h3>
-                                <p className="text-muted-foreground">Your completed exam sessions will appear here.</p>
+                                <p className="text-muted-foreground">Your completed or in-progress exam sessions will appear here.</p>
                             </Card>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {savedExams.map(exam => (
-                                    <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
-                                        setSelections(exam.selections);
-                                        setQuestions(exam.questions);
-                                        setExamAnswers(exam.examAnswers);
-                                        setExamScore(exam.examScore);
-                                        setResults(exam.results);
-                                        setViewState('results');
-                                    }}>
+                                    <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow relative" onClick={() => handleResume(exam)}>
                                         <CardHeader>
-                                            <CardTitle className="text-lg">{exam.selections.subject}</CardTitle>
+                                            <div className="flex justify-between items-start pr-6">
+                                                <CardTitle className="text-lg">{exam.selections.subject}</CardTitle>
+                                                {exam.status === 'In Progress' ? (
+                                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">In Progress</Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completed</Badge>
+                                                )}
+                                            </div>
                                             <CardDescription>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <Calendar className="h-3 w-3" /> {exam.date}
                                                 </div>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <CheckCircle className="h-3 w-3 text-green-500" /> Score: {exam.examScore}/{exam.questions.length}
+                                                <div className="flex items-center gap-2 mt-1 font-medium">
+                                                    {exam.status === 'Completed' ? (
+                                                        <><CheckCircle className="h-3 w-3 text-green-500" /> Final Score: {exam.examScore}/{exam.questions.length}</>
+                                                    ) : (
+                                                        <><Clock className="h-3 w-3 text-blue-500" /> Part {exam.currentPart} saved</>
+                                                    )}
                                                 </div>
                                             </CardDescription>
                                         </CardHeader>
+                                        <CardFooter className="pt-0">
+                                            <Button variant="ghost" size="sm" className="ml-auto text-primary gap-2">
+                                                {exam.status === 'In Progress' ? <PlayCircle className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                                                {exam.status === 'In Progress' ? 'Resume' : 'View Results'}
+                                            </Button>
+                                        </CardFooter>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                                            onClick={(e) => handleDeleteSavedExam(e, exam.id)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </Card>
                                 ))}
                             </div>
@@ -368,7 +446,7 @@ export default function PastQuestionsPage() {
                 {header}
                 <div className="flex-1 flex flex-col items-center justify-center">
                     <Loader2 className="h-10 w-10 animate-spin text-primary"/>
-                    <p className="mt-4 text-muted-foreground font-medium">Preparing Part {currentPart} of your AI-powered exam...</p>
+                    <p className="mt-4 text-muted-foreground font-medium">Preparing Part {loadingPart} of your AI-powered exam...</p>
                 </div>
             </>
         );
@@ -382,6 +460,7 @@ export default function PastQuestionsPage() {
                         part={currentPart}
                         totalQuestions={totalQuestionsInPaper}
                         onNextPart={() => loadBatch(currentPart + 1)}
+                        onSaveAndExit={handleSaveAndExit}
                         onFinish={handleSubmitForReview} 
                     />
                 ) : (
@@ -403,7 +482,7 @@ export default function PastQuestionsPage() {
                                 <CardDescription>{selections.subject} - {selections.year}</CardDescription>
                             </div>
                             <Button onClick={() => {
-                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!}, ...savedExams];
+                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!, status: 'Completed' as const, currentPart, examMode}, ...savedExams.filter(e => e.status !== 'In Progress' || e.selections.subject !== selections.subject)];
                                 setSavedExams(updated);
                                 saveExamsToStorage(updated);
                                 toast({ title: "Session Saved", description: "Your results have been added to your hub." });
@@ -461,12 +540,13 @@ export default function PastQuestionsPage() {
     return null;
 }
 
-function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onFinish }: { 
+function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onSaveAndExit, onFinish }: { 
     questions: QuizQuestion[], 
     topic: string, 
     part: number,
     totalQuestions: number,
     onNextPart: () => void,
+    onSaveAndExit: (answers: Record<number, string>) => void,
     onFinish: (answers: Record<number, string>) => void 
 }) {
     const [index, setIndex] = useState(0);
@@ -586,26 +666,34 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onF
                         </Alert>
                     )}
                     
-                    <div className="flex justify-end gap-3 w-full">
-                        {!isAnswered ? (
-                            <Button 
-                                onClick={handleCheck} 
-                                disabled={!selectedAnswer} 
-                                size="lg" 
-                                className="w-full sm:w-auto font-bold"
-                            >
-                                Check Answer
+                    <div className="flex justify-between items-center w-full">
+                        {isEndOfBatch && isAnswered ? (
+                            <Button variant="ghost" onClick={() => onSaveAndExit(allAnswers)} className="text-muted-foreground hover:text-primary">
+                                <Save className="mr-2 h-4 w-4"/> Save & Exit
                             </Button>
-                        ) : (
-                            <Button 
-                                onClick={handleNext} 
-                                size="lg" 
-                                className="w-full sm:w-auto font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-                            >
-                                {isEndOfBatch ? (hasNextPart ? "Proceed to Part " + (part + 1) : "Complete Trial") : "Next Question"} 
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        )}
+                        ) : <div />}
+                        
+                        <div className="flex gap-3">
+                            {!isAnswered ? (
+                                <Button 
+                                    onClick={handleCheck} 
+                                    disabled={!selectedAnswer} 
+                                    size="lg" 
+                                    className="font-bold"
+                                >
+                                    Check Answer
+                                </Button>
+                            ) : (
+                                <Button 
+                                    onClick={handleNext} 
+                                    size="lg" 
+                                    className="font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+                                >
+                                    {isEndOfBatch ? (hasNextPart ? "Next Part" : "Complete Trial") : "Next Question"} 
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </CardFooter>
             </Card>
