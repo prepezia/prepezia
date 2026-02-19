@@ -20,7 +20,7 @@ import {
   } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle, Eye } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle, Eye, Separator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -31,7 +31,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -154,7 +153,7 @@ export default function PastQuestionsPage() {
             (!selections.university || q.university === selections.university)
         );
         
-        setCurrentExamId(null); // Fresh session
+        setCurrentExamId(null);
         setHasSavedResults(false);
         setExamDuration(paper?.durationMinutes || 20);
         setTotalQuestionsInPaper(paper?.totalQuestions || 20);
@@ -267,7 +266,7 @@ export default function PastQuestionsPage() {
         }
     };
 
-    const handleSaveAndExit = (currentAnswers: Record<number, string>) => {
+    const handleSaveAndExit = (currentAnswers: Record<number, string>, forceNextPart = false) => {
         const mergedAnswers = { ...examAnswers, ...currentAnswers };
         const examId = currentExamId || Date.now();
         
@@ -276,6 +275,9 @@ export default function PastQuestionsPage() {
         }, 0);
         
         const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
+        
+        // If timed out or explicitly finished part, on resume start next part
+        const nextPartIndex = (forceNextPart && !isFullyComplete) ? currentPart + 1 : currentPart;
 
         const newExam: SavedExam = {
             id: examId,
@@ -286,7 +288,7 @@ export default function PastQuestionsPage() {
             examScore: score,
             results: results,
             status: isFullyComplete ? 'Completed' : 'In Progress',
-            currentPart,
+            currentPart: nextPartIndex,
             examMode,
             totalQuestionsInPaper
         };
@@ -294,13 +296,12 @@ export default function PastQuestionsPage() {
         setSavedExams(updated);
         saveExamsToStorage(updated);
         setViewState('select');
-        toast({ title: "Progress Saved", description: "You can resume this session later from your hub." });
+        toast({ title: "Progress Saved", description: forceNextPart ? "Part timed out. Progress recorded. Resume later from the next part." : "You can resume this session later." });
     };
 
     const handleResume = (exam: SavedExam) => {
         setSelections(exam.selections);
         setAllQuestionsInSession(exam.questions);
-        setQuestions(exam.questions.slice((exam.currentPart-1)*20, exam.currentPart*20)); 
         setExamAnswers(exam.examAnswers);
         setExamScore(exam.examScore);
         setResults(exam.results);
@@ -322,13 +323,11 @@ export default function PastQuestionsPage() {
             setViewState('results');
         } else {
             setViewState('taking');
-            const questionsAnsweredInCurrentBatch = Object.keys(exam.examAnswers).filter(k => {
-                const idx = parseInt(k);
-                return idx >= (exam.currentPart - 1) * 20 && idx < exam.currentPart * 20;
-            }).length;
-
-            if (questionsAnsweredInCurrentBatch >= 20 && (exam.currentPart * 20) < exam.totalQuestionsInPaper) {
-                loadBatch(exam.currentPart + 1);
+            // If the next batch isn't loaded yet, fetch it
+            if (exam.questions.length < exam.currentPart * 20) {
+                loadBatch(exam.currentPart);
+            } else {
+                setQuestions(exam.questions.slice((exam.currentPart - 1) * 20, exam.currentPart * 20));
             }
         }
     };
@@ -548,7 +547,7 @@ export default function PastQuestionsPage() {
                         onNextPart={handleNextPart}
                         onSaveAndExit={handleSaveAndExit}
                         onSubmit={handleSubmitForReview}
-                        onTimeout={handleSaveAndExit}
+                        onTimeout={(ans) => handleSaveAndExit(ans, true)}
                     />
                 )}
             </>
@@ -834,7 +833,11 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
             }, 1000);
             return () => clearInterval(t);
         } else {
-            onTimeout(ansRef.current);
+            // Use setTimeout to move the update out of the render cycle
+            const timer = setTimeout(() => {
+                onTimeout(ansRef.current);
+            }, 0);
+            return () => clearTimeout(timer);
         }
     }, [time, onTimeout]);
 
