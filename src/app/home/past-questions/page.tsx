@@ -77,7 +77,7 @@ export default function PastQuestionsPage() {
     const { data: allQuestions, loading: questionsLoading } = useCollection<PastQuestion>(questionsQuery);
     
     const { data: customUnis } = useCollection<{id: string, name: string}>(
-        useMemo(() => firestore ? collection(firestore, 'custom_universities') as any : null, [firestore])
+        useMemo(() => firestore ? collection(firestore, 'custom_university') as any : null, [firestore])
     );
 
     const [viewState, setViewState] = useState<ViewState>('select');
@@ -85,6 +85,7 @@ export default function PastQuestionsPage() {
     const [selections, setSelections] = useState({ examBody: "", university: "", schoolFaculty: "", subject: "", year: "", courseCode: "" });
     
     const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+    const [allQuestionsInSession, setAllQuestionsInSession] = useState<QuizQuestion[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [results, setResults] = useState<AiAssessmentRevisionRoadmapOutput | null>(null);
 
@@ -157,6 +158,10 @@ export default function PastQuestionsPage() {
         setTotalQuestionsInPaper(paper?.totalQuestions || 20);
         setSelections(p => ({ ...p, courseCode: paper?.courseCode || "" }));
         setCurrentPart(1);
+        setExamAnswers({});
+        setAllQuestionsInSession([]);
+        setExamScore(0);
+        setResults(null);
         setIsNewExamDialogOpen(false);
         setViewState('mode-select');
     };
@@ -189,6 +194,12 @@ export default function PastQuestionsPage() {
             });
             
             setQuestions(result.quiz);
+            setAllQuestionsInSession(prev => {
+                if (part === 1) return result.quiz;
+                // Avoid duplicates if reloading
+                if (prev.length >= part * 20) return prev;
+                return [...prev, ...result.quiz];
+            });
             setCurrentPart(part);
         } catch (e: any) {
             console.error("Batch generation error:", e);
@@ -199,18 +210,27 @@ export default function PastQuestionsPage() {
         }
     }
 
+    const handleNextPart = (answersFromBatch: Record<number, string>) => {
+        setExamAnswers(prev => ({ ...prev, ...answersFromBatch }));
+        loadBatch(currentPart + 1);
+    };
+
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
         setViewState('results');
         
-        let finalScore = 0;
-        questions.forEach((q, i) => { if (finalAnswers[i] === q.correctAnswer) finalScore++; });
-        setExamAnswers(finalAnswers);
-        setExamScore(finalScore);
+        const mergedAnswers = { ...examAnswers, ...finalAnswers };
+        setExamAnswers(mergedAnswers);
+
+        let finalCumulativeScore = 0;
+        allQuestionsInSession.forEach((q, i) => { 
+            if (mergedAnswers[i] === q.correctAnswer) finalCumulativeScore++; 
+        });
+        setExamScore(finalCumulativeScore);
 
         try {
             const result = await aiAssessmentRevisionRoadmap({
-                examResults: `Score: ${finalScore}/${questions.length}`,
+                examResults: `Score: ${finalCumulativeScore}/${allQuestionsInSession.length}`,
                 studentLevel: selections.examBody,
                 university: selections.university,
                 course: selections.subject
@@ -224,7 +244,11 @@ export default function PastQuestionsPage() {
     };
 
     const handleSaveAndExit = (currentAnswers: Record<number, string>) => {
-        const score = questions.reduce((acc, q, i) => currentAnswers[i] === q.correctAnswer ? acc + 1 : acc, 0);
+        const mergedAnswers = { ...examAnswers, ...currentAnswers };
+        
+        const score = allQuestionsInSession.reduce((acc, q, i) => {
+            return mergedAnswers[i] === q.correctAnswer ? acc + 1 : acc;
+        }, 0);
         
         const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
 
@@ -232,8 +256,8 @@ export default function PastQuestionsPage() {
             id: Date.now(),
             date: new Date().toLocaleDateString(),
             selections,
-            questions,
-            examAnswers: currentAnswers,
+            questions: allQuestionsInSession,
+            examAnswers: mergedAnswers,
             examScore: score,
             results: results,
             status: isFullyComplete ? 'Completed' : 'In Progress',
@@ -241,7 +265,7 @@ export default function PastQuestionsPage() {
             examMode,
             totalQuestionsInPaper
         };
-        const updated = [newExam, ...savedExams.filter(e => e.id !== newExam.id)];
+        const updated = [newExam, ...savedExams.filter(e => e.selections.subject !== selections.subject || e.status === 'Completed')];
         setSavedExams(updated);
         saveExamsToStorage(updated);
         setViewState('select');
@@ -250,7 +274,8 @@ export default function PastQuestionsPage() {
 
     const handleResume = (exam: SavedExam) => {
         setSelections(exam.selections);
-        setQuestions(exam.questions);
+        setAllQuestionsInSession(exam.questions);
+        setQuestions(exam.questions.slice(-20)); 
         setExamAnswers(exam.examAnswers);
         setExamScore(exam.examScore);
         setResults(exam.results);
@@ -269,7 +294,6 @@ export default function PastQuestionsPage() {
         if (exam.status === 'Completed') {
             setViewState('results');
         } else {
-            // If in progress, clicking resume jumps to the next part automatically as requested
             setViewState('taking');
             loadBatch(exam.currentPart + 1);
         }
@@ -349,7 +373,7 @@ export default function PastQuestionsPage() {
                                                 variant="ghost" 
                                                 size="icon" 
                                                 className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                onClick={(e) => handleDeleteSavedExam(e, exam.id)}
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteSavedExam(e, exam.id); }}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -473,12 +497,21 @@ export default function PastQuestionsPage() {
                         topic={selections.subject} 
                         part={currentPart}
                         totalQuestions={totalQuestionsInPaper}
-                        onNextPart={() => loadBatch(currentPart + 1)}
+                        onNextPart={handleNextPart}
                         onSaveAndExit={handleSaveAndExit}
                         onFinish={handleSubmitForReview} 
                     />
                 ) : (
-                    <ExamModeView questions={questions} topic={selections.subject} durationMinutes={examDuration} onSubmit={handleSubmitForReview} />
+                    <ExamModeView 
+                        questions={questions} 
+                        topic={selections.subject} 
+                        durationMinutes={examDuration} 
+                        totalQuestions={totalQuestionsInPaper}
+                        part={currentPart}
+                        onNextPart={handleNextPart}
+                        onSaveAndExit={handleSaveAndExit}
+                        onSubmit={handleSubmitForReview} 
+                    />
                 )}
             </>
         );
@@ -492,12 +525,12 @@ export default function PastQuestionsPage() {
                     <Card>
                         <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
                             <div>
-                                <CardTitle className="text-2xl font-headline">Results: {examScore}/{questions.length}</CardTitle>
+                                <CardTitle className="text-2xl font-headline">Results: {examScore}/{allQuestionsInSession.length}</CardTitle>
                                 <CardDescription>{selections.subject} - {selections.year}</CardDescription>
                             </div>
                             <Button onClick={() => {
                                 const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
-                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!, status: isFullyComplete ? 'Completed' as const : 'In Progress' as const, currentPart, examMode, totalQuestionsInPaper}, ...savedExams.filter(e => e.selections.subject !== selections.subject || e.status === 'Completed')];
+                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions: allQuestionsInSession, examAnswers, examScore, results: results!, status: isFullyComplete ? 'Completed' as const : 'In Progress' as const, currentPart, examMode, totalQuestionsInPaper}, ...savedExams.filter(e => e.selections.subject !== selections.subject || e.status === 'Completed')];
                                 setSavedExams(updated);
                                 saveExamsToStorage(updated);
                                 toast({ title: "Session Saved", description: "Your results have been added to your hub." });
@@ -521,7 +554,7 @@ export default function PastQuestionsPage() {
                                     )}
                                 </TabsContent>
                                 <TabsContent value="corrections" className="space-y-4 mt-6">
-                                    {questions.map((q, i) => (
+                                    {allQuestionsInSession.map((q, i) => (
                                         <div key={i} className={cn("p-4 border rounded-lg", examAnswers[i] === q.correctAnswer ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30")}>
                                             <p className="font-semibold">{i+1}. {q.questionText}</p>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
@@ -560,7 +593,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
     topic: string, 
     part: number,
     totalQuestions: number,
-    onNextPart: () => void,
+    onNextPart: (answers: Record<number, string>) => void,
     onSaveAndExit: (answers: Record<number, string>) => void,
     onFinish: (answers: Record<number, string>) => void 
 }) {
@@ -591,7 +624,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
             setIsAnswered(false);
         } else {
             if (hasNextPart) {
-                onNextPart();
+                onNextPart(allAnswers);
             } else {
                 onFinish(allAnswers);
             }
@@ -682,11 +715,9 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
                     )}
                     
                     <div className="flex justify-between items-center w-full gap-2">
-                        {isAnswered && (
-                            <Button variant="ghost" onClick={() => onSaveAndExit(allAnswers)} className="text-muted-foreground hover:text-primary shrink-0">
-                                <Save className="mr-2 h-4 w-4"/> Save & Exit
-                            </Button>
-                        )}
+                        <Button variant="ghost" onClick={() => onSaveAndExit(allAnswers)} className="text-muted-foreground hover:text-primary shrink-0">
+                            <Save className="mr-2 h-4 w-4"/> Save & Exit
+                        </Button>
                         
                         <div className="flex gap-2 ml-auto">
                             {!isAnswered ? (
@@ -716,22 +747,38 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
     );
 }
 
-function ExamModeView({ questions, topic, durationMinutes, onSubmit }: { questions: QuizQuestion[], topic: string, durationMinutes: number, onSubmit: (answers: Record<number, string>) => void }) {
+function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part, onSubmit, onNextPart, onSaveAndExit }: { 
+    questions: QuizQuestion[], 
+    topic: string, 
+    durationMinutes: number, 
+    totalQuestions: number,
+    part: number,
+    onSubmit: (answers: Record<number, string>) => void,
+    onNextPart: (answers: Record<number, string>) => void,
+    onSaveAndExit: (answers: Record<number, string>) => void
+}) {
     const [index, setIndex] = useState(0);
     const [ans, setAns] = useState<Record<number, string>>({});
-    const [time, setTime] = useState(durationMinutes * 60);
+    
+    const totalParts = Math.ceil(totalQuestions / 20) || 1;
+    const partDurationSeconds = (durationMinutes / totalParts) * 60;
+    const [time, setTime] = useState(Math.floor(partDurationSeconds));
+
+    const isEndOfBatch = index === questions.length - 1;
+    const hasNextPart = part < totalParts;
 
     useEffect(() => {
         const t = setInterval(() => setTime(v => { 
             if(v <= 1) { 
                 clearInterval(t); 
-                onSubmit(ans); 
+                if (hasNextPart) onNextPart(ans);
+                else onSubmit(ans); 
                 return 0; 
             } 
             return v - 1; 
         }), 1000);
         return () => clearInterval(t);
-    }, [ans, onSubmit]);
+    }, [ans, onSubmit, onNextPart, hasNextPart]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -739,72 +786,109 @@ function ExamModeView({ questions, topic, durationMinutes, onSubmit }: { questio
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
+    const handleAnsSelect = (val: string) => {
+        const absoluteIndex = (part - 1) * 20 + index;
+        setAns(p => ({ ...p, [absoluteIndex]: val }));
+    };
+
     return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 pb-24">
             <div className="flex justify-between items-center bg-card p-4 rounded-xl border shadow-sm sticky top-0 z-10">
                 <div className={cn(
                     "flex items-center gap-3 text-2xl font-mono font-bold",
-                    time < 300 ? "text-destructive animate-pulse" : "text-primary"
+                    time < 60 ? "text-destructive animate-pulse" : "text-primary"
                 )}>
                     <TimerIcon className="h-6 w-6"/> {formatTime(time)}
                 </div>
-                <Button variant="outline" onClick={() => onSubmit(ans)} className="font-bold border-primary text-primary hover:bg-primary hover:text-white">
-                    Submit Exam
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => onSaveAndExit(ans)} className="text-muted-foreground hover:text-primary">
+                        <Save className="mr-2 h-4 w-4"/> Save for Later
+                    </Button>
+                    <Button variant="destructive" onClick={() => onSubmit(ans)} className="font-bold">
+                        Submit Exam
+                    </Button>
+                </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <Card className="lg:col-span-3 shadow-md">
                     <CardHeader>
-                        <CardTitle className="text-xl leading-relaxed">{questions[index].questionText}</CardTitle>
+                        <CardTitle className="text-xl leading-relaxed">
+                            <span className="text-primary mr-2">Q{(part-1)*20 + index + 1}.</span>
+                            {questions[index].questionText}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {questions[index].options.map((opt, i) => (
-                            <div 
-                                key={i} 
-                                className={cn(
-                                    "flex items-center p-4 border rounded-xl cursor-pointer transition-all hover:bg-secondary/50", 
-                                    ans[index] === opt && "border-primary bg-primary/5 ring-1 ring-primary"
-                                )} 
-                                onClick={() => setAns(p => ({...p, [index]: opt}))}
-                            >
-                                <div className={cn(
-                                    "w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center shrink-0", 
-                                    ans[index] === opt ? "border-primary" : "border-muted-foreground/30"
-                                )}>
-                                    {ans[index] === opt && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                        {questions[index].options.map((opt, i) => {
+                            const absoluteIndex = (part-1)*20 + index;
+                            return (
+                                <div 
+                                    key={i} 
+                                    className={cn(
+                                        "flex items-center p-4 border rounded-xl cursor-pointer transition-all hover:bg-secondary/50", 
+                                        ans[absoluteIndex] === opt && "border-primary bg-primary/5 ring-1 ring-primary"
+                                    )} 
+                                    onClick={() => handleAnsSelect(opt)}
+                                >
+                                    <div className={cn(
+                                        "w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center shrink-0", 
+                                        ans[absoluteIndex] === opt ? "border-primary" : "border-muted-foreground/30"
+                                    )}>
+                                        {ans[absoluteIndex] === opt && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                                    </div>
+                                    <span className="text-sm font-medium">{opt}</span>
                                 </div>
-                                <span className="text-sm font-medium">{opt}</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </CardContent>
-                    <CardFooter className="justify-between pt-6 border-t mt-4">
-                        <Button variant="ghost" onClick={() => setIndex(i => i-1)} disabled={index === 0}>
-                            <ChevronLeft className="mr-2 h-4 w-4" /> Previous
-                        </Button>
-                        <span className="text-sm font-medium text-muted-foreground">Q{index+1} / {questions.length}</span>
-                        <Button variant="ghost" onClick={() => setIndex(i => i+1)} disabled={index === questions.length-1}>
-                            Next <ChevronRight className="ml-2 h-4 w-4" />
-                        </Button>
+                    <CardFooter className="flex-col gap-4 pt-6 border-t mt-4">
+                        {isEndOfBatch && hasNextPart && (
+                            <Alert className="bg-primary/5 border-primary/20 mb-2">
+                                <AlertCircle className="h-4 w-4 text-primary" />
+                                <AlertTitle className="font-bold">Part {part} Batch Complete!</AlertTitle>
+                                <AlertDescription>
+                                    You've reached the end of this 20-question segment. Click "Continue" to proceed to Part {part+1} with a fresh timer.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        <div className="flex justify-between items-center w-full">
+                            <Button variant="ghost" onClick={() => setIndex(i => i-1)} disabled={index === 0}>
+                                <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                            </Button>
+                            
+                            <Button 
+                                variant={isEndOfBatch ? "default" : "ghost"}
+                                onClick={() => {
+                                    if (!isEndOfBatch) setIndex(i => i + 1);
+                                    else if (hasNextPart) onNextPart(ans);
+                                    else onSubmit(ans);
+                                }}
+                            >
+                                {isEndOfBatch ? (hasNextPart ? "Continue to Part " + (part + 1) : "Submit Exam") : <>Next <ChevronRight className="ml-2 h-4 w-4" /></>}
+                            </Button>
+                        </div>
                     </CardFooter>
                 </Card>
                 <Card className="shadow-sm border-2">
                     <CardHeader className="pb-3 border-b">
-                        <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground font-bold">Exam Navigator</CardTitle>
+                        <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground font-bold">Part {part} Navigator</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4">
                         <div className="grid grid-cols-5 sm:grid-cols-4 lg:grid-cols-5 gap-2">
-                            {questions.map((_, i) => (
-                                <button 
-                                    key={i} 
-                                    onClick={() => setIndex(i)} 
-                                    className={cn(
-                                        "h-10 w-full rounded-lg text-xs border-2 font-bold transition-all", 
-                                        index === i ? "bg-primary text-primary-foreground border-primary shadow-inner" : (ans[i] ? "bg-green-100 border-green-200 text-green-700" : "bg-background border-muted hover:border-muted-foreground/50")
-                                    )}
-                                >
-                                    {i+1}
-                                </button>
-                            ))}
+                            {questions.map((_, i) => {
+                                const absIdx = (part-1)*20 + i;
+                                return (
+                                    <button 
+                                        key={i} 
+                                        onClick={() => setIndex(i)} 
+                                        className={cn(
+                                            "h-10 w-full rounded-lg text-xs border-2 font-bold transition-all", 
+                                            index === i ? "bg-primary text-primary-foreground border-primary shadow-inner" : (ans[absIdx] ? "bg-green-100 border-green-200 text-green-700" : "bg-background border-muted hover:border-muted-foreground/50")
+                                        )}
+                                    >
+                                        {i+1}
+                                    </button>
+                                );
+                            })}
                         </div>
                         <div className="mt-6 space-y-2">
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
