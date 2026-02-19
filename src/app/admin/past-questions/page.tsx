@@ -102,6 +102,7 @@ export default function AdminPastQuestionsPage() {
     const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
     const [editingQuestion, setEditingQuestion] = useState<PastQuestion | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     
     // --- FILTERING STATES ---
     const [searchTerm, setSearchTerm] = useState("");
@@ -171,7 +172,12 @@ export default function AdminPastQuestionsPage() {
     const handleDeleteDialogChange = (open: boolean) => {
         setIsDeleteDialogOpen(open);
         if (!open) {
-            setTimeout(() => setQuestionToDelete(null), 300);
+            // Clear questionToDelete after dialog closes, but only if we're not in the middle of deleting
+            setTimeout(() => {
+                if (!isDeleting) {
+                    setQuestionToDelete(null);
+                }
+            }, 300);
         }
     };
 
@@ -271,23 +277,33 @@ export default function AdminPastQuestionsPage() {
         }
     };
 
-    const handleDelete = async () => {
+    const handleDelete = async (e?: React.MouseEvent) => {
+        // Prevent AlertDialog from closing automatically if it's not a standard event
+        if (e) e.preventDefault();
+        
         if (!questionToDelete || !storage || !firestore) return;
         
         const docId = questionToDelete.id;
         const storagePath = questionToDelete.storagePath;
 
-        // Immediately close dialog to prevent scroll-lock before async cleanup
-        handleDeleteDialogChange(false);
+        setIsDeleting(true);
 
         try {
             if (storagePath) {
                 await deleteObject(ref(storage, storagePath)).catch(() => {});
             }
             await deleteDoc(doc(firestore, "past_questions", docId));
+            
+            // Only close dialog and show toast after successful deletion
+            setIsDeleteDialogOpen(false);
+            setQuestionToDelete(null);
             toast({ title: "Deleted Successfully" });
         } catch (error: any) {
-             toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message });
+            toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message });
+            // Keep dialog open on failure
+            setIsDeleteDialogOpen(true);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -530,9 +546,20 @@ export default function AdminPastQuestionsPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Delete
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={handleDelete} 
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                "Delete"
+                            )}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
