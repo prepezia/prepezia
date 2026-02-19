@@ -58,7 +58,7 @@ type QuizQuestion = GenerateQuizOutput['quiz'][0];
 type SavedExam = {
     id: number;
     date: string;
-    selections: { examBody: string; university: string; schoolFaculty: string; subject: string; year: string; };
+    selections: { examBody: string; university: string; schoolFaculty: string; subject: string; year: string; courseCode?: string };
     questions: QuizQuestion[];
     examAnswers: Record<number, string>;
     examScore: number;
@@ -66,6 +66,7 @@ type SavedExam = {
     status: 'Completed' | 'In Progress';
     currentPart: number;
     examMode: ExamMode;
+    totalQuestionsInPaper: number;
 };
 
 export default function PastQuestionsPage() {
@@ -81,7 +82,7 @@ export default function PastQuestionsPage() {
 
     const [viewState, setViewState] = useState<ViewState>('select');
     const [examMode, setExamMode] = useState<ExamMode>('trial');
-    const [selections, setSelections] = useState({ examBody: "", university: "", schoolFaculty: "", subject: "", year: "" });
+    const [selections, setSelections] = useState({ examBody: "", university: "", schoolFaculty: "", subject: "", year: "", courseCode: "" });
     
     const [questions, setQuestions] = useState<QuizQuestion[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -154,6 +155,7 @@ export default function PastQuestionsPage() {
         
         setExamDuration(paper?.durationMinutes || 20);
         setTotalQuestionsInPaper(paper?.totalQuestions || 20);
+        setSelections(p => ({ ...p, courseCode: paper?.courseCode || "" }));
         setCurrentPart(1);
         setIsNewExamDialogOpen(false);
         setViewState('mode-select');
@@ -223,6 +225,9 @@ export default function PastQuestionsPage() {
 
     const handleSaveAndExit = (currentAnswers: Record<number, string>) => {
         const score = questions.reduce((acc, q, i) => currentAnswers[i] === q.correctAnswer ? acc + 1 : acc, 0);
+        
+        const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
+
         const newExam: SavedExam = {
             id: Date.now(),
             date: new Date().toLocaleDateString(),
@@ -230,10 +235,11 @@ export default function PastQuestionsPage() {
             questions,
             examAnswers: currentAnswers,
             examScore: score,
-            results: null,
-            status: 'In Progress',
+            results: results,
+            status: isFullyComplete ? 'Completed' : 'In Progress',
             currentPart,
-            examMode
+            examMode,
+            totalQuestionsInPaper
         };
         const updated = [newExam, ...savedExams.filter(e => e.id !== newExam.id)];
         setSavedExams(updated);
@@ -250,6 +256,7 @@ export default function PastQuestionsPage() {
         setResults(exam.results);
         setExamMode(exam.examMode);
         setCurrentPart(exam.currentPart);
+        setTotalQuestionsInPaper(exam.totalQuestionsInPaper);
         
         const paper = allQuestions?.find(q => 
             q.level === exam.selections.examBody && 
@@ -257,13 +264,14 @@ export default function PastQuestionsPage() {
             q.year === exam.selections.year &&
             (!exam.selections.university || q.university === exam.selections.university)
         );
-        setTotalQuestionsInPaper(paper?.totalQuestions || 20);
         setExamDuration(paper?.durationMinutes || 20);
 
         if (exam.status === 'Completed') {
             setViewState('results');
         } else {
+            // If in progress, clicking resume jumps to the next part automatically as requested
             setViewState('taking');
+            loadBatch(exam.currentPart + 1);
         }
     };
 
@@ -283,7 +291,7 @@ export default function PastQuestionsPage() {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div className="flex-1">
                             <h1 className="text-4xl font-headline font-bold">Past Questions Hub</h1>
-                            <p className="text-muted-foreground mt-1">Test your knowledge and get an AI-powered revision plan.</p>
+                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an AI-powered revision plan.</p>
                         </div>
                         <Button 
                             variant="outline"
@@ -303,46 +311,51 @@ export default function PastQuestionsPage() {
                             </Card>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {savedExams.map(exam => (
-                                    <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow relative" onClick={() => handleResume(exam)}>
-                                        <CardHeader>
-                                            <div className="flex justify-between items-start pr-6">
-                                                <CardTitle className="text-lg">{exam.selections.subject}</CardTitle>
-                                                {exam.status === 'In Progress' ? (
-                                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">In Progress</Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completed</Badge>
-                                                )}
-                                            </div>
-                                            <CardDescription>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <Calendar className="h-3 w-3" /> {exam.date}
-                                                </div>
-                                                <div className="flex items-center gap-2 mt-1 font-medium">
-                                                    {exam.status === 'Completed' ? (
-                                                        <><CheckCircle className="h-3 w-3 text-green-500" /> Final Score: {exam.examScore}/{exam.questions.length}</>
+                                {savedExams.map(exam => {
+                                    const progress = Math.min(Math.round(((exam.currentPart * 20) / exam.totalQuestionsInPaper) * 100), 100);
+                                    return (
+                                        <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow relative flex flex-col" onClick={() => handleResume(exam)}>
+                                            <CardHeader>
+                                                <div className="flex justify-between items-start pr-6 gap-2">
+                                                    <CardTitle className="text-lg leading-tight">{exam.selections.subject}</CardTitle>
+                                                    {exam.status === 'In Progress' ? (
+                                                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 shrink-0">{progress}% Done</Badge>
                                                     ) : (
-                                                        <><Clock className="h-3 w-3 text-blue-500" /> Part {exam.currentPart} saved</>
+                                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shrink-0">Completed</Badge>
                                                     )}
                                                 </div>
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardFooter className="pt-0">
-                                            <Button variant="ghost" size="sm" className="ml-auto text-primary gap-2">
-                                                {exam.status === 'In Progress' ? <PlayCircle className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
-                                                {exam.status === 'In Progress' ? 'Resume' : 'View Results'}
+                                                <CardDescription className="space-y-1">
+                                                    <div className="font-medium text-foreground/80">{exam.selections.university || exam.selections.examBody}</div>
+                                                    {exam.selections.courseCode && <div className="text-xs text-primary font-semibold">{exam.selections.courseCode}</div>}
+                                                    <div className="flex items-center gap-2 mt-2 pt-1 border-t">
+                                                        <Calendar className="h-3 w-3" /> {exam.date}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-1 font-medium text-foreground">
+                                                        {exam.status === 'Completed' ? (
+                                                            <><CheckCircle className="h-3 w-3 text-green-500" /> Final Score: {exam.examScore}/{exam.questions.length}</>
+                                                        ) : (
+                                                            <><Clock className="h-3 w-3 text-blue-500" /> Score so far: {exam.examScore}/{exam.questions.length}</>
+                                                        )}
+                                                    </div>
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardFooter className="pt-0 mt-auto">
+                                                <Button variant="ghost" size="sm" className="ml-auto text-primary gap-2">
+                                                    {exam.status === 'In Progress' ? <PlayCircle className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                                                    {exam.status === 'In Progress' ? 'Continue Exam' : 'View Results'}
+                                                </Button>
+                                            </CardFooter>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                onClick={(e) => handleDeleteSavedExam(e, exam.id)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
-                                        </CardFooter>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
-                                            onClick={(e) => handleDeleteSavedExam(e, exam.id)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </Card>
-                                ))}
+                                        </Card>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -356,7 +369,7 @@ export default function PastQuestionsPage() {
                             <div className="space-y-4 py-4">
                                 <div className="space-y-2">
                                     <Label>Exam Level</Label>
-                                    <Select onValueChange={v => setSelections({examBody: v, university: "", schoolFaculty: "", subject: "", year: ""})} value={selections.examBody}>
+                                    <Select onValueChange={v => setSelections({examBody: v, university: "", schoolFaculty: "", subject: "", year: "", courseCode: ""})} value={selections.examBody}>
                                         <SelectTrigger><SelectValue placeholder="Select level..." /></SelectTrigger>
                                         <SelectContent>{examBodies.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                                     </Select>
@@ -365,7 +378,7 @@ export default function PastQuestionsPage() {
                                 {selections.examBody === 'University' && (
                                     <div className="space-y-2 text-left">
                                         <Label>Institution</Label>
-                                        <Select onValueChange={v => setSelections(p => ({...p, university: v, schoolFaculty: "", subject: "", year: ""}))} value={selections.university}>
+                                        <Select onValueChange={v => setSelections(p => ({...p, university: v, schoolFaculty: "", subject: "", year: "", courseCode: ""}))} value={selections.university}>
                                             <SelectTrigger><SelectValue placeholder="Select institution..." /></SelectTrigger>
                                             <SelectContent className="max-h-[300px]">
                                                 {universities.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
@@ -376,7 +389,7 @@ export default function PastQuestionsPage() {
 
                                 <div className="space-y-2 text-left">
                                     <Label>Subject</Label>
-                                    <Select onValueChange={v => setSelections(p => ({...p, subject: v, year: ""}))} value={selections.subject} disabled={!selections.examBody}>
+                                    <Select onValueChange={v => setSelections(p => ({...p, subject: v, year: "", courseCode: ""}))} value={selections.subject} disabled={!selections.examBody}>
                                         <SelectTrigger><SelectValue placeholder="Select subject..." /></SelectTrigger>
                                         <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                                     </Select>
@@ -483,7 +496,8 @@ export default function PastQuestionsPage() {
                                 <CardDescription>{selections.subject} - {selections.year}</CardDescription>
                             </div>
                             <Button onClick={() => {
-                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!, status: 'Completed' as const, currentPart, examMode}, ...savedExams.filter(e => e.status !== 'In Progress' || e.selections.subject !== selections.subject)];
+                                const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
+                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions, examAnswers, examScore, results: results!, status: isFullyComplete ? 'Completed' as const : 'In Progress' as const, currentPart, examMode, totalQuestionsInPaper}, ...savedExams.filter(e => e.selections.subject !== selections.subject || e.status === 'Completed')];
                                 setSavedExams(updated);
                                 saveExamsToStorage(updated);
                                 toast({ title: "Session Saved", description: "Your results have been added to your hub." });
@@ -497,7 +511,7 @@ export default function PastQuestionsPage() {
                                     <TabsTrigger value="roadmap">AI Revision Roadmap</TabsTrigger>
                                     <TabsTrigger value="corrections">Corrections</TabsTrigger>
                                 </TabsList>
-                                <TabsContent value="roadmap" className="mt-6">
+                                <TabsContent value="roadmap" className="mt-6 w-full max-w-0 min-w-full">
                                     {isLoading ? (
                                         <div className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-primary"/></div>
                                     ) : (
@@ -567,7 +581,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
 
     const handleCheck = () => {
         setIsAnswered(true);
-        setAllAnswers(prev => ({ ...prev, [index]: selectedAnswer || "" }));
+        setAllAnswers(prev => ({ ...prev, [(part - 1) * 20 + index]: selectedAnswer || "" }));
     };
 
     const handleNext = () => {
@@ -585,7 +599,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
     };
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6 pb-24">
             <div className="space-y-3">
                 <div className="flex justify-between items-end text-sm">
                     <span className="font-medium font-headline">Trial Mode - Part {part} of {maxParts}: Question {(part-1)*20 + index + 1} of {totalQuestions}</span>
@@ -662,19 +676,19 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
                             <AlertCircle className="h-4 w-4 text-primary" />
                             <AlertTitle className="font-bold">Part {part} Complete!</AlertTitle>
                             <AlertDescription>
-                                You've finished this batch. There are a total of {totalQuestions} questions in this paper ({maxParts} parts). Click below to proceed to the next part.
+                                You've finished this batch. There are a total of {totalQuestions} questions in this paper ({maxParts} parts). Click below to proceed to the next part or save for later.
                             </AlertDescription>
                         </Alert>
                     )}
                     
-                    <div className="flex justify-between items-center w-full">
-                        {isEndOfBatch && isAnswered ? (
-                            <Button variant="ghost" onClick={() => onSaveAndExit(allAnswers)} className="text-muted-foreground hover:text-primary">
+                    <div className="flex justify-between items-center w-full gap-2">
+                        {isAnswered && (
+                            <Button variant="ghost" onClick={() => onSaveAndExit(allAnswers)} className="text-muted-foreground hover:text-primary shrink-0">
                                 <Save className="mr-2 h-4 w-4"/> Save & Exit
                             </Button>
-                        ) : <div />}
+                        )}
                         
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 ml-auto">
                             {!isAnswered ? (
                                 <Button 
                                     onClick={handleCheck} 
@@ -690,7 +704,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
                                     size="lg" 
                                     className="font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
                                 >
-                                    {isEndOfBatch ? (hasNextPart ? "Next Part" : "Complete Trial") : "Next Question"} 
+                                    {isEndOfBatch ? (hasNextPart ? "Continue to Part " + (part + 1) : "Complete Trial") : "Next Question"} 
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             )}
