@@ -20,7 +20,7 @@ import {
   } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -32,6 +32,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
@@ -587,7 +588,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
         <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
             <div className="space-y-3">
                 <div className="flex justify-between items-end text-sm">
-                    <span className="font-medium font-headline">Trial Mode - Part {part} of {maxParts}: Question {index+1} of {questions.length}</span>
+                    <span className="font-medium font-headline">Trial Mode - Part {part} of {maxParts}: Question {(part-1)*20 + index + 1} of {totalQuestions}</span>
                     <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}% of part</span>
                 </div>
                 <Progress value={((index+1)/questions.length)*100} className="h-2" />
