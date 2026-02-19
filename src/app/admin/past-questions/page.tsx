@@ -54,7 +54,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Trash2, Edit, Loader2, Search, Filter, Settings2, Sparkles } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2, Edit, Loader2, Search, Filter, Settings2, Sparkles, GraduationCap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { universities as staticUnis } from "@/lib/ghana-universities";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
@@ -81,7 +81,7 @@ export default function AdminPastQuestionsPage() {
     const { user } = useUser();
     const { toast } = useToast();
 
-    // Data fetching
+    // --- DATA FETCHING ---
     const questionsQuery = useMemo(() => {
         if (!firestore) return null;
         return query(collection(firestore, 'past_questions'), orderBy('uploadedAt', 'desc')) as CollectionReference<PastQuestion>;
@@ -93,23 +93,23 @@ export default function AdminPastQuestionsPage() {
         useMemo(() => firestore ? collection(firestore, 'custom_universities') as any : null, [firestore])
     );
 
-    // Visibility States
+    // --- VISIBILITY STATES ---
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isUniManagementOpen, setIsUniManagementOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     
-    // Selection States
+    // --- SELECTION STATES ---
     const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
     const [editingQuestion, setEditingQuestion] = useState<PastQuestion | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // Filtering States
+    // --- FILTERING STATES ---
     const [searchTerm, setSearchTerm] = useState("");
     const [filterLevel, setFilterLevel] = useState("All");
     const [filterUni, setFilterUniversity] = useState("All");
     const [filterYear, setFilterYear] = useState("All");
 
-    // Form States
+    // --- FORM STATES ---
     const [level, setLevel] = useState("");
     const [university, setUniversity] = useState("");
     const [schoolFaculty, setSchoolFaculty] = useState("");
@@ -121,20 +121,19 @@ export default function AdminPastQuestionsPage() {
     const [file, setFile] = useState<File | null>(null);
     const [newUniName, setNewUniName] = useState("");
 
-    // Merged University List
+    // --- MERGED LISTS & SUGGESTIONS ---
     const allUniversities = useMemo(() => {
         const customNames = customUnis?.map(u => u.name) || [];
         return Array.from(new Set([...staticUnis, ...customNames])).sort();
     }, [customUnis]);
 
-    // Smart Suggestions
     const suggestedFaculties = useMemo(() => Array.from(new Set(questions?.map(q => q.schoolFaculty).filter(Boolean))), [questions]);
     const suggestedCourseCodes = useMemo(() => Array.from(new Set(questions?.map(q => q.courseCode).filter(Boolean))), [questions]);
     const suggestedSubjects = useMemo(() => Array.from(new Set(questions?.map(q => q.subject).filter(Boolean))), [questions]);
     const suggestedYears = useMemo(() => Array.from(new Set(questions?.map(q => q.year).filter(Boolean))), [questions]);
 
-    const uniOptions = useMemo(() => ["All", ...allUniversities], [allUniversities]);
-    const yearOptions = useMemo(() => ["All", ...Array.from(new Set(questions?.map(q => q.year).filter(Boolean)))], [questions]);
+    const uniFilterOptions = useMemo(() => ["All", ...allUniversities], [allUniversities]);
+    const yearFilterOptions = useMemo(() => ["All", ...Array.from(new Set(questions?.map(q => q.year).filter(Boolean)))], [questions]);
 
     const filteredQuestions = useMemo(() => {
         if (!questions) return [];
@@ -148,7 +147,7 @@ export default function AdminPastQuestionsPage() {
         });
     }, [questions, searchTerm, filterLevel, filterUni, filterYear]);
 
-    // Dialog Handlers with Safe-Close Pattern
+    // --- DIALOG HANDLERS (SAFE-CLOSE PATTERN) ---
     const resetForm = () => {
         setLevel("");
         setUniversity("");
@@ -189,6 +188,7 @@ export default function AdminPastQuestionsPage() {
         setIsUploadDialogOpen(true);
     };
 
+    // --- ACTIONS ---
     const handleSave = async () => {
         if (!editingQuestion && !file) {
             toast({ variant: 'destructive', title: "Missing File", description: "Please select a file to upload."});
@@ -207,7 +207,6 @@ export default function AdminPastQuestionsPage() {
             let finalExtractedText = editingQuestion?.extractedText || "";
 
             if (file && storage) {
-                // Delete old file if replacing
                 if (editingQuestion?.storagePath) {
                     try { await deleteObject(ref(storage, editingQuestion.storagePath)); } catch (e) {}
                 }
@@ -278,7 +277,7 @@ export default function AdminPastQuestionsPage() {
         const docId = questionToDelete.id;
         const storagePath = questionToDelete.storagePath;
 
-        // Close dialog first to prevent scroll-lock
+        // Immediately close dialog to prevent scroll-lock before async cleanup
         handleDeleteDialogChange(false);
 
         try {
@@ -321,11 +320,11 @@ export default function AdminPastQuestionsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Past Questions</h1>
-                    <p className="text-muted-foreground">Manage and categorize examination papers.</p>
+                    <p className="text-muted-foreground">Manage and categorize examination papers for the student portal.</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setIsUniManagementOpen(true)}>
-                        <Settings2 className="mr-2 h-4 w-4" /> Institutions
+                        <Settings2 className="mr-2 h-4 w-4" /> Manage Institutions
                     </Button>
                     <Button onClick={() => setIsUploadDialogOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" /> Upload Paper
@@ -352,13 +351,13 @@ export default function AdminPastQuestionsPage() {
                         <Select value={filterUni} onValueChange={setFilterUniversity}>
                             <SelectTrigger><SelectValue placeholder="University" /></SelectTrigger>
                             <SelectContent className="max-h-[300px]">
-                                {uniOptions.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}
+                                {uniFilterOptions.map(uni => <SelectItem key={uni} value={uni}>{uni}</SelectItem>)}
                             </SelectContent>
                         </Select>
                         <Select value={filterYear} onValueChange={setFilterYear}>
                             <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
                             <SelectContent>
-                                {yearOptions.map(yr => <SelectItem key={yr} value={yr}>{yr}</SelectItem>)}
+                                {yearFilterOptions.map(yr => <SelectItem key={yr} value={yr}>{yr}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
@@ -419,7 +418,7 @@ export default function AdminPastQuestionsPage() {
                 <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
                         <DialogTitle>{editingQuestion ? "Edit Paper" : "Upload Paper"}</DialogTitle>
-                        <DialogDescription>Details for the examination paper. AI will process the file.</DialogDescription>
+                        <DialogDescription>Enter details for the examination paper. AI will process the file content for test generation.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-3 gap-4">
@@ -457,7 +456,7 @@ export default function AdminPastQuestionsPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>School / Faculty</Label>
-                                    <Input value={schoolFaculty} onChange={e => setSchoolFaculty(e.target.value)} placeholder="e.g., Medical School" list="faculty-list" />
+                                    <Input value={schoolFaculty} onChange={e => setSchoolFaculty(e.target.value)} placeholder="e.g., School of Medical Sciences" list="faculty-list" />
                                     <datalist id="faculty-list">{suggestedFaculties.map(f => <option key={f as string} value={f as string} />)}</datalist>
                                 </div>
                             </>
@@ -466,7 +465,7 @@ export default function AdminPastQuestionsPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Course Code</Label>
-                                <Input value={courseCode} onChange={e => setCourseCode(e.target.value)} placeholder="e.g., ECON 401" list="codes-list" />
+                                <Input value={courseCode} onChange={e => setCourseCode(e.target.value)} placeholder="e.g., MED 201" list="codes-list" />
                                 <datalist id="codes-list">{suggestedCourseCodes.map(c => <option key={c as string} value={c as string} />)}</datalist>
                             </div>
                             <div className="space-y-2">
@@ -478,14 +477,14 @@ export default function AdminPastQuestionsPage() {
 
                         <div className="space-y-2">
                             <Label>Subject Title *</Label>
-                            <Input value={course} onChange={e => setCourse(e.target.value)} placeholder="e.g., Microeconomics" list="subjects-list" />
+                            <Input value={course} onChange={e => setCourse(e.target.value)} placeholder="e.g., Gross Anatomy" list="subjects-list" />
                             <datalist id="subjects-list">{suggestedSubjects.map(s => <option key={s as string} value={s as string} />)}</datalist>
                         </div>
 
                          <div className="space-y-2">
                             <Label>{editingQuestion ? "Replace File (optional)" : "File * (PDF recommended)"}</Label>
                             <Input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} accept=".pdf,.doc,.docx,image/*" />
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Sparkles className="h-3 w-3" /> PDFs ensure maximum AI question accuracy.</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Sparkles className="h-3 w-3" /> PDFs ensure the highest accuracy for question extraction.</p>
                         </div>
                     </div>
                     <DialogFooter>
@@ -500,7 +499,7 @@ export default function AdminPastQuestionsPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Manage Institutions</DialogTitle>
-                        <DialogDescription>Add custom universities to the system list.</DialogDescription>
+                        <DialogDescription>Add custom universities to the system list. These will appear in all dropdowns.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="flex gap-2">
@@ -527,7 +526,7 @@ export default function AdminPastQuestionsPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Paper?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure? This will permanently remove "{questionToDelete?.subject}" from the repository.
+                            This will permanently remove "{questionToDelete?.subject}" and its associated file from the system.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
