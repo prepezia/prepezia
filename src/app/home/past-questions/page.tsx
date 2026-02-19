@@ -77,7 +77,7 @@ export default function PastQuestionsPage() {
     const { data: allQuestions, loading: questionsLoading } = useCollection<PastQuestion>(questionsQuery);
     
     const { data: customUnis } = useCollection<{id: string, name: string}>(
-        useMemo(() => firestore ? collection(firestore, 'custom_university') as any : null, [firestore])
+        useMemo(() => firestore ? collection(firestore, 'custom_universities') as any : null, [firestore])
     );
 
     const [viewState, setViewState] = useState<ViewState>('select');
