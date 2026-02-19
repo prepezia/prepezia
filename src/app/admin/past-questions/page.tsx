@@ -66,6 +66,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Edit, Trash2, FileText, Search, GraduationCap, X, Sparkles } from "lucide-react";
 import { universities as staticUnis } from "@/lib/ghana-universities";
@@ -271,6 +272,7 @@ export default function AdminPastQuestionsPage() {
   const handleDeleteDialogChange = (open: boolean) => {
     setIsDeleteDialogOpen(open);
     if (!open) {
+      // Clear questionToDelete after dialog closes, but only if we're not in the middle of deleting
       setTimeout(() => {
         if (!isDeleting) {
           setQuestionToDelete(null);

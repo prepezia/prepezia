@@ -31,6 +31,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
@@ -441,6 +442,7 @@ export default function PastQuestionsPage() {
                                                     <span className="font-bold text-green-600">{q.correctAnswer}</span>
                                                 </div>
                                             </div>
+                                            <Separator className="my-4" />
                                             <div className="mt-4 p-3 bg-background rounded border text-xs italic">
                                                 <p className="font-semibold not-italic mb-1">Explanation:</p>
                                                 {q.explanation}
