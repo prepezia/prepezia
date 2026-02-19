@@ -232,14 +232,11 @@ export default function AdminPastQuestionsPage() {
 
                     // Check for DOCX support (Flash models don't support it directly via media API)
                     if (file.type.includes('word') || file.type.includes('officedocument.wordprocessingml.document')) {
-                        // Attempt to read small docx as raw text if possible, or warn
-                        // In this environment, we should guide user to PDF for extraction
                         toast({ variant: 'destructive', title: "DOCX Extraction Limitation", description: "AI vision works best with PDFs. Content extraction might be limited." });
                         
-                        // Fallback: Read as raw text if it's small, otherwise AI might fail
                         const extractionResult = await extractTextFromFile({
                             fileDataUri: dataUri,
-                            fileContentType: 'text/plain', // Force text interpretation if possible
+                            fileContentType: 'text/plain', // Fallback to plain text interpretation
                         });
                         finalExtractedText = extractionResult.extractedText;
                     } else {
@@ -251,7 +248,7 @@ export default function AdminPastQuestionsPage() {
                     }
                 } catch (extractError: any) {
                     console.error("AI Extraction failed:", extractError);
-                    toast({ variant: 'destructive', title: "AI Extraction Error", description: "Could not read text via AI. The file will still be uploaded, but quizzes might be less accurate." });
+                    toast({ variant: 'destructive', title: "AI Extraction Error", description: "Could not read text via AI. The file will still be uploaded." });
                 }
 
                 // Upload to storage
@@ -298,15 +295,23 @@ export default function AdminPastQuestionsPage() {
 
     const handleDelete = async () => {
         if (!questionToDelete || !storage || !firestore) return;
+        
+        // Capture necessary data before clearing state
+        const docId = questionToDelete.id;
+        const storagePath = questionToDelete.storagePath;
+
+        // Immediately close dialog and clear selection to prevent UI freeze
+        setIsDeleteDialogOpen(false);
+        setQuestionToDelete(null);
+
         try {
-            try { await deleteObject(ref(storage, questionToDelete.storagePath)); } catch (e) {}
-            await deleteDoc(doc(firestore, "past_questions", questionToDelete.id));
-            toast({ title: "Deleted" });
+            if (storagePath) {
+                try { await deleteObject(ref(storage, storagePath)); } catch (e) {}
+            }
+            await deleteDoc(doc(firestore, "past_questions", docId));
+            toast({ title: "Deleted Successfully" });
         } catch (error: any) {
              toast({ variant: 'destructive', title: 'Failed', description: error.message });
-        } finally {
-            setIsDeleteDialogOpen(false);
-            setQuestionToDelete(null);
         }
     }
 
@@ -527,7 +532,7 @@ export default function AdminPastQuestionsPage() {
                     <AlertDialogHeader><AlertDialogTitle>Delete Paper?</AlertDialogTitle><AlertDialogDescription>This will permanently remove the paper from the repository.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setQuestionToDelete(null)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+                        <Button variant="destructive" onClick={handleDelete}>Delete</Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
