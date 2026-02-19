@@ -95,6 +95,8 @@ export default function PastQuestionsPage() {
     const [totalQuestionsInPaper, setTotalQuestionsInPaper] = useState(20);
     const [currentPart, setCurrentPart] = useState(1);
     const [loadingPart, setLoadingPart] = useState(1);
+    const [currentExamId, setCurrentExamId] = useState<number | null>(null);
+    const [hasSavedResults, setHasSavedResults] = useState(false);
 
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
     const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
@@ -152,6 +154,8 @@ export default function PastQuestionsPage() {
             (!selections.university || q.university === selections.university)
         );
         
+        setCurrentExamId(null); // Fresh session
+        setHasSavedResults(false);
         setExamDuration(paper?.durationMinutes || 20);
         setTotalQuestionsInPaper(paper?.totalQuestions || 20);
         setSelections(p => ({ ...p, courseCode: paper?.courseCode || "" }));
@@ -237,6 +241,7 @@ export default function PastQuestionsPage() {
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
         setViewState('results');
+        setHasSavedResults(false);
         
         const mergedAnswers = { ...examAnswers, ...finalAnswers };
         setExamAnswers(mergedAnswers);
@@ -264,6 +269,7 @@ export default function PastQuestionsPage() {
 
     const handleSaveAndExit = (currentAnswers: Record<number, string>) => {
         const mergedAnswers = { ...examAnswers, ...currentAnswers };
+        const examId = currentExamId || Date.now();
         
         const score = allQuestionsInSession.reduce((acc, q, i) => {
             return mergedAnswers[i] === q.correctAnswer ? acc + 1 : acc;
@@ -272,7 +278,7 @@ export default function PastQuestionsPage() {
         const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
 
         const newExam: SavedExam = {
-            id: Date.now(),
+            id: examId,
             date: new Date().toLocaleDateString(),
             selections,
             questions: allQuestionsInSession,
@@ -284,7 +290,7 @@ export default function PastQuestionsPage() {
             examMode,
             totalQuestionsInPaper
         };
-        const updated = [newExam, ...savedExams.filter(e => e.selections.subject !== selections.subject || e.status === 'Completed')];
+        const updated = [newExam, ...savedExams.filter(e => e.id !== examId)];
         setSavedExams(updated);
         saveExamsToStorage(updated);
         setViewState('select');
@@ -301,6 +307,8 @@ export default function PastQuestionsPage() {
         setExamMode(exam.examMode);
         setCurrentPart(exam.currentPart);
         setTotalQuestionsInPaper(exam.totalQuestionsInPaper);
+        setCurrentExamId(exam.id);
+        setHasSavedResults(false);
         
         const paper = allQuestions?.find(q => 
             q.level === exam.selections.examBody && 
@@ -558,14 +566,32 @@ export default function PastQuestionsPage() {
                                 <CardTitle className="text-2xl font-headline">Results: {examScore}/{allQuestionsInSession.length}</CardTitle>
                                 <CardDescription>{selections.subject} - {selections.year} ({examMode === 'trial' ? 'Trial Mode' : 'Exam Mode'})</CardDescription>
                             </div>
-                            <Button onClick={() => {
-                                const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
-                                const updated = [{id: Date.now(), date: new Date().toLocaleDateString(), selections, questions: allQuestionsInSession, examAnswers, examScore, results: results!, status: isFullyComplete ? 'Completed' as const : 'In Progress' as const, currentPart, examMode, totalQuestionsInPaper}, ...savedExams.filter(e => e.selections.subject !== selections.subject || e.status === 'Completed')];
-                                setSavedExams(updated);
-                                saveExamsToStorage(updated);
-                                toast({ title: "Session Saved", description: "Your results have been added to your hub." });
-                            }}>
-                                <Save className="mr-2 h-4 w-4"/> Save Session
+                            <Button 
+                                disabled={hasSavedResults}
+                                onClick={() => {
+                                    const examId = currentExamId || Date.now();
+                                    const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
+                                    const newExam: SavedExam = {
+                                        id: examId,
+                                        date: new Date().toLocaleDateString(),
+                                        selections,
+                                        questions: allQuestionsInSession,
+                                        examAnswers,
+                                        examScore,
+                                        results: results,
+                                        status: isFullyComplete ? 'Completed' : 'In Progress',
+                                        currentPart,
+                                        examMode,
+                                        totalQuestionsInPaper
+                                    };
+                                    const updated = [newExam, ...savedExams.filter(e => e.id !== examId)];
+                                    setSavedExams(updated);
+                                    saveExamsToStorage(updated);
+                                    setHasSavedResults(true);
+                                    toast({ title: "Session Saved", description: "Your results have been added to your hub." });
+                                }}
+                            >
+                                <Save className="mr-2 h-4 w-4"/> {hasSavedResults ? "Saved" : "Save Session"}
                             </Button>
                         </CardHeader>
                         <CardContent>
