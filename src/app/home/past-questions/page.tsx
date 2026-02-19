@@ -20,7 +20,7 @@ import {
   } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle, Eye, Separator } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -32,6 +32,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
