@@ -134,13 +134,12 @@ export default function PastQuestionsPage() {
     const allUniversities = useMemo(() => {
         const customNames = customUnis?.map(u => u.name) || [];
         return Array.from(new Set([...staticUnis, ...customNames])).sort();
-    }, [customUnis]);
+    }, [customUnis, staticUnis]);
 
     const filteredUniversities = useMemo(() => {
         if (!uniSearchQuery) return allUniversities;
-        return allUniversities.filter(u => 
-            u.toLowerCase().includes(uniSearchQuery.toLowerCase())
-        );
+        const query = uniSearchQuery.toLowerCase();
+        return allUniversities.filter(u => u.toLowerCase().includes(query));
     }, [allUniversities, uniSearchQuery]);
 
     const examBodies = useMemo(() => allQuestions ? Array.from(new Set(allQuestions.map(q => q.level))) : [], [allQuestions]);
@@ -274,6 +273,7 @@ export default function PastQuestionsPage() {
         if (!currentExamId) setCurrentExamId(examId);
 
         const score = allQuestionsInSession.reduce((acc, q, i) => {
+            const absIdx = (currentPart - 1) * 20 + (allQuestionsInSession.indexOf(q) % 20); // Simplified for calculation
             return mergedAnswers[i] === q.correctAnswer ? acc + 1 : acc;
         }, 0);
 
@@ -515,7 +515,10 @@ export default function PastQuestionsPage() {
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                            <PopoverContent 
+                                                className="w-[var(--radix-popover-trigger-width)] p-0"
+                                                onOpenAutoFocus={(e) => e.preventDefault()}
+                                            >
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center border-b px-3">
                                                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -524,6 +527,8 @@ export default function PastQuestionsPage() {
                                                             className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0"
                                                             value={uniSearchQuery}
                                                             onChange={(e) => setUniSearchQuery(e.target.value)}
+                                                            onKeyDown={(e) => e.stopPropagation()}
+                                                            onPointerDown={(e) => e.stopPropagation()}
                                                         />
                                                     </div>
                                                     <ScrollArea className="h-[300px]">
@@ -946,7 +951,6 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
             }, 1000);
             return () => clearInterval(t);
         } else {
-            // Use setTimeout to avoid triggering state updates during render
             const timer = setTimeout(() => {
                 onTimeout(ansRef.current);
             }, 0);
