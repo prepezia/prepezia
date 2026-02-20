@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow to generate a professional aptitude test.
@@ -36,7 +35,10 @@ const aptitudePrompt = ai.definePrompt({
   model: 'googleai/gemini-2.5-flash',
   input: {schema: GenerateAptitudeTestInputSchema},
   output: {schema: GenerateAptitudeTestOutputSchema},
-  prompt: `You are an expert HR Consultant and Psychometric Tester. Your task is to generate a comprehensive 40-question aptitude test for a candidate.
+  prompt: `You are Zia, an expert HR Consultant and Psychometric Tester. Your task is to generate a comprehensive 40-question aptitude test for a candidate.
+
+### CRITICAL INSTRUCTION:
+You **MUST** generate exactly 40 questions. Do not stop early. Do not provide a summary. Provide only the 40 questions in the required format.
 
 ### CONTEXT:
 - **Target Industry/Role**: {{{industry}}}
@@ -49,7 +51,7 @@ const aptitudePrompt = ai.definePrompt({
 {{/if}}
 
 ### TEST STRUCTURE:
-The test should consist of 40 multiple-choice questions (MCQs) distributed as follows:
+The test should consist of exactly 40 multiple-choice questions (MCQs) distributed as follows:
 1. **Quantitative Reasoning (10 Qs)**: Numerical patterns, basic arithmetic, and data interpretation relevant to the industry.
 2. **Verbal Reasoning (10 Qs)**: Comprehension, grammar, and logical deduction.
 3. **Industry-Specific Knowledge (15 Qs)**: Technical or conceptual questions specific to **{{{industry}}}**.
@@ -62,6 +64,9 @@ The test should consist of 40 multiple-choice questions (MCQs) distributed as fo
 - Ensure the questions are challenging but fair.
 
 Generate the full 40-question test now.`,
+  config: {
+    maxOutputTokens: 16384,
+  }
 });
 
 export async function generateAptitudeTest(input: GenerateAptitudeTestInput): Promise<GenerateAptitudeTestOutput> {
