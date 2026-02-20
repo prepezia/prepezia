@@ -13,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic, Volume2, Pause, HelpCircle, CheckCircle, XCircle } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic, Volume2, Pause, HelpCircle, CheckCircle, XCircle, Trash2, Eye, Clock, Calendar } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -34,12 +34,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
-import Link from "next/link";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type View = "loading" | "onboarding" | "hub" | "aptitude";
 type HubTab = "cv" | "chat" | "jobs";
@@ -57,6 +56,16 @@ type CvData = {
   contentType?: string;
 };
 
+type SavedAptitudeTest = {
+    id: string;
+    industry: string;
+    score: number;
+    total: number;
+    date: string;
+    questions: GenerateAptitudeTestOutput['questions'];
+    answers: Record<number, string>;
+};
+
 const ACCEPTED_FILE_TYPES = {
   pdf: 'application/pdf',
   images: 'image/jpeg,image/jpg,image/png,image/webp',
@@ -65,9 +74,7 @@ const ACCEPTED_FILE_TYPES = {
 
 const ALL_ACCEPTED_FILES = Object.values(ACCEPTED_FILE_TYPES).join(',');
 
-const jobTypes = ["Any", "Full-time", "Part-time", "Internship", "Contract", "Remote"];
 const industries = ["Any", "Technology", "Finance", "Healthcare", "Education", "Marketing", "Engineering", "Sales", "Consulting"];
-const experienceLevels = ["Any", "Entry-level", "Mid-level", "Senior-level", "Executive"];
 
 export default function CareerPageWrapper() {
   return (
@@ -111,7 +118,6 @@ function CareerPage() {
     }
     setCareerGoals(savedGoals);
 
-    // If URL has a tab param, go straight to hub
     if (searchParams.get('tab')) {
         setView("hub");
     } else {
@@ -136,7 +142,6 @@ function CareerPage() {
 
   const handleOpenHubWithTab = (tab: HubTab) => {
       setView("hub");
-      // Use router to set param so HubView can pick it up
       router.push(`/home/career?tab=${tab}`);
   };
 
@@ -215,7 +220,7 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
 
     setIsLoading(true);
     try {
-        toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+        toast({ title: 'Extracting Text...' });
         let extractedText;
         if (file.type.startsWith('image/') || file.type === 'application/pdf') {
             const dataUri = await new Promise<string>((resolve, reject) => {
@@ -236,7 +241,7 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
         }
         onCompleted({ content: extractedText, fileName: file.name, contentType: file.type }, goals);
     } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
+        toast({ variant: 'destructive', title: 'Text Extraction Failed' });
     } finally {
         setIsLoading(false);
     }
@@ -256,7 +261,7 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
       });
       onCompleted({ content: result.cvTemplate, fileName: 'generated_cv.md', contentType: 'text/markdown' }, templateInfo.careerGoal);
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Generation Failed', description: e.message });
+      toast({ variant: 'destructive', title: 'Generation Failed' });
     } finally {
       setIsLoading(false);
       setIsTemplateModalOpen(false);
@@ -367,7 +372,7 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
             {isLoading && (
               <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-lg z-10">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-                  <p className="text-muted-foreground">Extracting text from your document...</p>
+                  <p className="text-muted-foreground">Extracting text...</p>
               </div>
             )}
             <CardHeader>
@@ -503,7 +508,6 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
   }, [cv.content, careerGoals, toast, handlePlayAudio, firestoreUser]);
 
   useEffect(() => {
-    // Check for aptitude context
     const contextJSON = sessionStorage.getItem('learnwithtemi_chat_context');
     if (contextJSON && activeTab === 'chat' && chatHistory.length === 0) {
         sessionStorage.removeItem('learnwithtemi_chat_context');
@@ -559,6 +563,7 @@ Would you like to discuss your results, review any difficult concepts, or explor
             const dataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = (e) => reject(e);
                 reader.readAsDataURL(file);
             });
             const result = await extractTextFromFile({ fileDataUri: dataUri, fileContentType: file.type });
@@ -785,8 +790,22 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
     const [industry, setIndustry] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, string>>({});
-    const [viewState, setViewState] = useState<'intro' | 'taking' | 'results'>('intro');
+    const [viewState, setViewState] = useState<'intro' | 'taking' | 'results' | 'review'>('intro');
     const [score, setScore] = useState(0);
+    
+    const [savedTests, setSavedTests] = useState<SavedAptitudeTest[]>([]);
+    const [selectedSavedTest, setSelectedSavedTest] = useState<SavedAptitudeTest | null>(null);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('learnwithtemi_saved_aptitude');
+        if (saved) {
+            try { setSavedTests(JSON.parse(saved)); } catch (e) {}
+        }
+    }, []);
+
+    const saveTestsToStorage = (tests: SavedAptitudeTest[]) => {
+        try { localStorage.setItem('learnwithtemi_saved_aptitude', JSON.stringify(tests)); } catch (e) {}
+    };
 
     const handleGenerate = async () => {
         setIsGenerating(true);
@@ -819,12 +838,42 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
         setViewState('results');
     };
 
-    const handleDiscussWithAI = () => {
+    const handleSave = () => {
+        if (!test) return;
+        const newSaved: SavedAptitudeTest = {
+            id: `apt-${Date.now()}`,
+            industry: industry || "General Professional",
+            score,
+            total: test.questions.length,
+            date: new Date().toLocaleDateString(),
+            questions: test.questions,
+            answers: answers
+        };
+        const updated = [newSaved, ...savedTests];
+        setSavedTests(updated);
+        saveTestsToStorage(updated);
+        toast({ title: "Assessment Saved!" });
+    };
+
+    const handleDeleteSaved = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        const updated = savedTests.filter(t => t.id !== id);
+        setSavedTests(updated);
+        saveTestsToStorage(updated);
+        toast({ title: "Assessment Removed" });
+    };
+
+    const handleViewSaved = (st: SavedAptitudeTest) => {
+        setSelectedSavedTest(st);
+        setViewState('review');
+    };
+
+    const handleDiscussWithAI = (currentScore: number, currentTotal: number, currentIndustry: string) => {
         sessionStorage.setItem('learnwithtemi_chat_context', JSON.stringify({
             type: 'aptitude_test',
-            score,
-            total: test?.questions.length,
-            industry: industry || "General Professional"
+            score: currentScore,
+            total: currentTotal,
+            industry: currentIndustry
         }));
         onOpenHub('chat');
     };
@@ -833,59 +882,177 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
         <div className="flex flex-col flex-1 h-full">
             <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Career Home</Button>} />
             <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-4">
-                <Card className="max-w-4xl mx-auto w-full flex-1 flex flex-col border-2 border-orange-100">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><HelpCircle className="text-orange-600"/>AI Aptitude Assessment</CardTitle>
-                        <CardDescription>Test your skills with an industry-focused evaluation.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto">
-                        {viewState === 'intro' && (
-                            <div className="space-y-6 max-w-lg mx-auto py-10">
-                                <div className="space-y-2">
-                                    <Label>Focus Industry / Role</Label>
-                                    <Input placeholder="e.g., Software Engineering, Banking" value={industry} onChange={e => setIndustry(e.target.value)} />
-                                    <p className="text-xs text-muted-foreground">Tailored to your industry and CV content.</p>
-                                </div>
-                                <Button className="w-full py-8 text-lg font-bold bg-orange-600 text-white hover:bg-orange-700 transition-colors shadow-md hover:shadow-lg border-none" onClick={handleGenerate} disabled={isGenerating}>
-                                    {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <Sparkles className="mr-2"/>}
-                                    {isGenerating ? 'Generating Test...' : 'Start Assessment'}
+                <Card className="max-w-4xl mx-auto w-full flex-1 flex flex-col border-2 border-orange-100 overflow-hidden">
+                    <CardHeader className="border-b bg-orange-50/30">
+                        <div className="flex justify-between items-center">
+                            <div className="space-y-1">
+                                <CardTitle className="flex items-center gap-2"><HelpCircle className="text-orange-600"/>AI Aptitude Assessment</CardTitle>
+                                <CardDescription>Test your skills with industry-focused evaluations.</CardDescription>
+                            </div>
+                            {viewState !== 'intro' && (
+                                <Button variant="ghost" size="sm" onClick={() => setViewState('intro')}>
+                                    <XCircle className="mr-2 h-4 w-4"/> Exit
                                 </Button>
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto p-6">
+                        {viewState === 'intro' && (
+                            <div className="space-y-10 max-w-2xl mx-auto py-6">
+                                <Card className="border-2 border-dashed">
+                                    <CardContent className="pt-6 space-y-6">
+                                        <div className="space-y-2">
+                                            <Label className="text-base font-bold">Focus Industry / Role</Label>
+                                            <Input placeholder="e.g., Software Engineering, Banking" value={industry} onChange={e => setIndustry(e.target.value)} className="h-12" />
+                                            <p className="text-xs text-muted-foreground">The test will be tailored to this field and your background.</p>
+                                        </div>
+                                        <Button className="w-full py-8 text-lg font-bold bg-orange-600 text-white hover:bg-orange-700 transition-all shadow-md hover:shadow-lg border-none" onClick={handleGenerate} disabled={isGenerating}>
+                                            {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <Sparkles className="mr-2"/>}
+                                            {isGenerating ? 'Generating Test...' : 'Start Assessment'}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+
+                                {savedTests.length > 0 && (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2 text-lg font-bold">
+                                            <Clock className="h-5 w-5 text-muted-foreground" />
+                                            Your Recent Assessments
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {savedTests.map(st => (
+                                                <div 
+                                                    key={st.id} 
+                                                    className="flex items-center justify-between p-4 rounded-xl border-2 hover:border-orange-200 hover:bg-orange-50/20 cursor-pointer transition-all group"
+                                                    onClick={() => handleViewSaved(st)}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                                                            <CheckCircle className="h-5 w-5" />
+                                                        </div>
+                                                        <div className="space-y-0.5">
+                                                            <div className="font-bold">{st.industry}</div>
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                <Calendar className="h-3 w-3" /> {st.date}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="text-right">
+                                                            <div className="text-lg font-bold">{st.score} <span className="text-xs text-muted-foreground">/ {st.total}</span></div>
+                                                            <div className="text-[10px] uppercase font-bold text-orange-600 tracking-wider">Score</div>
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100" onClick={(e) => handleDeleteSaved(e, st.id)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
+
                         {viewState === 'taking' && test && (
-                            <div className="space-y-6">
+                            <div className="space-y-6 max-w-2xl mx-auto">
                                 <div className="flex justify-between items-center text-sm mb-4">
                                     <span className="font-bold">Question {currentIndex + 1} of {test.questions.length}</span>
-                                    <span className="text-muted-foreground">{Math.round(((currentIndex + 1) / test.questions.length) * 100)}%</span>
+                                    <span className="text-muted-foreground font-mono">{Math.round(((currentIndex + 1) / test.questions.length) * 100)}%</span>
                                 </div>
                                 <Progress value={((currentIndex + 1) / test.questions.length) * 100} className="h-2 mb-8" />
                                 <div className="space-y-6">
-                                    <h3 className="text-xl font-bold leading-tight">{test.questions[currentIndex].questionText}</h3>
+                                    <h3 className="text-2xl font-bold leading-tight tracking-tight">{test.questions[currentIndex].questionText}</h3>
                                     <RadioGroup value={answers[currentIndex] || ""} onValueChange={val => setAnswers(p => ({...p, [currentIndex]: val}))}>
                                         {test.questions[currentIndex].options.map((opt, i) => (
-                                            <div key={i} className={cn("flex items-center space-x-3 p-4 rounded-lg border cursor-pointer", answers[currentIndex] === opt && "border-orange-500 bg-orange-50")} onClick={() => setAnswers(p => ({...p, [currentIndex]: opt}))}>
-                                                <RadioGroupItem value={opt} id={`opt-${i}`} /><Label htmlFor={`opt-${i}`} className="flex-1 cursor-pointer">{opt}</Label>
+                                            <div key={i} className={cn("flex items-center space-x-3 p-5 rounded-xl border-2 transition-all cursor-pointer", answers[currentIndex] === opt ? "border-orange-500 bg-orange-50 shadow-sm" : "hover:bg-secondary/50")} onClick={() => setAnswers(p => ({...p, [currentIndex]: opt}))}>
+                                                <RadioGroupItem value={opt} id={`opt-${i}`} /><Label htmlFor={`opt-${i}`} className="flex-1 cursor-pointer text-base font-medium">{opt}</Label>
                                             </div>
                                         ))}
                                     </RadioGroup>
                                 </div>
-                                <div className="flex justify-between pt-8 border-t">
+                                <div className="flex justify-between pt-8 border-t mt-10">
                                     <Button variant="outline" onClick={() => setCurrentIndex(p => p - 1)} disabled={currentIndex === 0}>Previous</Button>
-                                    {currentIndex < test.questions.length - 1 ? <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setCurrentIndex(p => p + 1)} disabled={!answers[currentIndex]}>Next</Button> : <Button onClick={handleSubmit} disabled={!answers[currentIndex]} className="bg-green-600 hover:bg-green-700 text-white">Submit Test</Button>}
+                                    {currentIndex < test.questions.length - 1 ? (
+                                        <Button className="bg-orange-600 hover:bg-orange-700 text-white min-w-[100px]" onClick={() => setCurrentIndex(p => p + 1)} disabled={!answers[currentIndex]}>Next</Button>
+                                    ) : (
+                                        <Button onClick={handleSubmit} disabled={!answers[currentIndex]} className="bg-green-600 hover:bg-green-700 text-white min-w-[120px]">Submit Test</Button>
+                                    )}
                                 </div>
                             </div>
                         )}
+
                         {viewState === 'results' && (
-                            <div className="text-center space-y-6 py-10">
-                                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-green-50 text-green-600 mb-4"><CheckCircle className="w-12 h-12"/></div>
-                                <h2 className="text-3xl font-headline font-bold">Assessment Complete!</h2>
-                                <p className="text-xl text-muted-foreground">Your Score: <span className="text-foreground font-bold">{score} / {test?.questions.length}</span></p>
+                            <div className="text-center space-y-8 max-w-lg mx-auto py-10">
+                                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-green-50 text-green-600 mb-2 shadow-inner border border-green-100"><CheckCircle className="w-12 h-12"/></div>
+                                <div className="space-y-2">
+                                    <h2 className="text-4xl font-headline font-bold">Assessment Complete!</h2>
+                                    <p className="text-xl text-muted-foreground">You scored <span className="text-foreground font-black">{score}</span> out of <span className="font-bold">{test?.questions.length}</span></p>
+                                </div>
                                 <Progress value={(score / (test?.questions.length || 1)) * 100} className="h-4 max-w-md mx-auto" />
-                                <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
-                                    <Button variant="outline" onClick={handleRetake}>Retake Assessment</Button>
-                                    <Button onClick={handleDiscussWithAI} className="bg-orange-600 hover:bg-orange-700 text-white">
-                                        Discuss with AI Advisor
+                                
+                                <div className="pt-8 flex flex-col gap-3">
+                                    <Button onClick={() => handleDiscussWithAI(score, test?.questions.length || 0, industry || "General Professional")} className="bg-orange-600 hover:bg-orange-700 text-white h-12 font-bold text-base shadow-md">
+                                        <MessageCircle className="mr-2 h-5 w-5" /> Discuss Results with AI Advisor
                                     </Button>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Button variant="outline" onClick={handleSave} className="h-12 border-2"><Save className="mr-2 h-4 w-4"/> Save Assessment</Button>
+                                        <Button variant="outline" onClick={handleRetake} className="h-12 border-2">Retake Test</Button>
+                                    </div>
+                                    <Button variant="link" onClick={() => setViewState('intro')} className="text-muted-foreground">Back to History</Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {viewState === 'review' && selectedSavedTest && (
+                            <div className="space-y-8 pb-10">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-secondary/30 p-6 rounded-2xl border">
+                                    <div>
+                                        <h2 className="text-2xl font-bold">{selectedSavedTest.industry} Assessment</h2>
+                                        <p className="text-sm text-muted-foreground mt-1">Completed on {selectedSavedTest.date}</p>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-center">
+                                            <div className="text-3xl font-black text-orange-600">{selectedSavedTest.score} <span className="text-base text-muted-foreground">/ {selectedSavedTest.total}</span></div>
+                                            <div className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Total Score</div>
+                                        </div>
+                                        <Button onClick={() => handleDiscussWithAI(selectedSavedTest.score, selectedSavedTest.total, selectedSavedTest.industry)} size="sm">
+                                            <MessageCircle className="mr-2 h-4 w-4"/> Discuss
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-bold flex items-center gap-2"><Eye className="h-5 w-5 text-muted-foreground" /> Correction Review</h3>
+                                    {selectedSavedTest.questions.map((q, i) => (
+                                        <div key={i} className={cn("p-5 border-2 rounded-2xl transition-all", selectedSavedTest.answers[i] === q.correctAnswer ? "border-green-100 bg-green-50/20" : "border-red-100 bg-red-50/20")}>
+                                            <div className="flex items-start gap-3">
+                                                <span className="font-black text-muted-foreground/50 text-lg">Q{i+1}.</span>
+                                                <p className="font-bold text-lg leading-tight flex-1">{q.questionText}</p>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                                                <div className="space-y-1">
+                                                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Your Answer</span>
+                                                    <div className={cn("text-sm font-bold flex items-center gap-2", selectedSavedTest.answers[i] === q.correctAnswer ? "text-green-600" : "text-destructive")}>
+                                                        {selectedSavedTest.answers[i] === q.correctAnswer ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                                                        {selectedSavedTest.answers[i] || "Skipped"}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Correct Answer</span>
+                                                    <div className="text-sm font-bold text-green-600 flex items-center gap-2">
+                                                        <CheckCircle className="h-4 w-4" />
+                                                        {q.correctAnswer}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <Separator className="my-4 opacity-50" />
+                                            <div className="bg-background rounded-xl p-4 border border-dashed text-sm">
+                                                <div className="flex items-center gap-2 font-bold mb-2"><Lightbulb className="h-4 w-4 text-yellow-500" /> Explanation</div>
+                                                <p className="text-muted-foreground italic leading-relaxed">{q.explanation}</p>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
