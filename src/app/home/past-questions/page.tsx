@@ -692,7 +692,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
             <div className="space-y-3">
                 <div className="flex justify-between items-end text-sm">
                     <span className="font-medium font-headline">Trial Mode - Part {part} of {maxParts}: Question {(part-1)*20 + index + 1} of {totalQuestions}</span>
-                    <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}% of part</span>
+                    <span className="text-muted-foreground">{Math.round(((index+1)/questions.length)*100)}% of Part {part}</span>
                 </div>
                 <Progress value={((index+1)/questions.length)*100} className="h-2" />
             </div>
