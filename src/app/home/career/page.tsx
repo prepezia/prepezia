@@ -89,6 +89,8 @@ function CareerPage() {
   const [cv, setCv] = useState<CvData>({ content: "" });
   const [careerGoals, setCareerGoals] = useState<string>("");
   const [onboarded, setOnboarded] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const isDone = localStorage.getItem('learnwithtemi_career_onboarded') === 'true';
@@ -108,8 +110,14 @@ function CareerPage() {
       }
     }
     setCareerGoals(savedGoals);
-    setView("onboarding");
-  }, []);
+
+    // If URL has a tab param, go straight to hub
+    if (searchParams.get('tab')) {
+        setView("hub");
+    } else {
+        setView("onboarding");
+    }
+  }, [searchParams]);
 
   const handleOnboardingComplete = (cvData: CvData, goals: string) => {
     setCv(cvData);
@@ -124,6 +132,12 @@ function CareerPage() {
 
   const handleBackToChoice = () => {
     setView("onboarding");
+  };
+
+  const handleOpenHubWithTab = (tab: HubTab) => {
+      setView("hub");
+      // Use router to set param so HubView can pick it up
+      router.push(`/home/career?tab=${tab}`);
   };
 
   if (view === "loading") {
@@ -153,6 +167,7 @@ function CareerPage() {
       <AptitudeTestView 
         cvContent={cv.content} 
         onBack={handleBackToChoice} 
+        onOpenHub={handleOpenHubWithTab}
       />
     );
   }
@@ -408,7 +423,10 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
 }
 
 function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initialGoals: string, onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<HubTab>("cv");
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as HubTab) || "cv";
+  
+  const [activeTab, setActiveTab] = useState<HubTab>(initialTab);
   const [activeCvTab, setActiveCvTab] = useState<'editor' | 'analysis' | 'designer'>('editor');
   const [cv, setCv] = useState<CvData>(initialCv);
   const [careerGoals, setCareerGoals] = useState(initialGoals);
@@ -483,6 +501,27 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
       setIsChatting(false);
     }
   }, [cv.content, careerGoals, toast, handlePlayAudio, firestoreUser]);
+
+  useEffect(() => {
+    // Check for aptitude context
+    const contextJSON = sessionStorage.getItem('learnwithtemi_chat_context');
+    if (contextJSON && activeTab === 'chat' && chatHistory.length === 0) {
+        sessionStorage.removeItem('learnwithtemi_chat_context');
+        try {
+            const context = JSON.parse(contextJSON);
+            if (context.type === 'aptitude_test') {
+                const welcomeMsg: ChatMessage = {
+                    id: 'welcome-aptitude',
+                    role: 'assistant',
+                    content: `Hello! I see you just finished the **${context.industry}** aptitude test. You scored **${context.score} out of ${context.total}**. 
+
+Would you like to discuss your results, review any difficult concepts, or explore how we can improve your score for next time?`
+                };
+                setChatHistory([welcomeMsg]);
+            }
+        } catch (e) {}
+    }
+  }, [activeTab, chatHistory]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -734,7 +773,7 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
   )
 }
 
-function AptitudeTestView({ cvContent, onBack }: { cvContent?: string, onBack: () => void }) {
+function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string, onBack: () => void, onOpenHub: (tab: HubTab) => void }) {
     const { toast } = useToast();
     const { user } = useUser();
     const firestore = useFirestore();
@@ -764,11 +803,30 @@ function AptitudeTestView({ cvContent, onBack }: { cvContent?: string, onBack: (
         }
     };
 
+    const handleRetake = () => {
+        if (!test) return;
+        const shuffledQuestions = [...test.questions].sort(() => Math.random() - 0.5);
+        setTest({ ...test, questions: shuffledQuestions });
+        setAnswers({});
+        setCurrentIndex(0);
+        setViewState('taking');
+    };
+
     const handleSubmit = () => {
         let s = 0;
         test?.questions.forEach((q, i) => { if (answers[i] === q.correctAnswer) s++; });
         setScore(s);
         setViewState('results');
+    };
+
+    const handleDiscussWithAI = () => {
+        sessionStorage.setItem('learnwithtemi_chat_context', JSON.stringify({
+            type: 'aptitude_test',
+            score,
+            total: test?.questions.length,
+            industry: industry || "General Professional"
+        }));
+        onOpenHub('chat');
     };
 
     return (
@@ -824,8 +882,10 @@ function AptitudeTestView({ cvContent, onBack }: { cvContent?: string, onBack: (
                                 <p className="text-xl text-muted-foreground">Your Score: <span className="text-foreground font-bold">{score} / {test?.questions.length}</span></p>
                                 <Progress value={(score / (test?.questions.length || 1)) * 100} className="h-4 max-w-md mx-auto" />
                                 <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
-                                    <Button variant="outline" onClick={() => setViewState('intro')}>Retake Assessment</Button>
-                                    <Button asChild className="bg-orange-600 hover:bg-orange-700 text-white"><Link href="/home/career?tab=chat">Discuss with AI Advisor</Link></Button>
+                                    <Button variant="outline" onClick={handleRetake}>Retake Assessment</Button>
+                                    <Button onClick={handleDiscussWithAI} className="bg-orange-600 hover:bg-orange-700 text-white">
+                                        Discuss with AI Advisor
+                                    </Button>
                                 </div>
                             </div>
                         )}
