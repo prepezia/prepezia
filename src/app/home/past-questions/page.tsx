@@ -234,8 +234,38 @@ export default function PastQuestionsPage() {
     }
 
     const handleNextPart = (answersFromBatch: Record<number, string>) => {
-        setExamAnswers(prev => ({ ...prev, ...answersFromBatch }));
-        loadBatch(currentPart + 1);
+        const mergedAnswers = { ...examAnswers, ...answersFromBatch };
+        setExamAnswers(mergedAnswers);
+        
+        // Auto-save when moving to next part so resume works correctly
+        const examId = currentExamId || Date.now();
+        if (!currentExamId) setCurrentExamId(examId);
+
+        const score = allQuestionsInSession.reduce((acc, q, i) => {
+            return mergedAnswers[i] === q.correctAnswer ? acc + 1 : acc;
+        }, 0);
+
+        const nextPartIndex = currentPart + 1;
+        
+        const updatedExam: SavedExam = {
+            id: examId,
+            date: new Date().toLocaleDateString(),
+            selections,
+            questions: allQuestionsInSession,
+            examAnswers: mergedAnswers,
+            examScore: score,
+            results: results,
+            status: 'In Progress',
+            currentPart: nextPartIndex,
+            examMode,
+            totalQuestionsInPaper
+        };
+        
+        const updatedList = [updatedExam, ...savedExams.filter(e => e.id !== examId)];
+        setSavedExams(updatedList);
+        saveExamsToStorage(updatedList);
+
+        loadBatch(nextPartIndex);
     };
 
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
@@ -277,8 +307,12 @@ export default function PastQuestionsPage() {
         
         const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
         
-        // If timed out or explicitly finished part, on resume start next part
-        const nextPartIndex = (forceNextPart && !isFullyComplete) ? currentPart + 1 : currentPart;
+        // Logic: determine if the user has finished the current batch
+        const batchCompleted = Object.keys(currentAnswers).length >= questions.length;
+        
+        // If timed out OR explicitly finished all questions in the current batch
+        // on resume start next part
+        const nextPartIndex = ((forceNextPart || batchCompleted) && !isFullyComplete) ? currentPart + 1 : currentPart;
 
         const newExam: SavedExam = {
             id: examId,
@@ -297,7 +331,7 @@ export default function PastQuestionsPage() {
         setSavedExams(updated);
         saveExamsToStorage(updated);
         setViewState('select');
-        toast({ title: "Progress Saved", description: forceNextPart ? "Part timed out. Progress recorded. Resume later from the next part." : "You can resume this session later." });
+        toast({ title: "Progress Saved", description: (forceNextPart || batchCompleted) ? "Batch complete. Resume later from the next part." : "Progress recorded. You can resume this session later." });
     };
 
     const handleResume = (exam: SavedExam) => {
