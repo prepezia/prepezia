@@ -875,7 +875,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
                     {isEndOfBatch && isAnswered && hasNextPart && (
                         <Alert className="bg-primary/5 border-primary/20 mb-2">
                             <AlertCircle className="h-4 w-4 text-primary" />
-                            <AlertTitle className="font-bold">Part {part} Complete!</AlertTitle>
+                            <AlertTitle className="font-bold">Part {part} Batch Complete!</AlertTitle>
                             <AlertDescription>
                                 You've finished this batch. There are a total of {totalQuestions} questions in this paper ({maxParts} parts). Click below to proceed to the next part or save for later.
                             </AlertDescription>
@@ -946,6 +946,7 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
             }, 1000);
             return () => clearInterval(t);
         } else {
+            // Use setTimeout to avoid triggering state updates during render
             const timer = setTimeout(() => {
                 onTimeout(ansRef.current);
             }, 0);
