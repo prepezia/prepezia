@@ -788,7 +788,7 @@ function AptitudeTestView({ cvContent, onBack }: { cvContent?: string, onBack: (
                                     <Input placeholder="e.g., Software Engineering, Banking" value={industry} onChange={e => setIndustry(e.target.value)} />
                                     <p className="text-xs text-muted-foreground">Tailored to your industry and CV content.</p>
                                 </div>
-                                <Button className="w-full py-8 text-lg font-bold bg-orange-600 hover:bg-orange-700" onClick={handleGenerate} disabled={isGenerating}>
+                                <Button className="w-full py-8 text-lg font-bold bg-orange-600 text-white hover:bg-orange-700 transition-colors shadow-md hover:shadow-lg border-none" onClick={handleGenerate} disabled={isGenerating}>
                                     {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <Sparkles className="mr-2"/>}
                                     {isGenerating ? 'Generating Test...' : 'Start Assessment'}
                                 </Button>
@@ -813,7 +813,7 @@ function AptitudeTestView({ cvContent, onBack }: { cvContent?: string, onBack: (
                                 </div>
                                 <div className="flex justify-between pt-8 border-t">
                                     <Button variant="outline" onClick={() => setCurrentIndex(p => p - 1)} disabled={currentIndex === 0}>Previous</Button>
-                                    {currentIndex < test.questions.length - 1 ? <Button className="bg-orange-600 hover:bg-orange-700" onClick={() => setCurrentIndex(p => p + 1)} disabled={!answers[currentIndex]}>Next</Button> : <Button onClick={handleSubmit} disabled={!answers[currentIndex]} className="bg-green-600 hover:bg-green-700">Submit Test</Button>}
+                                    {currentIndex < test.questions.length - 1 ? <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setCurrentIndex(p => p + 1)} disabled={!answers[currentIndex]}>Next</Button> : <Button onClick={handleSubmit} disabled={!answers[currentIndex]} className="bg-green-600 hover:bg-green-700 text-white">Submit Test</Button>}
                                 </div>
                             </div>
                         )}
@@ -825,7 +825,7 @@ function AptitudeTestView({ cvContent, onBack }: { cvContent?: string, onBack: (
                                 <Progress value={(score / (test?.questions.length || 1)) * 100} className="h-4 max-w-md mx-auto" />
                                 <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
                                     <Button variant="outline" onClick={() => setViewState('intro')}>Retake Assessment</Button>
-                                    <Button asChild className="bg-orange-600 hover:bg-orange-700"><Link href="/home/career?tab=chat">Discuss with AI Advisor</Link></Button>
+                                    <Button asChild className="bg-orange-600 hover:bg-orange-700 text-white"><Link href="/home/career?tab=chat">Discuss with AI Advisor</Link></Button>
                                 </div>
                             </div>
                         )}

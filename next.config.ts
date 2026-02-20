@@ -9,11 +9,11 @@ const pwaConfig = withPWA({
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '50mb',
-    },
+  serverActions: {
+    bodySizeLimit: '50mb',
   },
+  // Ensure ESM-only markdown packages are transpiled correctly to avoid chunk errors
+  transpilePackages: ['react-markdown', 'remark-gfm', 'micromark', 'mdast-util-from-markdown'],
   typescript: {
     ignoreBuildErrors: true,
   },
