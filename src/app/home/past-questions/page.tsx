@@ -339,6 +339,30 @@ export default function PastQuestionsPage() {
         loadBatch(nextPartIndex);
     };
 
+    const handleGenerateMissingRoadmap = async () => {
+        if (!allQuestionsInSession.length) return;
+        setIsLoading(true);
+        try {
+            const result = await aiAssessmentRevisionRoadmap({
+                examResults: `Score: ${examScore}/${allQuestionsInSession.length}`,
+                studentLevel: selections.examBody,
+                university: selections.university,
+                course: selections.subject
+            });
+            setResults(result);
+            
+            if (currentExamId) {
+                const updatedList = savedExams.map(e => e.id === currentExamId ? { ...e, results: result } : e);
+                setSavedExams(updatedList);
+                saveExamsToStorage(updatedList);
+            }
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Revision Roadmap generation failed. Please try again.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleSubmitForReview = async (finalAnswers: Record<number, string>) => {
         setIsLoading(true);
         setViewState('results');
@@ -743,7 +767,16 @@ export default function PastQuestionsPage() {
                         onNextPart={handleNextPart}
                         onSaveAndExit={handleSaveAndExit}
                         onSubmit={handleSubmitForReview}
-                        onTimeout={(ans) => handleSaveAndExit(ans, true)}
+                        onTimeout={(ans) => {
+                            const totalParts = Math.ceil(totalQuestionsInPaper / 20);
+                            if (currentPart >= totalParts) {
+                                // If it's the last part, auto-submit for review so roadmap is generated
+                                handleSubmitForReview(ans);
+                            } else {
+                                // Otherwise save progress and exit
+                                handleSaveAndExit(ans, true);
+                            }
+                        }}
                     />
                 )}
             </>
@@ -762,6 +795,7 @@ export default function PastQuestionsPage() {
                                 <CardDescription>{selections.subject} - {selections.year} ({examMode === 'trial' ? 'Trial Mode' : 'Exam Mode'})</CardDescription>
                             </div>
                             <Button 
+                                variant="outline"
                                 disabled={hasSavedResults}
                                 onClick={() => {
                                     const examId = currentExamId || Date.now();
@@ -798,9 +832,18 @@ export default function PastQuestionsPage() {
                                 <TabsContent value="roadmap" className="mt-6 w-full max-w-0 min-w-full">
                                     {isLoading ? (
                                         <div className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-primary"/></div>
-                                    ) : (
+                                    ) : results ? (
                                         <div className="prose dark:prose-invert max-w-none">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{results?.revisionRoadmap || "No roadmap available."}</ReactMarkdown>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{results.revisionRoadmap}</ReactMarkdown>
+                                        </div>
+                                    ) : (
+                                        <div className="py-12 text-center space-y-4">
+                                            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
+                                            <p className="text-muted-foreground">No revision roadmap available for this session.</p>
+                                            <Button onClick={handleGenerateMissingRoadmap} disabled={isLoading}>
+                                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                Generate AI Revision Roadmap
+                                            </Button>
                                         </div>
                                     )}
                                 </TabsContent>
@@ -1019,6 +1062,7 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
             }, 1000);
             return () => clearInterval(t);
         } else {
+            // Use setTimeout to defer state updates and avoid "update while rendering" warnings
             const timer = setTimeout(() => {
                 onTimeout(ansRef.current);
             }, 0);
