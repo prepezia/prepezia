@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -20,7 +19,32 @@ import {
   } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { HomeHeader } from "@/components/layout/HomeHeader";
-import { ArrowLeft, Loader2, Sparkles, FileQuestion, Calendar, Check, Send, Clock, Lightbulb, CheckCircle, XCircle, Save, Trash2, Plus, Timer as TimerIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowRight, PlayCircle, Eye } from "lucide-react";
+import { 
+    ArrowLeft, 
+    Loader2, 
+    Sparkles, 
+    FileQuestion, 
+    Calendar, 
+    Check, 
+    Send, 
+    Clock, 
+    Lightbulb, 
+    CheckCircle, 
+    XCircle, 
+    Save, 
+    Trash2, 
+    Plus, 
+    Timer as TimerIcon, 
+    ChevronLeft, 
+    ChevronRight, 
+    AlertCircle, 
+    ArrowRight, 
+    PlayCircle, 
+    Eye,
+    Search,
+    ChevronsUpDown
+} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -32,10 +56,12 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { universities as staticUnis } from "@/lib/ghana-universities";
 
 interface PastQuestion extends DocumentData {
@@ -100,18 +126,25 @@ export default function PastQuestionsPage() {
 
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
     const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
+    
+    // Institution Search State
+    const [uniSearchQuery, setUniSearchQuery] = useState("");
+    const [isUniPopoverOpen, setIsUniPopoverOpen] = useState(false);
 
     const allUniversities = useMemo(() => {
         const customNames = customUnis?.map(u => u.name) || [];
         return Array.from(new Set([...staticUnis, ...customNames])).sort();
     }, [customUnis]);
 
+    const filteredUniversities = useMemo(() => {
+        if (!uniSearchQuery) return allUniversities;
+        return allUniversities.filter(u => 
+            u.toLowerCase().includes(uniSearchQuery.toLowerCase())
+        );
+    }, [allUniversities, uniSearchQuery]);
+
     const examBodies = useMemo(() => allQuestions ? Array.from(new Set(allQuestions.map(q => q.level))) : [], [allQuestions]);
     
-    const universities = useMemo(() => selections.examBody === 'University'
-        ? allUniversities.filter(name => allQuestions?.some(q => q.university === name))
-        : [], [allQuestions, selections.examBody, allUniversities]);
-
     const subjects = useMemo(() => {
         if (!allQuestions || !selections.examBody) return [];
         let filtered = allQuestions.filter(q => q.level === selections.examBody);
@@ -398,7 +431,7 @@ export default function PastQuestionsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {savedExams.map(exam => {
                                     const answeredCount = Object.keys(exam.examAnswers || {}).length;
-                                    const progress = Math.min(Math.round((answeredCount / (exam.totalQuestionsInPaper || 20)) * 100), 100);
+                                    const progressPercent = Math.min(Math.round((answeredCount / (exam.totalQuestionsInPaper || 20)) * 100), 100);
                                     
                                     return (
                                         <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow relative flex flex-col" onClick={() => handleResume(exam)}>
@@ -407,7 +440,7 @@ export default function PastQuestionsPage() {
                                                     <CardTitle className="text-lg leading-tight">{exam.selections.subject}</CardTitle>
                                                     <div className="flex flex-col items-end gap-1 shrink-0">
                                                         {exam.status === 'In Progress' ? (
-                                                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{progress}% Done</Badge>
+                                                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{progressPercent}% Done</Badge>
                                                         ) : (
                                                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completed</Badge>
                                                         )}
@@ -468,12 +501,62 @@ export default function PastQuestionsPage() {
                                 {selections.examBody === 'University' && (
                                     <div className="space-y-2 text-left">
                                         <Label>Institution</Label>
-                                        <Select onValueChange={v => setSelections(p => ({...p, university: v, schoolFaculty: "", subject: "", year: "", courseCode: ""}))} value={selections.university}>
-                                            <SelectTrigger><SelectValue placeholder="Select institution..." /></SelectTrigger>
-                                            <SelectContent className="max-h-[300px]">
-                                                {allUniversities.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                                        <Popover open={isUniPopoverOpen} onOpenChange={setIsUniPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={isUniPopoverOpen}
+                                                    className="w-full justify-between font-normal"
+                                                >
+                                                    {selections.university
+                                                        ? allUniversities.find((uni) => uni === selections.university)
+                                                        : "Select institution..."}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center border-b px-3">
+                                                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                        <Input
+                                                            placeholder="Search institution..."
+                                                            className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0"
+                                                            value={uniSearchQuery}
+                                                            onChange={(e) => setUniSearchQuery(e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <ScrollArea className="h-[300px]">
+                                                        <div className="p-1">
+                                                            {filteredUniversities.length === 0 ? (
+                                                                <p className="p-4 text-center text-sm text-muted-foreground">No institution found.</p>
+                                                            ) : (
+                                                                filteredUniversities.map((uni) => (
+                                                                    <Button
+                                                                        key={uni}
+                                                                        variant="ghost"
+                                                                        className="w-full justify-start font-normal text-sm px-2 py-1.5"
+                                                                        onClick={() => {
+                                                                            setSelections(p => ({...p, university: uni, schoolFaculty: "", subject: "", year: "", courseCode: ""}));
+                                                                            setIsUniPopoverOpen(false);
+                                                                            setUniSearchQuery("");
+                                                                        }}
+                                                                    >
+                                                                        <Check
+                                                                            className={cn(
+                                                                                "mr-2 h-4 w-4",
+                                                                                selections.university === uni ? "opacity-100" : "opacity-0"
+                                                                            )}
+                                                                        />
+                                                                        <span className="truncate">{uni}</span>
+                                                                    </Button>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </ScrollArea>
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
                                     </div>
                                 )}
 
