@@ -241,20 +241,22 @@ export default function PastQuestionsPage() {
     const handleSelectMode = async (mode: ExamMode) => {
         setExamMode(mode);
         setViewState('taking');
-        loadBatch(1);
+        loadBatch(1, selections);
     };
 
-    const loadBatch = async (part: number) => {
+    const loadBatch = async (part: number, overrideSelections?: typeof selections) => {
         if (!firestore) return;
         setLoadingPart(part);
         setIsLoading(true);
         
+        const currentCriteria = overrideSelections || selections;
+        
         try {
             const paper = allQuestions?.find(q => 
-                q.level === selections.examBody && 
-                q.subject === selections.subject && 
-                q.year === selections.year &&
-                (!selections.university || q.university === selections.university)
+                q.level === currentCriteria.examBody && 
+                q.subject === currentCriteria.subject && 
+                q.year === currentCriteria.year &&
+                (!currentCriteria.university || q.university === currentCriteria.university)
             );
 
             if (!paper) throw new Error("Paper metadata not found.");
@@ -267,12 +269,12 @@ export default function PastQuestionsPage() {
             if (batchSnap.exists()) {
                 batchQuestions = batchSnap.data().questions;
             } else {
-                const sourceContent = paper?.extractedText || `Generate high-quality MCQ questions for ${selections.subject} ${selections.examBody} ${selections.year}.`;
+                const sourceContent = paper?.extractedText || `Generate high-quality MCQ questions for ${currentCriteria.subject} ${currentCriteria.examBody} ${currentCriteria.year}.`;
 
                 const result = await generateQuiz({
                     context: 'past-question',
-                    topic: `${selections.subject} - ${selections.year}`,
-                    academicLevel: selections.examBody as any,
+                    topic: `${currentCriteria.subject} - ${currentCriteria.year}`,
+                    academicLevel: currentCriteria.examBody as any,
                     content: sourceContent,
                     partNumber: part
                 });
@@ -423,7 +425,7 @@ export default function PastQuestionsPage() {
         } else {
             setViewState('taking');
             if (exam.questions.length < exam.currentPart * 20) {
-                loadBatch(exam.currentPart);
+                loadBatch(exam.currentPart, exam.selections);
             } else {
                 setQuestions(exam.questions.slice((exam.currentPart - 1) * 20, exam.currentPart * 20));
             }
