@@ -13,7 +13,37 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic, Volume2, Pause, HelpCircle, CheckCircle, XCircle, Trash2, Eye, Clock, Calendar } from "lucide-react";
+import { 
+  Upload, 
+  ArrowRight, 
+  BrainCircuit, 
+  FileText, 
+  Briefcase, 
+  Search, 
+  MessageCircle, 
+  Download, 
+  Sparkles, 
+  Loader2, 
+  ArrowLeft, 
+  Bot, 
+  Send, 
+  File, 
+  Image as LucideImage, 
+  Clipboard, 
+  Printer, 
+  Mic, 
+  Volume2, 
+  Pause, 
+  HelpCircle, 
+  CheckCircle, 
+  XCircle, 
+  Trash2, 
+  Eye, 
+  Clock, 
+  Calendar,
+  Save,
+  Lightbulb
+} from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
