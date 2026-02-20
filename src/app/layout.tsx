@@ -5,7 +5,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Prepezia',
-  description: 'Prepezia: Prepare easier. Your AI-powered learning partner for research and exam prep.',
+  description: 'Prepezia: Prep easier. Your AI-powered learning partner for research and exam prep.',
 };
 
 export default function RootLayout({
