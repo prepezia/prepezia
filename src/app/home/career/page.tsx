@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,7 +24,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { improveCv, ImproveCvOutput } from "@/ai/flows/improve-cv";
 import { careerChat } from "@/ai/flows/career-chat";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
-import { getCareerAdvice, CareerAdviceOutput } from "@/ai/flows/career-advisor";
 import { generateCvTemplate } from "@/ai/flows/generate-cv-template";
 import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
@@ -40,9 +39,10 @@ import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
+import Link from "next/link";
 
-type View = "loading" | "onboarding" | "hub";
-type HubTab = "cv" | "chat" | "jobs" | "aptitude";
+type View = "loading" | "onboarding" | "hub" | "aptitude";
+type HubTab = "cv" | "chat" | "jobs";
 type OnboardingStep = "intro" | "goals" | "cv";
 
 type ChatMessage = {
@@ -57,7 +57,6 @@ type CvData = {
   contentType?: string;
 };
 
-// Supported file types - Optimized for AI extraction
 const ACCEPTED_FILE_TYPES = {
   pdf: 'application/pdf',
   images: 'image/jpeg,image/jpg,image/png,image/webp',
@@ -69,7 +68,6 @@ const ALL_ACCEPTED_FILES = Object.values(ACCEPTED_FILE_TYPES).join(',');
 const jobTypes = ["Any", "Full-time", "Part-time", "Internship", "Contract", "Remote"];
 const industries = ["Any", "Technology", "Finance", "Healthcare", "Education", "Marketing", "Engineering", "Sales", "Consulting"];
 const experienceLevels = ["Any", "Entry-level", "Mid-level", "Senior-level", "Executive"];
-
 
 export default function CareerPageWrapper() {
   return (
@@ -90,51 +88,43 @@ function CareerPage() {
   const [view, setView] = useState<View>("loading");
   const [cv, setCv] = useState<CvData>({ content: "" });
   const [careerGoals, setCareerGoals] = useState<string>("");
+  const [onboarded, setOnboarded] = useState(false);
 
   useEffect(() => {
-    const onboarded = localStorage.getItem('learnwithtemi_career_onboarded') === 'true';
-    if (onboarded) {
-      const savedCv = localStorage.getItem('learnwithtemi_cv');
-      const savedGoals = localStorage.getItem('learnwithtemi_goals') || "";
-      if (savedCv) {
-        try {
-          const parsedCv = JSON.parse(savedCv);
-          if (typeof parsedCv === 'object' && parsedCv !== null) {
-            setCv(parsedCv);
-          } else {
-             throw new Error("Invalid CV object");
-          }
-        } catch (e) {
-            console.error("Corrupted CV JSON in localStorage. Clearing.", e);
-            localStorage.removeItem('learnwithtemi_cv');
-            setCv({ content: "" });
+    const isDone = localStorage.getItem('learnwithtemi_career_onboarded') === 'true';
+    setOnboarded(isDone);
+    
+    const savedCv = localStorage.getItem('learnwithtemi_cv');
+    const savedGoals = localStorage.getItem('learnwithtemi_goals') || "";
+    if (savedCv) {
+      try {
+        const parsedCv = JSON.parse(savedCv);
+        if (typeof parsedCv === 'object' && parsedCv !== null) {
+          setCv(parsedCv);
         }
+      } catch (e) {
+        localStorage.removeItem('learnwithtemi_cv');
+        setCv({ content: "" });
       }
-      setCareerGoals(savedGoals);
-      setView("hub");
-    } else {
-      setView("onboarding");
     }
+    setCareerGoals(savedGoals);
+    setView("onboarding");
   }, []);
 
-  const handleOnboardingComplete = (cv: CvData, goals: string) => {
-    setCv(cv);
+  const handleOnboardingComplete = (cvData: CvData, goals: string) => {
+    setCv(cvData);
     setCareerGoals(goals);
+    setOnboarded(true);
     localStorage.setItem('learnwithtemi_career_onboarded', 'true');
-    localStorage.setItem('learnwithtemi_cv', JSON.stringify(cv));
+    localStorage.setItem('learnwithtemi_cv', JSON.stringify(cvData));
     localStorage.setItem('learnwithtemi_goals', goals);
     localStorage.removeItem('learnwithtemi_onboarding_progress');
     setView("hub");
   }
 
-  const handleStartOver = (startFrom: 'cv' | 'intro' = 'intro') => {
-    localStorage.removeItem('learnwithtemi_career_onboarded');
-    localStorage.removeItem('learnwithtemi_cv');
-    localStorage.removeItem('learnwithtemi_goals');
-    setCv({ content: "" });
-    setCareerGoals("");
+  const handleBackToChoice = () => {
     setView("onboarding");
-  }
+  };
 
   if (view === "loading") {
     return (
@@ -148,18 +138,39 @@ function CareerPage() {
   }
   
   if (view === "onboarding") {
-    return <OnboardingFlow onCompleted={handleOnboardingComplete} initialGoals={careerGoals} />
+    return (
+      <OnboardingFlow 
+        onCompleted={handleOnboardingComplete} 
+        initialGoals={careerGoals} 
+        onboarded={onboarded}
+        onAptitudeClick={() => setView("aptitude")}
+      />
+    );
   }
 
-  return <HubView initialCv={cv} initialGoals={careerGoals} backToOnboarding={handleStartOver} />;
+  if (view === "aptitude") {
+    return (
+      <AptitudeTestView 
+        cvContent={cv.content} 
+        onBack={handleBackToChoice} 
+      />
+    );
+  }
+
+  return (
+    <HubView 
+      initialCv={cv} 
+      initialGoals={careerGoals} 
+      onBack={handleBackToChoice} 
+    />
+  );
 }
 
-function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvData, goals: string) => void, initialGoals?: string }) {
+function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick }: { onCompleted: (cv: CvData, goals: string) => void, initialGoals?: string, onboarded: boolean, onAptitudeClick: () => void }) {
   const searchParams = useSearchParams();
   const startAsForm = searchParams.get('start') === 'form';
 
   const [step, setStep] = useState<OnboardingStep>(startAsForm ? 'goals' : 'intro');
-  
   const { toast } = useToast();
   const [goals, setGoals] = useState(initialGoals || "");
   const [isLoading, setIsLoading] = useState(false);
@@ -171,15 +182,16 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     const savedProgress = localStorage.getItem('learnwithtemi_onboarding_progress');
     if (savedProgress) {
       try {
-        setGoals(JSON.parse(savedProgress).goals);
-      } catch {
-        // ignore corrupted data
-      }
+        const parsed = JSON.parse(savedProgress);
+        if (parsed.goals && !goals) setGoals(parsed.goals);
+      } catch {}
     }
-  }, []);
+  }, [goals]);
 
   useEffect(() => {
-    localStorage.setItem('learnwithtemi_onboarding_progress', JSON.stringify({ goals }));
+    if (goals) {
+      localStorage.setItem('learnwithtemi_onboarding_progress', JSON.stringify({ goals }));
+    }
   }, [goals]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,9 +201,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     setIsLoading(true);
     try {
         toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
-        
         let extractedText;
-
         if (file.type.startsWith('image/') || file.type === 'application/pdf') {
             const dataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
@@ -199,10 +209,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                 reader.onerror = (e) => reject(e);
                 reader.readAsDataURL(file);
             });
-            const result = await extractTextFromFile({
-                fileDataUri: dataUri,
-                fileContentType: file.type,
-            });
+            const result = await extractTextFromFile({ fileDataUri: dataUri, fileContentType: file.type });
             extractedText = result.extractedText;
         } else {
             extractedText = await new Promise<string>((resolve, reject) => {
@@ -212,13 +219,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                 reader.readAsText(file);
             });
         }
-        
-        onCompleted({ 
-            content: extractedText, 
-            fileName: file.name, 
-            contentType: file.type,
-        }, goals);
-
+        onCompleted({ content: extractedText, fileName: file.name, contentType: file.type }, goals);
     } catch (err: any) {
         toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
     } finally {
@@ -228,7 +229,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
   const handleGenerateTemplate = async () => {
     if (!templateInfo.fullName || !templateInfo.careerGoal) {
-      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out your full name and career goal.' });
+      toast({ variant: 'destructive', title: 'Missing Information' });
       return;
     }
     setIsLoading(true);
@@ -238,14 +239,9 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
         email: templateInfo.email || "email@example.com",
         phone: templateInfo.phone || "0123456789",
       });
-      onCompleted({ 
-        content: result.cvTemplate, 
-        fileName: 'generated_cv.md',
-        contentType: 'text/markdown',
-      }, templateInfo.careerGoal);
+      onCompleted({ content: result.cvTemplate, fileName: 'generated_cv.md', contentType: 'text/markdown' }, templateInfo.careerGoal);
     } catch (e: any) {
-      console.error("Template generation error", e);
-      toast({ variant: 'destructive', title: 'Generation Failed', description: e.message || 'Could not generate a CV template.' });
+      toast({ variant: 'destructive', title: 'Generation Failed', description: e.message });
     } finally {
       setIsLoading(false);
       setIsTemplateModalOpen(false);
@@ -254,7 +250,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
   const handleContinueWithGoals = () => {
     if (!goals.trim()) {
-      toast({ variant: 'destructive', title: 'Goals are required', description: "Please go back and tell us about your aspirations."});
+      toast({ variant: 'destructive', title: 'Goals are required' });
       return;
     }
     onCompleted({ content: "" }, goals);
@@ -262,7 +258,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
   const handleNextToCvStep = () => {
     if (!goals.trim()) {
-      toast({ variant: 'destructive', title: 'Goals are required', description: "Please tell us about your aspirations."});
+      toast({ variant: 'destructive', title: 'Goals are required' });
       return;
     }
     setStep('cv');
@@ -273,20 +269,41 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
       <div className="flex flex-col min-h-screen">
         <HomeHeader />
         <div className="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col justify-center items-center">
-          <Card className="max-w-2xl w-full">
-            <CardHeader className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-6">
-                <Briefcase className="w-8 h-8" />
-              </div>
-              <CardTitle className="text-3xl font-headline font-bold">Unlock Your Career Potential</CardTitle>
-              <CardDescription>Get personalized CV feedback, find relevant jobs, and receive expert career advice all powered by AI.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" size="lg" onClick={() => setStep('goals')}>
-                Get Started <ArrowRight className="ml-2" />
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="flex flex-col border-2 border-primary/10 hover:border-primary/30 transition-all shadow-sm">
+              <CardHeader className="text-center flex-1">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mx-auto mb-6">
+                  <Briefcase className="w-8 h-8" />
+                </div>
+                <CardTitle className="text-2xl font-headline font-bold">Career Strategist</CardTitle>
+                <CardDescription className="text-base">
+                  Get personalized CV feedback, find relevant jobs, and receive expert career advice powered by AI.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button className="w-full font-bold" size="lg" onClick={() => onboarded ? onCompleted({content: ""}, initialGoals || "") : setStep('goals')}>
+                  {onboarded ? 'Open Hub' : 'Get Started'} <ArrowRight className="ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="flex flex-col border-2 border-orange-100 hover:border-orange-200 transition-all shadow-sm">
+              <CardHeader className="text-center flex-1">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-orange-50 text-orange-600 mx-auto mb-6">
+                  <HelpCircle className="w-8 h-8" />
+                </div>
+                <CardTitle className="text-2xl font-headline font-bold">Aptitude Assessment</CardTitle>
+                <CardDescription className="text-base">
+                  Test your skills with an industry-focused evaluation generated specifically for your target role.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button variant="outline" className="w-full font-bold border-orange-200 text-orange-700 hover:bg-orange-50" size="lg" onClick={onAptitudeClick}>
+                  Start Test <ArrowRight className="ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     )
@@ -310,7 +327,8 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                 rows={8}
               />
             </CardContent>
-            <CardFooter className="justify-end">
+            <CardFooter className="justify-end gap-2">
+              <Button variant="outline" onClick={() => setStep('intro')}><ArrowLeft className="mr-2" /> Back</Button>
               <Button onClick={handleNextToCvStep}>
                 Next <ArrowRight className="ml-2" />
               </Button>
@@ -337,15 +355,9 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
               <CardTitle>Career Hub Onboarding</CardTitle>
               <CardDescription>Step 2 of 2: Provide your CV to get personalized advice.</CardDescription>
               <div className="flex flex-wrap gap-2 mt-2">
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <File className="h-3 w-3" /> PDF
-                </Badge>
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <LucideImage className="h-3 w-3" /> JPG/PNG
-                </Badge>
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <FileText className="h-3 w-3" /> TXT
-                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1"><File className="h-3 w-3" /> PDF</Badge>
+                <Badge variant="outline" className="flex items-center gap-1"><LucideImage className="h-3 w-3" /> JPG/PNG</Badge>
+                <Badge variant="outline" className="flex items-center gap-1"><FileText className="h-3 w-3" /> TXT</Badge>
               </div>
             </CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -357,21 +369,11 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                 <Sparkles className="w-6 h-6" /> Help me write one
                 <span className="text-xs text-muted-foreground">Generate a template</span>
               </Button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                className="hidden" 
-                accept={ALL_ACCEPTED_FILES}
-              />
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
             </CardContent>
             <CardFooter className="flex-col items-stretch space-y-4">
-              <Button className="w-full" onClick={handleContinueWithGoals} disabled={isLoading}>
-                Finish Onboarding (No CV)
-              </Button>
-              <Button variant="outline" className="w-full" onClick={() => setStep('goals')} disabled={isLoading}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
-              </Button>
+              <Button className="w-full" onClick={handleContinueWithGoals} disabled={isLoading}>Finish Onboarding (No CV)</Button>
+              <Button variant="outline" className="w-full" onClick={() => setStep('goals')} disabled={isLoading}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
             </CardFooter>
           </Card>
           <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
@@ -389,8 +391,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsTemplateModalOpen(false)}>Cancel</Button>
                 <Button onClick={handleGenerateTemplate} disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 animate-spin" />}
-                  Generate
+                  {isLoading && <Loader2 className="mr-2 animate-spin" />} Generate
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -399,28 +400,23 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
       </div>
     )
   }
-
   return null;
 }
 
-function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvData, initialGoals: string, backToOnboarding: (startFrom?: 'cv' | 'intro') => void }) {
+function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initialGoals: string, onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<HubTab>("cv");
   const [activeCvTab, setActiveCvTab] = useState<'editor' | 'analysis' | 'designer'>('editor');
   const [cv, setCv] = useState<CvData>(initialCv);
   const [careerGoals, setCareerGoals] = useState(initialGoals);
   
-  // CV Tab State
   const [cvResult, setCvResult] = useState<ImproveCvOutput | null>(null);
   const [rewrittenCvContent, setRewrittenCvContent] = useState("");
   const [isImprovingCv, setIsImprovingCv] = useState(false);
   const [isCvDirty, setIsCvDirty] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  
-  // Designer Tab State
   const [designedCv, setDesignedCv] = useState<DesignCvOutput | null>(null);
   const [isDesigningCv, setIsDesigningCv] = useState(false);
 
-  // Chat Tab State
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatting, setIsChatting] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -430,39 +426,15 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Jobs Tab State
   const [jobResults, setJobResults] = useState<SearchForJobsOutput | null>(null);
   const [isSearchingJobs, setIsSearchingJobs] = useState(false);
-  const [jobSearchAccordion, setJobSearchAccordion] = useState<string[]>(['filters']);
-  const [jobSearchFilters, setJobSearchFilters] = useState({
-    role: "",
-    jobType: "",
-    industry: "",
-    experienceLevel: "",
-    location: "Ghana",
-  });
-
-  // Aptitude Tab State
-  const [isGeneratingAptitude, setIsGeneratingAptitude] = useState(false);
-  const [aptitudeTest, setAptitudeTest] = useState<GenerateAptitudeTestOutput | null>(null);
-  const [aptitudeIndustry, setAptitudeIndustry] = useState("");
-  const [currentAptitudeIndex, setCurrentAptitudeIndex] = useState(0);
-  const [aptitudeAnswers, setAptitudeAnswers] = useState<Record<number, string>>({});
-  const [aptitudeViewState, setAptitudeViewState] = useState<'intro' | 'taking' | 'results'>('intro');
-  const [aptitudeScore, setAptitudeScore] = useState(0);
-
+  const [jobSearchFilters, setJobSearchFilters] = useState({ role: "", jobType: "", industry: "", experienceLevel: "", location: "Ghana" });
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const { user } = useUser();
   const firestore = useFirestore();
-  const userDocRef = useMemo(() => {
-    if (user && firestore) {
-        return doc(firestore, 'users', user.uid);
-    }
-    return null;
-  }, [user, firestore]);
+  const userDocRef = useMemo(() => (user && firestore) ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
   const { data: firestoreUser } = useDoc(userDocRef);
 
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
@@ -472,11 +444,9 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setSpeakingMessageId(null);
         return;
     }
-
     if (generatingAudioId || (speakingMessageId && speakingMessageId !== messageId)) {
         if(audioRef.current) audioRef.current.pause();
     }
-
     setGeneratingAudioId(messageId);
     setSpeakingMessageId(null);
     try {
@@ -487,7 +457,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             setSpeakingMessageId(messageId);
         }
     } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate AI speech.'});
+        toast({ variant: 'destructive', title: 'Audio Error' });
     } finally {
         setGeneratingAudioId(null);
     }
@@ -495,38 +465,16 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
   const submitChat = useCallback(async (currentInput: string, isVoiceInput: boolean) => {
     if (!currentInput?.trim()) return;
-
-    const userMessageId = `user-${Date.now()}`;
-    const userMessage: ChatMessage = { id: userMessageId, role: 'user', content: currentInput };
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: currentInput };
     setChatHistory(prev => [...prev, userMessage]);
     setIsChatting(true);
-
     try {
-      const result = await careerChat({ 
-        cvContent: cv.content,
-        careerObjectives: careerGoals,
-        question: currentInput,
-        educationalLevel: firestoreUser?.educationalLevel,
-      });
-
-      const assistantMessageId = `asst-${Date.now()}`;
-      const assistantMessage: ChatMessage = { id: assistantMessageId, role: 'assistant', content: result.answer };
+      const result = await careerChat({ cvContent: cv.content, careerObjectives: careerGoals, question: currentInput, educationalLevel: firestoreUser?.educationalLevel });
+      const assistantMessage: ChatMessage = { id: `asst-${Date.now()}`, role: 'assistant', content: result.answer };
       setChatHistory(prev => [...prev, assistantMessage]);
-
-      if (isVoiceInput) {
-        await handlePlayAudio(assistantMessageId, result.answer);
-      }
-
+      if (isVoiceInput) await handlePlayAudio(assistantMessage.id, result.answer);
     } catch(e: any) {
-      console.error("Career advice error", e);
-      const errorId = `err-${Date.now()}`;
-      const errorMessage: ChatMessage = { id: errorId, role: 'assistant', content: "Sorry, I couldn't process that request." };
-      setChatHistory(prev => [...prev, errorMessage]);
-      toast({
-        variant: "destructive",
-        title: "Chat Error",
-        description: e.message || "The AI advisor failed to respond."
-      });
+      setChatHistory(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, I couldn't process that request." }]);
     } finally {
       setIsChatting(false);
     }
@@ -536,30 +484,12 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        submitChat(transcript, true);
-      };
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        let description = `Could not recognize speech: ${event.error}`;
-        if (event.error === 'network') {
-            description = 'Network error. Please check your internet connection and try again.';
-        } else if (event.error === 'not-allowed') {
-            description = 'Microphone access denied. Please enable it in your browser settings.';
-        }
-        toast({ variant: 'destructive', title: 'Speech Error', description });
-      };
+      recognition.onresult = (event: any) => submitChat(event.results[0][0].transcript, true);
+      recognition.onerror = (event: any) => console.error('Speech recognition error:', event.error);
       recognition.onend = () => setIsListening(false);
       recognitionRef.current = recognition;
-    } else {
-      console.warn("Speech Recognition API not supported in this browser.");
     }
-  }, [toast, submitChat]);
+  }, [submitChat]);
 
   const handleMicClick = () => {
     if (speakingMessageId && audioRef.current) {
@@ -568,98 +498,64 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setSpeakingMessageId(null);
         return;
     }
-    if (!recognitionRef.current) {
-        toast({ variant: 'destructive', title: 'Not Supported', description: 'Speech recognition is not supported by your browser.' });
-        return;
-    }
-    if (isListening) {
-        recognitionRef.current.stop();
-    } else {
-        recognitionRef.current.start();
-        setIsListening(true);
-    }
+    if (!recognitionRef.current) return;
+    if (isListening) recognitionRef.current.stop();
+    else { recognitionRef.current.start(); setIsListening(true); }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
     setActiveCvTab('editor');
     setIsExtracting(true);
-    setCvResult(null); // Clear old analysis
+    setCvResult(null);
     try {
-        toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+        toast({ title: 'Extracting Text...' });
         let extractedText;
-
         if (file.type.startsWith('image/') || file.type === 'application/pdf') {
             const dataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
-                reader.onerror = (e) => reject(e);
                 reader.readAsDataURL(file);
             });
-            const result = await extractTextFromFile({
-                fileDataUri: dataUri,
-                fileContentType: file.type,
-            });
+            const result = await extractTextFromFile({ fileDataUri: dataUri, fileContentType: file.type });
             extractedText = result.extractedText;
         } else {
             extractedText = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
-                reader.onerror = (e) => reject(e);
                 reader.readAsText(file);
             });
         }
-        
-        setCv({ 
-            content: extractedText, 
-            fileName: file.name, 
-            contentType: file.type,
-        });
+        setCv({ content: extractedText, fileName: file.name, contentType: file.type });
         setIsCvDirty(true);
     } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Text Extraction Failed', description: err.message || 'Could not read text from the uploaded file.' });
+        toast({ variant: 'destructive', title: 'Extraction Failed' });
     } finally {
         setIsExtracting(false);
     }
   };
 
   const handleImproveCv = async () => {
-    if (!cv.content) {
-      toast({ variant: 'destructive', title: 'CV is empty', description: 'Please provide your CV content.'});
-      return;
-    }
+    if (!cv.content) return;
     setIsImprovingCv(true);
     setCvResult(null);
     try {
-      const result = await improveCv({ 
-        cvContent: cv.content, 
-        careerGoals,
-        educationalLevel: firestoreUser?.educationalLevel,
-      });
+      const result = await improveCv({ cvContent: cv.content, careerGoals, educationalLevel: firestoreUser?.educationalLevel });
       setCvResult(result);
       setRewrittenCvContent(result.fullRewrittenCv);
       setIsCvDirty(false);
-      localStorage.setItem('learnwithtemi_cv', JSON.stringify(cv)); // Save extracted CV
+      localStorage.setItem('learnwithtemi_cv', JSON.stringify(cv));
       setActiveCvTab('analysis');
     } catch(e: any) {
-      console.error("CV improvement error", e);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Analysis Failed', 
-        description: e.message || 'Could not improve your CV at this time.' 
-      });
+      toast({ variant: 'destructive', title: 'Analysis Failed' });
     } finally {
       setIsImprovingCv(false);
     }
   };
   
   const handleDesignCv = async () => {
-    if (!rewrittenCvContent) {
-        toast({ variant: 'destructive', title: 'Rewritten CV is not available' });
-        return;
-    }
+    if (!rewrittenCvContent) return;
     setIsDesigningCv(true);
     setDesignedCv(null);
     try {
@@ -667,7 +563,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setDesignedCv(result);
         setActiveCvTab('designer');
     } catch(e: any) {
-        toast({ variant: 'destructive', title: 'Design Failed', description: e.message || 'Could not design your CV.' });
+        toast({ variant: 'destructive', title: 'Design Failed' });
     } finally {
         setIsDesigningCv(false);
     }
@@ -676,166 +572,51 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   const handlePrint = () => {
       const printContent = document.getElementById('cv-print-area')?.innerHTML;
       if (!printContent) return;
-
       const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-          toast({ variant: 'destructive', title: 'Could not open print window', description: 'Please disable your pop-up blocker.' });
-          return;
-      }
-
-      const styles = Array.from(document.getElementsByTagName('link'))
-        .filter(link => link.rel === 'stylesheet')
-        .map(link => link.outerHTML)
-        .join('');
-        
-      const styleBlocks = Array.from(document.getElementsByTagName('style'))
-        .map(style => style.outerHTML)
-        .join('');
-
-      printWindow.document.write(`
-          <html>
-              <head>
-                  <title>Print CV</title>
-                  ${styles}
-                  ${styleBlocks}
-                  <style>
-                      @page { size: A4; margin: 20mm; }
-                      body { 
-                        margin: 0; 
-                        -webkit-print-color-adjust: exact; 
-                        print-color-adjust: exact; 
-                      }
-                      /* Professional Print Optimization */
-                      p, li { 
-                        orphans: 3; 
-                        widows: 3; 
-                      }
-                      h1, h2, h3, h4, h5, h6 {
-                        break-after: avoid;
-                      }
-                  </style>
-              </head>
-              <body>
-                  ${printContent}
-              </body>
-          </html>
-      `);
-
+      if (!printWindow) return;
+      const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
+      const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+      printWindow.document.write(`<html><head><title>Print CV</title>${styles}${styleBlocks}<style>@page { size: A4; margin: 20mm; } body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } p, li { orphans: 3; widows: 3; } h1, h2, h3, h4, h5, h6 { break-after: avoid; }</style></head><body>${printContent}</body></html>`);
       printWindow.document.close();
       printWindow.focus();
-      setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-      }, 1000);
+      setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
   };
 
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const currentInput = chatInputRef.current?.value;
-    submitChat(currentInput || "", false);
-    if(chatInputRef.current) chatInputRef.current.value = "";
-  };
-  
   const handleJobSearch = async () => {
-    if (!cv.content && !careerGoals.trim()) {
-      toast({ variant: 'destructive', title: 'Not enough info', description: 'Please provide your CV or career goals to search for jobs.'});
-      return;
-    }
+    if (!cv.content && !careerGoals.trim()) return;
     setIsSearchingJobs(true);
     setJobResults(null);
-    setJobSearchAccordion([]);
     try {
-      const results = await searchForJobs({ 
-        cvContent: cv.content, 
-        careerGoals, 
-        ...jobSearchFilters,
-      });
+      const results = await searchForJobs({ cvContent: cv.content, careerGoals, ...jobSearchFilters });
       setJobResults(results);
     } catch(e: any) {
-      console.error("Job search error", e);
-      toast({ variant: 'destructive', title: 'Search Failed', description: e.message || 'Could not find jobs at this time.' });
+      toast({ variant: 'destructive', title: 'Search Failed' });
     } finally {
       setIsSearchingJobs(false);
     }
   };
 
-  const handleGenerateAptitude = async () => {
-    const industry = aptitudeIndustry || jobSearchFilters.industry || "General Professional";
-    setIsGeneratingAptitude(true);
-    setAptitudeTest(null);
-    try {
-        const result = await generateAptitudeTest({
-            industry,
-            cvContent: cv.content,
-            educationalLevel: firestoreUser?.educationalLevel,
-        });
-        setAptitudeTest(result);
-        setAptitudeAnswers({});
-        setCurrentAptitudeIndex(0);
-        setAptitudeViewState('taking');
-    } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Generation Failed', description: e.message });
-    } finally {
-        setIsGeneratingAptitude(false);
-    }
-  };
-
-  const handleAptitudeSubmit = () => {
-    let score = 0;
-    aptitudeTest?.questions.forEach((q, i) => {
-        if (aptitudeAnswers[i] === q.correctAnswer) score++;
-    });
-    setAptitudeScore(score);
-    setAptitudeViewState('results');
-  };
-
-  const handleFilterChange = (filterName: keyof typeof jobSearchFilters, value: string) => {
-    setJobSearchFilters(prev => ({...prev, [filterName]: value}));
-  };
-
   const downloadMarkdown = (content: string, filename: string) => {
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
   
   const copyToClipboard = (content: string) => {
-    navigator.clipboard.writeText(content).then(() => {
-        toast({ title: "Copied to clipboard!" });
-    }).catch(err => {
-        toast({ variant: 'destructive', title: "Failed to copy", description: "Could not copy text to clipboard." });
-    });
+    navigator.clipboard.writeText(content).then(() => toast({ title: "Copied!" }));
   };
 
-  const clearCv = () => {
-    setCv({ content: "", contentType: undefined, fileName: undefined });
-    setCvResult(null);
-    setRewrittenCvContent("");
-    setIsCvDirty(false);
-    localStorage.removeItem('learnwithtemi_cv');
-    setActiveCvTab('editor');
-  };
-  
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <HomeHeader left={
-        <Button variant="outline" onClick={() => backToOnboarding('intro')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
-        </Button>
-      } />
+      <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Career Home</Button>} />
       <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="w-full flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-4 bg-secondary">
+          <TabsList className="grid w-full grid-cols-3 bg-secondary">
             <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
-            <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Career Chat</TabsTrigger>
+            <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Advice Chat</TabsTrigger>
             <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
-            <TabsTrigger value="aptitude"><HelpCircle className="mr-2"/>Aptitude Test</TabsTrigger>
           </TabsList>
           
           <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-24">
@@ -845,162 +626,58 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                 <TabsTrigger value="analysis">AI Rewrite</TabsTrigger>
                 <TabsTrigger value="designer" disabled={!cvResult}>AI Designer</TabsTrigger>
               </TabsList>
-
               <TabsContent value="editor" className="mt-4 flex-1 pb-8">
                 <Card className="flex flex-col h-full">
-                  <CardHeader>
-                    <CardTitle>Your CV</CardTitle>
-                    <CardDescription>
-                      {cv.content 
-                        ? `CV text extracted from ${cv.fileName || 'your file'}. You can edit it below.`
-                        : 'Upload your CV to get started. Text will be automatically extracted.'
-                      }
-                    </CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Your CV</CardTitle><CardDescription>{cv.content ? 'CV text extracted. You can edit it below.' : 'Upload your CV to get started.'}</CardDescription></CardHeader>
                   <CardContent className="flex-1 relative">
-                    {isExtracting && <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Extracting text...</p></div>}
-                    <Textarea 
-                        className="h-full min-h-[400px] resize-none" 
-                        value={cv.content || ''} 
-                        onChange={e => {
-                            setCv(prev => ({...prev, content: e.target.value}));
-                            setIsCvDirty(true);
-                        }}
-                        readOnly={isExtracting}
-                        placeholder={isExtracting ? 'Extracting text...' : 'Your CV content will appear here.'}
-                    />
+                    {isExtracting && <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
+                    <Textarea className="h-full min-h-[400px] resize-none" value={cv.content || ''} onChange={e => { setCv(prev => ({...prev, content: e.target.value})); setIsCvDirty(true); }} readOnly={isExtracting} />
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
-                    {!cv.content && !isExtracting && (
-                        <div className="absolute inset-0 h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center bg-background">
-                            <Upload className="h-12 w-12 text-muted-foreground mb-4" />
-                            <p className="text-muted-foreground mb-2">Upload your CV to get started</p>
-                            <p className="text-sm text-muted-foreground mb-4">Supports PDF, JPG/PNG, and TXT files</p>
-                            <Button onClick={() => fileInputRef.current?.click()}>
-                                <Upload className="mr-2 h-4 w-4" /> Upload CV
-                            </Button>
-                        </div>
-                    )}
+                    {!cv.content && !isExtracting && (<div className="absolute inset-0 h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center bg-background"><Upload className="h-12 w-12 text-muted-foreground mb-4" /><p className="text-muted-foreground mb-4">Upload your CV to get started</p><Button onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" /> Upload CV</Button></div>)}
                   </CardContent>
                   <CardFooter className="justify-between pt-6">
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isExtracting}>
-                        <Upload className="mr-2 h-4 w-4" /> Upload New
-                      </Button>
-                      {(cv.content) && (
-                        <Button variant="outline" size="sm" onClick={clearCv} disabled={isExtracting}>
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                    <Button onClick={handleImproveCv} disabled={isImprovingCv || isExtracting || !cv.content}>
-                        {isImprovingCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
-                        {isImprovingCv ? 'Analyzing...' : cvResult ? 'Re-analyze CV' : 'Improve CV'}
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isExtracting}><Upload className="mr-2 h-4 w-4" /> Upload New</Button>
+                    <Button onClick={handleImproveCv} disabled={isImprovingCv || isExtracting || !cv.content}>{isImprovingCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}{isImprovingCv ? 'Analyzing...' : 'Improve CV'}</Button>
                   </CardFooter>
                 </Card>
               </TabsContent>
-
               <TabsContent value="analysis" className="mt-4 flex-1">
                 <Card className="flex flex-col h-full">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Rewrite</CardTitle>
-                    <CardDescription>Here is the AI&apos;s feedback and suggested rewrite. You can edit the text before designing.</CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Rewrite</CardTitle></CardHeader>
                   <CardContent className="flex-1 relative">
                     {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
                     {cvResult ? (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
                           <div className="flex flex-col gap-6">
-                              <div>
-                                  <h3 className="font-semibold mb-2 text-lg">Critique & Action Plan</h3>
-                                  <Card>
-                                      <CardContent className="p-4 space-y-4">
-                                          <div>
-                                              <h4 className="font-semibold">Critique</h4>
-                                              <p className="text-sm text-muted-foreground">{cvResult.analysis.critique}</p>
-                                          </div>
-                                          <Separator />
-                                          <div>
-                                              <h4 className="font-semibold">Skill Gap Analysis</h4>
-                                              <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1 mt-2">
-                                                  {cvResult.analysis.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}
-                                              </ul>
-                                          </div>
-                                          <Separator />
-                                          <div>
-                                              <h4 className="font-semibold">Action Plan</h4>
-                                              <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1 mt-2">
-                                                  {cvResult.analysis.actionPlan.map((s, i) => <li key={i}>{s}</li>)}
-                                              </ul>
-                                          </div>
-                                      </CardContent>
-                                  </Card>
-                              </div>
+                              <Card><CardContent className="p-4 space-y-4">
+                                  <div><h4 className="font-semibold">Critique</h4><p className="text-sm text-muted-foreground">{cvResult.analysis.critique}</p></div>
+                                  <Separator />
+                                  <div><h4 className="font-semibold">Skill Gaps</h4><ul className="list-disc pl-5 text-sm text-muted-foreground">{cvResult.analysis.skillGapAnalysis.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+                              </CardContent></Card>
                           </div>
-                          <div className="flex flex-col">
-                              <h3 className="font-semibold mb-2 text-lg">Full Rewritten CV (Editable)</h3>
-                              <Card className="flex-1 flex flex-col">
-                                  <CardContent className="p-4 flex-1">
-                                      <Textarea
-                                        className="h-full min-h-[400px] resize-none"
-                                        value={rewrittenCvContent}
-                                        onChange={(e) => setRewrittenCvContent(e.target.value)}
-                                      />
-                                  </CardContent>
-                                  <CardFooter className="flex-col items-start gap-4">
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => downloadMarkdown(rewrittenCvContent, 'rewritten_cv.md')}>
-                                            <Download className="mr-2"/>Download
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(rewrittenCvContent)}>
-                                            <Clipboard className="mr-2"/>Copy Text
-                                        </Button>
-                                        <Button onClick={handleDesignCv} disabled={isDesigningCv}>
-                                            {isDesigningCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
-                                            Approve & Design CV
-                                        </Button>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground pt-2">To save as PDF or Word, open the downloaded document or paste the copied text into an editor like Google Docs or MS Word.</p>
-                                  </CardFooter>
-                              </Card>
-                          </div>
+                          <Card className="flex-1 flex flex-col">
+                              <CardContent className="p-4 flex-1"><Textarea className="h-full min-h-[400px] resize-none" value={rewrittenCvContent} onChange={(e) => setRewrittenCvContent(e.target.value)} /></CardContent>
+                              <CardFooter className="flex-col items-start gap-4">
+                                <div className="flex flex-wrap gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => downloadMarkdown(rewrittenCvContent, 'rewritten_cv.md')}><Download className="mr-2"/>Download</Button>
+                                    <Button onClick={handleDesignCv} disabled={isDesigningCv}>{isDesigningCv ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}Design CV</Button>
+                                </div>
+                              </CardFooter>
+                          </Card>
                       </div>
-                    ) : !isImprovingCv && (
-                      <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
-                        <BrainCircuit className="w-12 h-12 mb-4" />
-                        <p>Your CV analysis will appear here.</p>
-                        <p className="text-sm mt-2">Upload a CV and click "Improve CV" to get started.</p>
-                      </div>
-                    )}
+                    ) : (<div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center"><BrainCircuit className="w-12 h-12 mb-4" /><p>Your CV analysis will appear here.</p></div>)}
                   </CardContent>
                 </Card>
               </TabsContent>
                <TabsContent value="designer" className="mt-4 flex-1 pb-24">
                 <Card className="h-full flex flex-col">
                     <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI-Designed CV</CardTitle>
-                            <CardDescription>Your CV, professionally styled by AI. Use the print option to save as PDF.</CardDescription>
-                        </div>
-                        {designedCv && (
-                            <Button onClick={handlePrint} className="w-full md:w-auto">
-                                <Printer className="mr-2"/> Print / Save as PDF
-                            </Button>
-                        )}
+                        <div><CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI-Designed CV</CardTitle></div>
+                        {designedCv && <Button onClick={handlePrint} className="w-full md:w-auto"><Printer className="mr-2"/> Print / Save as PDF</Button>}
                     </CardHeader>
                     <CardContent className="flex-1 relative w-full max-w-0 min-w-full">
-                        {isDesigningCv && <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Designing your CV...</p></div>}
-                        {designedCv ? (
-                             <div id="cv-print-area-wrapper" className="bg-gray-200 dark:bg-gray-800 p-4 md:p-8 rounded-md overflow-x-auto">
-                                <div id="cv-print-area" className="bg-white rounded-md shadow-lg aspect-[210/297] w-full max-w-[8.5in] min-w-[600px] md:min-w-0 mx-auto p-4 md:p-8 text-black" dangerouslySetInnerHTML={{ __html: designedCv.cvHtml }} />
-                            </div>
-                        ) : !isDesigningCv && (
-                            <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
-                                <Sparkles className="w-12 h-12 mb-4" />
-                                <p>Your designed CV will appear here.</p>
-                                <p className="text-sm mt-2">Approve the rewritten CV in the "AI Rewrite" tab to get started.</p>
-                            </div>
-                        )}
+                        {isDesigningCv && <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
+                        {designedCv ? (<div className="bg-gray-200 dark:bg-gray-800 p-4 md:p-8 rounded-md overflow-x-auto"><div id="cv-print-area" className="bg-white rounded-md shadow-lg aspect-[210/297] w-full max-w-[8.5in] min-w-[600px] md:min-w-0 mx-auto p-4 md:p-8 text-black" dangerouslySetInnerHTML={{ __html: designedCv.cvHtml }} /></div>) : !isDesigningCv && (<div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center"><Sparkles className="w-12 h-12 mb-4" /><p>Your designed CV will appear here.</p></div>)}
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -1009,232 +686,42 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
           <TabsContent value="chat" className="mt-4 flex flex-col">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {chatHistory.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
-                  <Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" />
-                  <h3 className="font-semibold text-foreground text-lg">AI Career Advisor</h3>
-                  <p className="mt-2 text-sm">Ask about career paths or interview tips. Try voice mode for a hands-free chat.</p>
-                </div>
-              ) : chatHistory.map((msg) => (
+              {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">AI Career Advisor</h3></div>) 
+              : chatHistory.map((msg) => (
                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                   {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
                   <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
                     {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
-                    {msg.role === 'assistant' && typeof msg.content === 'string' && (
-                        <div className="text-right mt-2">
-                             <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 bg-secondary-foreground/10 hover:bg-secondary-foreground/20"
-                                onClick={() => { if (typeof msg.content === 'string') handlePlayAudio(msg.id, msg.content); }}
-                                disabled={isChatting}
-                            >
-                                {generatingAudioId === msg.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : speakingMessageId === msg.id ? (
-                                    <Pause className="h-4 w-4" />
-                                ) : (
-                                    <Volume2 className="h-4 w-4" />
-                                )}
-                            </Button>
-                        </div>
-                    )}
+                    {msg.role === 'assistant' && typeof msg.content === 'string' && (<div className="text-right mt-2"><Button variant="ghost" size="icon" className="h-7 w-7 bg-secondary-foreground/10" onClick={() => handlePlayAudio(msg.id, msg.content as string)} disabled={isChatting}>{generatingAudioId === msg.id ? <Loader2 className="h-4 w-4 animate-spin" /> : speakingMessageId === msg.id ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}</Button></div>)}
                   </div>
                 </div>
               ))}
               {isChatting && <div className="flex justify-start"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
             </div>
             <div className="p-4 border-t bg-background">
-              <form onSubmit={handleChatSubmit} className="relative">
-                <Textarea
-                  ref={chatInputRef}
-                  placeholder="Ask a question..."
-                  className="pr-20"
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}}
-                  disabled={isChatting}
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>
-                        {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    </Button>
-                    <Button size="icon" className="h-8 w-8" type="submit" disabled={isChatting || isListening}>
-                        <Send className="h-4 w-4" />
-                    </Button>
-                </div>
+              <form onSubmit={(e) => { e.preventDefault(); submitChat(chatInputRef.current?.value || "", false); if(chatInputRef.current) chatInputRef.current.value=""; }} className="relative">
+                <Textarea ref={chatInputRef} placeholder="Ask a question..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitChat(chatInputRef.current?.value || "", false); if(chatInputRef.current) chatInputRef.current.value=""; }}} disabled={isChatting}/>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1"><Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>{speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}</Button><Button size="icon" className="h-8 w-8" type="submit" disabled={isChatting || isListening}><Send className="h-4 w-4" /></Button></div>
               </form>
               <audio ref={audioRef} onEnded={() => setSpeakingMessageId(null)} className="hidden"/>
             </div>
           </TabsContent>
 
           <TabsContent value="jobs" className="mt-4 flex-1 flex flex-col">
-              <Accordion type="multiple" value={jobSearchAccordion} onValueChange={setJobSearchAccordion} className="max-w-4xl mx-auto w-full">
-                <AccordionItem value="filters" className="border-b-0">
-                    <Card>
-                        <AccordionTrigger className="p-6 w-full hover:no-underline" disabled={isSearchingJobs}>
-                            <div className="flex-1 text-left">
-                                <h3 className="text-2xl font-semibold leading-none tracking-tight">Job Search</h3>
-                                <p className="text-sm text-muted-foreground mt-1.5">
-                                    {jobSearchAccordion.includes('filters')
-                                    ? 'Find jobs tailored to your profile and goals.'
-                                    : 'Click to show filters and find matching jobs.'}
-                                </p>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <CardContent className="space-y-4 pt-0">
-                              <p className="text-sm text-muted-foreground">
-                                  Use the filters below to refine your search. The AI also uses your CV and goals.
-                              </p>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div>
-                                  <Label htmlFor="role">Role / Title</Label>
-                                  <Input id="role" value={jobSearchFilters.role} onChange={e => handleFilterChange('role', e.target.value)} placeholder="e.g., Software Engineer" />
-                                </div>
-                                <div>
-                                  <Label htmlFor="jobType">Job Type</Label>
-                                  <Select value={jobSearchFilters.jobType || "Any"} onValueChange={value => handleFilterChange('jobType', value === 'Any' ? '' : value)}>
-                                    <SelectTrigger id="jobType"><SelectValue placeholder="Select type..." /></SelectTrigger>
-                                    <SelectContent>{jobTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="industry">Industry</Label>
-                                  <Select value={jobSearchFilters.industry || "Any"} onValueChange={value => handleFilterChange('industry', value === 'Any' ? '' : value)}>
-                                    <SelectTrigger id="industry"><SelectValue placeholder="Select industry..." /></SelectTrigger>
-                                    <SelectContent>{industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="experienceLevel">Experience Level</Label>
-                                  <Select value={jobSearchFilters.experienceLevel || "Any"} onValueChange={value => handleFilterChange('experienceLevel', value === 'Any' ? '' : value)}>
-                                    <SelectTrigger id="experienceLevel"><SelectValue placeholder="Select level..." /></SelectTrigger>
-                                    <SelectContent>{experienceLevels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="md:col-span-2">
-                                  <Label htmlFor="location">Location</Label>
-                                  <Input id="location" value={jobSearchFilters.location} onChange={e => handleFilterChange('location', e.target.value)} placeholder="e.g., Accra, Ghana" />
-                                </div>
-                              </div>
-                              <div className="flex justify-end pt-4">
-                                <Button onClick={handleJobSearch} disabled={isSearchingJobs} size="lg">
-                                    {isSearchingJobs && <Loader2 className="mr-2 animate-spin" />}
-                                    <Search className="mr-2" /> Search for Jobs
-                                </Button>
-                              </div>
-                            </CardContent>
-                        </AccordionContent>
-                    </Card>
-                </AccordionItem>
-            </Accordion>
+              <Card className="max-w-4xl mx-auto w-full"><CardHeader><CardTitle>Job Search</CardTitle></CardHeader>
+                <CardContent className="space-y-4 pt-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div><Label htmlFor="role">Role</Label><Input id="role" value={jobSearchFilters.role} onChange={e => setJobSearchFilters(p => ({...p, role: e.target.value}))} /></div>
+                    <div><Label>Industry</Label><Select value={jobSearchFilters.industry || "Any"} onValueChange={v => setJobSearchFilters(p => ({...p, industry: v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="md:col-span-2"><Label>Location</Label><Input value={jobSearchFilters.location} onChange={e => setJobSearchFilters(p => ({...p, location: e.target.value}))} /></div>
+                  </div>
+                  <Button onClick={handleJobSearch} disabled={isSearchingJobs} size="lg" className="w-full md:w-auto"><Search className="mr-2" /> Search</Button>
+                </CardContent>
+              </Card>
             <div className="flex-1 overflow-y-auto mt-4">
                 {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
-                {jobResults && (
-                <div className="max-w-4xl mx-auto w-full space-y-4 pb-4">
-                    {jobResults.results.length > 0 ? (
-                    <>
-                        <h3 className="font-bold text-lg">Found {jobResults.results.length} jobs</h3>
-                        {jobResults.results.map((job, i) => (
-                        <Card key={i}>
-                            <CardHeader>
-                            <CardTitle>{job.title}</CardTitle>
-                            <CardDescription>{job.company} - {job.location}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">{job.snippet}</p>
-                            <Button asChild>
-                                <a href={job.url} target="_blank" rel="noopener noreferrer">View & Apply <ArrowRight className="ml-2"/></a>
-                            </Button>
-                            </CardContent>
-                        </Card>
-                        ))}
-                    </>
-                    ) : (
-                    <p className="text-center text-muted-foreground py-10">No jobs found matching your profile. Try broadening your goals.</p>
-                    )}
-                </div>
-                )}
+                {jobResults && (<div className="max-w-4xl mx-auto w-full space-y-4 pb-4">{jobResults.results.map((job, i) => (<Card key={i}><CardHeader><CardTitle>{job.title}</CardTitle><CardDescription>{job.company} - {job.location}</CardDescription></CardHeader><CardContent><p className="text-sm text-muted-foreground mb-4">{job.snippet}</p><Button asChild><a href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowRight className="ml-2"/></a></Button></CardContent></Card>))}</div>)}
             </div>
-          </TabsContent>
-
-          <TabsContent value="aptitude" className="mt-4 flex-1 flex flex-col pb-24">
-            <Card className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><HelpCircle className="text-primary"/>AI Aptitude Assessment</CardTitle>
-                    <CardDescription>Test your skills with an industry-focused evaluation generated specifically for you.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-y-auto">
-                    {aptitudeViewState === 'intro' && (
-                        <div className="space-y-6 max-w-lg mx-auto py-10">
-                            <div className="space-y-2">
-                                <Label>Focus Industry / Role</Label>
-                                <Input 
-                                    placeholder="e.g., Software Engineering, Data Analysis, Banking" 
-                                    value={aptitudeIndustry}
-                                    onChange={e => setAptitudeIndustry(e.target.value)}
-                                />
-                                <p className="text-xs text-muted-foreground">The AI will generate 40-50 questions tailored to this industry and your CV.</p>
-                            </div>
-                            <Button className="w-full py-8 text-lg font-bold" onClick={handleGenerateAptitude} disabled={isGeneratingAptitude}>
-                                {isGeneratingAptitude ? <Loader2 className="mr-2 animate-spin"/> : <Sparkles className="mr-2"/>}
-                                {isGeneratingAptitude ? 'Generating 40 Questions...' : 'Start Aptitude Test'}
-                            </Button>
-                        </div>
-                    )}
-
-                    {aptitudeViewState === 'taking' && aptitudeTest && (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center text-sm mb-4">
-                                <span className="font-bold">Question {currentAptitudeIndex + 1} of {aptitudeTest.questions.length}</span>
-                                <span className="text-muted-foreground">{Math.round(((currentAptitudeIndex + 1) / aptitudeTest.questions.length) * 100)}%</span>
-                            </div>
-                            <Progress value={((currentAptitudeIndex + 1) / aptitudeTest.questions.length) * 100} className="h-2 mb-8" />
-                            
-                            <div className="space-y-6">
-                                <h3 className="text-xl font-bold">{aptitudeTest.questions[currentAptitudeIndex].questionText}</h3>
-                                <RadioGroup 
-                                    value={aptitudeAnswers[currentAptitudeIndex] || ""} 
-                                    onValueChange={val => setAptitudeAnswers(p => ({...p, [currentAptitudeIndex]: val}))}
-                                >
-                                    {aptitudeTest.questions[currentAptitudeIndex].options.map((opt, i) => (
-                                        <div key={i} className={cn(
-                                            "flex items-center space-x-3 p-4 rounded-lg border cursor-pointer hover:bg-secondary/50",
-                                            aptitudeAnswers[currentAptitudeIndex] === opt && "border-primary bg-primary/5"
-                                        )} onClick={() => setAptitudeAnswers(p => ({...p, [currentAptitudeIndex]: opt}))}>
-                                            <RadioGroupItem value={opt} id={`opt-${i}`} />
-                                            <Label htmlFor={`opt-${i}`} className="flex-1 cursor-pointer">{opt}</Label>
-                                        </div>
-                                    ))}
-                                </RadioGroup>
-                            </div>
-
-                            <div className="flex justify-between pt-8 border-t">
-                                <Button variant="outline" onClick={() => setCurrentAptitudeIndex(p => p - 1)} disabled={currentAptitudeIndex === 0}>Previous</Button>
-                                {currentAptitudeIndex < aptitudeTest.questions.length - 1 ? (
-                                    <Button onClick={() => setCurrentAptitudeIndex(p => p + 1)} disabled={!aptitudeAnswers[currentAptitudeIndex]}>Next</Button>
-                                ) : (
-                                    <Button onClick={handleAptitudeSubmit} disabled={!aptitudeAnswers[currentAptitudeIndex]} className="bg-green-600 hover:bg-green-700">Submit Test</Button>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {aptitudeViewState === 'results' && (
-                        <div className="text-center space-y-6 py-10">
-                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 text-primary mb-4">
-                                <CheckCircle className="w-12 h-12"/>
-                            </div>
-                            <h2 className="text-3xl font-headline font-bold">Assessment Complete!</h2>
-                            <p className="text-xl text-muted-foreground">Your Score: <span className="text-foreground font-bold">{aptitudeScore} / {aptitudeTest?.questions.length}</span></p>
-                            <Progress value={(aptitudeScore / (aptitudeTest?.questions.length || 1)) * 100} className="h-4 max-w-md mx-auto" />
-                            <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
-                                <Button variant="outline" onClick={() => setAptitudeViewState('intro')}>Retake Assessment</Button>
-                                <Button asChild><Link href="/home/career?tab=chat">Discuss Results with Zia</Link></Button>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>
@@ -1242,39 +729,104 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
   )
 }
 
-function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
-  return (
-    <Card className="bg-background">
-      <CardHeader>
-        <CardTitle>Your Career & Academic Strategy</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 text-sm">
-        <div>
-          <h4 className="font-semibold mb-1">Target Role Analysis</h4>
-          <p className="text-muted-foreground">{result.targetRoleAnalysis}</p>
+function AptitudeTestView({ cvContent, onBack }: { cvContent?: string, onBack: () => void }) {
+    const { toast } = useToast();
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const userDocRef = useMemo(() => (user && firestore) ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
+    const { data: firestoreUser } = useDoc(userDocRef);
+
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [test, setTest] = useState<GenerateAptitudeTestOutput | null>(null);
+    const [industry, setIndustry] = useState("");
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [answers, setAnswers] = useState<Record<number, string>>({});
+    const [viewState, setViewState] = useState<'intro' | 'taking' | 'results'>('intro');
+    const [score, setScore] = useState(0);
+
+    const handleGenerate = async () => {
+        setIsGenerating(true);
+        try {
+            const result = await generateAptitudeTest({ industry: industry || "General Professional", cvContent, educationalLevel: firestoreUser?.educationalLevel });
+            setTest(result);
+            setAnswers({});
+            setCurrentIndex(0);
+            setViewState('taking');
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Generation Failed' });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleSubmit = () => {
+        let s = 0;
+        test?.questions.forEach((q, i) => { if (answers[i] === q.correctAnswer) s++; });
+        setScore(s);
+        setViewState('results');
+    };
+
+    return (
+        <div className="flex flex-col flex-1 h-full">
+            <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Career Home</Button>} />
+            <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-4">
+                <Card className="max-w-4xl mx-auto w-full flex-1 flex flex-col border-2 border-orange-100">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><HelpCircle className="text-orange-600"/>AI Aptitude Assessment</CardTitle>
+                        <CardDescription>Test your skills with an industry-focused evaluation.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto">
+                        {viewState === 'intro' && (
+                            <div className="space-y-6 max-w-lg mx-auto py-10">
+                                <div className="space-y-2">
+                                    <Label>Focus Industry / Role</Label>
+                                    <Input placeholder="e.g., Software Engineering, Banking" value={industry} onChange={e => setIndustry(e.target.value)} />
+                                    <p className="text-xs text-muted-foreground">Tailored to your industry and CV content.</p>
+                                </div>
+                                <Button className="w-full py-8 text-lg font-bold bg-orange-600 hover:bg-orange-700" onClick={handleGenerate} disabled={isGenerating}>
+                                    {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <Sparkles className="mr-2"/>}
+                                    {isGenerating ? 'Generating Test...' : 'Start Assessment'}
+                                </Button>
+                            </div>
+                        )}
+                        {viewState === 'taking' && test && (
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center text-sm mb-4">
+                                    <span className="font-bold">Question {currentIndex + 1} of {test.questions.length}</span>
+                                    <span className="text-muted-foreground">{Math.round(((currentIndex + 1) / test.questions.length) * 100)}%</span>
+                                </div>
+                                <Progress value={((currentIndex + 1) / test.questions.length) * 100} className="h-2 mb-8" />
+                                <div className="space-y-6">
+                                    <h3 className="text-xl font-bold leading-tight">{test.questions[currentIndex].questionText}</h3>
+                                    <RadioGroup value={answers[currentIndex] || ""} onValueChange={val => setAnswers(p => ({...p, [currentIndex]: val}))}>
+                                        {test.questions[currentIndex].options.map((opt, i) => (
+                                            <div key={i} className={cn("flex items-center space-x-3 p-4 rounded-lg border cursor-pointer", answers[currentIndex] === opt && "border-orange-500 bg-orange-50")} onClick={() => setAnswers(p => ({...p, [currentIndex]: opt}))}>
+                                                <RadioGroupItem value={opt} id={`opt-${i}`} /><Label htmlFor={`opt-${i}`} className="flex-1 cursor-pointer">{opt}</Label>
+                                            </div>
+                                        ))}
+                                    </RadioGroup>
+                                </div>
+                                <div className="flex justify-between pt-8 border-t">
+                                    <Button variant="outline" onClick={() => setCurrentIndex(p => p - 1)} disabled={currentIndex === 0}>Previous</Button>
+                                    {currentIndex < test.questions.length - 1 ? <Button className="bg-orange-600 hover:bg-orange-700" onClick={() => setCurrentIndex(p => p + 1)} disabled={!answers[currentIndex]}>Next</Button> : <Button onClick={handleSubmit} disabled={!answers[currentIndex]} className="bg-green-600 hover:bg-green-700">Submit Test</Button>}
+                                </div>
+                            </div>
+                        )}
+                        {viewState === 'results' && (
+                            <div className="text-center space-y-6 py-10">
+                                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-green-50 text-green-600 mb-4"><CheckCircle className="w-12 h-12"/></div>
+                                <h2 className="text-3xl font-headline font-bold">Assessment Complete!</h2>
+                                <p className="text-xl text-muted-foreground">Your Score: <span className="text-foreground font-bold">{score} / {test?.questions.length}</span></p>
+                                <Progress value={(score / (test?.questions.length || 1)) * 100} className="h-4 max-w-md mx-auto" />
+                                <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                                    <Button variant="outline" onClick={() => setViewState('intro')}>Retake Assessment</Button>
+                                    <Button asChild className="bg-orange-600 hover:bg-orange-700"><Link href="/home/career?tab=chat">Discuss with AI Advisor</Link></Button>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </div>
-        <div>
-          <h4 className="font-semibold mb-1">Academic Roadmap</h4>
-          <ul className="space-y-2">
-            {result.academicRoadmap.map((item, i) => (
-              <li key={i} className="p-2 border rounded-md">
-                <p className="font-medium">{item.recommendation}</p>
-                <p className="text-muted-foreground text-xs">{item.reason}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h4 className="font-semibold mb-1">Career Stepping Stones</h4>
-          <ul className="list-disc pl-5 text-muted-foreground">
-            {result.careerSteppingStones.map((item, i) => <li key={i}>{item}</li>)}
-          </ul>
-        </div>
-        <div>
-          <h4 className="font-semibold mb-1">Insider Tip</h4>
-          <p className="text-muted-foreground italic">&quot;{result.insiderTip}&quot;</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+    );
 }
