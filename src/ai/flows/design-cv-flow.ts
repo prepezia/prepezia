@@ -43,7 +43,11 @@ Your task is to convert the user's CV from Markdown into a single, self-containe
     *   Structure the CV with clear sections (e.g., Summary, Experience, Education, Skills).
 5.  **Colors:** Use a professional and minimal color palette. Use shades of gray for text (e.g., \`text-gray-900\`, \`text-gray-600\`) and a subtle accent color for headings or links if needed.
 6.  **No External Dependencies:** The final HTML should not require any external CSS or JavaScript files.
-7.  **Intelligent Page Breaks:** To prevent sections from splitting awkwardly across pages when printed, it is critical that you wrap each major CV section (e.g., 'Summary', 'Experience', 'Education', 'Leadership & Volunteering') in its own \`<div>\` container. You MUST apply the Tailwind CSS class \`break-inside-avoid\` to each of these section containers. This instructs the browser to move the entire section to the next page if it doesn't fit, which is essential for professional-looking PDF output.
+7.  **Advanced Page Break Logic (CRITICAL):**
+    *   Wrap each major CV section (e.g., 'Summary', 'Experience') in a \`<div>\` with Tailwind class \`break-inside-avoid\`.
+    *   **INDIVIDUAL ENTRIES:** Additionally, wrap every specific job entry, education degree, or project item in its OWN \`<div>\` with the Tailwind class \`break-inside-avoid\`. 
+    *   This ensures that if a specific job description is near the bottom of a page, the ENTIRE job block moves to the next page rather than splitting one line across the break.
+    *   Apply \`break-after-avoid\` to all headings to ensure a heading is never left alone at the bottom of a page.
 
 ### USER'S CV (Markdown):
 \`\`\`markdown

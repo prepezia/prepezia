@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -693,7 +691,19 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   ${styleBlocks}
                   <style>
                       @page { size: A4; margin: 0; }
-                      body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                      body { 
+                        margin: 0; 
+                        -webkit-print-color-adjust: exact; 
+                        print-color-adjust: exact; 
+                      }
+                      /* Professional Print Optimization */
+                      p, li { 
+                        orphans: 3; 
+                        widows: 3; 
+                      }
+                      h1, h2, h3, h4, h5, h6 {
+                        break-after: avoid;
+                      }
                   </style>
               </head>
               <body>
@@ -969,7 +979,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                   {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
                   <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                    {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
+                    {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
                     {msg.role === 'assistant' && typeof msg.content === 'string' && (
                         <div className="text-right mt-2">
                              <Button
@@ -1148,14 +1158,3 @@ function CareerAdviceCard({ result }: { result: CareerAdviceOutput }) {
     </Card>
   );
 }
-
-    
-
-    
-
-
-
-
-
-
-
