@@ -62,7 +62,6 @@ import { collection, DocumentData, CollectionReference, doc, getDoc, setDoc, ser
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { universities as staticUnis } from "@/lib/ghana-universities";
 
 interface PastQuestion extends DocumentData {
@@ -72,6 +71,7 @@ interface PastQuestion extends DocumentData {
     year: string;
     university?: string;
     schoolFaculty?: string;
+    courseCode?: string;
     durationMinutes?: number;
     totalQuestions?: number;
     extractedText?: string;
@@ -128,16 +128,23 @@ export default function PastQuestionsPage() {
     const [savedExams, setSavedExams] = useState<SavedExam[]>([]);
     const [isNewExamDialogOpen, setIsNewExamDialogOpen] = useState(false);
     
-    // Institution Search State
+    // Search & Selection Refs/State
     const [uniSearchQuery, setUniSearchQuery] = useState("");
     const [isUniDropdownOpen, setIsUniDropdownOpen] = useState(false);
     const uniSearchRef = useRef<HTMLDivElement>(null);
 
-    // Close uni search when clicking outside
+    const [subjectSearchQuery, setSubjectSearchQuery] = useState("");
+    const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
+    const subjectSearchRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdowns when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (uniSearchRef.current && !uniSearchRef.current.contains(event.target as Node)) {
                 setIsUniDropdownOpen(false);
+            }
+            if (subjectSearchRef.current && !subjectSearchRef.current.contains(event.target as Node)) {
+                setIsSubjectDropdownOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -160,14 +167,29 @@ export default function PastQuestionsPage() {
         return Array.from(new Set(allQuestions.map(q => q.level))).sort();
     }, [allQuestions]);
     
-    const subjects = useMemo(() => {
+    const subjectList = useMemo(() => {
         if (!allQuestions || !selections.examBody) return [];
         let filtered = allQuestions.filter(q => q.level === selections.examBody);
         if (selections.examBody === 'University') {
             filtered = filtered.filter(q => q.university === selections.university);
         }
-        return Array.from(new Set(filtered.map(q => q.subject))).sort();
-    }, [allQuestions, selections]);
+        
+        const uniqueSubjects = new Map();
+        filtered.forEach(q => {
+            const displayName = q.courseCode ? `${q.courseCode} ${q.subject}` : q.subject;
+            if (!uniqueSubjects.has(displayName)) {
+                uniqueSubjects.set(displayName, { subject: q.subject, courseCode: q.courseCode || "" });
+            }
+        });
+        
+        return Array.from(uniqueSubjects.entries()).map(([display, data]) => ({ display, ...data })).sort((a, b) => a.display.localeCompare(b.display));
+    }, [allQuestions, selections.examBody, selections.university]);
+
+    const filteredSubjects = useMemo(() => {
+        if (!subjectSearchQuery) return subjectList;
+        const query = subjectSearchQuery.toLowerCase();
+        return subjectList.filter(s => s.display.toLowerCase().includes(query));
+    }, [subjectList, subjectSearchQuery]);
 
     const years = useMemo(() => {
         if (!allQuestions || !selections.subject) return [];
@@ -176,7 +198,7 @@ export default function PastQuestionsPage() {
             filtered = filtered.filter(q => q.university === selections.university);
         }
         return Array.from(new Set(filtered.map(q => q.year))).sort((a, b) => b.localeCompare(a));
-    }, [allQuestions, selections]);
+    }, [allQuestions, selections.examBody, selections.university, selections.subject]);
 
     useEffect(() => {
         try {
@@ -446,7 +468,8 @@ export default function PastQuestionsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {savedExams.map(exam => {
                                     const answeredCount = Object.keys(exam.examAnswers || {}).length;
-                                    const progressPercent = Math.min(Math.round((answeredCount / (exam.totalQuestionsInPaper || 20)) * 100), 100);
+                                    const totalQs = exam.totalQuestionsInPaper || 20;
+                                    const progressPercent = Math.min(Math.round((answeredCount / totalQs) * 100), 100);
                                     
                                     return (
                                         <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow relative flex flex-col" onClick={() => handleResume(exam)}>
@@ -535,7 +558,7 @@ export default function PastQuestionsPage() {
                                                         autoFocus
                                                     />
                                                 </div>
-                                                <ScrollArea className="h-[300px]">
+                                                <ScrollArea className="h-[250px]">
                                                     <div className="p-1">
                                                         {filteredUniversities.length === 0 ? (
                                                             <p className="p-4 text-center text-sm text-muted-foreground">No institution found.</p>
@@ -546,7 +569,7 @@ export default function PastQuestionsPage() {
                                                                     variant="ghost"
                                                                     className="w-full justify-start font-normal text-sm px-2 py-1.5"
                                                                     onClick={() => {
-                                                                        setSelections(p => ({...p, university: uni, schoolFaculty: "", subject: "", year: "", courseCode: ""}));
+                                                                        setSelections(p => ({...p, university: uni, subject: "", year: "", courseCode: ""}));
                                                                         setIsUniDropdownOpen(false);
                                                                         setUniSearchQuery("");
                                                                     }}
@@ -568,12 +591,62 @@ export default function PastQuestionsPage() {
                                     </div>
                                 )}
 
-                                <div className="space-y-2 text-left">
+                                <div className="space-y-2 text-left relative" ref={subjectSearchRef}>
                                     <Label>Subject</Label>
-                                    <Select onValueChange={v => setSelections(p => ({...p, subject: v, year: "", courseCode: ""}))} value={selections.subject} disabled={!selections.examBody}>
-                                        <SelectTrigger><SelectValue placeholder="Select subject..." /></SelectTrigger>
-                                        <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                                    </Select>
+                                    <div 
+                                        className={cn(
+                                            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer",
+                                            !selections.examBody && "opacity-50 cursor-not-allowed pointer-events-none"
+                                        )}
+                                        onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
+                                    >
+                                        <span className="truncate">
+                                            {selections.subject ? (selections.courseCode ? `${selections.courseCode} ${selections.subject}` : selections.subject) : "Select subject..."}
+                                        </span>
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </div>
+                                    {isSubjectDropdownOpen && (
+                                        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
+                                            <div className="flex items-center border-b px-3 bg-secondary/20">
+                                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                <Input
+                                                    placeholder="Search subject or code..."
+                                                    className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0 shadow-none"
+                                                    value={subjectSearchQuery}
+                                                    onChange={(e) => setSubjectSearchQuery(e.target.value)}
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <ScrollArea className="h-[200px]">
+                                                <div className="p-1">
+                                                    {filteredSubjects.length === 0 ? (
+                                                        <p className="p-4 text-center text-sm text-muted-foreground">No subjects found.</p>
+                                                    ) : (
+                                                        filteredSubjects.map((s) => (
+                                                            <Button
+                                                                key={s.display}
+                                                                variant="ghost"
+                                                                className="w-full justify-start font-normal text-sm px-2 py-1.5"
+                                                                onClick={() => {
+                                                                    setSelections(p => ({...p, subject: s.subject, courseCode: s.courseCode, year: ""}));
+                                                                    setIsSubjectDropdownOpen(false);
+                                                                    setSubjectSearchQuery("");
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        selections.subject === s.subject ? "opacity-100" : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                <span className="truncate">{s.display}</span>
+                                                            </Button>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </ScrollArea>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2 text-left">
@@ -880,16 +953,6 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
                     )}
                 </CardContent>
                 <CardFooter className="flex-col gap-4 pt-6 border-t mt-4">
-                    {isEndOfBatch && isAnswered && hasNextPart && (
-                        <Alert className="bg-primary/5 border-primary/20 mb-2">
-                            <AlertCircle className="h-4 w-4 text-primary" />
-                            <AlertTitle className="font-bold">Part {part} Batch Complete!</AlertTitle>
-                            <AlertDescription>
-                                You've finished this batch. There are a total of {totalQuestions} questions in this paper ({maxParts} parts). Click below to proceed to the next part or save for later.
-                            </AlertDescription>
-                        </Alert>
-                    )}
-                    
                     <div className="flex justify-between items-center w-full gap-2">
                         <Button variant="ghost" onClick={() => onSaveAndExit(allAnswers)} className="text-muted-foreground hover:text-primary shrink-0">
                             <Save className="mr-2 h-4 w-4"/> Save & Exit
@@ -1022,15 +1085,6 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
                         })}
                     </CardContent>
                     <CardFooter className="flex-col gap-4 pt-6 border-t mt-4">
-                        {isEndOfBatch && hasNextPart && (
-                            <Alert className="bg-primary/5 border-primary/20 mb-2">
-                                <AlertCircle className="h-4 w-4 text-primary" />
-                                <AlertTitle className="font-bold">Part {part} Batch Complete!</AlertTitle>
-                                <AlertDescription>
-                                    You've reached the end of this 20-question segment. Click "Continue" to proceed to Part {part+1} with a fresh timer.
-                                </AlertDescription>
-                            </Alert>
-                        )}
                         <div className="flex justify-between items-center w-full">
                             <Button variant="ghost" onClick={() => setIndex(i => i-1)} disabled={index === 0}>
                                 <ChevronLeft className="mr-2 h-4 w-4" /> Previous
