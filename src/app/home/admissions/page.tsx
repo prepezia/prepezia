@@ -48,12 +48,11 @@ type CvData = {
   contentType?: string;
 };
 
-// Supported file types
+// Supported file types - Optimized for AI extraction
 const ACCEPTED_FILE_TYPES = {
   pdf: 'application/pdf',
   images: 'image/jpeg,image/jpg,image/png,image/webp',
-  text: 'text/plain,text/markdown,.txt,.md',
-  doc: 'application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx'
+  text: 'text/plain,text/markdown,.txt,.md'
 };
 
 const ALL_ACCEPTED_FILES = Object.values(ACCEPTED_FILE_TYPES).join(',');
@@ -173,7 +172,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
             toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
             let extractedText;
 
-            if (file.type.startsWith('image/') || file.type === 'application/pdf' || file.type.includes('word')) {
+            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
                 const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result as string);
@@ -294,14 +293,13 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                             <div className="flex flex-wrap gap-2 mt-2">
                                 <Badge variant="outline" className="flex items-center gap-1"><File className="h-3 w-3" /> PDF</Badge>
                                 <Badge variant="outline" className="flex items-center gap-1"><LucideImage className="h-3 w-3" /> JPG/PNG</Badge>
-                                <Badge variant="outline" className="flex items-center gap-1"><FileText className="h-3 w-3" /> Word</Badge>
                                 <Badge variant="outline" className="flex items-center gap-1"><FileText className="h-3 w-3" /> TXT</Badge>
                             </div>
                         </CardHeader>
                         <CardContent>
                              <Button variant="outline" className="w-full h-24 flex-col gap-2" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
                                 <Upload className="w-6 h-6" /> Upload Academic CV
-                                <span className="text-xs text-muted-foreground">PDF, Images, Word, TXT</span>
+                                <span className="text-xs text-muted-foreground">PDF, Images, or TXT</span>
                             </Button>
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept={ALL_ACCEPTED_FILES} />
                         </CardContent>
@@ -498,7 +496,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
             let extractedText;
 
-            if (file.type.startsWith('image/') || file.type === 'application/pdf' || file.type.includes('word')) {
+            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
                 const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result as string);
@@ -733,6 +731,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                 <Card className="flex flex-col h-full">
                                     <CardHeader>
                                         <CardTitle>Your Academic CV</CardTitle>
+                                        <CardTitle>Your Academic CV</CardTitle>
                                         <CardDescription>
                                             {cv.content 
                                             ? `CV text extracted from ${cv.fileName || 'your file'}. You can edit it below.`
@@ -757,7 +756,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                             <div className="absolute inset-0 h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center bg-background">
                                                 <Upload className="h-12 w-12 text-muted-foreground mb-4" />
                                                 <p className="text-muted-foreground mb-2">Upload your Academic CV to get started</p>
-                                                <p className="text-sm text-muted-foreground mb-4">Supports PDF, JPG/PNG, Word docs, and TXT files</p>
+                                                <p className="text-sm text-muted-foreground mb-4">Supports PDF, JPG/PNG, and TXT files</p>
                                                 <Button onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" /> Upload CV</Button>
                                             </div>
                                         )}
