@@ -298,7 +298,11 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
-                <Button variant="outline" className="w-full font-bold border-orange-200 text-orange-700 hover:bg-orange-50" size="lg" onClick={onAptitudeClick}>
+                <Button 
+                  className="w-full font-bold bg-orange-600 text-white hover:bg-orange-700 transition-colors shadow-md hover:shadow-lg border-none" 
+                  size="lg" 
+                  onClick={onAptitudeClick}
+                >
                   Start Test <ArrowRight className="ml-2" />
                 </Button>
               </CardContent>
@@ -524,6 +528,7 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
             extractedText = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = (e) => reject(e);
                 reader.readAsText(file);
             });
         }
