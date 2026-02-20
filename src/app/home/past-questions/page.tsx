@@ -237,7 +237,6 @@ export default function PastQuestionsPage() {
         const mergedAnswers = { ...examAnswers, ...answersFromBatch };
         setExamAnswers(mergedAnswers);
         
-        // Auto-save when moving to next part so resume works correctly
         const examId = currentExamId || Date.now();
         if (!currentExamId) setCurrentExamId(examId);
 
@@ -306,12 +305,7 @@ export default function PastQuestionsPage() {
         }, 0);
         
         const isFullyComplete = (currentPart * 20) >= totalQuestionsInPaper;
-        
-        // Logic: determine if the user has finished the current batch
         const batchCompleted = Object.keys(currentAnswers).length >= questions.length;
-        
-        // If timed out OR explicitly finished all questions in the current batch
-        // on resume start next part
         const nextPartIndex = ((forceNextPart || batchCompleted) && !isFullyComplete) ? currentPart + 1 : currentPart;
 
         const newExam: SavedExam = {
@@ -358,7 +352,6 @@ export default function PastQuestionsPage() {
             setViewState('results');
         } else {
             setViewState('taking');
-            // If the next batch isn't loaded yet, fetch it
             if (exam.questions.length < exam.currentPart * 20) {
                 loadBatch(exam.currentPart);
             } else {
@@ -404,7 +397,9 @@ export default function PastQuestionsPage() {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {savedExams.map(exam => {
-                                    const progress = Math.min(Math.round(((exam.currentPart * 20) / exam.totalQuestionsInPaper) * 100), 100);
+                                    const answeredCount = Object.keys(exam.examAnswers || {}).length;
+                                    const progress = Math.min(Math.round((answeredCount / (exam.totalQuestionsInPaper || 20)) * 100), 100);
+                                    
                                     return (
                                         <Card key={exam.id} className="cursor-pointer hover:shadow-md transition-shadow relative flex flex-col" onClick={() => handleResume(exam)}>
                                             <CardHeader>
@@ -868,7 +863,6 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
             }, 1000);
             return () => clearInterval(t);
         } else {
-            // Use setTimeout to move the update out of the render cycle
             const timer = setTimeout(() => {
                 onTimeout(ansRef.current);
             }, 0);
