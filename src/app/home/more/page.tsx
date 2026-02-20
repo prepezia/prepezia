@@ -33,7 +33,7 @@ export default function MorePage() {
                     <div className="md:order-1">
                         <h3 className="text-base md:text-2xl font-headline font-bold text-foreground">Unlock Your Career Potential</h3>
                         <p className="mt-2 text-xs md:text-base text-muted-foreground">
-                            Get personalized CV feedback, find relevant jobs, and receive expert career advice—all powered by AI.
+                            Get personalized CV feedback, find relevant jobs, and take industry-focused AI aptitude tests.
                         </p>
                         <Button asChild size="sm" className="mt-4 md:mt-8 font-bold md:h-11 md:px-8">
                             <Link href="/home/career?start=form">

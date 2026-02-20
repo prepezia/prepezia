@@ -177,7 +177,7 @@ const features = [
     },
     {
         title: "Career Hub",
-        description: "Get CV feedback, find jobs, and receive expert career advice.",
+        description: "CV feedback, job search, and tailored AI aptitude tests.",
         href: "/home/career",
         iconUrl: "https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fcareer-path_12343398.png?alt=media&token=3d6bcbf8-ed24-40df-be03-0cec15031963",
         color: "bg-orange-50 dark:bg-orange-900/50",
@@ -232,12 +232,6 @@ export default function DashboardPage() {
     sessionStorage.setItem('verificationToastShown', 'true');
   }, [user, loading, toast]);
 
-  const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;
-  const carouselImage2 = PlaceHolderImages.find(p => p.id === 'carousel2')!;
-  const carouselImage3 = PlaceHolderImages.find(p => p.id === 'carousel3')!;
-  const carouselImage4 = PlaceHolderImages.find(p => p.id === 'carousel4')!;
-  const carouselImage5 = PlaceHolderImages.find(p => p.id === 'carousel5')!;
-  
   const [api, setApi] = React.useState<CarouselApi>()
   const [current, setCurrent] = React.useState(0)
   const [count, setCount] = React.useState(0)
