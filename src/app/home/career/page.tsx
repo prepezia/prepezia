@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -545,26 +546,6 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
   }, [cv.content, careerGoals, toast, handlePlayAudio, firestoreUser]);
 
   useEffect(() => {
-    const contextJSON = sessionStorage.getItem('learnwithtemi_chat_context');
-    if (contextJSON && activeTab === 'chat' && chatHistory.length === 0) {
-        sessionStorage.removeItem('learnwithtemi_chat_context');
-        try {
-            const context = JSON.parse(contextJSON);
-            if (context.type === 'aptitude_test') {
-                const welcomeMsg: ChatMessage = {
-                    id: 'welcome-aptitude',
-                    role: 'assistant',
-                    content: `Hello! I'm Zia. I see you just finished the **${context.industry}** aptitude test. You scored **${context.score} out of ${context.total}**. 
-
-Would you like to discuss your results, review any difficult concepts, or explore how we can improve your score for next time?`
-                };
-                setChatHistory([welcomeMsg]);
-            }
-        } catch (e) {}
-    }
-  }, [activeTab, chatHistory]);
-
-  useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
@@ -772,7 +753,7 @@ Would you like to discuss your results, review any difficult concepts, or explor
 
           <TabsContent value="chat" className="mt-4 flex flex-col">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">Chat with Zia</h3><p className="mt-2 text-sm">Ask about job roles, industries, or how to land your dream job.</p></div>) 
+              {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">Chat with Zia</h3><p className="mt-2 text-sm max-w-md">I'm Zia, your Career Strategist. Ask me about job roles, industries, or for feedback on your CV to help you land your dream job.</p></div>) 
               : chatHistory.map((msg) => (
                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                   {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
@@ -786,7 +767,7 @@ Would you like to discuss your results, review any difficult concepts, or explor
             </div>
             <div className="p-4 border-t bg-background">
               <form onSubmit={(e) => { e.preventDefault(); submitChat(chatInputRef.current?.value || "", false); if(chatInputRef.current) chatInputRef.current.value=""; }} className="relative">
-                <Textarea ref={chatInputRef} placeholder="Ask Zia a question..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitChat(chatInputRef.current?.value || "", false); if(chatInputRef.current) chatInputRef.current.value=""; }}} disabled={isChatting}/>
+                <Textarea ref={chatInputRef} placeholder="Ask Zia a career question..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitChat(chatInputRef.current?.value || "", false); if(chatInputRef.current) chatInputRef.current.value=""; }}} disabled={isChatting}/>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1"><Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>{speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}</Button><Button size="icon" className="h-8 w-8" type="submit" disabled={isChatting || isListening}><Send className="h-4 w-4" /></Button></div>
               </form>
               <audio ref={audioRef} onEnded={() => setSpeakingMessageId(null)} className="hidden"/>
@@ -817,6 +798,7 @@ Would you like to discuss your results, review any difficult concepts, or explor
 
 function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string, onBack: () => void, onOpenHub: (tab: HubTab) => void }) {
     const { toast } = useToast();
+    const router = useRouter();
     const { user } = useUser();
     const firestore = useFirestore();
     const userDocRef = useMemo(() => (user && firestore) ? doc(firestore, 'users', user.uid) : null, [user, firestore]);
@@ -906,13 +888,11 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
     };
 
     const handleDiscussWithAI = (currentScore: number, currentTotal: number, currentIndustry: string) => {
-        sessionStorage.setItem('learnwithtemi_chat_context', JSON.stringify({
-            type: 'aptitude_test',
-            score: currentScore,
-            total: currentTotal,
-            industry: currentIndustry
-        }));
-        onOpenHub('chat');
+        const prompt = {
+            question: `I just finished my ${currentIndustry} aptitude test and scored ${currentScore} out of ${currentTotal}. Can you help me understand my performance and explain some of the key concepts?`,
+        };
+        sessionStorage.setItem('pending_guided_learning_prompt', JSON.stringify(prompt));
+        router.push('/home/learn');
     };
 
     return (

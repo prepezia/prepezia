@@ -43,12 +43,6 @@ type ChatMessage = {
   content: string | React.ReactNode;
 };
 
-type ChatMessage = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string | React.ReactNode;
-};
-
 type CvData = {
   content?: string;
   fileName?: string;
@@ -901,7 +895,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
 
                     <TabsContent value="chat" className="mt-4 flex flex-col">
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                            {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">AI Admissions Advisor</h3><p className="mt-2 text-sm">Ask about universities, scholarships, or application strategies. Try voice mode for a hands-free chat.</p></div>) 
+                            {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">Chat with Zia</h3><p className="mt-2 text-sm max-w-md">I'm Zia, your Admissions Advisor. Ask me about university requirements, scholarship applications, and global study strategies to help you reach your academic goals.</p></div>) 
                             : chatHistory.map((msg, i) => (
                                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                     {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
@@ -933,7 +927,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         </div>
                         <div className="p-4 border-t bg-background">
                             <form onSubmit={handleChatSubmit} className="relative">
-                                <Textarea ref={chatInputRef} placeholder="Ask a question..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}} disabled={isChatting}/>
+                                <Textarea ref={chatInputRef} placeholder="Ask Zia about admissions..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}} disabled={isChatting}/>
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                     <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>
                                         {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
