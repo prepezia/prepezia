@@ -130,7 +130,19 @@ export default function PastQuestionsPage() {
     
     // Institution Search State
     const [uniSearchQuery, setUniSearchQuery] = useState("");
-    const [isUniPopoverOpen, setIsUniPopoverOpen] = useState(false);
+    const [isUniDropdownOpen, setIsUniDropdownOpen] = useState(false);
+    const uniSearchRef = useRef<HTMLDivElement>(null);
+
+    // Close uni search when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (uniSearchRef.current && !uniSearchRef.current.contains(event.target as Node)) {
+                setIsUniDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const allUniversities = useMemo(() => {
         const customNames = customUnis?.map(u => u.name) || [];
@@ -502,73 +514,57 @@ export default function PastQuestionsPage() {
                                 </div>
 
                                 {selections.examBody === 'University' && (
-                                    <div className="space-y-2 text-left">
+                                    <div className="space-y-2 text-left relative" ref={uniSearchRef}>
                                         <Label>Institution</Label>
-                                        <Popover open={isUniPopoverOpen} onOpenChange={setIsUniPopoverOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    role="combobox"
-                                                    aria-expanded={isUniPopoverOpen}
-                                                    className="w-full justify-between font-normal"
-                                                >
-                                                    {selections.university
-                                                        ? allUniversities.find((uni) => uni === selections.university)
-                                                        : "Select institution..."}
-                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent 
-                                                className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                onOpenAutoFocus={(e) => e.preventDefault()}
-                                            >
-                                                <div 
-                                                    className="flex flex-col" 
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <div className="flex items-center border-b px-3">
-                                                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                                        <Input
-                                                            placeholder="Search institution..."
-                                                            className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0"
-                                                            value={uniSearchQuery}
-                                                            onChange={(e) => setUniSearchQuery(e.target.value)}
-                                                            onKeyDown={(e) => e.stopPropagation()}
-                                                            onPointerDown={(e) => e.stopPropagation()}
-                                                        />
-                                                    </div>
-                                                    <ScrollArea className="h-[300px]">
-                                                        <div className="p-1">
-                                                            {filteredUniversities.length === 0 ? (
-                                                                <p className="p-4 text-center text-sm text-muted-foreground">No institution found.</p>
-                                                            ) : (
-                                                                filteredUniversities.map((uni) => (
-                                                                    <Button
-                                                                        key={uni}
-                                                                        variant="ghost"
-                                                                        className="w-full justify-start font-normal text-sm px-2 py-1.5"
-                                                                        onClick={() => {
-                                                                            setSelections(p => ({...p, university: uni, schoolFaculty: "", subject: "", year: "", courseCode: ""}));
-                                                                            setIsUniPopoverOpen(false);
-                                                                            setUniSearchQuery("");
-                                                                        }}
-                                                                    >
-                                                                        <Check
-                                                                            className={cn(
-                                                                                "mr-2 h-4 w-4",
-                                                                                selections.university === uni ? "opacity-100" : "opacity-0"
-                                                                            )}
-                                                                        />
-                                                                        <span className="truncate">{uni}</span>
-                                                                    </Button>
-                                                                ))
-                                                            )}
-                                                        </div>
-                                                    </ScrollArea>
+                                        <div 
+                                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer"
+                                            onClick={() => setIsUniDropdownOpen(!isUniDropdownOpen)}
+                                        >
+                                            <span className="truncate">{selections.university || "Select institution..."}</span>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </div>
+                                        {isUniDropdownOpen && (
+                                            <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
+                                                <div className="flex items-center border-b px-3 bg-secondary/20">
+                                                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    <Input
+                                                        placeholder="Search institution..."
+                                                        className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0 shadow-none"
+                                                        value={uniSearchQuery}
+                                                        onChange={(e) => setUniSearchQuery(e.target.value)}
+                                                        autoFocus
+                                                    />
                                                 </div>
-                                            </PopoverContent>
-                                        </Popover>
+                                                <ScrollArea className="h-[300px]">
+                                                    <div className="p-1">
+                                                        {filteredUniversities.length === 0 ? (
+                                                            <p className="p-4 text-center text-sm text-muted-foreground">No institution found.</p>
+                                                        ) : (
+                                                            filteredUniversities.map((uni) => (
+                                                                <Button
+                                                                    key={uni}
+                                                                    variant="ghost"
+                                                                    className="w-full justify-start font-normal text-sm px-2 py-1.5"
+                                                                    onClick={() => {
+                                                                        setSelections(p => ({...p, university: uni, schoolFaculty: "", subject: "", year: "", courseCode: ""}));
+                                                                        setIsUniDropdownOpen(false);
+                                                                        setUniSearchQuery("");
+                                                                    }}
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            "mr-2 h-4 w-4",
+                                                                            selections.university === uni ? "opacity-100" : "opacity-0"
+                                                                        )}
+                                                                    />
+                                                                    <span className="truncate">{uni}</span>
+                                                                </Button>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </ScrollArea>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
