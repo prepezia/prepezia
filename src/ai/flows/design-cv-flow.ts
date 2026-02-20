@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -43,11 +44,11 @@ Your task is to convert the user's CV from Markdown into a single, self-containe
     *   Structure the CV with clear sections (e.g., Summary, Experience, Education, Skills).
 5.  **Colors:** Use a professional and minimal color palette. Use shades of gray for text (e.g., \`text-gray-900\`, \`text-gray-600\`) and a subtle accent color for headings or links if needed.
 6.  **No External Dependencies:** The final HTML should not require any external CSS or JavaScript files.
-7.  **Advanced Page Break Logic (CRITICAL):**
-    *   Wrap each major CV section (e.g., 'Summary', 'Experience') in a \`<div>\` with Tailwind class \`break-inside-avoid\`.
-    *   **INDIVIDUAL ENTRIES:** Additionally, wrap every specific job entry, education degree, or project item in its OWN \`<div>\` with the Tailwind class \`break-inside-avoid\`. 
-    *   This ensures that if a specific job description is near the bottom of a page, the ENTIRE job block moves to the next page rather than splitting one line across the break.
-    *   Apply \`break-after-avoid\` to all headings to ensure a heading is never left alone at the bottom of a page.
+7.  **Advanced Page Break Logic & Margins (CRITICAL):**
+    *   **TOP MARGINS:** For every major section (e.g., 'Experience', 'Education'), ensure it has a consistent top padding/margin (e.g., \`pt-8\` or \`mt-8\`). This ensures that if a section starts at the top of a new page, it isn't "stuck" to the top edge.
+    *   Wrap each major CV section in a \`<div>\` with Tailwind class \`break-inside-avoid\`.
+    *   **INDIVIDUAL ENTRIES:** Wrap every specific job entry, education degree, or project item in its OWN \`<div>\` with the Tailwind class \`break-inside-avoid\`. 
+    *   Apply \`break-after-avoid\` to all headings.
 
 ### USER'S CV (Markdown):
 \`\`\`markdown

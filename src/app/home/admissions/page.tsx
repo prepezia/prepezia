@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -35,6 +36,12 @@ import { doc } from "firebase/firestore";
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "opportunities";
 type OnboardingStep = "intro" | "goals" | "cv";
+
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string | React.ReactNode;
+};
 
 type ChatMessage = {
   id: string;
@@ -648,7 +655,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     ${styles}
                     ${styleBlocks}
                     <style>
-                        @page { size: A4; margin: 0; }
+                        @page { size: A4; margin: 20mm; }
                         body { 
                             margin: 0; 
                             -webkit-print-color-adjust: exact; 
@@ -730,7 +737,6 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             <TabsContent value="editor" className="mt-4 flex-1 pb-8">
                                 <Card className="flex flex-col h-full">
                                     <CardHeader>
-                                        <CardTitle>Your Academic CV</CardTitle>
                                         <CardTitle>Your Academic CV</CardTitle>
                                         <CardDescription>
                                             {cv.content 
@@ -861,8 +867,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                     </Card>
                                 </div>
                             </TabsContent>
-                            <TabsContent value="designer" className="mt-4 flex-1">
-                                <Card className="h-full">
+                            <TabsContent value="designer" className="mt-4 flex-1 pb-24">
+                                <Card className="h-full flex flex-col">
                                     <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                         <div>
                                             <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI-Designed CV</CardTitle>
@@ -874,11 +880,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                             </Button>
                                         )}
                                     </CardHeader>
-                                    <CardContent className="flex-1 relative">
-                                        {isDesigningCv && <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Designing your CV...</p></div>}
+                                    <CardContent className="flex-1 relative w-full max-w-0 min-w-full">
+                                        {isDesigningCv && <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Designing your CV...</p></div>}
                                         {designedCv ? (
-                                            <div id="cv-print-area-wrapper" className="bg-gray-200 dark:bg-gray-800 p-4 md:p-8 rounded-md overflow-y-auto">
-                                                <div id="cv-print-area" className="bg-white rounded-md shadow-lg aspect-[210/297] w-full max-w-[8.5in] mx-auto p-4 md:p-8 text-black" dangerouslySetInnerHTML={{ __html: designedCv.cvHtml }} />
+                                            <div id="cv-print-area-wrapper" className="bg-gray-200 dark:bg-gray-800 p-4 md:p-8 rounded-md overflow-x-auto">
+                                                <div id="cv-print-area" className="bg-white rounded-md shadow-lg aspect-[210/297] w-full max-w-[8.5in] min-w-[600px] md:min-w-0 mx-auto p-4 md:p-8 text-black" dangerouslySetInnerHTML={{ __html: designedCv.cvHtml }} />
                                             </div>
                                         ) : !isDesigningCv && (
                                             <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">

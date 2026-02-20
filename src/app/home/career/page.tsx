@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -12,7 +13,7 @@ import {
   CardFooter
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic, Volume2, Pause } from "lucide-react";
+import { Upload, ArrowRight, BrainCircuit, FileText, Briefcase, Search, MessageCircle, Download, Sparkles, Loader2, ArrowLeft, Bot, Send, File, Image as LucideImage, Clipboard, Printer, Mic, Volume2, Pause, HelpCircle, CheckCircle, XCircle } from "lucide-react";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,7 @@ import { generateCvTemplate } from "@/ai/flows/generate-cv-template";
 import { searchForJobs, SearchForJobsOutput } from "@/ai/flows/search-jobs-flow";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
 import { designCv, DesignCvOutput } from "@/ai/flows/design-cv-flow";
+import { generateAptitudeTest, GenerateAptitudeTestOutput } from "@/ai/flows/generate-aptitude-test";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -36,9 +38,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
 
 type View = "loading" | "onboarding" | "hub";
-type HubTab = "cv" | "chat" | "jobs";
+type HubTab = "cv" | "chat" | "jobs" | "aptitude";
 type OnboardingStep = "intro" | "goals" | "cv";
 
 type ChatMessage = {
@@ -438,6 +442,15 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     location: "Ghana",
   });
 
+  // Aptitude Tab State
+  const [isGeneratingAptitude, setIsGeneratingAptitude] = useState(false);
+  const [aptitudeTest, setAptitudeTest] = useState<GenerateAptitudeTestOutput | null>(null);
+  const [aptitudeIndustry, setAptitudeIndustry] = useState("");
+  const [currentAptitudeIndex, setCurrentAptitudeIndex] = useState(0);
+  const [aptitudeAnswers, setAptitudeAnswers] = useState<Record<number, string>>({});
+  const [aptitudeViewState, setAptitudeViewState] = useState<'intro' | 'taking' | 'results'>('intro');
+  const [aptitudeScore, setAptitudeScore] = useState(0);
+
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -686,7 +699,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   ${styles}
                   ${styleBlocks}
                   <style>
-                      @page { size: A4; margin: 0; }
+                      @page { size: A4; margin: 20mm; }
                       body { 
                         margin: 0; 
                         -webkit-print-color-adjust: exact; 
@@ -746,6 +759,36 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     }
   };
 
+  const handleGenerateAptitude = async () => {
+    const industry = aptitudeIndustry || jobSearchFilters.industry || "General Professional";
+    setIsGeneratingAptitude(true);
+    setAptitudeTest(null);
+    try {
+        const result = await generateAptitudeTest({
+            industry,
+            cvContent: cv.content,
+            educationalLevel: firestoreUser?.educationalLevel,
+        });
+        setAptitudeTest(result);
+        setAptitudeAnswers({});
+        setCurrentAptitudeIndex(0);
+        setAptitudeViewState('taking');
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Generation Failed', description: e.message });
+    } finally {
+        setIsGeneratingAptitude(false);
+    }
+  };
+
+  const handleAptitudeSubmit = () => {
+    let score = 0;
+    aptitudeTest?.questions.forEach((q, i) => {
+        if (aptitudeAnswers[i] === q.correctAnswer) score++;
+    });
+    setAptitudeScore(score);
+    setAptitudeViewState('results');
+  };
+
   const handleFilterChange = (filterName: keyof typeof jobSearchFilters, value: string) => {
     setJobSearchFilters(prev => ({...prev, [filterName]: value}));
   };
@@ -788,10 +831,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
       } />
       <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="w-full flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 bg-secondary">
+          <TabsList className="grid w-full grid-cols-4 bg-secondary">
             <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
             <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Career Chat</TabsTrigger>
             <TabsTrigger value="jobs"><Briefcase className="mr-2"/>Job Search</TabsTrigger>
+            <TabsTrigger value="aptitude"><HelpCircle className="mr-2"/>Aptitude Test</TabsTrigger>
           </TabsList>
           
           <TabsContent value="cv" className="mt-4 flex-1 flex flex-col pb-24">
@@ -931,8 +975,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                   </CardContent>
                 </Card>
               </TabsContent>
-               <TabsContent value="designer" className="mt-4 flex-1">
-                <Card className="h-full">
+               <TabsContent value="designer" className="mt-4 flex-1 pb-24">
+                <Card className="h-full flex flex-col">
                     <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
                             <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI-Designed CV</CardTitle>
@@ -944,11 +988,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             </Button>
                         )}
                     </CardHeader>
-                    <CardContent className="flex-1 relative">
-                        {isDesigningCv && <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Designing your CV...</p></div>}
+                    <CardContent className="flex-1 relative w-full max-w-0 min-w-full">
+                        {isDesigningCv && <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center rounded-md z-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="mt-2 text-muted-foreground">Designing your CV...</p></div>}
                         {designedCv ? (
-                             <div id="cv-print-area-wrapper" className="bg-gray-200 dark:bg-gray-800 p-4 md:p-8 rounded-md overflow-y-auto">
-                                <div id="cv-print-area" className="bg-white rounded-md shadow-lg aspect-[210/297] w-full max-w-[8.5in] mx-auto p-4 md:p-8 text-black" dangerouslySetInnerHTML={{ __html: designedCv.cvHtml }} />
+                             <div id="cv-print-area-wrapper" className="bg-gray-200 dark:bg-gray-800 p-4 md:p-8 rounded-md overflow-x-auto">
+                                <div id="cv-print-area" className="bg-white rounded-md shadow-lg aspect-[210/297] w-full max-w-[8.5in] min-w-[600px] md:min-w-0 mx-auto p-4 md:p-8 text-black" dangerouslySetInnerHTML={{ __html: designedCv.cvHtml }} />
                             </div>
                         ) : !isDesigningCv && (
                             <div className="text-center text-muted-foreground h-full flex flex-col items-center justify-center">
@@ -1111,6 +1155,86 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                 </div>
                 )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="aptitude" className="mt-4 flex-1 flex flex-col pb-24">
+            <Card className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><HelpCircle className="text-primary"/>AI Aptitude Assessment</CardTitle>
+                    <CardDescription>Test your skills with an industry-focused evaluation generated specifically for you.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto">
+                    {aptitudeViewState === 'intro' && (
+                        <div className="space-y-6 max-w-lg mx-auto py-10">
+                            <div className="space-y-2">
+                                <Label>Focus Industry / Role</Label>
+                                <Input 
+                                    placeholder="e.g., Software Engineering, Data Analysis, Banking" 
+                                    value={aptitudeIndustry}
+                                    onChange={e => setAptitudeIndustry(e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">The AI will generate 40-50 questions tailored to this industry and your CV.</p>
+                            </div>
+                            <Button className="w-full py-8 text-lg font-bold" onClick={handleGenerateAptitude} disabled={isGeneratingAptitude}>
+                                {isGeneratingAptitude ? <Loader2 className="mr-2 animate-spin"/> : <Sparkles className="mr-2"/>}
+                                {isGeneratingAptitude ? 'Generating 40 Questions...' : 'Start Aptitude Test'}
+                            </Button>
+                        </div>
+                    )}
+
+                    {aptitudeViewState === 'taking' && aptitudeTest && (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center text-sm mb-4">
+                                <span className="font-bold">Question {currentAptitudeIndex + 1} of {aptitudeTest.questions.length}</span>
+                                <span className="text-muted-foreground">{Math.round(((currentAptitudeIndex + 1) / aptitudeTest.questions.length) * 100)}%</span>
+                            </div>
+                            <Progress value={((currentAptitudeIndex + 1) / aptitudeTest.questions.length) * 100} className="h-2 mb-8" />
+                            
+                            <div className="space-y-6">
+                                <h3 className="text-xl font-bold">{aptitudeTest.questions[currentAptitudeIndex].questionText}</h3>
+                                <RadioGroup 
+                                    value={aptitudeAnswers[currentAptitudeIndex] || ""} 
+                                    onValueChange={val => setAptitudeAnswers(p => ({...p, [currentAptitudeIndex]: val}))}
+                                >
+                                    {aptitudeTest.questions[currentAptitudeIndex].options.map((opt, i) => (
+                                        <div key={i} className={cn(
+                                            "flex items-center space-x-3 p-4 rounded-lg border cursor-pointer hover:bg-secondary/50",
+                                            aptitudeAnswers[currentAptitudeIndex] === opt && "border-primary bg-primary/5"
+                                        )} onClick={() => setAptitudeAnswers(p => ({...p, [currentAptitudeIndex]: opt}))}>
+                                            <RadioGroupItem value={opt} id={`opt-${i}`} />
+                                            <Label htmlFor={`opt-${i}`} className="flex-1 cursor-pointer">{opt}</Label>
+                                        </div>
+                                    ))}
+                                </RadioGroup>
+                            </div>
+
+                            <div className="flex justify-between pt-8 border-t">
+                                <Button variant="outline" onClick={() => setCurrentAptitudeIndex(p => p - 1)} disabled={currentAptitudeIndex === 0}>Previous</Button>
+                                {currentAptitudeIndex < aptitudeTest.questions.length - 1 ? (
+                                    <Button onClick={() => setCurrentAptitudeIndex(p => p + 1)} disabled={!aptitudeAnswers[currentAptitudeIndex]}>Next</Button>
+                                ) : (
+                                    <Button onClick={handleAptitudeSubmit} disabled={!aptitudeAnswers[currentAptitudeIndex]} className="bg-green-600 hover:bg-green-700">Submit Test</Button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {aptitudeViewState === 'results' && (
+                        <div className="text-center space-y-6 py-10">
+                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 text-primary mb-4">
+                                <CheckCircle className="w-12 h-12"/>
+                            </div>
+                            <h2 className="text-3xl font-headline font-bold">Assessment Complete!</h2>
+                            <p className="text-xl text-muted-foreground">Your Score: <span className="text-foreground font-bold">{aptitudeScore} / {aptitudeTest?.questions.length}</span></p>
+                            <Progress value={(aptitudeScore / (aptitudeTest?.questions.length || 1)) * 100} className="h-4 max-w-md mx-auto" />
+                            <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                                <Button variant="outline" onClick={() => setAptitudeViewState('intro')}>Retake Assessment</Button>
+                                <Button asChild><Link href="/home/career?tab=chat">Discuss Results with Zia</Link></Button>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
