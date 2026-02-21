@@ -131,7 +131,7 @@ export default function AdminPastQuestionsPage() {
 
   // --- FORM STATES ---
   const [formData, setFormData] = useState({
-    level: 'WASSCE' as const,
+    level: 'WASSCE' as 'BECE' | 'WASSCE' | 'University',
     subject: '',
     courseCode: '',
     year: '',
@@ -191,7 +191,7 @@ export default function AdminPastQuestionsPage() {
   const handleEdit = (q: PastQuestion) => {
     setEditingQuestion(q);
     setFormData({
-      level: q.level,
+      level: q.level as 'BECE' | 'WASSCE' | 'University',
       subject: q.subject,
       courseCode: q.courseCode || '',
       year: q.year,
@@ -377,7 +377,7 @@ export default function AdminPastQuestionsPage() {
           <CardContent>
             <div className="text-3xl font-bold text-purple-600">{questions?.filter(q => q.level === 'University').length || 0}</div>
           </CardContent>
-        </Card>
+        </div>
       </div>
 
       {/* --- FILTERS --- */}

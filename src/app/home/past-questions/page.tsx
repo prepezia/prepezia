@@ -85,7 +85,7 @@ type QuizQuestion = GenerateQuizOutput['quiz'][0];
 type SavedExam = {
     id: number;
     date: string;
-    selections: { examBody: string; university: string; schoolFaculty: string; subject: string; year: string; courseCode?: string };
+    selections: { examBody: string; university: string; schoolFaculty: string; subject: string; year: string; courseCode: string };
     questions: QuizQuestion[];
     examAnswers: Record<number, string>;
     examScore: number;
@@ -425,7 +425,7 @@ export default function PastQuestionsPage() {
     };
 
     const handleResume = (exam: SavedExam) => {
-        setSelections(exam.selections);
+        setSelections({ ...exam.selections, courseCode: exam.selections.courseCode || "" });
         setAllQuestionsInSession(exam.questions);
         setExamAnswers(exam.examAnswers);
         setExamScore(exam.examScore);
@@ -449,7 +449,7 @@ export default function PastQuestionsPage() {
         } else {
             setViewState('taking');
             if (exam.questions.length < exam.currentPart * 20) {
-                loadBatch(exam.currentPart, exam.selections);
+                loadBatch(exam.currentPart, { ...exam.selections, courseCode: exam.selections.courseCode || "" });
             } else {
                 setQuestions(exam.questions.slice((exam.currentPart - 1) * 20, exam.currentPart * 20));
             }
@@ -1062,7 +1062,6 @@ function ExamModeView({ questions, topic, durationMinutes, totalQuestions, part,
             }, 1000);
             return () => clearInterval(t);
         } else {
-            // Use setTimeout to defer state updates and avoid "update while rendering" warnings
             const timer = setTimeout(() => {
                 onTimeout(ansRef.current);
             }, 0);

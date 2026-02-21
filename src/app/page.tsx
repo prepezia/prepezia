@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -15,7 +16,7 @@ import { Logo } from "@/components/icons/Logo";
 import Autoplay from "embla-carousel-autoplay";
 import { cn } from "@/lib/utils";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, DocumentData } from "firebase/firestore";
+import { collection, DocumentData, CollectionReference, query, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Testimonial extends DocumentData {
@@ -27,7 +28,11 @@ interface Testimonial extends DocumentData {
 
 export default function Home() {
   const firestore = useFirestore();
-  const testimonialsRef = React.useMemo(() => firestore ? collection(firestore, 'testimonials') : null, [firestore]);
+  const testimonialsRef = React.useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'testimonials'), orderBy('createdAt', 'desc')) as CollectionReference<Testimonial>;
+  }, [firestore]);
+  
   const { data: testimonials, loading: testimonialsLoading } = useCollection<Testimonial>(testimonialsRef);
 
   const carouselImage1 = PlaceHolderImages.find(p => p.id === 'carousel1')!;

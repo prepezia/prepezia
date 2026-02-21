@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -62,7 +61,7 @@ type Source = {
     type: 'pdf' | 'text' | 'audio' | 'website' | 'youtube' | 'image' | 'clipboard';
     name: string;
     url?: string;
-    data?: string; // For file content or copied text
+    data?: string;
     contentType?: string;
 };
 
@@ -112,24 +111,6 @@ type StudySpace = {
 };
 
 type ViewState = 'list' | 'create' | 'edit';
-
-type MockStudySpace = {
-  id: number;
-  name: string;
-  description: string;
-  sourceCount: number;
-  progress: number;
-  status: 'Not Started' | 'In Progress' | 'Completed';
-};
-
-const mockStudySpaces: MockStudySpace[] = [
-    { id: 1, name: "WASSCE Core Maths Prep", description: "All topics for the WASSCE core mathematics exam.", sourceCount: 12, progress: 66, status: 'In Progress' },
-    { id: 2, name: "Ghanaian History 1800-1957", description: "From the Ashanti Empire to Independence.", sourceCount: 7, progress: 100, status: 'Completed' },
-    { id: 3, name: "Final Year Project - AI Tutors", description: "Research and resources for my final project on AI in education.", sourceCount: 23, progress: 33, status: 'In Progress' },
-    { id: 4, name: "Quantum Physics Basics", description: "Introductory concepts in quantum mechanics.", sourceCount: 5, progress: 0, status: 'Not Started' },
-    { id: 5, name: "BECE Social Studies", description: "Revision notes for all BECE social studies topics.", sourceCount: 15, progress: 100, status: 'Completed' },
-    { id: 6, name: "Intro to Python Programming", description: "Basics of Python for beginners.", sourceCount: 10, progress: 16, status: 'In Progress' },
-];
 
 const PROGRESS_WEIGHTS_SPACES = {
     quiz: 50,
@@ -411,31 +392,22 @@ function StudySpacesPage() {
         const savedSpaces = localStorage.getItem('learnwithtemi_study_spaces');
         if (savedSpaces) {
             setStudySpaces(JSON.parse(savedSpaces));
-        } else {
-            // First time load: use mock data.
-             const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {}, interactionProgress: {} }));
-            setStudySpaces(initialSpaces);
         }
     } catch (error) {
         console.error("Failed to parse study spaces from localStorage", error);
-        const initialSpaces = mockStudySpaces.map(({ sourceCount, ...s }) => ({...s, sources: [], chatHistory: [], generatedContent: {}, interactionProgress: {} }));
-        setStudySpaces(initialSpaces);
     }
   }, []);
 
-  // Effect to handle deep linking via URL
   useEffect(() => {
     const spaceId = searchParams.get('spaceId');
     if (spaceId && studySpaces.length > 0) {
         const space = studySpaces.find(s => s.id.toString() === spaceId);
         if (space) {
             handleSelectStudySpace(space);
-            // Clean the URL to avoid re-triggering
             router.replace('/home/study-spaces');
         }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studySpaces, searchParams]);
+  }, [studySpaces, searchParams, router]);
 
   const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
     if (!content) return undefined;
@@ -458,19 +430,6 @@ function StudySpacesPage() {
             localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
         }
     } catch (error) {
-        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-             toast({
-                variant: "destructive",
-                title: "Storage Full",
-                description: "Browser local storage is full. Could not save all Study Spaces.",
-            });
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Could not save study spaces",
-                description: "There was an error saving your data locally."
-            });
-        }
         console.error("Failed to save study spaces to localStorage", error);
     }
   }, [studySpaces, toast]);
@@ -501,8 +460,7 @@ function StudySpacesPage() {
         }
     }
     generateSummary();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStudySpace]);
+  }, [selectedStudySpace, isGenerating, updateSelectedStudySpace, toast]);
 
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {
@@ -544,7 +502,6 @@ function StudySpacesPage() {
         
         const newHistoryWithUserMessage = [...initialHistory, userMessage];
 
-        // Optimistically update the UI with the user's message
         updateSelectedStudySpace({
             chatHistory: newHistoryWithUserMessage
         });
@@ -572,7 +529,6 @@ function StudySpacesPage() {
                 citations: response.citations
             };
 
-            // Update the UI with the final history including the assistant's response
             updateSelectedStudySpace({
                 chatHistory: [...newHistoryWithUserMessage, assistantMessage]
             });
@@ -590,16 +546,14 @@ function StudySpacesPage() {
                 isError: true
             };
             
-            // Update the UI with the final history including the error message
             updateSelectedStudySpace({
                 chatHistory: [...newHistoryWithUserMessage, errorMessage]
             });
         } finally {
             setIsChatLoading(false);
         }
-    }, [selectedStudySpace, toast, handlePlayAudio, updateSelectedStudySpace]);
+    }, [selectedStudySpace, handlePlayAudio, updateSelectedStudySpace]);
   
-  // Voice Chat Effect
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -624,8 +578,6 @@ function StudySpacesPage() {
         };
         recognition.onend = () => setIsListening(false);
         recognitionRef.current = recognition;
-    } else {
-        console.warn("Speech Recognition API not supported in this browser.");
     }
   }, [toast, submitChat]);
 
@@ -650,8 +602,6 @@ function StudySpacesPage() {
 
 
   const handleSaveNotes = () => {
-    // In a real app, this would save to a backend.
-    console.log("Saving notes:", notes);
     setIsNotesDirty(false);
     toast({
       title: "Notes Saved",
@@ -768,9 +718,7 @@ function StudySpacesPage() {
   const parseAnswerWithCitations = (answer: string, citations: InteractiveChatWithSourcesOutput['citations'], sources: Source[]) => {
     if (!citations) return answer;
 
-    // First, aggressively remove any leftover multi-number citations like [6, 7] or [0, 5, 6, 7].
     const cleanedAnswer = answer.replace(/\[\d+[, ]\d+.*?\]/g, '');
-
     const parts = cleanedAnswer.split(/(\[\d+\])/g);
     
     return parts.map((part, index) => {
@@ -781,7 +729,7 @@ function StudySpacesPage() {
             if (citationIndex >= 0 && citationIndex < citations.length) {
                 const citation = citations[citationIndex];
                 const source = sources[citation.sourceIndex];
-                if (!source) return null; // Safety check if sourceIndex is out of bounds
+                if (!source) return null;
 
                 return (
                     <Popover key={index}>
@@ -815,7 +763,7 @@ function StudySpacesPage() {
     e.preventDefault();
     const currentInput = chatInputRef.current?.value;
     submitChat(currentInput || '', false);
-    if(chatInputRef.current) chatInputRef.current.value = ""; // Clear input immediately
+    if(chatInputRef.current) chatInputRef.current.value = "";
   }
   
   const handleQuizComplete = (score: number, total: number) => {
@@ -867,6 +815,7 @@ function StudySpacesPage() {
             const inputBase = {
                 context: 'study-space' as const,
                 sources: selectedStudySpace.sources.map(s => ({ ...s, type: s.type === 'clipboard' ? 'text' : (s.type as any) })),
+                partNumber: 1,
             };
 
             let dataForDb: any;
@@ -962,8 +911,6 @@ function StudySpacesPage() {
           downloadUrl(url, filename).catch(() => {
               toast({ variant: 'destructive', title: 'Download Failed' });
           });
-      } else {
-          toast({ variant: 'destructive', title: 'No file to download' });
       }
   };
 
@@ -1132,7 +1079,6 @@ function StudySpacesPage() {
                                         <CardDescription className="text-muted-foreground pt-1">{selectedStudySpace.description}</CardDescription>
                                         <Separator className="my-4" />
                                         <h3 className="text-xl font-headline font-bold flex items-center gap-2 pt-2">
-                                            
                                             AI Summary
                                         </h3>
                                     </CardHeader>
@@ -1479,7 +1425,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const [urlModalConfig, setUrlModalConfig] = useState<{type: 'youtube' | 'website', name: string, icon: React.ElementType} | null>(null);
     const [currentUrl, setCurrentUrl] = useState("");
     
-    // Web search state
     const [searchQuery, setSearchQuery] = useState("");
     type SourceSearchResult = { title: string; url: string; snippet: string; };
     const [searchResults, setSearchResults] = useState<SourceSearchResult[]>([]);
@@ -1495,7 +1440,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         if (fileInputRef.current) {
             fileInputRef.current.accept = accept;
             fileInputRef.current.removeAttribute('capture');
-            fileInputRef.current.value = ""; // Reset to allow same file selection
+            fileInputRef.current.value = "";
             fileInputRef.current.click();
         }
     };
@@ -1640,7 +1585,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                     )}/>
                                     <FormField control={detailsForm.control} name="description" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Description (optional)</FormLabel>
+                                            <FormLabel>Description (optional)</Label>
                                             <FormControl><Textarea placeholder="A short description of what this space is about." {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1723,8 +1668,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                 <Dialog open={isTextModalOpen} onOpenChange={setIsTextModalOpen}>
                     <DialogContent>
                         <DialogHeader><DialogTitle>Add Copied Text</DialogTitle></DialogHeader>
-                        <Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/>
-                        <DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter>
+                        <Textarea value={copiedText} onChange={e => setCopiedText(e.target.value)} placeholder="Paste your text here..." rows={10}/><DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddCopiedText}>Add Text</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>
 
@@ -1754,37 +1698,6 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     );
 }
 
-function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string }) {
-    return (
-        <Card>
-            <CardHeader>
-                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                <CardTitle className="pt-4 flex items-center gap-2"> Podcast for "{topic}"</CardTitle>
-                <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {podcast.podcastAudioUrl ? (
-                    <audio controls src={podcast.podcastAudioUrl} className="w-full"></audio>
-                ) : (
-                    <Alert variant="destructive">
-                        <AlertTitle>Audio Not Available</AlertTitle>
-                        <AlertDescription>
-                            The podcast audio could not be loaded. It might need to be regenerated.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                 <details className="w-full">
-                    <summary className="cursor-pointer text-sm font-medium">View Script</summary>
-                    <div className="mt-2 text-left max-h-80 overflow-y-auto rounded-md border bg-secondary/50 p-4">
-                        <pre className="text-sm whitespace-pre-wrap font-body">{podcast.podcastScript}</pre>
-                    </div>
-                </details>
-            </CardContent>
-        </Card>
-    );
-}
-
-// These view components are copied from note-generator/page.tsx and adapted slightly
 function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlashcardsOutput['flashcards'], onBack: (flippedPercentage: number) => void, topic: string }) {
     const [flippedStates, setFlippedStates] = useState<boolean[]>(Array(flashcards.length).fill(false));
     const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
@@ -1813,7 +1726,7 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
         if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
         const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
         const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
-        printWindow.document.write(`<html><head><title>Print Flashcards</title>${styles}${styleBlocks}<style>@media print { @page { size: A4; margin: 20mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .flashcard-print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .flashcard-print-item { border: 1px solid #ccc; padding: 10px; page-break-inside: avoid; } .flashcard-print-item h4 { font-weight: bold; } }</style></head><body>${printContent}</body></html>`);
+        printWindow.document.write(`<html><head><title>Print Flashcards</title>${styles}${styleBlocks}</head><body>${printContent}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
@@ -1837,12 +1750,12 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
             <CardContent>
                  {viewMode === 'grid' ? (
                     <div id="flashcard-print-area">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flashcard-print-grid">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {flashcards.map((card, index) => (
-                                <div key={index} className="perspective-1000 flashcard-print-item" onClick={() => handleFlip(index)}>
+                                <div key={index} className="perspective-1000" onClick={() => handleFlip(index)}>
                                     <div className={cn("relative w-full h-64 transform-style-3d transition-transform duration-500 cursor-pointer", flippedStates[index] && "rotate-y-180")}>
-                                        <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center"><div><h4 className="print-only">Front:</h4><p className="font-semibold text-lg">{card.front}</p></div></div>
-                                        <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center"><div><h4 className="print-only">Back:</h4><p className="text-sm">{card.back}</p></div></div>
+                                        <div className="absolute w-full h-full backface-hidden rounded-lg border bg-card flex items-center justify-center p-6 text-center"><div><p className="font-semibold text-lg">{card.front}</p></div></div>
+                                        <div className="absolute w-full h-full backface-hidden rotate-y-180 rounded-lg border bg-secondary flex items-center justify-center p-6 text-center"><div><p className="text-sm">{card.back}</p></div></div>
                                     </div>
                                 </div>
                             ))}

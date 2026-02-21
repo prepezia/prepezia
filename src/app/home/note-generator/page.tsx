@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -93,7 +94,7 @@ type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'po
 async function downloadUrl(url: string, filename: string) {
     try {
         const response = await fetch(url);
-        if (!response.ok) {
+        if (!target.ok) {
             throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
         }
         const blob = await response.blob();
@@ -109,7 +110,7 @@ async function downloadUrl(url: string, filename: string) {
         window.URL.revokeObjectURL(objectUrl);
     } catch (error) {
         console.error('Download failed:', error);
-        throw error; // Re-throw to be caught by caller
+        throw error;
     }
 }
 
@@ -298,7 +299,7 @@ const PROGRESS_WEIGHTS = {
   flashcards: 15,
   deck: 10,
   infographic: 5,
-  podcast: 0, // Not currently tracked for progress
+  podcast: 0,
   mindMap: 10,
 };
 
@@ -510,6 +511,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 topic: note.topic,
                 academicLevel: note.level as AcademicLevel,
                 content: note.content,
+                partNumber: 1,
             };
     
             let dataForDb: any;
@@ -766,7 +768,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 <p className="text-muted-foreground">{note.level}</p>
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0">
-                                <div id="note-content-area" className="prose dark:prose-invert w-full max-none h-full overflow-y-auto rounded-md border p-4">
+                                <div id="note-content-area" className="prose dark:prose-invert w-full max-w-none h-full overflow-y-auto rounded-md border p-4">
                                     {pages.length > 0 ? (
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
                                             {pages[currentPage]}
@@ -1258,7 +1260,6 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
         </Card>
     );
 }
-
 
 function SlideDeckView({ deck, onBack }: { deck: GenerateSlideDeckOutput, onBack: () => void }) {
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
