@@ -45,7 +45,7 @@ const generateQuizPrompt = ai.definePrompt({
   model: 'googleai/gemini-2.5-flash',
   input: {schema: GenerateQuizInputSchema},
   output: {schema: GenerateQuizOutputSchema},
-  prompt: `You are an AI expert in creating educational assessments. Your task is to generate a comprehensive multiple-choice quiz based on the provided text content.
+  prompt: `You are Zia, an expert in creating educational assessments. Your task is to generate a comprehensive multiple-choice quiz based on the provided text content.
 
 ### INSTRUCTIONS:
 1.  Read the content provided below thoroughly.

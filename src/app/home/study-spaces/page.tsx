@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -1720,7 +1719,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                     <DialogContent>
                         <DialogHeader><DialogTitle className="flex items-center gap-2">{urlModalConfig && <urlModalConfig.icon className="w-5 h-5" />} Add {urlModalConfig?.name} Link</DialogTitle></DialogHeader>
                         <Input value={currentUrl} onChange={e => setCurrentUrl(e.target.value)} placeholder={urlModalConfig?.type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com'}/>
-                        <DialogFooter><Button variant="outline" onClick={() => setIsUrlModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter>
+                        <DialogFooter><Button variant="outline" onClick={() => setIsTextModalOpen(false)}>Cancel</Button><Button onClick={handleAddUrl}>Add Link</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>
 

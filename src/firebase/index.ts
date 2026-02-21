@@ -20,7 +20,7 @@ let storage: FirebaseStorage;
 /**
  * Initializes Firebase services for the client.
  * Includes a fix for Firestore connectivity in restricted network environments (like cloud IDEs)
- * by forcing experimental long-polling and auto-detection.
+ * by forcing experimental long-polling.
  */
 function initializeFirebase() {
   // Safety check to ensure this only runs in the browser
@@ -41,10 +41,8 @@ function initializeFirebase() {
   if (!firestore) {
     try {
       // Force long-polling to ensure connectivity in proxy-heavy or restricted network environments.
-      // experimentalAutoDetectLongPolling provides additional resilience.
       firestore = initializeFirestore(firebaseApp, {
         experimentalForceLongPolling: true,
-        experimentalAutoDetectLongPolling: true,
       });
       
       // Attempt to enable offline persistence
