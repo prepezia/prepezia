@@ -420,11 +420,8 @@ function StudySpacesPage() {
 
   const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
     if (!content) return undefined;
-    const savable = JSON.parse(JSON.stringify(content));
-    // Remove heavy objects that can be reconstructed or are too big for localstorage
-    delete savable.quiz; 
-    delete savable.mindMap; 
-    return savable;
+    // We try to save everything. If QuotaExceeded occurs, the catch block will handle it.
+    return content;
   };
   
   useEffect(() => {
@@ -444,22 +441,26 @@ function StudySpacesPage() {
         if (error.name === 'QuotaExceededError' || error.code === 22) {
             console.warn("Storage quota exceeded. Compacting...");
             try {
-                // Stage 1: Clear heavy source data URIs
+                // Tier 1: Clear heavy source data URIs
                 const compactSpaces = studySpaces.map(s => ({
                     ...s,
                     sources: s.sources.map(src => ({ ...src, data: undefined })),
                     generatedContent: getSavableContent(s.generatedContent),
                 }));
                 localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(compactSpaces));
-                toast({ variant: "destructive", title: "Storage compacting", description: "Cleared file cache to save space. Summaries and notes are safe." });
+                toast({ variant: "destructive", title: "Storage compacting", description: "Cleared file cache to save space. Your Mind Maps and summaries are safe." });
             } catch (e2) {
-                // Stage 2: Truncate chat history
+                // Tier 2: Truncate chat history and remove large generated objects
                 try {
                     const extraCompact = studySpaces.map(s => ({
                         ...s,
                         sources: s.sources.map(src => ({ ...src, data: undefined })),
                         chatHistory: (s.chatHistory || []).slice(-5),
-                        generatedContent: getSavableContent(s.generatedContent),
+                        generatedContent: { 
+                            ...s.generatedContent, 
+                            quiz: undefined, 
+                            mindMap: undefined 
+                        },
                     }));
                     localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(extraCompact));
                 } catch (e3) {
