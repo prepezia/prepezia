@@ -1585,7 +1585,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
                                     )}/>
                                     <FormField control={detailsForm.control} name="description" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Description (optional)</Label>
+                                            <FormLabel>Description (optional)</FormLabel>
                                             <FormControl><Textarea placeholder="A short description of what this space is about." {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1726,7 +1726,7 @@ function FlashcardView({ flashcards, onBack, topic }: { flashcards: GenerateFlas
         if (!printWindow) { toast({ variant: 'destructive', title: 'Could not open print window' }); return; }
         const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
         const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
-        printWindow.document.write(`<html><head><title>Print Flashcards</title>${styles}${styleBlocks}</head><body>${printContent}</body></html>`);
+        printWindow.document.write(`<html><head><title>Print Flashcards</title>${styles}${styleBlocks}<style>@media print { @page { size: A4; margin: 20mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .flashcard-print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .flashcard-print-item { border: 1px solid #ccc; padding: 10px; page-break-inside: avoid; } .flashcard-print-item h4 { font-weight: bold; } }</style></head><body>${printContent}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
@@ -1944,6 +1944,36 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { imageU
                         </AlertDescription>
                     </Alert>
                 )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: string; podcastAudioUrl?: string }, onBack: () => void, topic: string }) {
+    return (
+        <Card>
+            <CardHeader>
+                <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                <CardTitle className="pt-4 flex items-center gap-2"> Podcast for "{topic}"</CardTitle>
+                <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {podcast.podcastAudioUrl ? (
+                    <audio controls src={podcast.podcastAudioUrl} className="w-full"></audio>
+                ) : (
+                    <Alert variant="destructive">
+                        <AlertTitle>Audio Not Available</AlertTitle>
+                        <AlertDescription>
+                            The podcast audio could not be loaded. It might need to be regenerated.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                 <details className="w-full">
+                    <summary className="cursor-pointer text-sm font-medium">View Script</summary>
+                    <div className="mt-2 text-left max-h-80 overflow-y-auto rounded-md border bg-secondary/50 p-4">
+                        <pre className="text-sm whitespace-pre-wrap font-body">{podcast.podcastScript}</pre>
+                    </div>
+                </details>
             </CardContent>
         </Card>
     );
