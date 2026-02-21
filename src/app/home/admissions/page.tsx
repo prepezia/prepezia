@@ -59,6 +59,42 @@ const ACCEPTED_FILE_TYPES = {
 
 const ALL_ACCEPTED_FILES = Object.values(ACCEPTED_FILE_TYPES).join(',');
 
+// Image compression helper
+const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new window.Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality
+            };
+        };
+        reader.onerror = reject;
+    });
+};
 
 export default function AdmissionsPageWrapper() {
     return (
@@ -176,10 +212,14 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
 
         setIsLoading(true);
         try {
-            toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+            toast({ title: 'Extracting Text...', description: 'Zia is reading your document. Please wait.' });
             let extractedText;
 
-            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+            if (file.type.startsWith('image/')) {
+                const compressedUri = await compressImage(file);
+                const result = await extractTextFromFile({ fileDataUri: compressedUri, fileContentType: 'image/jpeg' });
+                extractedText = result.extractedText;
+            } else if (file.type === 'application/pdf') {
                 const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result as string);
@@ -215,7 +255,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     
     const handleContinueWithGoals = () => {
         if (!goals.trim()) {
-            toast({ variant: 'destructive', title: 'Goals are required', description: "Please go back and tell us about your aspirations."});
+            toast({ variant: 'destructive', title: 'Goals are required', description: "Please tell us about your aspirations."});
             return;
         }
         onCompleted({ content: "" }, goals);
@@ -505,10 +545,14 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         setIsExtracting(true);
         setCvResult(null);
         try {
-            toast({ title: 'Extracting Text...', description: 'The AI is reading your document. Please wait.' });
+            toast({ title: 'Extracting Text...', description: 'Zia is reading your document. Please wait.' });
             let extractedText;
 
-            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+            if (file.type.startsWith('image/')) {
+                const compressedUri = await compressImage(file);
+                const result = await extractTextFromFile({ fileDataUri: compressedUri, fileContentType: 'image/jpeg' });
+                extractedText = result.extractedText;
+            } else if (file.type === 'application/pdf') {
                 const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result as string);
@@ -660,24 +704,34 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     ${styles}
                     ${styleBlocks}
                     <style>
-                        @page { size: A4; margin: 20mm; }
+                        @page { 
+                            size: A4; 
+                            margin: 25mm 20mm; /* Professional top/bottom margins */
+                        }
                         body { 
                             margin: 0; 
                             -webkit-print-color-adjust: exact; 
                             print-color-adjust: exact; 
                         }
-                        /* Professional Print Optimization */
-                        p, li { 
-                            orphans: 3; 
-                            widows: 3; 
+                        /* Ensure consistent space efficiencies and paragraph integrity */
+                        p, li, .break-inside-avoid { 
+                            orphans: 4; 
+                            widows: 4; 
+                            break-inside: avoid;
                         }
                         h1, h2, h3, h4, h5, h6 {
                             break-after: avoid;
                         }
+                        #cv-print-area {
+                            width: 100%;
+                            max-width: 100%;
+                        }
                     </style>
                 </head>
                 <body>
-                    ${printContent}
+                    <div class="p-0">
+                        ${printContent}
+                    </div>
                 </body>
             </html>
         `);

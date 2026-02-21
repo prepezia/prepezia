@@ -107,6 +107,43 @@ const ALL_ACCEPTED_FILES = Object.values(ACCEPTED_FILE_TYPES).join(',');
 
 const industries = ["Any", "Technology", "Finance", "Healthcare", "Education", "Marketing", "Engineering", "Sales", "Consulting"];
 
+// Image compression helper
+const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new window.Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality
+            };
+        };
+        reader.onerror = reject;
+    });
+};
+
 export default function CareerPageWrapper() {
   return (
     <Suspense fallback={
@@ -258,7 +295,11 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
     try {
         toast({ title: 'Extracting Text...' });
         let extractedText;
-        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        if (file.type.startsWith('image/')) {
+            const compressedUri = await compressImage(file);
+            const result = await extractTextFromFile({ fileDataUri: compressedUri, fileContentType: 'image/jpeg' });
+            extractedText = result.extractedText;
+        } else if (file.type === 'application/pdf') {
             const dataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
@@ -589,7 +630,11 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
     try {
         toast({ title: 'Extracting Text...' });
         let extractedText;
-        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        if (file.type.startsWith('image/')) {
+            const compressedUri = await compressImage(file);
+            const result = await extractTextFromFile({ fileDataUri: compressedUri, fileContentType: 'image/jpeg' });
+            extractedText = result.extractedText;
+        } else if (file.type === 'application/pdf') {
             const dataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target?.result as string);
@@ -655,7 +700,45 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
       if (!printWindow) return;
       const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
       const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
-      printWindow.document.write(`<html><head><title>Print CV</title>${styles}${styleBlocks}<style>@page { size: A4; margin: 20mm; } body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } p, li { orphans: 3; widows: 3; } h1, h2, h3, h4, h5, h6 { break-after: avoid; }</style></head><body>${printContent}</body></html>`);
+      printWindow.document.write(`
+        <html>
+            <head>
+                <title>Print CV</title>
+                ${styles}
+                ${styleBlocks}
+                <style>
+                    @page { 
+                        size: A4; 
+                        margin: 25mm 20mm; /* Extra top/bottom breathing room */
+                    } 
+                    body { 
+                        margin: 0; 
+                        -webkit-print-color-adjust: exact; 
+                        print-color-adjust: exact; 
+                    } 
+                    /* Prevent ugly breaks in paragraphs or entries */
+                    p, li, .break-inside-avoid { 
+                        orphans: 4; 
+                        widows: 4; 
+                        break-inside: avoid;
+                    } 
+                    h1, h2, h3, h4, h5, h6 { 
+                        break-after: avoid; 
+                    }
+                    /* Ensure containers allow breaking at logical points */
+                    #cv-print-area {
+                        width: 100%;
+                        max-width: 100%;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="p-0">
+                    ${printContent}
+                </div>
+            </body>
+        </html>
+      `);
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000);
