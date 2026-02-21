@@ -49,6 +49,8 @@ import { uploadDataUrlToStorage } from "@/lib/storage";
 import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { toPng } from 'html-to-image';
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 const createSpaceSchema = z.object({
     name: z.string().min(1, { message: "Space name is required." }),
     description: z.string().optional(),
@@ -191,6 +193,15 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        if (file.size > MAX_FILE_SIZE) {
+            toast({
+                variant: "destructive",
+                title: "File too large",
+                description: "Please upload files smaller than 10MB to ensure smooth app performance."
+            });
+            return;
+        }
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -1497,6 +1508,15 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        if (file.size > MAX_FILE_SIZE) {
+            toast({
+                variant: "destructive",
+                title: "File too large",
+                description: "Please upload files smaller than 10MB to ensure smooth app performance."
+            });
+            return;
+        }
 
         const reader = new FileReader();
         reader.onload = (e) => {

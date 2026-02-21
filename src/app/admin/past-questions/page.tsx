@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -71,6 +70,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Edit, Trash2, FileText, Search, GraduationCap, X, Sparkles } from "lucide-react";
 import { universities as staticUnis } from "@/lib/ghana-universities";
 import { extractTextFromFile } from "@/ai/flows/extract-text-from-file";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface PastQuestion extends DocumentData {
   id: string;
@@ -212,6 +213,11 @@ export default function AdminPastQuestionsPage() {
     if (!editingQuestion && !selectedFile) {
       toast({ variant: 'destructive', title: "File required", description: "Please select a file to upload." });
       return;
+    }
+
+    if (selectedFile && selectedFile.size > MAX_FILE_SIZE) {
+        toast({ variant: 'destructive', title: 'File too large', description: 'Please upload a file smaller than 10MB.' });
+        return;
     }
 
     setIsSubmitting(true);

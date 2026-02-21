@@ -32,6 +32,8 @@ import { Separator } from "@/components/ui/separator";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 type View = "loading" | "onboarding" | "hub";
 type HubTab = "cv" | "chat" | "opportunities";
 type OnboardingStep = "intro" | "goals" | "cv";
@@ -166,6 +168,11 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        if (file.size > MAX_FILE_SIZE) {
+            toast({ variant: 'destructive', title: 'File too large', description: 'Please upload a file smaller than 10MB.' });
+            return;
+        }
 
         setIsLoading(true);
         try {
@@ -488,6 +495,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        if (file.size > MAX_FILE_SIZE) {
+            toast({ variant: 'destructive', title: 'File too large', description: 'Please upload a file smaller than 10MB.' });
+            return;
+        }
     
         setActiveCvTab('editor');
         setIsExtracting(true);

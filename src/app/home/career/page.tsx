@@ -69,6 +69,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 type View = "loading" | "onboarding" | "hub" | "aptitude";
 type HubTab = "cv" | "chat" | "jobs";
 type OnboardingStep = "intro" | "goals" | "cv";
@@ -246,6 +248,11 @@ function OnboardingFlow({ onCompleted, initialGoals, onboarded, onAptitudeClick 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+        toast({ variant: 'destructive', title: 'File too large', description: 'Please upload a file smaller than 10MB.' });
+        return;
+    }
 
     setIsLoading(true);
     try {
@@ -570,6 +577,12 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+        toast({ variant: 'destructive', title: 'File too large', description: 'Please upload a file smaller than 10MB.' });
+        return;
+    }
+
     setActiveCvTab('editor');
     setIsExtracting(true);
     setCvResult(null);
