@@ -4,8 +4,22 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Prepezia',
+  metadataBase: new URL('https://prepezia.com'),
+  title: 'Prepezia | Prep easier.',
   description: 'Prepezia: Prep easier. Your AI-powered learning partner for research and exam prep.',
+  openGraph: {
+    title: 'Prepezia | Prep easier.',
+    description: 'Your AI-powered learning partner for research and exam prep.',
+    url: 'https://prepezia.com',
+    siteName: 'Prepezia',
+    locale: 'en_GH',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Prepezia | Prep easier.',
+    description: 'Your AI-powered learning partner for research and exam prep.',
+  },
 };
 
 export default function RootLayout({
