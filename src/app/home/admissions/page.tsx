@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -234,7 +233,7 @@ function OnboardingFlow({ onCompleted, initialGoals }: { onCompleted: (cv: CvDat
                                 <School className="w-8 h-8" />
                             </div>
                             <CardTitle className="text-3xl font-headline font-bold">Your Global Admissions Partner</CardTitle>
-                            <CardDescription>Find top universities, secure scholarships, and craft the perfect application—all with AI assistance.</CardDescription>
+                            <CardDescription>Find top universities, secure scholarships, and craft the perfect application—all with Zia assistance.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Button className="w-full" size="lg" onClick={() => setStep('goals')}>
@@ -429,7 +428,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
             toast({
                 variant: "destructive",
                 title: "Chat Error",
-                description: e.message || "The AI advisor failed to respond."
+                description: e.message || "The Zia advisor failed to respond."
             });
         } finally {
             setIsChatting(false);
@@ -710,13 +709,13 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
     };
 
     return (
-        <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <HomeHeader left={ <Button variant="outline" onClick={backToOnboarding}><ArrowLeft className="mr-2 h-4 w-4" /> Start Over</Button> } />
-            <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
+            <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col min-w-0">
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HubTab)} className="w-full flex-1 flex flex-col">
                     <TabsList className="grid w-full grid-cols-3 bg-secondary">
                         <TabsTrigger value="cv"><FileText className="mr-2"/>CV Improver</TabsTrigger>
-                        <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Admissions Chat</TabsTrigger>
+                        <TabsTrigger value="chat"><MessageCircle className="mr-2"/>Zia Chat</TabsTrigger>
                         <TabsTrigger value="opportunities"><Search className="mr-2"/>Opportunities</TabsTrigger>
                     </TabsList>
                     
@@ -775,7 +774,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             </TabsContent>
                             <TabsContent value="analysis" className="mt-4 flex-1">
                                 <Card className="h-full">
-                                    <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Rewrite</CardTitle><CardDescription>Feedback from the Scholar-Architect AI.</CardDescription></CardHeader>
+                                    <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI Rewrite</CardTitle><CardDescription>Feedback from the Scholar-Architect Zia.</CardDescription></CardHeader>
                                     <CardContent className="flex-1 relative">
                                         {isImprovingCv && <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
                                         {cvResult ? (
@@ -866,7 +865,7 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                                     <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                         <div>
                                             <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/>AI-Designed CV</CardTitle>
-                                            <CardDescription>Your CV, professionally styled by AI. Use the print option to save as PDF.</CardDescription>
+                                            <CardDescription>Your CV, professionally styled by Zia. Use the print option to save as PDF.</CardDescription>
                                         </div>
                                         {designedCv && (
                                             <Button onClick={handlePrint} className="w-full md:w-auto">
@@ -893,14 +892,14 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         </Tabs>
                     </TabsContent>
 
-                    <TabsContent value="chat" className="mt-4 flex flex-col">
+                    <TabsContent value="chat" className="mt-4 flex flex-col min-w-0 w-full max-w-0 min-w-full">
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">Chat with Zia</h3><p className="mt-2 text-sm max-w-md">I'm Zia, your Admissions Advisor. Ask me about university requirements, scholarship applications, and global study strategies to help you reach your academic goals.</p></div>) 
                             : chatHistory.map((msg, i) => (
-                                <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                                <div key={msg.id} className={cn("flex items-start gap-3 w-full", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                     {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
-                                    <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                                        {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
+                                    <div className={cn("p-3 rounded-lg max-w-[85%] sm:max-w-[80%] min-w-0 break-words overflow-hidden", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                                        {typeof msg.content === 'string' ? <div className="prose prose-sm dark:prose-invert max-w-none break-words w-full"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown></div> : msg.content}
                                         {msg.role === 'assistant' && typeof msg.content === 'string' && (
                                             <div className="text-right mt-2">
                                                 <Button

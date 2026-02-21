@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -751,14 +750,14 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="chat" className="mt-4 flex flex-col">
+          <TabsContent value="chat" className="mt-4 flex flex-col min-w-0 w-full max-w-0 min-w-full">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {chatHistory.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4"><Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" /><h3 className="font-semibold text-foreground text-lg">Chat with Zia</h3><p className="mt-2 text-sm max-w-md">I'm Zia, your Career Strategist. Ask me about job roles, industries, or for feedback on your CV to help you land your dream job.</p></div>) 
               : chatHistory.map((msg) => (
-                <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                <div key={msg.id} className={cn("flex items-start gap-3 w-full", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                   {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><Bot className="w-5 h-5"/></div>}
-                  <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
-                    {typeof msg.content === 'string' ? <ReactMarkdown className="prose prose-sm dark:prose-invert max-none" remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> : msg.content}
+                  <div className={cn("p-3 rounded-lg max-w-[85%] sm:max-w-[80%] min-w-0 break-words overflow-hidden", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+                    {typeof msg.content === 'string' ? <div className="prose prose-sm dark:prose-invert max-w-none break-words w-full"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown></div> : msg.content}
                     {msg.role === 'assistant' && typeof msg.content === 'string' && (<div className="text-right mt-2"><Button variant="ghost" size="icon" className="h-7 w-7 bg-secondary-foreground/10" onClick={() => handlePlayAudio(msg.id, msg.content as string)} disabled={isChatting}>{generatingAudioId === msg.id ? <Loader2 className="h-4 w-4 animate-spin" /> : speakingMessageId === msg.id ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}</Button></div>)}
                   </div>
                 </div>
@@ -896,11 +895,11 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
     };
 
     return (
-        <div className="flex flex-col flex-1 h-full">
+        <div className="flex flex-col flex-1 h-full overflow-hidden">
             <HomeHeader left={<Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Career Home</Button>} />
-            <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-4">
+            <div className="px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-4 min-w-0">
                 <Card className="max-w-4xl mx-auto w-full flex-1 flex flex-col border-2 border-orange-100 overflow-hidden">
-                    <CardHeader className="border-b bg-orange-50/30">
+                    <CardHeader className="border-b bg-orange-50/30 flex-shrink-0">
                         <div className="flex justify-between items-center">
                             <div className="space-y-1">
                                 <CardTitle className="flex items-center gap-2"><HelpCircle className="text-orange-600"/>Aptitude Assessment with Zia</CardTitle>
@@ -913,9 +912,9 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
                             )}
                         </div>
                     </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto p-6">
+                    <CardContent className="flex-1 overflow-y-auto p-6 min-w-0">
                         {viewState === 'intro' && (
-                            <div className="space-y-10 max-w-2xl mx-auto py-6">
+                            <div className="space-y-10 max-w-2xl mx-auto py-6 w-full">
                                 <Card className="border-2 border-dashed">
                                     <CardContent className="pt-6 space-y-6">
                                         <div className="space-y-2">
@@ -972,7 +971,7 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
                         )}
 
                         {viewState === 'taking' && test && (
-                            <div className="space-y-6 max-w-2xl mx-auto">
+                            <div className="space-y-6 max-w-2xl mx-auto w-full">
                                 <div className="flex justify-between items-center text-sm mb-4">
                                     <span className="font-bold">Question {currentIndex + 1} of {test.questions.length}</span>
                                     <span className="text-muted-foreground font-mono">{Math.round(((currentIndex + 1) / test.questions.length) * 100)}%</span>
@@ -1000,7 +999,7 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
                         )}
 
                         {viewState === 'results' && (
-                            <div className="text-center space-y-8 max-w-lg mx-auto py-10">
+                            <div className="text-center space-y-8 max-w-lg mx-auto py-10 w-full">
                                 <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-green-50 text-green-600 mb-2 shadow-inner border border-green-100"><CheckCircle className="w-12 h-12"/></div>
                                 <div className="space-y-2">
                                     <h2 className="text-4xl font-headline font-bold">Assessment Complete!</h2>
@@ -1037,7 +1036,7 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
                         )}
 
                         {viewState === 'review' && selectedSavedTest && (
-                            <div className="space-y-8 pb-10">
+                            <div className="space-y-8 pb-10 w-full">
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-secondary/30 p-6 rounded-2xl border">
                                     <div>
                                         <h2 className="text-2xl font-bold text-foreground">{selectedSavedTest.industry} Assessment</h2>
@@ -1081,7 +1080,7 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
                                             <Separator className="my-4 opacity-50" />
                                             <div className="bg-background rounded-xl p-4 border border-dashed text-sm">
                                                 <div className="flex items-center gap-2 font-bold mb-2"><Lightbulb className="h-4 w-4 text-yellow-500" /> Zia's Explanation</div>
-                                                <p className="text-muted-foreground italic leading-relaxed">{q.explanation}</p>
+                                                <p className="text-muted-foreground italic leading-relaxed whitespace-pre-wrap">{q.explanation}</p>
                                             </div>
                                         </div>
                                     ))}

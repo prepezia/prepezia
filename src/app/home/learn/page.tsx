@@ -492,7 +492,7 @@ function GuidedLearningPage() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       <div className="flex-1 flex min-h-0">
         {/* Desktop Sidebar */}
         <aside className="w-72 flex-col border-r bg-secondary/50 hidden md:flex">
@@ -503,7 +503,7 @@ function GuidedLearningPage() {
         </aside>
 
         {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col bg-card">
+        <main className="flex-1 flex flex-col bg-card min-w-0">
             {chatsLoading && !activeChat ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -537,7 +537,7 @@ function GuidedLearningPage() {
                         </Button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
+                    <div className="flex-1 overflow-y-auto w-full max-w-0 min-w-full" ref={chatContainerRef}>
                         {(!activeChat.history || activeChat.history.length === 0) && !isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-4">
                                <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we learning today?</h1>
@@ -546,24 +546,26 @@ function GuidedLearningPage() {
                         ) : (
                             <div className="p-4 space-y-6">
                                 {(activeChat.history || []).map((msg) => (
-                                    <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                                    <div key={msg.id} className={cn("flex items-start gap-3 w-full", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                         {msg.role === 'assistant' ? <Bot className="w-8 h-8 rounded-full bg-primary text-primary-foreground p-1.5 shrink-0"/> : <User className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground p-1.5 shrink-0" />}
-                                        <div className={cn("p-3 rounded-lg max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : (msg.isError ? 'bg-destructive/10' : 'bg-secondary'))}>
+                                        <div className={cn("p-3 rounded-lg max-w-[85%] sm:max-w-[80%] min-w-0 break-words overflow-hidden", msg.role === 'user' ? 'bg-primary text-primary-foreground' : (msg.isError ? 'bg-destructive/10' : 'bg-secondary'))}>
                                              {typeof msg.content === 'string' ? (
-                                                <div className={cn("prose prose-sm dark:prose-invert max-w-none break-words", msg.isError && "text-destructive")}>
+                                                <div className={cn("prose prose-sm dark:prose-invert max-w-none break-words w-full", msg.isError && "text-destructive")}>
                                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                                 </div>
                                              ) : (
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 w-full">
                                                     {msg.content.media.contentType.startsWith('image/') ? (
-                                                         <Image src={msg.content.media.dataUri} alt={msg.content.media.name} width={200} height={200} className="rounded-md object-cover"/>
+                                                         <div className="relative max-w-full">
+                                                            <Image src={msg.content.media.dataUri} alt={msg.content.media.name} width={200} height={200} className="rounded-md object-cover max-w-full h-auto"/>
+                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50">
+                                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 max-w-full">
                                                             <FileText className="h-5 w-5 shrink-0"/>
                                                             <span className="truncate">{msg.content.media.name}</span>
                                                         </div>
                                                     )}
-                                                    {msg.content.text && <p>{msg.content.text}</p>}
+                                                    {msg.content.text && <p className="text-sm whitespace-pre-wrap">{msg.content.text}</p>}
                                                 </div>
                                              )}
                                              {msg.role === 'assistant' && typeof msg.content === 'string' && !msg.isError && (
@@ -605,13 +607,15 @@ function GuidedLearningPage() {
                     </div>
                     <div className="p-4 border-t bg-card">
                         <form onSubmit={handleFormSubmit} className="relative">
-                            <Textarea
-                                ref={chatInputRef}
-                                placeholder="Ask a follow-up question..."
-                                className="pr-20"
-                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleFormSubmit(e); }}}
-                                disabled={isLoading}
-                            />
+                            <div className="min-w-0 w-full">
+                                <Textarea
+                                    ref={chatInputRef}
+                                    placeholder="Ask a follow-up question..."
+                                    className="pr-20 w-full"
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleFormSubmit(e); }}}
+                                    disabled={isLoading}
+                                />
+                            </div>
                             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                 <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isLoading}>
                                     {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
