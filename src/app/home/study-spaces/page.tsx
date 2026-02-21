@@ -103,6 +103,7 @@ type StudySpace = {
     name:string;
     description: string;
     sources: Source[];
+    personalNotes?: string;
     chatHistory?: ChatMessage[];
     generatedContent?: GeneratedContent;
     interactionProgress?: InteractionProgress;
@@ -142,6 +143,43 @@ async function downloadUrl(url: string, filename: string) {
         throw error;
     }
 }
+
+// Image compression helper
+const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new window.Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality
+            };
+        };
+        reader.onerror = reject;
+    });
+};
 
 function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean, onOpenChange: (open: boolean) => void, onAddSources: (sources: Source[]) => void }) {
     const [sources, setSources] = useState<Source[]>([]);
@@ -190,7 +228,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
         setIsUrlModalOpen(true);
     };
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -203,16 +241,30 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const dataUri = e.target?.result as string;
+        try {
+            let dataUri = "";
             let fileType: Source['type'] = 'text';
-            if (file.type.startsWith('image/')) fileType = 'image';
-            else if (file.type.startsWith('audio/')) fileType = 'audio';
-            else if (file.type === 'application/pdf') fileType = 'pdf';
+
+            if (file.type.startsWith('image/')) {
+                fileType = 'image';
+                dataUri = await compressImage(file);
+            } else {
+                if (file.type.startsWith('audio/')) fileType = 'audio';
+                else if (file.type === 'application/pdf') fileType = 'pdf';
+                
+                dataUri = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(file);
+                });
+            }
+            
             setSources(prev => [...prev, { type: fileType, name: file.name, data: dataUri, contentType: file.type }]);
-        };
-        reader.readAsDataURL(file);
+        } catch (error) {
+            console.error("File processing failed", error);
+            toast({ variant: "destructive", title: "File Error", description: "Could not process the uploaded file." });
+        }
     };
     
     const handleAddCopiedText = () => {
@@ -420,7 +472,6 @@ function StudySpacesPage() {
 
   const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
     if (!content) return undefined;
-    // We try to save everything. If QuotaExceeded occurs, the catch block will handle it.
     return content;
   };
   
@@ -450,17 +501,13 @@ function StudySpacesPage() {
                 localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(compactSpaces));
                 toast({ variant: "destructive", title: "Storage compacting", description: "Cleared file cache to save space. Your Mind Maps and summaries are safe." });
             } catch (e2) {
-                // Tier 2: Truncate chat history and remove large generated objects
+                // Tier 2: Truncate chat history
                 try {
                     const extraCompact = studySpaces.map(s => ({
                         ...s,
                         sources: s.sources.map(src => ({ ...src, data: undefined })),
-                        chatHistory: (s.chatHistory || []).slice(-5),
-                        generatedContent: { 
-                            ...s.generatedContent, 
-                            quiz: undefined, 
-                            mindMap: undefined 
-                        },
+                        chatHistory: (s.chatHistory || []).slice(-10),
+                        generatedContent: getSavableContent(s.generatedContent),
                     }));
                     localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(extraCompact));
                 } catch (e3) {
@@ -638,6 +685,7 @@ function StudySpacesPage() {
 
 
   const handleSaveNotes = () => {
+    updateSelectedStudySpace({ personalNotes: notes });
     setIsNotesDirty(false);
     toast({
       title: "Notes Saved",
@@ -700,6 +748,7 @@ function StudySpacesPage() {
   
   const handleSelectStudySpace = (space: StudySpace) => {
     setSelectedStudySpace(space);
+    setNotes(space.personalNotes || "");
     setActiveGeneratedView(null);
     setViewState('edit');
     setIsDirty(false);
@@ -717,6 +766,7 @@ function StudySpacesPage() {
         name,
         description,
         sources,
+        personalNotes: "",
         chatHistory: [],
         generatedContent: {},
         interactionProgress: {},
@@ -725,6 +775,7 @@ function StudySpacesPage() {
     };
     setStudySpaces(prev => [newSpace, ...prev]);
     setSelectedStudySpace(newSpace);
+    setNotes("");
     setActiveGeneratedView(null);
     setViewState('edit');
   };
@@ -912,10 +963,13 @@ function StudySpacesPage() {
         const newGeneratedContent = { ...current.generatedContent };
         delete newGeneratedContent[type];
         const newInteractionProgress = { ...current.interactionProgress };
-        const progressKey = `${type}Viewed` as keyof InteractionProgress;
+        
         if(type === 'flashcards') delete newInteractionProgress['flashcardsFlipped'];
-        if(type === 'quiz') delete newInteractionProgress['quizCompleted'];
-        if(progressKey in newInteractionProgress) delete newInteractionProgress[progressKey];
+        else if(type === 'quiz') delete newInteractionProgress['quizCompleted'];
+        else if(type === 'deck') delete newInteractionProgress['deckViewed'];
+        else if(type === 'infographic') delete newInteractionProgress['infographicViewed'];
+        else if(type === 'podcast') delete newInteractionProgress['podcastListened'];
+        else if(type === 'mindMap') delete newInteractionProgress['mindmapViewed'];
 
         return { generatedContent: newGeneratedContent, interactionProgress: newInteractionProgress };
     });
@@ -1485,7 +1539,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         setIsUrlModalOpen(true);
     };
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -1498,17 +1552,30 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const dataUri = e.target?.result as string;
+        try {
+            let dataUri = "";
             let fileType: Source['type'] = 'text';
-            if (file.type.startsWith('image/')) fileType = 'image';
-            else if (file.type.startsWith('audio/')) fileType = 'audio';
-            else if (file.type === 'application/pdf') fileType = 'pdf';
+
+            if (file.type.startsWith('image/')) {
+                fileType = 'image';
+                dataUri = await compressImage(file);
+            } else {
+                if (file.type.startsWith('audio/')) fileType = 'audio';
+                else if (file.type === 'application/pdf') fileType = 'pdf';
+                
+                dataUri = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(file);
+                });
+            }
             const newSource: Source = { type: fileType, name: file.name, data: dataUri, contentType: file.type };
             setSources(prev => [...prev, newSource]);
-        };
-        reader.readAsDataURL(file);
+        } catch (error) {
+            console.error("File processing failed", error);
+            toast({ variant: "destructive", title: "File Error", description: "Could not process the uploaded file." });
+        }
     };
     
     const handleAddCopiedText = () => {

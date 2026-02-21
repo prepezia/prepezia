@@ -2,7 +2,7 @@
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore, enableIndexedDbPersistence, initializeFirestore } from 'firebase/firestore';
+import { getFirestore, Firestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { firebaseConfig } from './config';
 
@@ -19,20 +19,14 @@ let storage: FirebaseStorage;
 
 /**
  * Initializes Firebase services for the client.
- * Includes a fix for Firestore connectivity in restricted network environments (like cloud IDEs)
- * by forcing experimental long-polling.
+ * Uses long-polling for stable Firestore connectivity in restricted environments.
  */
 function initializeFirebase() {
-  // Safety check to ensure this only runs in the browser
   if (typeof window === 'undefined') return {};
 
   if (!firebaseApp) {
     const apps = getApps();
-    if (apps.length > 0) {
-      firebaseApp = apps[0];
-    } else {
-      firebaseApp = initializeApp(firebaseConfig);
-    }
+    firebaseApp = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
   }
   
   if (!auth) auth = getAuth(firebaseApp);
@@ -40,21 +34,10 @@ function initializeFirebase() {
   
   if (!firestore) {
     try {
-      // Force long-polling to ensure connectivity in proxy-heavy or restricted network environments.
       firestore = initializeFirestore(firebaseApp, {
         experimentalForceLongPolling: true,
       });
-      
-      // Attempt to enable offline persistence
-      enableIndexedDbPersistence(firestore).catch((err) => {
-        if (err.code === 'failed-precondition') {
-          console.warn("Firestore persistence failed: multiple tabs open.");
-        } else if (err.code === 'unimplemented') {
-          console.warn("Firestore persistence not supported in this browser.");
-        }
-      });
     } catch (e) {
-      // If initializeFirestore has already been called elsewhere (HMR), fall back to getFirestore
       firestore = getFirestore(firebaseApp);
     }
   }
