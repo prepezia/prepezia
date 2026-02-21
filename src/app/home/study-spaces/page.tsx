@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Link as LinkIcon, Youtube, Send, Loader2, Mic, Play, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Camera, Sparkles, Bold, Italic, Strikethrough, List, Plus, GitFork, Presentation, Table, SquareStack, Music, Video, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, FlipHorizontal, Lightbulb, CheckCircle, XCircle, Save, Pause, Volume2, BrainCircuit, Minus } from "lucide-react";
+import { Upload, Youtube, Send, Loader2, Mic, ArrowLeft, BookOpen, FileText, Image as ImageIcon, Globe, ClipboardPaste, ArrowRight, Search, Trash2, Sparkles, Bold, Italic, Strikethrough, List, Plus, Presentation, SquareStack, AreaChart, HelpCircle, MoreVertical, Eye, Download, Printer, Grid, View, Lightbulb, CheckCircle, XCircle, Save, Pause, Volume2, BrainCircuit, Minus } from "lucide-react";
 import { interactiveChatWithSources, InteractiveChatWithSourcesInput, InteractiveChatWithSourcesOutput } from "@/ai/flows/interactive-chat-with-sources";
 import { generatePodcastFromSources, GeneratePodcastFromSourcesOutput } from "@/ai/flows/generate-podcast-from-sources";
 import { searchWebForSources } from "@/ai/flows/search-web-for-sources";
@@ -39,7 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { HomeHeader } from "@/components/layout/HomeHeader";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
@@ -47,7 +47,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser, useStorage } from "@/firebase";
 import { uploadDataUrlToStorage } from "@/lib/storage";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { toPng } from 'html-to-image';
 
@@ -412,6 +411,7 @@ function StudySpacesPage() {
   const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
     if (!content) return undefined;
     const savable = JSON.parse(JSON.stringify(content));
+    // Quiz and MindMap can be very large, removing quiz from storage helps keep payload small
     delete savable.quiz;
     return savable;
   };
@@ -427,7 +427,30 @@ function StudySpacesPage() {
                 ...space,
                 generatedContent: getSavableContent(space.generatedContent),
             }));
-            localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
+            
+            try {
+                localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
+            } catch (e: any) {
+                if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    // Fail-safe: Try to save a version without heavy base64 'data' for older spaces
+                    const compactSpaces = studySpaces.map((space, idx) => {
+                        if (idx < 2) return { ...space, generatedContent: getSavableContent(space.generatedContent) };
+                        return {
+                            ...space,
+                            sources: space.sources.map(s => ({ ...s, data: undefined })), // Strip base64
+                            generatedContent: getSavableContent(space.generatedContent)
+                        };
+                    });
+                    localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(compactSpaces));
+                    toast({
+                        variant: "destructive",
+                        title: "Storage almost full",
+                        description: "Older uploaded files were cleared to make room. Your generated notes and summaries are safe."
+                    });
+                } else {
+                    throw e;
+                }
+            }
         }
     } catch (error) {
         console.error("Failed to save study spaces to localStorage", error);
@@ -465,7 +488,6 @@ function StudySpacesPage() {
   const handlePlayAudio = useCallback(async (messageId: string, text: string) => {
     if (speakingMessageId === messageId && audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.currentTime = 0;
         setSpeakingMessageId(null);
         return;
     }
