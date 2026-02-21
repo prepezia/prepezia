@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -434,56 +435,43 @@ function StudySpacesPage() {
   useEffect(() => {
     if (!studySpaces || studySpaces.length === 0) return;
 
-    const saveToLocalStorage = (data: any) => {
-        try {
-            localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(data));
-            return true;
-        } catch (e: any) {
-            if (e.name === 'QuotaExceededError' || e.code === 22) {
-                return false;
-            }
-            throw e;
-        }
-    };
-
-    // Attempt 1: Normal save (with optimized content)
-    const normalData = studySpaces.map(space => ({
+    const spacesToSave = studySpaces.map(space => ({
         ...space,
         generatedContent: getSavableContent(space.generatedContent),
     }));
 
-    if (!saveToLocalStorage(normalData)) {
-        // Attempt 2: Aggressive compaction (Remove ALL heavy base64 data)
-        const compactedData = studySpaces.map(space => ({
-            ...space,
-            sources: space.sources.map(s => ({ 
-                ...s, 
-                data: s.data ? '(Internal file cache cleared to save space)' : undefined 
-            })),
-            generatedContent: getSavableContent(space.generatedContent),
-        }));
-
-        if (saveToLocalStorage(compactedData)) {
-            toast({
-                variant: "destructive",
-                title: "Storage Limit Reached",
-                description: "To save your progress, we cleared the internal file cache. Your AI summaries and notes are safe."
-            });
-        } else {
-            // Attempt 3: Extreme compaction (Keep only last few spaces and minimal chat)
-            const extremeData = compactedData.slice(0, 5).map(space => ({
-                ...space,
-                chatHistory: (space.chatHistory || []).slice(-10), // Keep only last 10 messages
-            }));
-            
-            if (saveToLocalStorage(extremeData)) {
+    try {
+        localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
+    } catch (error: any) {
+        if (error.name === 'QuotaExceededError' || error.code === 22) {
+            console.warn("localStorage quota exceeded. Attempting compaction...");
+            // Multi-stage compaction
+            try {
+                // Tier 1: Remove base64 'data' but keep everything else
+                const compactSpaces = studySpaces.map(s => ({
+                    ...s,
+                    sources: s.sources.map(src => ({ ...src, data: undefined })),
+                    generatedContent: getSavableContent(s.generatedContent),
+                }));
+                localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(compactSpaces));
                 toast({
                     variant: "destructive",
-                    title: "Storage Critically Full",
-                    description: "Only your most recent spaces were saved. Please delete old spaces to free up room."
+                    title: "Storage full",
+                    description: "Older file caches were cleared to save space. Your notes and summaries are safe."
                 });
-            } else {
-                console.error("LocalStorage failed completely even after extreme compaction.");
+            } catch (e2) {
+                // Tier 2: Truncate chat history
+                try {
+                    const extraCompact = studySpaces.slice(0, 10).map(s => ({
+                        ...s,
+                        sources: s.sources.map(src => ({ ...src, data: undefined })),
+                        chatHistory: (s.chatHistory || []).slice(-10),
+                        generatedContent: getSavableContent(s.generatedContent),
+                    }));
+                    localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(extraCompact));
+                } catch (e3) {
+                    console.error("Critical storage failure.");
+                }
             }
         }
     }
@@ -1068,7 +1056,7 @@ function StudySpacesPage() {
       return messages.map((msg) => (
         <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
           {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5"/></div>}
-          <div className={cn("p-3 rounded-lg max-w-[85%] break-words", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary')}>
+          <div className={cn("p-3 rounded-lg max-w-[85%] break-words", msg.role === 'user' ? 'bg-primary text-primary-foreground' : (msg.isError ? 'bg-destructive/10' : 'bg-secondary'))}>
             <div className="prose prose-sm dark:prose-invert max-w-none">
               {msg.role === 'user' ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
@@ -1084,7 +1072,7 @@ function StudySpacesPage() {
                 )
               )}
             </div>
-             {msg.role === 'assistant' && typeof msg.content === 'string' && (
+             {msg.role === 'assistant' && typeof msg.content === 'string' && !msg.isError && (
                 <div className="text-right mt-2">
                     <Button
                         variant="ghost"
@@ -1339,7 +1327,7 @@ function StudySpacesPage() {
                                                                 </Button>
                                                             )}
                                                             <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
+                                                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent>
@@ -1412,13 +1400,12 @@ function StudySpacesPage() {
               <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {studySpaces.slice(0, visibleCount).map(space => (
-                          <Card key={space.id} className="flex flex-col cursor-pointer hover:shadow-lg transition-shadow relative">
-                              <div className="flex-grow" onClick={() => handleSelectStudySpace(space)}>
+                          <Card key={space.id} className="flex flex-col cursor-pointer hover:shadow-lg transition-shadow relative" onClick={() => handleSelectStudySpace(space)}>
                                 <CardHeader>
                                     <CardTitle className="truncate">{space.name}</CardTitle>
                                     <CardDescription className="line-clamp-2">{space.description}</CardDescription>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="flex-grow">
                                     <p className="text-sm font-bold text-primary">{space.sources.length} source{space.sources.length !== 1 && 's'}</p>
                                     {space.status !== 'Not Started' && typeof space.progress === 'number' && (
                                       <div className="mt-2">
@@ -1427,9 +1414,8 @@ function StudySpacesPage() {
                                       </div>
                                     )}
                                 </CardContent>
-                              </div>
                                <CardFooter>
-                                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleSaveSpaceOffline(space); }}>
+                                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleSaveSpaceOffline(space); }} className="w-full">
                                         <Save className="mr-2 h-4 w-4" /> Save Offline
                                     </Button>
                                </CardFooter>

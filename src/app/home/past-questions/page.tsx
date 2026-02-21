@@ -321,7 +321,7 @@ export default function PastQuestionsPage() {
         const updatedExam: SavedExam = {
             id: examId,
             date: new Date().toLocaleDateString(),
-            selections,
+            selections: { ...selections, courseCode: selections.courseCode || "" },
             questions: allQuestionsInSession,
             examAnswers: mergedAnswers,
             examScore: score,
@@ -407,7 +407,7 @@ export default function PastQuestionsPage() {
         const newExam: SavedExam = {
             id: examId,
             date: new Date().toLocaleDateString(),
-            selections,
+            selections: { ...selections, courseCode: selections.courseCode || "" },
             questions: allQuestionsInSession,
             examAnswers: mergedAnswers,
             examScore: score,
@@ -803,7 +803,7 @@ export default function PastQuestionsPage() {
                                     const newExam: SavedExam = {
                                         id: examId,
                                         date: new Date().toLocaleDateString(),
-                                        selections,
+                                        selections: { ...selections, courseCode: selections.courseCode || "" },
                                         questions: allQuestionsInSession,
                                         examAnswers,
                                         examScore,

@@ -131,8 +131,17 @@ export default function AdminPastQuestionsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // --- FORM STATES ---
-  const [formData, setFormData] = useState({
-    level: 'WASSCE' as 'BECE' | 'WASSCE' | 'University',
+  const [formData, setFormData] = useState<{
+    level: 'BECE' | 'WASSCE' | 'University';
+    subject: string;
+    courseCode: string;
+    year: string;
+    university: string;
+    schoolFaculty: string;
+    durationMinutes: number;
+    totalQuestions: number;
+  }>({
+    level: 'WASSCE',
     subject: '',
     courseCode: '',
     year: '',

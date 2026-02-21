@@ -123,7 +123,7 @@ export default function CareerPageWrapper() {
 }
 
 function CareerPage() {
-  const [view, setView] = useState<View>("loading");
+  const [view, setViewState] = useState<View>("loading");
   const [cv, setCv] = useState<CvData>({ content: "" });
   const [careerGoals, setCareerGoals] = useState<string>("");
   const [onboarded, setOnboarded] = useState(false);
@@ -150,9 +150,9 @@ function CareerPage() {
     setCareerGoals(savedGoals);
 
     if (searchParams.get('tab')) {
-        setView("hub");
+        setViewState("hub");
     } else {
-        setView("onboarding");
+        setViewState("onboarding");
     }
   }, [searchParams]);
 
@@ -164,15 +164,15 @@ function CareerPage() {
     localStorage.setItem('learnwithtemi_cv', JSON.stringify(cvData));
     localStorage.setItem('learnwithtemi_goals', goals);
     localStorage.removeItem('learnwithtemi_onboarding_progress');
-    setView("hub");
+    setViewState("hub");
   }
 
   const handleBackToChoice = () => {
-    setView("onboarding");
+    setViewState("onboarding");
   };
 
   const handleOpenHubWithTab = (tab: HubTab) => {
-      setView("hub");
+      setViewState("hub");
       router.push(`/home/career?tab=${tab}`);
   };
 
@@ -193,7 +193,7 @@ function CareerPage() {
         onCompleted={handleOnboardingComplete} 
         initialGoals={careerGoals} 
         onboarded={onboarded}
-        onAptitudeClick={() => setView("aptitude")}
+        onAptitudeClick={() => setViewState("aptitude")}
       />
     );
   }

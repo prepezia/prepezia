@@ -76,7 +76,7 @@ export default function AdmissionsPageWrapper() {
 }
 
 function AdmissionsPage() {
-    const [view, setView] = useState<View>("loading");
+    const [view, setViewState] = useState<View>("loading");
     const [cv, setCv] = useState<CvData>({ content: "" });
     const [academicObjectives, setAcademicObjectives] = useState<string>("");
 
@@ -100,9 +100,9 @@ function AdmissionsPage() {
                 }
             }
             setAcademicObjectives(savedGoals);
-            setView("hub");
+            setViewState("hub");
         } else {
-            setView("onboarding");
+            setViewState("onboarding");
         }
     }, []);
 
@@ -113,7 +113,7 @@ function AdmissionsPage() {
         localStorage.setItem('learnwithtemi_academic_cv', JSON.stringify(cv));
         localStorage.setItem('learnwithtemi_academic_goals', goals);
         localStorage.removeItem('learnwithtemi_admissions_onboarding_progress');
-        setView("hub");
+        setViewState("hub");
     }
     
     const handleStartOver = () => {
@@ -122,7 +122,7 @@ function AdmissionsPage() {
         localStorage.removeItem('learnwithtemi_academic_goals');
         setCv({ content: "" });
         setAcademicObjectives("");
-        setView("onboarding");
+        setViewState("onboarding");
     }
 
     if (view === "loading") {

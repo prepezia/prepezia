@@ -94,7 +94,7 @@ type ActiveView = 'notes' | 'flashcards' | 'quiz' | 'deck' | 'infographic' | 'po
 async function downloadUrl(url: string, filename: string) {
     try {
         const response = await fetch(url);
-        if (!target.ok) {
+        if (!response.ok) {
             throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
         }
         const blob = await response.blob();
@@ -242,30 +242,28 @@ function NoteListPage({ onSelectNote, onCreateNew }: { onSelectNote: (id: string
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {recentNotes.slice(0, visibleCount).map(note => (
-                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col">
-                                <div className="flex-grow" onClick={() => onSelectNote(note.id)}>
-                                    <CardHeader>
-                                        <CardTitle>{note.topic}</CardTitle>
-                                        <CardDescription>{note.level}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-sm text-muted-foreground">Generated on {note.date ? new Date(note.date.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
-                                        {note.status !== 'Not Started' && typeof note.progress === 'number' && (
-                                            <div className="mt-2">
-                                                <Progress value={note.progress} className="h-2" />
-                                                <p className="text-xs text-muted-foreground mt-1">{note.status} - {Math.round(note.progress)}%</p>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </div>
-                                <CardFooter>
-                                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleSaveNoteForOffline(note); }}>
+                            <Card key={note.id} className="cursor-pointer hover:shadow-lg transition-shadow relative flex flex-col" onClick={() => onSelectNote(note.id)}>
+                                <CardHeader>
+                                    <CardTitle>{note.topic}</CardTitle>
+                                    <CardDescription>{note.level}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow">
+                                    <p className="text-sm text-muted-foreground">Generated on {note.date ? new Date(note.date.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+                                    {note.status !== 'Not Started' && typeof note.progress === 'number' && (
+                                        <div className="mt-2">
+                                            <Progress value={note.progress} className="h-2" />
+                                            <p className="text-xs text-muted-foreground mt-1">{note.status} - {Math.round(note.progress)}%</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                <CardFooter className="pt-0">
+                                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleSaveNoteForOffline(note); }} className="w-full">
                                         <Save className="mr-2 h-4 w-4" /> Save Offline
                                     </Button>
                                 </CardFooter>
                                 <div className="absolute top-1 right-1">
                                     <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
+                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
@@ -881,7 +879,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                                             </Button>
                                                         )}
                                                         <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
+                                                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                                                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent>
