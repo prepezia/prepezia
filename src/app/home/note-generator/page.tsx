@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
@@ -43,7 +42,6 @@ import { useUser, useFirestore, useDoc, useCollection, useStorage } from "@/fire
 import { doc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, query, where, orderBy, Timestamp, DocumentData, deleteField, CollectionReference, DocumentReference } from "firebase/firestore";
 import { Separator } from "@/components/ui/separator";
 import { uploadDataUrlToStorage, deleteFolderFromStorage } from "@/lib/storage";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { InteractiveMindMap, MindMapNodeData } from "@/components/mind-map/InteractiveMindMap";
 import { toPng } from 'html-to-image';
 
@@ -339,7 +337,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     if (noteDocRef) {
       updateDoc(noteDocRef, data).catch(err => {
         console.error("Failed to update note in Firestore:", err);
-        toast({ variant: 'destructive', title: "Save failed", description: "Could not save your changes to the server." });
+        toast({ variant: 'destructive', title: "Save failed", description: "Could not save your changes to Zia's memory." });
       });
     }
   }, [noteDocRef, toast]);
@@ -435,8 +433,8 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
         setChatHistory(prev => [...prev, assistantMessage]);
         if (isVoiceInput) await handlePlayAudio(assistantMessage.id, response.answer);
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Chat Error", description: error.message || "The AI failed to respond." });
-        setChatHistory(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, an error occurred." }]);
+        toast({ variant: "destructive", title: "Chat Error", description: error.message || "Zia failed to respond." });
+        setChatHistory(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant', content: "Sorry, Zia encountered an error." }]);
     } finally {
         setIsChatting(false);
     }
@@ -518,7 +516,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                 const result = await generateInfographic({ ...inputBase, style: 'educational', maxPoints: 5 });
                 
                 if (!result.imageDataUrl) {
-                    throw new Error(`AI failed to return image data for the infographic.`);
+                    throw new Error(`Zia failed to return image data for the infographic.`);
                 }
 
                 const storagePath = `users/${user.uid}/notes/${note.id}/infographic.png`;
@@ -528,7 +526,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             } else if (type === 'podcast') {
                 const result = await generatePodcastFromSources(inputBase);
                 if (!result.podcastAudio) {
-                    throw new Error(`AI failed to return audio data for the podcast.`);
+                    throw new Error(`Zia failed to return audio data for the podcast.`);
                 }
                 const storagePath = `users/${user.uid}/notes/${note.id}/podcast.wav`;
                 const downloadUrl = await uploadDataUrlToStorage(storage, storagePath, result.podcastAudio);
@@ -558,7 +556,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
     
         } catch (e: any) {
             console.error(`Error generating ${type}:`, e);
-            const description = e.message || `An unknown error occurred while generating the ${type}.`;
+            const description = e.message || `An unknown error occurred while Zia was generating the ${type}.`;
             toast({ variant: 'destructive', title: `Failed to generate ${type}`, description });
         } finally {
             setIsGenerating(null);
@@ -792,7 +790,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                 <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-4">
                                     <Bot className="w-12 h-12 mx-auto text-primary/80 mb-4" />
                                     <h3 className="font-semibold text-foreground text-lg">Chat with Your Notes</h3>
-                                    <p className="mt-2 text-sm">Ask a question and I will answer based on your notes.</p>
+                                    <p className="mt-2 text-sm">Ask Zia a question and she will answer based on your notes.</p>
                                 </div>
                             ) : chatHistory.map((msg) => (
                                 <div key={msg.id} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -806,7 +804,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                         </div>
                         <div className="p-4 border-t bg-background">
                             <form onSubmit={handleChatSubmit} className="relative">
-                                <Textarea ref={chatInputRef} placeholder="Ask a question..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}} disabled={isChatting}/>
+                                <Textarea ref={chatInputRef} placeholder="Ask Zia a question..." className="pr-20" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(e as any); }}} disabled={isChatting}/>
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                     <Button size="icon" variant="ghost" className={cn("h-8 w-8", isListening && "text-destructive")} onClick={handleMicClick} type="button" disabled={isChatting}>
                                         {speakingMessageId ? <Pause className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -843,7 +841,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
                                     <div className="p-4 rounded-md bg-secondary/50">
                                         <h4 className="font-semibold flex items-center gap-2">
                                             <Loader2 className="h-4 w-4 animate-spin" />
-                                            Generating {isGenerating}... Please wait.
+                                            Zia is generating {isGenerating}... Please wait.
                                         </h4>
                                     </div>
                                 )}
@@ -904,7 +902,7 @@ function NoteViewPage({ noteId, onBack }: { noteId: string; onBack: () => void; 
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Generate New Content</DialogTitle>
-                    <DialogDescription>Select a new type of study material to generate from your notes.</DialogDescription>
+                    <DialogDescription>Select a new type of study material for Zia to generate.</DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
                     {generationOptions.map((option) => {
@@ -1017,7 +1015,7 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
                 <Card>
                     <CardHeader className="text-center">
                         <CardTitle className="text-3xl font-headline font-bold">Generate New Study Notes</CardTitle>
-                        <CardDescription>Enter any topic and select the academic level to get started.</CardDescription>
+                        <CardDescription>Enter any topic and select the academic level for Zia to research.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2 text-left">
@@ -1044,7 +1042,7 @@ function CreateNoteView({ onBack, initialTopic }: { onBack: () => void, initialT
                         </div>
                         <Button onClick={handleGenerateClick} disabled={!topic.trim() || isLoading} className="w-full h-12" size="lg">
                             {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
-                            Generate Notes
+                            Generate Notes with Zia
                         </Button>
                     </CardContent>
                 </Card>
@@ -1060,7 +1058,7 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
             <CardHeader>
                 <Button onClick={onBack} variant="outline" className="w-fit"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
                 <CardTitle className="pt-4 flex items-center gap-2"> Podcast for "{topic}"</CardTitle>
-                <CardDescription>Listen to the AI-generated podcast based on your sources.</CardDescription>
+                <CardDescription>Listen to the Zia-generated podcast based on your materials.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {podcast.podcastAudioUrl ? (
@@ -1069,7 +1067,7 @@ function PodcastView({ podcast, onBack, topic }: { podcast: { podcastScript: str
                     <Alert variant="destructive">
                         <AlertTitle>Audio Not Available</AlertTitle>
                         <AlertDescription>
-                            The podcast audio could not be loaded. It might need to be regenerated.
+                            The podcast audio could not be loaded. Zia might need to regenerate it.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -1181,7 +1179,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
                 <CardHeader>
                     <Button onClick={() => onBack(0, 0)} variant="outline" className="w-fit"><ArrowLeft className="mr-2"/> Back</Button>
                     <CardTitle className="pt-4">Quiz Error</CardTitle>
-                    <CardDescription>No questions were generated for these sources.</CardDescription>
+                    <CardDescription>Zia couldn't generate questions for this topic.</CardDescription>
                 </CardHeader>
             </Card>
         )
@@ -1248,7 +1246,7 @@ function QuizView({ quiz, onBack, topic }: { quiz: GenerateQuizOutput['quiz'], o
                         return (<div key={i} className={cn("flex items-center space-x-3 space-y-0 p-3 rounded-md border cursor-pointer", isAnswered && isCorrect && "bg-green-100 dark:bg-green-900/50 border-green-500", isAnswered && isSelected && !isCorrect && "bg-red-100 dark:bg-red-900/50 border-destructive")} onClick={() => handleAnswerSelect(option)}><RadioGroupItem value={option} /><Label className="font-normal flex-1 cursor-pointer">{option}</Label>{isAnswered && isCorrect && <CheckCircle className="text-green-500" />}{isAnswered && isSelected && !isCorrect && <XCircle className="text-destructive" />}</div>);
                     })}
                 </RadioGroup>
-                {isAnswered && <Card className="mt-4 bg-secondary/50"><CardHeader className="flex-row items-center gap-2 pb-2"><Lightbulb className="w-5 h-5 text-yellow-500" /><CardTitle className="text-md">Explanation</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p></CardContent></Card>}
+                {isAnswered && <Card className="mt-4 bg-secondary/50"><CardHeader className="flex-row items-center gap-2 pb-2"><Lightbulb className="w-5 h-5 text-yellow-500" /><CardTitle className="text-md">Zia's Explanation</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p></CardContent></Card>}
                 {!isAnswered && currentQuestion.hint && <details className="mt-4 text-sm text-muted-foreground"><summary className="cursor-pointer">Need a hint?</summary><p className="pt-1">{currentQuestion.hint}</p></details>}
             </CardContent>
             <CardFooter className="justify-between">
@@ -1301,7 +1299,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { imageU
                     <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
                 </div>
                 <CardTitle className="pt-4 flex items-center gap-2"> Infographic for "{topic}"</CardTitle>
-                <CardDescription>An AI-generated visual summary of the key points.</CardDescription>
+                <CardDescription>Zia's visual summary of the key points.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
                  {infographic.imageUrl ? (
@@ -1312,7 +1310,7 @@ function InfographicView({ infographic, onBack, topic }: { infographic: { imageU
                     <Alert variant="destructive" className="w-full max-w-2xl">
                         <AlertTitle>Image Not Available</AlertTitle>
                         <AlertDescription>
-                            The infographic image could not be loaded. It might need to be regenerated.
+                            The infographic image could not be loaded. Zia might need to regenerate it.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -1370,8 +1368,8 @@ function MindMapView({ mindMap, onBack, topic }: { mindMap: MindMapNodeData, onB
                         <Button onClick={handleCollapseAll} variant="ghost" size="icon"><Minus className="h-4 w-4"/></Button>
                     </div>
                 </div>
-                <CardTitle className="pt-4 flex items-center gap-2"> Mind Map for "{topic}"</CardTitle>
-                <CardDescription>A visual breakdown of the key concepts.</CardDescription>
+                <CardTitle className="pt-4 flex items-center gap-2"> Zia Mind Map for "{topic}"</CardTitle>
+                <CardDescription>A visual breakdown of the key concepts researched by Zia.</CardDescription>
             </CardHeader>
             <CardContent>
                 <InteractiveMindMap ref={mindMapRef} key={mindMapKey} data={mindMap} initialOpen={isAllExpanded} />

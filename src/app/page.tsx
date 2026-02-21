@@ -137,7 +137,7 @@ export default function Home() {
                                         Prep easier, with Prepezia.
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
-                                        Your AI-powered learning partner for research, exam prep, and career growth. Learn faster, test smarter, and unlock your full potential.
+                                        Your AI-powered learning partner for research, exam prep, and career growth. Learn faster, test smarter, and unlock your full potential with Zia.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold sm:w-auto">
@@ -167,7 +167,7 @@ export default function Home() {
                                         Dynamic Note Generation
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
-                                        Instantly create detailed study notes on any topic, at any academic level.
+                                        Instantly create detailed study notes on any topic, at any academic level with Zia.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold sm:w-auto">
@@ -196,7 +196,7 @@ export default function Home() {
                                         Ghana Past Questions Hub
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
-                                        Practice with BECE, WASSCE, and university past questions. Get AI-driven feedback.
+                                        Practice with BECE, WASSCE, and university past questions. Get AI-driven feedback from Zia.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold sm:w-auto">
@@ -225,7 +225,7 @@ export default function Home() {
                                         Generate Notes & Podcasts
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
-                                        Instantly create study notes and audio summaries from your materials.
+                                        Instantly create study notes and audio summaries from your materials with Zia.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold sm:w-auto">
@@ -254,7 +254,7 @@ export default function Home() {
                                         AI Deep Dive Research
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
-                                        Go beyond surface-level answers. Let our AI conduct in-depth research on any topic.
+                                        Go beyond surface-level answers. Let Zia conduct in-depth research on any topic.
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold sm:w-auto">
@@ -300,7 +300,7 @@ export default function Home() {
           <div className="container mx-auto px-5 md:px-6">
             <div className="text-center mb-12">
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Prepezia: Prep Easier</h2>
-              <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster, test smarter, and build your career.</p>
+              <p className="mt-2 text-muted-foreground text-lg">Harness the power of AI to learn faster, test smarter, and build your career with Zia.</p>
             </div>
             <div className="mx-auto grid max-w-sm grid-cols-1 gap-8 md:mx-0 md:max-w-none md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
@@ -355,7 +355,7 @@ export default function Home() {
                 <div className="space-y-4 text-center md:text-left">
                   <h2 className="font-headline text-3xl md:text-4xl font-bold">Learn On The Go</h2>
                   <p className="text-lg max-w-md mx-auto md:mx-0 opacity-90">
-                    Download the Prepezia app to access all your study materials, chats, and notes anytime, anywhere.
+                    Download the Prepezia app to access all your study materials, Zia chats, and notes anytime, anywhere.
                   </p>
                   <div className="flex flex-col sm:flex-row justify-center md:justify-start space-x-0 sm:space-x-4 space-y-4 sm:space-y-0 mt-6">
                     <Link href="#" className="inline-flex items-center justify-center rounded-lg bg-primary-foreground text-primary px-4 py-3 text-sm font-medium transition-colors hover:bg-primary-foreground/90">

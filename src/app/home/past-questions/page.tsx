@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -244,7 +243,7 @@ export default function PastQuestionsPage() {
         loadBatch(1, selections);
     };
 
-    const loadBatch = async (part: number, overrideSelections?: typeof selections) => {
+    const loadBatch = async (part: number, overrideSelections?: any) => {
         if (!firestore) return;
         setLoadingPart(part);
         setIsLoading(true);
@@ -472,7 +471,7 @@ export default function PastQuestionsPage() {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div className="flex-1">
                             <h1 className="text-4xl font-headline font-bold">Past Questions Hub</h1>
-                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an AI-powered revision plan.</p>
+                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an AI-powered revision plan from Zia.</p>
                         </div>
                         <Button 
                             variant="outline"
@@ -551,7 +550,7 @@ export default function PastQuestionsPage() {
                         <DialogContent className="sm:max-w-md">
                             <DialogHeader>
                                 <DialogTitle>New Exam Session</DialogTitle>
-                                <DialogDescription>Select the details of the exam paper you want to practice.</DialogDescription>
+                                <DialogDescription>Select the details of the exam paper you want Zia to research for you.</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <div className="space-y-2">
@@ -700,7 +699,7 @@ export default function PastQuestionsPage() {
                 <div className="p-8 max-w-2xl mx-auto space-y-8 flex-1 flex flex-col justify-center">
                     <div className="text-center space-y-2">
                         <h2 className="text-3xl font-headline font-bold">Choose Mode</h2>
-                        <p className="text-muted-foreground">Practice or simulate the real exam environment.</p>
+                        <p className="text-muted-foreground">Practice or simulate the real exam environment with Zia.</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card 
@@ -712,7 +711,7 @@ export default function PastQuestionsPage() {
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold">Trial Mode</h3>
-                                <p className="text-sm text-muted-foreground mt-1">Perfect for learning. Get instant AI explanations and hints for every question.</p>
+                                <p className="text-sm text-muted-foreground mt-1">Perfect for learning. Get instant AI explanations and hints for every question from Zia.</p>
                             </div>
                         </Card>
                         <Card 
@@ -724,7 +723,7 @@ export default function PastQuestionsPage() {
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold">Exam Mode</h3>
-                                <p className="text-sm text-muted-foreground mt-1">Timed simulation. Test yourself under pressure with no assistance until the end.</p>
+                                <p className="text-sm text-muted-foreground mt-1">Timed simulation. Test yourself under pressure with no Zia assistance until the end.</p>
                             </div>
                         </Card>
                     </div>
@@ -740,7 +739,7 @@ export default function PastQuestionsPage() {
                 {header}
                 <div className="flex-1 flex flex-col items-center justify-center">
                     <Loader2 className="h-10 w-10 animate-spin text-primary"/>
-                    <p className="mt-4 text-muted-foreground font-medium">Preparing Part {loadingPart} of your AI-powered exam...</p>
+                    <p className="mt-4 text-muted-foreground font-medium">Zia is preparing Part {loadingPart} of your exam...</p>
                 </div>
             </>
         );
@@ -770,10 +769,8 @@ export default function PastQuestionsPage() {
                         onTimeout={(ans) => {
                             const totalParts = Math.ceil(totalQuestionsInPaper / 20);
                             if (currentPart >= totalParts) {
-                                // If it's the last part, auto-submit for review so roadmap is generated
                                 handleSubmitForReview(ans);
                             } else {
-                                // Otherwise save progress and exit
                                 handleSaveAndExit(ans, true);
                             }
                         }}
@@ -826,7 +823,7 @@ export default function PastQuestionsPage() {
                         <CardContent>
                             <Tabs defaultValue="roadmap">
                                 <TabsList className="grid grid-cols-2 bg-secondary">
-                                    <TabsTrigger value="roadmap">AI Revision Roadmap</TabsTrigger>
+                                    <TabsTrigger value="roadmap">Zia Revision Roadmap</TabsTrigger>
                                     <TabsTrigger value="corrections">Corrections</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="roadmap" className="mt-6 w-full max-w-0 min-w-full">
@@ -839,10 +836,10 @@ export default function PastQuestionsPage() {
                                     ) : (
                                         <div className="py-12 text-center space-y-4">
                                             <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
-                                            <p className="text-muted-foreground">No revision roadmap available for this session.</p>
+                                            <p className="text-muted-foreground">No Zia revision roadmap available for this session.</p>
                                             <Button onClick={handleGenerateMissingRoadmap} disabled={isLoading}>
                                                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                Generate AI Revision Roadmap
+                                                Generate Zia Revision Roadmap
                                             </Button>
                                         </div>
                                     )}
@@ -865,7 +862,7 @@ export default function PastQuestionsPage() {
                                             </div>
                                             <Separator className="my-4" />
                                             <div className="mt-4 p-3 bg-background rounded border text-xs italic">
-                                                <p className="font-semibold not-italic mb-1">Explanation:</p>
+                                                <p className="font-semibold not-italic mb-1">Zia's Explanation:</p>
                                                 {q.explanation}
                                             </div>
                                         </div>
@@ -977,7 +974,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
                         <Card className="mt-6 bg-secondary/30 border-primary/20">
                             <CardHeader className="flex-row items-center gap-2 pb-2">
                                 <Lightbulb className="w-5 h-5 text-yellow-500" />
-                                <CardTitle className="text-base font-bold">Explanation</CardTitle>
+                                <CardTitle className="text-base font-bold">Zia's Explanation</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground leading-relaxed italic">
@@ -991,7 +988,7 @@ function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onS
                         <details className="mt-4 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-dashed">
                             <summary className="cursor-pointer font-semibold flex items-center gap-2">
                                 <Sparkles className="h-4 w-4 text-primary" />
-                                Need a hint?
+                                Need a hint from Zia?
                             </summary>
                             <p className="pt-2 pl-6">{q.hint}</p>
                         </details>

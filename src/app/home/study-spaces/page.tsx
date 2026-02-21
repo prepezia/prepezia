@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
@@ -199,7 +198,7 @@ function AddSourcesDialog({ open, onOpenChange, onAddSources }: { open: boolean,
             toast({
                 variant: "destructive",
                 title: "File too large",
-                description: "Please upload files smaller than 10MB to ensure smooth app performance."
+                description: "Please upload files smaller than 10MB to keep Zia processing efficient."
             });
             return;
         }
@@ -435,42 +434,36 @@ function StudySpacesPage() {
   useEffect(() => {
     if (!studySpaces || studySpaces.length === 0) return;
 
-    const spacesToSave = studySpaces.map(space => ({
-        ...space,
-        generatedContent: getSavableContent(space.generatedContent),
-    }));
-
     try {
+        const spacesToSave = studySpaces.map(space => ({
+            ...space,
+            generatedContent: getSavableContent(space.generatedContent),
+        }));
         localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
     } catch (error: any) {
         if (error.name === 'QuotaExceededError' || error.code === 22) {
-            console.warn("localStorage quota exceeded. Attempting compaction...");
-            // Multi-stage compaction
+            console.warn("Storage quota exceeded. Compacting...");
             try {
-                // Tier 1: Remove base64 'data' but keep everything else
+                // Stage 1: Clear heavy source data URIs
                 const compactSpaces = studySpaces.map(s => ({
                     ...s,
                     sources: s.sources.map(src => ({ ...src, data: undefined })),
                     generatedContent: getSavableContent(s.generatedContent),
                 }));
                 localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(compactSpaces));
-                toast({
-                    variant: "destructive",
-                    title: "Storage full",
-                    description: "Older file caches were cleared to save space. Your notes and summaries are safe."
-                });
+                toast({ variant: "destructive", title: "Storage compacting", description: "Cleared file cache to save space. Summaries and notes are safe." });
             } catch (e2) {
-                // Tier 2: Truncate chat history
+                // Stage 2: Truncate chat history
                 try {
-                    const extraCompact = studySpaces.slice(0, 10).map(s => ({
+                    const extraCompact = studySpaces.map(s => ({
                         ...s,
                         sources: s.sources.map(src => ({ ...src, data: undefined })),
-                        chatHistory: (s.chatHistory || []).slice(-10),
+                        chatHistory: (s.chatHistory || []).slice(-5),
                         generatedContent: getSavableContent(s.generatedContent),
                     }));
                     localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(extraCompact));
                 } catch (e3) {
-                    console.error("Critical storage failure.");
+                    console.error("Critical storage overflow.");
                 }
             }
         }
@@ -584,7 +577,7 @@ function StudySpacesPage() {
             const errorMessage: AssistantChatMessage = {
                 id: `err-${Date.now()}-${newHistoryWithUserMessage.length}`,
                 role: 'assistant',
-                content: e.message || "Sorry, I couldn't process that request.",
+                content: e.message || "Sorry, Zia couldn't process that request.",
                 isError: true
             };
             
@@ -1237,7 +1230,7 @@ function StudySpacesPage() {
                                 <BookOpen className="w-12 h-12 mx-auto text-primary/80 mb-4" />
                                 <h3 className="font-semibold text-foreground text-lg">Chat with Your Sources</h3>
                                 <p className="mt-2 text-sm">
-                                    Ask me a question and I will answer based solely on the materials you've provided.
+                                    Ask Zia a question and she will answer based solely on the materials you've provided.
                                 </p>
                             </div>
                         ) : renderChatMessages(selectedStudySpace.chatHistory || [], selectedStudySpace.sources)}
@@ -1386,7 +1379,7 @@ function StudySpacesPage() {
               <Plus className="mr-2 h-4 w-4" /> Create New
           </Button>
         </div>
-        <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with your AI assistant, Zia, to get answers and insights based solely on your materials.</p>
+        <p className="text-muted-foreground bg-secondary p-4 rounded-lg">Upload PDFs, text files, and audio, or add links from websites and YouTube. Then, chat with Zia to get answers and insights based solely on your materials.</p>
         
         <div className="pt-8">
           <h2 className="text-2xl font-headline font-bold mb-4">Your Spaces</h2>
@@ -1499,7 +1492,7 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
             toast({
                 variant: "destructive",
                 title: "File too large",
-                description: "Please upload files smaller than 10MB to ensure smooth app performance."
+                description: "Please upload files smaller than 10MB to keep Zia processing efficient."
             });
             return;
         }
@@ -1507,17 +1500,10 @@ function CreateStudySpaceView({ onCreate, onBack }: { onCreate: (name: string, d
         const reader = new FileReader();
         reader.onload = (e) => {
             const dataUri = e.target?.result as string;
-
             let fileType: Source['type'] = 'text';
-
-            if (file.type.startsWith('image/')) {
-                fileType = 'image';
-            } else if (file.type.startsWith('audio/')) {
-                fileType = 'audio';
-            } else if (file.type === 'application/pdf') {
-                fileType = 'pdf';
-            }
-
+            if (file.type.startsWith('image/')) fileType = 'image';
+            else if (file.type.startsWith('audio/')) fileType = 'audio';
+            else if (file.type === 'application/pdf') fileType = 'pdf';
             const newSource: Source = { type: fileType, name: file.name, data: dataUri, contentType: file.type };
             setSources(prev => [...prev, newSource]);
         };

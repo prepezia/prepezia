@@ -566,7 +566,7 @@ export default function AdminPastQuestionsPage() {
                 {editingQuestion && <Badge variant="outline" className="h-10">Current File Kept</Badge>}
               </div>
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> AI will automatically extract text for Trial Mode hints.
+                <Sparkles className="h-3 w-3" /> Zia will automatically extract text for Trial Mode hints.
               </p>
             </div>
           </div>
