@@ -411,8 +411,9 @@ function StudySpacesPage() {
   const getSavableContent = (content?: GeneratedContent): GeneratedContent | undefined => {
     if (!content) return undefined;
     const savable = JSON.parse(JSON.stringify(content));
-    // Quiz and MindMap can be very large, removing quiz from storage helps keep payload small
-    delete savable.quiz;
+    // Remove heavy objects that can be reconstructed or are too big for localstorage
+    delete savable.quiz; 
+    delete savable.mindMap; 
     return savable;
   };
   
@@ -421,39 +422,60 @@ function StudySpacesPage() {
   }, [selectedStudySpace?.interactionProgress, calculateAndUpdateProgress]);
 
   useEffect(() => {
-    try {
-        if (studySpaces && studySpaces.length > 0) {
-            const spacesToSave = studySpaces.map(space => ({
+    if (!studySpaces || studySpaces.length === 0) return;
+
+    const saveToLocalStorage = (data: any) => {
+        try {
+            localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(data));
+            return true;
+        } catch (e: any) {
+            if (e.name === 'QuotaExceededError' || e.code === 22) {
+                return false;
+            }
+            throw e;
+        }
+    };
+
+    // Attempt 1: Normal save (with optimized content)
+    const normalData = studySpaces.map(space => ({
+        ...space,
+        generatedContent: getSavableContent(space.generatedContent),
+    }));
+
+    if (!saveToLocalStorage(normalData)) {
+        // Attempt 2: Aggressive compaction (Remove ALL heavy base64 data)
+        const compactedData = studySpaces.map(space => ({
+            ...space,
+            sources: space.sources.map(s => ({ 
+                ...s, 
+                data: s.data ? '(Internal file cache cleared to save space)' : undefined 
+            })),
+            generatedContent: getSavableContent(space.generatedContent),
+        }));
+
+        if (saveToLocalStorage(compactedData)) {
+            toast({
+                variant: "destructive",
+                title: "Storage Limit Reached",
+                description: "To save your progress, we cleared the internal file cache. Your AI summaries and notes are safe."
+            });
+        } else {
+            // Attempt 3: Extreme compaction (Keep only last few spaces and minimal chat)
+            const extremeData = compactedData.slice(0, 5).map(space => ({
                 ...space,
-                generatedContent: getSavableContent(space.generatedContent),
+                chatHistory: (space.chatHistory || []).slice(-10), // Keep only last 10 messages
             }));
             
-            try {
-                localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(spacesToSave));
-            } catch (e: any) {
-                if (e.name === 'QuotaExceededError' || e.code === 22) {
-                    // Fail-safe: Try to save a version without heavy base64 'data' for older spaces
-                    const compactSpaces = studySpaces.map((space, idx) => {
-                        if (idx < 2) return { ...space, generatedContent: getSavableContent(space.generatedContent) };
-                        return {
-                            ...space,
-                            sources: space.sources.map(s => ({ ...s, data: undefined })), // Strip base64
-                            generatedContent: getSavableContent(space.generatedContent)
-                        };
-                    });
-                    localStorage.setItem('learnwithtemi_study_spaces', JSON.stringify(compactSpaces));
-                    toast({
-                        variant: "destructive",
-                        title: "Storage almost full",
-                        description: "Older uploaded files were cleared to make room. Your generated notes and summaries are safe."
-                    });
-                } else {
-                    throw e;
-                }
+            if (saveToLocalStorage(extremeData)) {
+                toast({
+                    variant: "destructive",
+                    title: "Storage Critically Full",
+                    description: "Only your most recent spaces were saved. Please delete old spaces to free up room."
+                });
+            } else {
+                console.error("LocalStorage failed completely even after extreme compaction.");
             }
         }
-    } catch (error) {
-        console.error("Failed to save study spaces to localStorage", error);
     }
   }, [studySpaces, toast]);
 
