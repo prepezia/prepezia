@@ -42,7 +42,8 @@ import {
     PlayCircle, 
     Eye,
     Search,
-    ChevronsUpDown
+    ChevronsUpDown,
+    School
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +63,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { universities as staticUnis } from "@/lib/ghana-universities";
+import { useCampus } from "@/hooks/use-campus";
 
 interface PastQuestion extends DocumentData {
     id: string;
@@ -98,6 +100,7 @@ type SavedExam = {
 export default function PastQuestionsPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const { campus } = useCampus();
 
     const questionsQuery = useMemo(() => firestore ? collection(firestore, 'past_questions') as CollectionReference<PastQuestion> : null, [firestore]);
     const { data: allQuestions, loading: questionsLoading } = useCollection<PastQuestion>(questionsQuery);
@@ -135,6 +138,17 @@ export default function PastQuestionsPage() {
     const [subjectSearchQuery, setSubjectSearchQuery] = useState("");
     const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
     const subjectSearchRef = useRef<HTMLDivElement>(null);
+
+    // Campus Personalization Logic
+    useEffect(() => {
+        if (campus && !selections.examBody && isNewExamDialogOpen) {
+            setSelections(p => ({
+                ...p,
+                examBody: "University",
+                university: campus.fullName
+            }));
+        }
+    }, [campus, isNewExamDialogOpen, selections.examBody]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -471,7 +485,9 @@ export default function PastQuestionsPage() {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div className="flex-1">
                             <h1 className="text-4xl font-headline font-bold">Past Questions Hub</h1>
-                            <p className="text-muted-foreground mt-1 text-balance">Test your knowledge and get an AI-powered revision plan from Zia.</p>
+                            <p className="text-muted-foreground mt-1 text-balance">
+                                {campus ? `Practice with ${campus.shortName} and other past papers—with feedback from Zia.` : 'Test your knowledge and get an AI-powered revision plan from Zia.'}
+                            </p>
                         </div>
                         <Button 
                             variant="outline"

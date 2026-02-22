@@ -19,6 +19,7 @@ import { useUser } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { sendEmailVerification } from "firebase/auth";
+import { useCampus } from "@/hooks/use-campus";
 
 type AttachedFile = {
     name: string;
@@ -194,6 +195,7 @@ const features = [
 export default function DashboardPage() {
   const { user, loading } = useUser();
   const { toast } = useToast();
+  const { campus } = useCampus();
 
   React.useEffect(() => {
     if (loading || !user) return;
@@ -258,7 +260,10 @@ export default function DashboardPage() {
       <HomeHeader />
       <div className="p-4 sm:p-6 lg:p-8 space-y-12">
           <div className="text-center space-y-4 pt-10">
-              <p className="text-xl text-muted-foreground">Hi, {user?.displayName?.split(' ')[0] || 'there'}!</p>
+              <p className="text-xl text-muted-foreground">
+                Hi, {user?.displayName?.split(' ')[0] || 'there'}!
+                {campus && <span className="block text-sm font-medium text-primary mt-1">Welcome back to the {campus.shortName} campus hub!</span>}
+              </p>
               <h1 className="text-4xl md:text-5xl font-headline font-normal tracking-tight">What are we <br className="md:hidden" />learning today?</h1>
               <HomePageSearchForm />
           </div>
