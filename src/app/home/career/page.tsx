@@ -703,18 +703,19 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
       printWindow.document.write(`
         <html>
             <head>
-                <title>Print CV</title>
+                <title>CV - ${user?.displayName || 'Designed'}</title>
                 ${styles}
                 ${styleBlocks}
                 <style>
                     @page { 
                         size: A4; 
-                        margin: 25mm 20mm; /* Extra top/bottom breathing room */
+                        margin: 20mm; 
                     } 
                     body { 
                         margin: 0; 
                         -webkit-print-color-adjust: exact; 
                         print-color-adjust: exact; 
+                        counter-reset: page;
                     } 
                     /* Prevent ugly breaks in paragraphs or entries */
                     p, li, .break-inside-avoid { 
@@ -730,10 +731,23 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
                         width: 100%;
                         max-width: 100%;
                     }
+                    /* Page numbering */
+                    .page-number {
+                        position: fixed;
+                        bottom: 0;
+                        right: 0;
+                        font-size: 9pt;
+                        color: #666;
+                    }
+                    .page-number:after {
+                        counter-increment: page;
+                        content: "Page " counter(page);
+                    }
                 </style>
             </head>
             <body>
-                <div class="p-0">
+                <div class="page-number"></div>
+                <div id="cv-print-area">
                     ${printContent}
                 </div>
             </body>
@@ -917,10 +931,6 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
         }
     }, []);
 
-    const saveTestsToStorage = (tests: SavedAptitudeTest[]) => {
-        try { localStorage.setItem('learnwithtemi_saved_aptitude', JSON.stringify(tests)); } catch (e) {}
-    };
-
     const handleGenerate = async () => {
         setIsGenerating(true);
         try {
@@ -965,7 +975,7 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
         };
         const updated = [newSaved, ...savedTests];
         setSavedTests(updated);
-        saveTestsToStorage(updated);
+        localStorage.setItem('learnwithtemi_saved_aptitude', JSON.stringify(updated));
         toast({ title: "Assessment Saved!" });
     };
 
@@ -973,7 +983,7 @@ function AptitudeTestView({ cvContent, onBack, onOpenHub }: { cvContent?: string
         e.stopPropagation();
         const updated = savedTests.filter(t => t.id !== id);
         setSavedTests(updated);
-        saveTestsToStorage(updated);
+        localStorage.setItem('learnwithtemi_saved_aptitude', JSON.stringify(updated));
         toast({ title: "Assessment Removed" });
     };
 

@@ -700,18 +700,19 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Print CV</title>
+                    <title>CV - ${user?.displayName || 'Designed'}</title>
                     ${styles}
                     ${styleBlocks}
                     <style>
                         @page { 
                             size: A4; 
-                            margin: 25mm 20mm; /* Professional top/bottom margins */
+                            margin: 20mm; 
                         }
                         body { 
                             margin: 0; 
                             -webkit-print-color-adjust: exact; 
                             print-color-adjust: exact; 
+                            counter-reset: page;
                         }
                         /* Ensure consistent space efficiencies and paragraph integrity */
                         p, li, .break-inside-avoid { 
@@ -726,10 +727,23 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                             width: 100%;
                             max-width: 100%;
                         }
+                        /* Page numbering */
+                        .page-number {
+                            position: fixed;
+                            bottom: 0;
+                            right: 0;
+                            font-size: 9pt;
+                            color: #666;
+                        }
+                        .page-number:after {
+                            counter-increment: page;
+                            content: "Page " counter(page);
+                        }
                     </style>
                 </head>
                 <body>
-                    <div class="p-0">
+                    <div class="page-number"></div>
+                    <div id="cv-print-area">
                         ${printContent}
                     </div>
                 </body>
