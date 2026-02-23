@@ -392,7 +392,7 @@ export default function AdminPastQuestionsPage() {
           <CardContent>
             <div className="text-3xl font-bold text-purple-600">{questions?.filter(q => q.level === 'University').length || 0}</div>
           </CardContent>
-        </div>
+        </Card>
       </div>
 
       {/* --- FILTERS --- */}
