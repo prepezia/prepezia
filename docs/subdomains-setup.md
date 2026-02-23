@@ -7,6 +7,8 @@ Based on your Firebase configuration:
 - **Primary Backend URL:** `prepezia--studio-4412321193-4bb31.us-central1.hosted.app`
 - **Campus Hubs:** `*.prepezia.com` (e.g., `ug.prepezia.com`)
 
+---
+
 ## 2. DNS Configuration (Namecheap/GoDaddy)
 You have already configured the **Wildcard Record**. This is the most important step for campus personalization.
 
@@ -16,7 +18,16 @@ You have already configured the **Wildcard Record**. This is the most important 
 
 ---
 
-## 3. Hosting vs. App Hosting (CRITICAL)
+## 3. Triggering Your First Release
+If your dashboard says "Waiting on your first release":
+1. Click the **"Create rollout"** button.
+2. Select the **`main`** branch.
+3. Click **"Rollout"**.
+4. Firebase will now pull your code from GitHub and start the build. This takes about 3-5 minutes.
+
+---
+
+## 4. Hosting vs. App Hosting (CRITICAL)
 Firebase has two types of hosting. For Prepezia to work, **you must use App Hosting**.
 
 - **Hosting (Classic):** Only serves static files. Zia/AI will NOT work here.
@@ -24,7 +35,7 @@ Firebase has two types of hosting. For Prepezia to work, **you must use App Host
 
 ### How to point your main domain (`prepezia.com`) to the App:
 1. Go to the **App Hosting** tab in Firebase.
-2. Click on your backend (`prepezia-backend`).
+2. Click on your backend (`prepezia`).
 3. Go to **Settings** > **Custom Domains**.
 4. Click **Connect Domain** and enter `prepezia.com`.
 5. Firebase will provide **A Records** (IP addresses).
@@ -32,7 +43,7 @@ Firebase has two types of hosting. For Prepezia to work, **you must use App Host
 
 ---
 
-## 4. Security & API Key Leaks (Action Required)
+## 5. Security & API Key Leaks (Action Required)
 If you received an email about a "Publicly accessible API key," don't panic. Firebase client keys are meant to be in the browser, but they should be restricted.
 
 ### Step 1: Restrict the Key
@@ -60,13 +71,13 @@ If you received an email about a "Publicly accessible API key," don't panic. Fir
 
 ---
 
-## 5. How Personalization Works
+## 6. How Personalization Works
 The app detects the subdomain automatically. 
 - If a user visits `ug.prepezia.com`, the app sets the campus to **University of Ghana**.
 - Zia will greet them as a UG student.
 - The Past Questions hub will pre-filter for UG papers.
 
-## 6. Testing the Logic
+## 7. Testing the Logic
 You can test the campus logic without waiting for DNS propagation by adding a query parameter to your local or live URL:
 - `https://prepezia.com?campus=ug`
 - `http://localhost:3000?campus=knust`
