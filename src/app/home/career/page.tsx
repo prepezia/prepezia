@@ -897,7 +897,7 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
                 </CardContent>
               </Card>
             <div className="flex-1 overflow-y-auto mt-4">
-                {isSearchingJobs && <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}
+                {isSearchingJobs && <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>}
                 {jobResults && (<div className="max-w-4xl mx-auto w-full space-y-4 pb-4">{jobResults.results.map((job, i) => (<Card key={i}><CardHeader><CardTitle>{job.title}</CardTitle><CardDescription>{job.company} - {job.location}</CardDescription></CardHeader><CardContent><p className="text-sm text-muted-foreground mb-4">{job.snippet}</p><Button asChild><a href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowRight className="ml-2"/></a></Button></CardContent></Card>))}</div>)}
             </div>
           </TabsContent>
