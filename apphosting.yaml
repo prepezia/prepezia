@@ -8,13 +8,13 @@ runConfig:
   maxInstances: 1
 
 env:
-  # Define keys here. For sensitive values (API Keys), use Secrets in the Firebase Console
-  # and reference them as process.env.KEY_NAME in your code.
+  # Regular environment variables (Publicly safe)
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-  - variable: GEMINI_API_KEY
-
+  
+  # Sensitive Secrets (Encrypted)
+  - secret: GEMINI_API_KEY

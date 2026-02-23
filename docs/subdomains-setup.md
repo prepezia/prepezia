@@ -29,23 +29,27 @@ You must use **App Hosting** custom domains to ensure Zia works on your main dom
 
 ---
 
-## 3. Gemini AI (Zia) Setup
-Zia requires a Gemini API key to function. To set this up securely:
+## 3. Gemini AI (Zia) & Firebase Setup
+Zia and Firebase require environment variables to function on the live site.
 
-1.  **Generate a Key**: Visit [Google AI Studio](https://aistudio.google.com/app/apikey) and create an API Key.
-2.  **Add to Live Site**: 
+1.  **Generate a Gemini Key**: Visit [Google AI Studio](https://aistudio.google.com/app/apikey) and create an API Key.
+2.  **Go to App Hosting Settings**: 
     - Go to **App Hosting** in Firebase Console.
     - Select your `prepezia` backend.
-    - Go to **Settings** -> **Environment Variables**.
+    - Go to **Settings** -> **Environment**.
+    - **CRITICAL**: Click **"Save"** on the "production" name to activate the environment.
+3.  **Add Secrets**:
+    - Click on the **"production"** environment that now appears in the list.
     - Click **"Add Secret"**.
-    - Key: `GEMINI_API_KEY`
-    - Value: [Paste your key here]
-3.  **Local Testing**: Add `GEMINI_API_KEY=your_key` to your `.env` file in the editor.
+    - Key: `GEMINI_API_KEY` | Value: [Paste your Gemini key]
+4.  **Add Variables**:
+    - Click **"Add Variable"** for each item in your `.env` file (e.g., `NEXT_PUBLIC_FIREBASE_API_KEY`).
+    - Copy the values exactly from your local `.env` file.
 
 ---
 
 ## 4. Security & API Key Restrictions
-If you received an email about a "Publicly accessible API key," follow these steps to restrict it:
+To protect your account from unauthorized usage:
 
 1. Go to the [Google Cloud Console Credentials page](https://console.cloud.google.com/apis/credentials).
 2. Find the key named `Browser key (auto-created by Firebase)`.
