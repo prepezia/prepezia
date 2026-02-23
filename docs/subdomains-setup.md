@@ -17,7 +17,7 @@ This guide explains how to manage your live environment, campus-specific subdoma
 | **CNAME** | `*` | `prepezia--studio-4412321193-4bb31.us-central1.hosted.app` |
 
 ### For Main Site (prepezia.com)
-You must use **App Hosting** custom domains to ensure Zia works on your main domain. Update these records in Namecheap:
+Update these records in Namecheap to switch from static hosting to the full Zia App engine:
 
 | Type | Host | Value |
 | :--- | :--- | :--- |
@@ -25,26 +25,27 @@ You must use **App Hosting** custom domains to ensure Zia works on your main dom
 | **TXT** | `@` | `fah-claim=002-02-c0a96bdf-06a8-40fa-b4cb-6ed3ece7929a` |
 | **CNAME**| `_acme-challenge...` | `...authorize.certificate-manager.goog.` |
 
-*Note: Delete the old A record (199.36.158.100) pointing to static hosting.*
+*Note: Delete the old A record pointing to 199.36.158.100.*
 
 ---
 
-## 3. Gemini AI (Zia) & Firebase Setup
-Zia and Firebase require environment variables to function on the live site.
+## 3. Gemini AI (Zia) & Firebase Setup (FIXING THE BUILD)
+The "Misconfigured Secret" error happens because the code expects keys that aren't in the console yet.
 
 1.  **Generate a Gemini Key**: Visit [Google AI Studio](https://aistudio.google.com/app/apikey) and create an API Key.
 2.  **Go to App Hosting Settings**: 
     - Go to **App Hosting** in Firebase Console.
     - Select your `prepezia` backend.
     - Go to **Settings** -> **Environment**.
-3.  **Activate Environment**:
-    - If you see an empty box for "Environment name", type `production` and click **"Save"**.
-    - **CRITICAL**: After clicking Save, look at the list below. You should see the word **"production"** in a table. **Click on the word "production"** to open its settings.
-4.  **Add Secrets**:
+3.  **OPEN THE ENVIRONMENT**:
+    - You will see a list/table with the word **"production"**.
+    - **CRITICAL**: Click on the word **"production"** to enter that environment's settings.
+4.  **Add Secret (Zia Key)**:
     - Click **"Add Secret"**.
-    - Key: `GEMINI_API_KEY` | Value: [Paste your Gemini key]
-    - Grant the service account access if prompted.
-5.  **Add Variables**:
+    - Key: `GEMINI_API_KEY`
+    - Value: [Paste your Gemini key]
+    - **IMPORTANT**: If prompted to "Grant Access" to the service account, click **GRANT**.
+5.  **Add Variables (Firebase Config)**:
     - Click **"Add Variable"** for each item in your `.env` file:
     - `NEXT_PUBLIC_FIREBASE_API_KEY`
     - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
@@ -76,6 +77,6 @@ Run these in the terminal to push fixes and redeploy:
 
 ```bash
 git add .
-git commit -m "Fix apphosting.yaml and update instructions"
+git commit -m "Update docs and clean config"
 git push origin main
 ```
