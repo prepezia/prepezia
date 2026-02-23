@@ -700,6 +700,7 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
       if (!printWindow) return;
       const styles = Array.from(document.getElementsByTagName('link')).filter(link => link.rel === 'stylesheet').map(link => link.outerHTML).join('');
       const styleBlocks = Array.from(document.getElementsByTagName('style')).map(style => style.outerHTML).join('');
+      
       printWindow.document.write(`
         <html>
             <head>
@@ -709,10 +710,11 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
                 <style>
                     @page { 
                         size: A4; 
-                        margin: 20mm; 
+                        margin: 0; 
                     } 
                     body { 
                         margin: 0; 
+                        padding: 20mm;
                         -webkit-print-color-adjust: exact; 
                         print-color-adjust: exact; 
                         counter-reset: page;
@@ -734,8 +736,8 @@ function HubView({ initialCv, initialGoals, onBack }: { initialCv: CvData, initi
                     /* Page numbering */
                     .page-number {
                         position: fixed;
-                        bottom: 0;
-                        right: 0;
+                        bottom: 10mm;
+                        right: 15mm;
                         font-size: 9pt;
                         color: #666;
                     }

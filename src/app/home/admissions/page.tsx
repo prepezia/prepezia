@@ -34,7 +34,7 @@ import { doc } from "firebase/firestore";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-type View = "loading" | "onboarding" | "hub";
+type View = "loading" | "onboarding" | "hub" | "onboarding";
 type HubTab = "cv" | "chat" | "opportunities";
 type OnboardingStep = "intro" | "goals" | "cv";
 
@@ -112,7 +112,7 @@ export default function AdmissionsPageWrapper() {
 }
 
 function AdmissionsPage() {
-    const [view, setViewState] = useState<View>("loading");
+    const [view, setViewState] = useState<"loading" | "onboarding" | "hub">("loading");
     const [cv, setCv] = useState<CvData>({ content: "" });
     const [academicObjectives, setAcademicObjectives] = useState<string>("");
 
@@ -706,10 +706,11 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                     <style>
                         @page { 
                             size: A4; 
-                            margin: 20mm; 
+                            margin: 0; 
                         }
                         body { 
                             margin: 0; 
+                            padding: 20mm;
                             -webkit-print-color-adjust: exact; 
                             print-color-adjust: exact; 
                             counter-reset: page;
@@ -730,8 +731,8 @@ function HubView({ initialCv, initialGoals, backToOnboarding }: { initialCv: CvD
                         /* Page numbering */
                         .page-number {
                             position: fixed;
-                            bottom: 0;
-                            right: 0;
+                            bottom: 10mm;
+                            right: 15mm;
                             font-size: 9pt;
                             color: #666;
                         }
