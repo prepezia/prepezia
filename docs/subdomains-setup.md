@@ -37,14 +37,21 @@ Zia and Firebase require environment variables to function on the live site.
     - Go to **App Hosting** in Firebase Console.
     - Select your `prepezia` backend.
     - Go to **Settings** -> **Environment**.
-    - **CRITICAL**: Click **"Save"** on the "production" name to activate the environment.
-3.  **Add Secrets**:
-    - Click on the **"production"** environment that now appears in the list.
+3.  **Activate Environment**:
+    - If you see an empty box for "Environment name", type `production` and click **"Save"**.
+    - **CRITICAL**: After clicking Save, look at the list below. You should see the word **"production"** in a table. **Click on the word "production"** to open its settings.
+4.  **Add Secrets**:
     - Click **"Add Secret"**.
     - Key: `GEMINI_API_KEY` | Value: [Paste your Gemini key]
-4.  **Add Variables**:
-    - Click **"Add Variable"** for each item in your `.env` file (e.g., `NEXT_PUBLIC_FIREBASE_API_KEY`).
-    - Copy the values exactly from your local `.env` file.
+    - Grant the service account access if prompted.
+5.  **Add Variables**:
+    - Click **"Add Variable"** for each item in your `.env` file:
+    - `NEXT_PUBLIC_FIREBASE_API_KEY`
+    - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+    - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+    - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+    - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+    - `NEXT_PUBLIC_FIREBASE_APP_ID`
 
 ---
 
@@ -69,6 +76,6 @@ Run these in the terminal to push fixes and redeploy:
 
 ```bash
 git add .
-git commit -m "Secure configuration and update docs"
+git commit -m "Fix apphosting.yaml and update instructions"
 git push origin main
 ```
