@@ -2,46 +2,26 @@
 
 This guide explains how to configure your external domain and Firebase project to support campus-specific subdomains like `ug.prepezia.com`, `knust.prepezia.com`, etc.
 
-## 1. Deploy Your Code to GitHub
+## 1. Your Target URL
+Based on your Firebase App Hosting dashboard, your backend URL is:
+`prepezia--studio-4412321193-4bb31.us-central1.hosted.app`
 
-Before setting up subdomains, your code must be on GitHub so Firebase App Hosting can see it.
-
-1.  **Create the repo**: You've already created the `prepezia` repo on GitHub.
-2.  **Push your code**: Open the **Terminal** in Firebase Studio and run these commands one by one:
-
-```bash
-git init
-git add .
-git commit -m "Initial commit of Prepezia"
-git branch -M main
-git remote add origin https://github.com/prepezia/prepezia.git
-git push -u origin main
-```
-
----
-
-## 2. Configure Firebase App Hosting
-
-1.  In the Firebase Console, go to **App Hosting** -> **Get Started**.
-2.  **Region**: Select `us-central1` (Iowa).
-3.  **Connect GitHub**: Select your `prepezia` repository.
-4.  **Deployment Settings**: Leave as default (Root directory `/`, Branch `main`).
-5.  **Environment Variables**: If you have a `GEMINI_API_KEY`, add it as a **Secret** here.
-6.  **Default Domain**: Once deployed, look for the **Default Domain** (e.g., `prepezia-123.hosting.app`). **Copy this URL.**
-
----
-
-## 3. DNS Configuration (Your Domain Provider)
-
+## 2. DNS Configuration (Your Domain Provider)
 Log in to your registrar (Namecheap, GoDaddy, etc.) and add the following record to your **Advanced DNS** settings:
 
 | Type | Host | Value |
 | :--- | :--- | :--- |
-| **CNAME** | `*` | [Your App Hosting Default Domain URL] |
+| **CNAME** | `*` | prepezia--studio-4412321193-4bb31.us-central1.hosted.app |
 
 *Note: The `*` (asterisk) is the wildcard. It ensures that `ug`, `knust`, and any other school name will point to your app.*
 
 ---
+
+## 3. Verify the Deployment
+In your Firebase Console:
+1. Click the **"View"** button on the `prepezia` backend card.
+2. Go to the **Rollouts** tab.
+3. Once the status turns green ("Live"), you can visit your site!
 
 ## 4. Testing Locally
 You can test the campus logic immediately without waiting for DNS. Open your browser to:
