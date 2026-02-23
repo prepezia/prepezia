@@ -1,5 +1,5 @@
 
-# Prepezia Live Launch & Subdomains Guide
+# Prepezia Live Launch & Security Guide
 
 This guide explains how to manage your live environment, campus-specific subdomains, and security.
 
@@ -12,42 +12,41 @@ This guide explains how to manage your live environment, campus-specific subdoma
 ## 2. DNS Configuration (Final Step)
 
 ### For Subdomains (Campus Hubs)
-You have already configured the **Wildcard Record** in Namecheap. Keep this:
-
 | Type | Host | Value |
 | :--- | :--- | :--- |
 | **CNAME** | `*` | `prepezia--studio-4412321193-4bb31.us-central1.hosted.app` |
 
 ### For Main Site (prepezia.com)
-Transitioning from Static to App Hosting requires updating these records in Namecheap:
+You must use **App Hosting** custom domains to ensure Zia works on your main domain. Update these records in Namecheap:
 
 | Type | Host | Value |
 | :--- | :--- | :--- |
 | **A** | `@` | `35.219.200.14` |
-| **TXT** | `@` | `fah-claim=...` (Copy from Firebase Console) |
+| **TXT** | `@` | `fah-claim=002-02-c0a96bdf-06a8-40fa-b4cb-6ed3ece7929a` |
 | **CNAME**| `_acme-challenge...` | `...authorize.certificate-manager.goog.` |
 
-*Note: Delete the old A record (199.36.158.100) and any old acme-challenge CNAMEs.*
+*Note: Delete the old A record (199.36.158.100) pointing to static hosting.*
 
 ---
 
-## 3. Deployment & Redeploying
-If you encounter build errors, run these commands in your Terminal to push fixes:
+## 3. Gemini AI (Zia) Setup
+Zia requires a Gemini API key to function. To set this up securely:
 
-```bash
-git add .
-git commit -m "Apply fixes and redeploy"
-git push origin main
-```
-
-Firebase App Hosting will automatically start a new **Rollout**.
+1.  **Generate a Key**: Visit [Google AI Studio](https://aistudio.google.com/app/apikey) and create an API Key.
+2.  **Add to Live Site**: 
+    - Go to **App Hosting** in Firebase Console.
+    - Select your `prepezia` backend.
+    - Go to **Settings** -> **Environment Variables**.
+    - Click **"Add Secret"**.
+    - Key: `GEMINI_API_KEY`
+    - Value: [Paste your key here]
+3.  **Local Testing**: Add `GEMINI_API_KEY=your_key` to your `.env` file in the editor.
 
 ---
 
 ## 4. Security & API Key Restrictions
-Google may email you about a "Publicly accessible API key." This is normal for Firebase, but you should restrict it for safety:
+If you received an email about a "Publicly accessible API key," follow these steps to restrict it:
 
-### How to Restrict your Key:
 1. Go to the [Google Cloud Console Credentials page](https://console.cloud.google.com/apis/credentials).
 2. Find the key named `Browser key (auto-created by Firebase)`.
 3. Under **Application restrictions**, select **Websites**.
@@ -61,13 +60,11 @@ Google may email you about a "Publicly accessible API key." This is normal for F
 
 ---
 
-## 5. How Personalization Works
-The app detects the subdomain automatically. 
-- If a user visits `ug.prepezia.com`, the app sets the campus to **University of Ghana**.
-- Zia will greet them as a UG student.
-- The Past Questions hub will pre-filter for UG papers.
+## 5. Deployment Commands
+Run these in the terminal to push fixes and redeploy:
 
----
-
-## 6. Support
-If subdomains show an SSL error initially, wait 30-60 minutes. Firebase is automatically generating certificates for each new school hub as they are visited.
+```bash
+git add .
+git commit -m "Secure configuration and update docs"
+git push origin main
+```
