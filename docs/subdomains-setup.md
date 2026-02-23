@@ -1,52 +1,48 @@
 # Campus Subdomains Setup Guide
 
-This guide explains how to configure your external domain and Firebase project to support campus-specific subdomains like `ug.prepezia.com`, `knust.prepezia.com`, etc.
+This guide explains how to configure your external domain and Firebase project to support campus-specific subdomains like `ug.prepezia.com`, `knust.prepezia.com`, etc., based on your Firebase Console settings.
 
-## 1. DNS Configuration (Your Domain Provider)
+## 1. Identify Your Service
+In your Firebase Console sidebar, you see two options: **Hosting** and **App Hosting**.
+*   **Hosting (Standard):** Used for static sites or Next.js apps using the "Frameworks" integration. (This is what is shown in your screenshot).
+*   **App Hosting (New):** The dedicated Next.js server-side hosting.
 
-To allow any university slug to work, you should set up a **Wildcard Record**. This tells the internet that any subdomain of `prepezia.com` should be handled by your app.
+### If using App Hosting (Recommended for Zia)
+1.  Click the **App Hosting** tab in the sidebar.
+2.  Set up your backend by connecting your GitHub repo.
+3.  Once deployed, look for the **Default Domain**. It looks like `something.hosting.app`.
+4.  **CNAME Setup:** 
+    *   **Host:** `*`
+    *   **Value:** Your `something.hosting.app` URL.
 
-1.  Log in to your domain registrar (e.g., Namecheap, GoDaddy, Google Domains).
-2.  Navigate to **Advanced DNS** or **DNS Management**.
-3.  Add a new record:
-    *   **Type**: `CNAME Record` (or `A Record` if using IP addresses provided by Firebase).
-    *   **Host**: `*` (The asterisk is the wildcard character).
-    *   **Value**: The target URL provided by Firebase App Hosting (e.g., `your-app.hosting.app`).
-    *   **TTL**: `Automatic` or `3600`.
+### If using Standard Hosting (Your current screenshot)
+Since you already have `prepezia.com` connected:
+1.  Check the "IP Addresses" Firebase provided when you verified `prepezia.com`.
+2.  **A Record Setup:**
+    *   **Type:** `A Record`
+    *   **Host:** `*`
+    *   **Value:** Use the same IP addresses assigned to your root domain.
 
-*Note: If you only want to support specific schools for now, you can create individual CNAME records for `ug`, `knust`, etc., instead of using the `*` wildcard.*
+## 2. DNS Configuration (Your Domain Provider)
 
-## 2. Firebase Console Configuration
+Log in to your registrar (Namecheap, GoDaddy, etc.) and add the record:
 
-Once the DNS is pointing to Firebase, you must tell Firebase to "listen" for these domains.
+| Type | Host | Value | TTL |
+| :--- | :--- | :--- | :--- |
+| A | `*` | [Your Firebase IP 1] | 3600 |
+| A | `*` | [Your Firebase IP 2] | 3600 |
 
-1.  Go to the [Firebase Console](https://console.firebase.google.com/).
-2.  Select your project.
-3.  Navigate to **App Hosting** (or **Hosting** if using standard hosting).
-4.  Click on **Settings** or the **Dashboard** for your specific backend.
-5.  Find the **Custom Domains** section.
-6.  Click **Add Domain**.
-7.  Enter your main domain (e.g., `prepezia.com`).
-8.  Firebase will provide you with specific `A` or `TXT` records to verify ownership. Add these to your DNS provider as instructed.
+*Note: Wildcard records tell the internet that any subdomain (ug, knust, etc.) should lead to your app.*
 
-## 3. Handling SSL (HTTPS)
-
-*   Firebase provides SSL certificates automatically for all domains added to the console.
-*   Once you add the domain and point the DNS, it may take anywhere from **1 hour to 24 hours** for the SSL certificate to provision and the subdomains to become "Secure."
+## 3. Deployment is Required
+Your screenshot shows **"Waiting for your first release."** 
+Subdomains and the main domain will not resolve to your code until you successfully run a deployment. 
+*   **Local Command:** `firebase deploy`
+*   Or, if using App Hosting, push your code to your connected GitHub branch.
 
 ## 4. Testing Locally
-
-You don't need to wait for DNS to test the logic! The code I implemented supports a fallback query parameter. 
-
-Open your browser and navigate to:
+You can test the logic right now without waiting for DNS! Open your browser to:
 *   `http://localhost:3000?campus=ug`
 *   `http://localhost:3000?campus=knust`
 
 The app will behave exactly as if you were on the live subdomain.
-
-## 5. Adding New Universities
-
-To add a new university to the detection engine:
-1.  Open `src/lib/campus-mapping.ts`.
-2.  Add a new entry to the `campusMapping` object using the desired subdomain as the key.
-3.  Ensure the `fullName` matches exactly how it appears in the `PastQuestion` database entries.
