@@ -100,7 +100,6 @@ export default function AdminPastQuestionsPage() {
   const storage = useStorage();
   const { toast } = useToast();
 
-  // --- DATA FETCHING ---
   const questionsQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, "past_questions"), orderBy("uploadedAt", "desc")) as CollectionReference<PastQuestion>;
@@ -114,7 +113,6 @@ export default function AdminPastQuestionsPage() {
   const { data: questions, loading } = useCollection<PastQuestion>(questionsQuery);
   const { data: customUnis } = useCollection<CustomUniversity>(unisQuery);
 
-  // --- UI STATES ---
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isManageUnisOpen, setIsManageUnisOpen] = useState(false);
@@ -124,24 +122,13 @@ export default function AdminPastQuestionsPage() {
   const [uniFilter, setUniFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
 
-  // --- SELECTION STATES ---
   const [questionToDelete, setQuestionToDelete] = useState<PastQuestion | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<PastQuestion | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // --- FORM STATES ---
-  const [formData, setFormData] = useState<{
-    level: 'BECE' | 'WASSCE' | 'University';
-    subject: string;
-    courseCode: string;
-    year: string;
-    university: string;
-    schoolFaculty: string;
-    durationMinutes: number;
-    totalQuestions: number;
-  }>({
-    level: 'WASSCE',
+  const [formData, setFormData] = useState({
+    level: 'WASSCE' as 'BECE' | 'WASSCE' | 'University',
     subject: '',
     courseCode: '',
     year: '',
@@ -153,7 +140,6 @@ export default function AdminPastQuestionsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newUniName, setNewUniName] = useState("");
 
-  // --- DERIVED DATA ---
   const institutions = useMemo(() => {
     const customNames = customUnis?.map(u => u.name) || [];
     return Array.from(new Set([...staticUnis, ...customNames])).sort();
@@ -175,8 +161,6 @@ export default function AdminPastQuestionsPage() {
       return matchesSearch && matchesLevel && matchesUni && matchesYear;
     });
   }, [questions, searchQuery, levelFilter, uniFilter, yearFilter]);
-
-  // --- HANDLERS ---
 
   const handleUploadDialogChange = (open: boolean) => {
     setIsUploadOpen(open);
@@ -224,11 +208,6 @@ export default function AdminPastQuestionsPage() {
       return;
     }
 
-    if (selectedFile && selectedFile.size > MAX_FILE_SIZE) {
-        toast({ variant: 'destructive', title: 'File too large', description: 'Please upload a file smaller than 10MB.' });
-        return;
-    }
-
     setIsSubmitting(true);
     try {
       let fileUrl = editingQuestion?.fileUrl || "";
@@ -236,15 +215,12 @@ export default function AdminPastQuestionsPage() {
       let extractedText = editingQuestion?.extractedText || "";
 
       if (selectedFile) {
-        // Upload new file
         const path = `past_questions/${Date.now()}_${selectedFile.name}`;
         const fileRef = ref(storage, path);
         const snapshot = await uploadBytes(fileRef, selectedFile);
         fileUrl = await getDownloadURL(snapshot.ref);
         storagePath = path;
 
-        // Attempt AI Extraction
-        toast({ title: "AI Extraction", description: "Reading document content for study hub..." });
         try {
           const dataUri = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -255,7 +231,7 @@ export default function AdminPastQuestionsPage() {
           const ocr = await extractTextFromFile({ fileDataUri: dataUri, fileContentType: selectedFile.type });
           extractedText = ocr.extractedText;
         } catch (ocrErr) {
-          console.warn("OCR Failed, continuing without text:", ocrErr);
+          console.warn("OCR Failed:", ocrErr);
         }
       }
 
@@ -284,38 +260,19 @@ export default function AdminPastQuestionsPage() {
     }
   };
 
-  const handleDeleteDialogChange = (open: boolean) => {
-    setIsDeleteDialogOpen(open);
-    if (!open) {
-      // Clear questionToDelete after dialog closes, but only if we're not in the middle of deleting
-      setTimeout(() => {
-        if (!isDeleting) {
-          setQuestionToDelete(null);
-        }
-      }, 300);
-    }
-  };
-
   const handleDelete = async () => {
     if (!questionToDelete || !storage || !firestore) return;
-    
-    const docId = questionToDelete.id;
-    const storagePath = questionToDelete.storagePath;
-
     setIsDeleting(true);
-
     try {
-      if (storagePath) {
-        await deleteObject(ref(storage, storagePath)).catch(() => {});
+      if (questionToDelete.storagePath) {
+        await deleteObject(ref(storage, questionToDelete.storagePath)).catch(() => {});
       }
-      await deleteDoc(doc(firestore, "past_questions", docId));
-      
+      await deleteDoc(doc(firestore, "past_questions", questionToDelete.id));
       setIsDeleteDialogOpen(false);
       setQuestionToDelete(null);
       toast({ title: "Deleted Successfully" });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message });
-      setIsDeleteDialogOpen(true);
     } finally {
       setIsDeleting(false);
     }
@@ -359,53 +316,32 @@ export default function AdminPastQuestionsPage() {
         </div>
       </div>
 
-      {/* --- STATISTICS --- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-primary/5 border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Total Papers</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{questions?.length || 0}</div>
-          </CardContent>
+          <CardContent><div className="text-3xl font-bold">{questions?.length || 0}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">BECE</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-600">{questions?.filter(q => q.level === 'BECE').length || 0}</div>
-          </CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground uppercase">BECE</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold text-orange-600">{questions?.filter(q => q.level === 'BECE').length || 0}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">WASSCE</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{questions?.filter(q => q.level === 'WASSCE').length || 0}</div>
-          </CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground uppercase">WASSCE</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold text-blue-600">{questions?.filter(q => q.level === 'WASSCE').length || 0}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">University</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-600">{questions?.filter(q => q.level === 'University').length || 0}</div>
-          </CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground uppercase">University</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold text-purple-600">{questions?.filter(q => q.level === 'University').length || 0}</div></CardContent>
         </Card>
       </div>
 
-      {/* --- FILTERS --- */}
       <Card>
         <CardContent className="p-4 flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by subject or code..." 
-              value={searchQuery} 
-              onChange={e => setSearchQuery(e.target.value)} 
-              className="pl-10"
-            />
+            <Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
           </div>
           <div className="flex flex-wrap gap-2">
             <Select value={levelFilter} onValueChange={setLevelFilter}>
@@ -440,7 +376,6 @@ export default function AdminPastQuestionsPage() {
         </CardContent>
       </Card>
 
-      {/* --- TABLE --- */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -462,17 +397,13 @@ export default function AdminPastQuestionsPage() {
               <TableBody>
                 {filteredQuestions.map((q) => (
                   <TableRow key={q.id}>
-                    <TableCell>
-                      <Badge variant={q.level === 'University' ? 'outline' : 'secondary'}>{q.level}</Badge>
-                    </TableCell>
+                    <TableCell><Badge variant={q.level === 'University' ? 'outline' : 'secondary'}>{q.level}</Badge></TableCell>
                     <TableCell>
                       <div className="font-medium">{q.subject}</div>
                       {q.courseCode && <div className="text-xs text-muted-foreground">{q.courseCode}</div>}
                     </TableCell>
                     <TableCell className="font-semibold">{q.year}</TableCell>
-                    <TableCell className="text-sm truncate max-w-[150px]" title={q.university || "N/A"}>
-                      {q.university || "-"}
-                    </TableCell>
+                    <TableCell className="text-sm truncate max-w-[150px]">{q.university || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1 text-[10px] text-muted-foreground">
                         <span className="bg-secondary px-1 rounded">{q.totalQuestions || 0} Qs</span>
@@ -493,19 +424,18 @@ export default function AdminPastQuestionsPage() {
         </CardContent>
       </Card>
 
-      {/* --- UPLOAD / EDIT DIALOG --- */}
       <Dialog open={isUploadOpen} onOpenChange={handleUploadDialogChange}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingQuestion ? "Edit Past Question" : "Upload New Question"}</DialogTitle>
-            <DialogDescription>Enter the details of the exam paper. Students can practice with this paper in the hub.</DialogDescription>
+            <DialogDescription>Enter the details of the exam paper.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="level">Exam Level</Label>
                 <Select value={formData.level} onValueChange={(v: any) => setFormData({...formData, level: v})}>
-                  <SelectTrigger id="level"><SelectValue placeholder="Select level" /></SelectTrigger>
+                  <SelectTrigger id="level"><SelectValue placeholder="Level" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="BECE">BECE</SelectItem>
                     <SelectItem value="WASSCE">WASSCE</SelectItem>
@@ -518,12 +448,10 @@ export default function AdminPastQuestionsPage() {
                 <Input id="year" value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})} placeholder="e.g. 2023" />
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="subject">Subject Title</Label>
               <Input id="subject" value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} placeholder="e.g. Microeconomics" />
             </div>
-
             {formData.level === 'University' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
@@ -541,33 +469,21 @@ export default function AdminPastQuestionsPage() {
                     <Input id="courseCode" value={formData.courseCode} onChange={e => setFormData({...formData, courseCode: e.target.value})} placeholder="e.g. ECON 401" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="schoolFaculty">School / Faculty</Label>
-                  <Input id="schoolFaculty" value={formData.schoolFaculty} onChange={e => setFormData({...formData, schoolFaculty: e.target.value})} placeholder="e.g. School of Business" />
-                </div>
               </>
             )}
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="duration">Duration (Minutes)</Label>
+                <Label htmlFor="duration">Duration (Min)</Label>
                 <Input id="duration" type="number" value={formData.durationMinutes} onChange={e => setFormData({...formData, durationMinutes: parseInt(e.target.value) || 0})} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="totalQs">Total Questions</Label>
+                <Label htmlFor="totalQs">Questions</Label>
                 <Input id="totalQs" type="number" value={formData.totalQuestions} onChange={e => setFormData({...formData, totalQuestions: parseInt(e.target.value) || 0})} />
               </div>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="file">Question File (PDF or Image)</Label>
-              <div className="flex items-center gap-2">
-                <Input id="file" type="file" onChange={e => setSelectedFile(e.target.files?.[0] || null)} className="flex-1" accept="application/pdf,image/*" />
-                {editingQuestion && <Badge variant="outline" className="h-10">Current File Kept</Badge>}
-              </div>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> Zia will automatically extract text for Trial Mode hints.
-              </p>
+              <Label htmlFor="file">File (PDF/Image)</Label>
+              <Input id="file" type="file" onChange={e => setSelectedFile(e.target.files?.[0] || null)} accept="application/pdf,image/*" />
             </div>
           </div>
           <DialogFooter>
@@ -580,63 +496,38 @@ export default function AdminPastQuestionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* --- DELETE ALERT --- */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{questionToDelete?.subject} ({questionToDelete?.year})" and remove the file from storage.
-            </AlertDialogDescription>
+            <AlertDialogDescription>This will permanently delete "{questionToDelete?.subject}".</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive" disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* --- MANAGE UNIS DIALOG --- */}
       <Dialog open={isManageUnisOpen} onOpenChange={setIsManageUnisOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Manage Institutions</DialogTitle>
-            <DialogDescription>Add or remove custom universities from the system.</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Manage Institutions</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex gap-2">
-              <Input placeholder="Institution Name" value={newUniName} onChange={e => setNewUniName(e.target.value)} />
+              <Input placeholder="Name" value={newUniName} onChange={e => setNewUniName(e.target.value)} />
               <Button onClick={handleAddUni} size="icon"><Plus className="h-4 w-4"/></Button>
             </div>
             <Separator />
-            <div className="max-h-[300px] overflow-y-auto space-y-2">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground px-1">Custom Additions</h4>
-              {!customUnis || customUnis.length === 0 ? (
-                <p className="text-xs text-center text-muted-foreground py-4 italic">No custom institutions added.</p>
-              ) : (
-                customUnis.map(uni => (
-                  <div key={uni.id} className="flex items-center justify-between p-2 rounded bg-secondary/50 text-sm">
-                    {uni.name}
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteUni(uni.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
+            <ScrollArea className="h-[200px]">
+              {customUnis?.map(uni => (
+                <div key={uni.id} className="flex items-center justify-between p-2 rounded bg-secondary/50 mb-2">
+                  <span className="text-sm">{uni.name}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteUni(uni.id)}><Trash2 className="h-3 w-3"/></Button>
+                </div>
+              ))}
+            </ScrollArea>
           </div>
         </DialogContent>
       </Dialog>

@@ -10,7 +10,7 @@ Based on your Firebase configuration:
 ---
 
 ## 2. DNS Configuration (Namecheap/GoDaddy)
-You have already configured the **Wildcard Record**. This is the most important step for campus personalization.
+You have already configured the **Wildcard Record**. 
 
 | Type | Host | Value |
 | :--- | :--- | :--- |
@@ -43,31 +43,17 @@ Firebase has two types of hosting. For Prepezia to work, **you must use App Host
 
 ---
 
-## 5. Security & API Key Leaks (Action Required)
-If you received an email about a "Publicly accessible API key," don't panic. Firebase client keys are meant to be in the browser, but they should be restricted.
+## 5. Security & Environment Variables
+If the rollout fails or Zia doesn't respond, ensure your environment variables are set.
 
-### Step 1: Restrict the Key
-1. Go to the [Google Cloud Console Credentials page](https://console.cloud.google.com/apis/credentials).
-2. Find the API key mentioned in the email (starts with `AIza...`).
-3. Click the **Edit** icon next to it.
-4. Under **Website restrictions**, click **Add**.
-5. Add the following patterns:
-   - `prepezia.com/*`
-   - `*.prepezia.com/*`
-   - `localhost:3000/*` (for testing)
-6. Under **API restrictions**, select "Restrict key" and choose:
-   - Identity Toolkit API
-   - Firebase Management API
-   - Token Service API
-   - Cloud Firestore API
-   - Cloud Storage API
-7. Click **Save**.
+### Step 1: Add Secrets (Best Practice)
+1. Go to **App Hosting** > **Settings** > **Environment Variables**.
+2. For sensitive keys (like `GEMINI_API_KEY`), use the **"Add Secret"** button.
+3. For public client-side keys (like `NEXT_PUBLIC_FIREBASE_API_KEY`), you can add them as regular variables.
 
 ### Step 2: Update App Hosting
-1. Go to **App Hosting** in the Firebase Console.
-2. Go to your backend -> **Settings** -> **Environment Variables**.
-3. Add the variables found in your `.env` file here (e.g., `NEXT_PUBLIC_FIREBASE_API_KEY`).
-4. This ensures Zia can still talk to Firebase on the live site.
+1. Add all `NEXT_PUBLIC_` variables found in your `.env` file to the App Hosting backend settings.
+2. This ensures the live site knows which Firebase project to talk to.
 
 ---
 
