@@ -66,6 +66,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Edit, Trash2, FileText, Search, GraduationCap, X, Sparkles } from "lucide-react";
 import { universities as staticUnis } from "@/lib/ghana-universities";
