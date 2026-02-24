@@ -1,4 +1,3 @@
-
 'use client';
 
 import { FooterMenu } from "@/components/layout/FooterMenu";
@@ -8,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2, GraduationCap, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useRouter } from 'next/navigation';
 
 function OnboardingNotification() {
   const { user, loading: userLoading } = useUser();
@@ -89,18 +89,35 @@ export default function HomeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { loading } = useUser();
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  // Enforce authentication for all routes using this layout (e.g., /home/*)
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/auth/login');
+    }
+  }, [user, loading, router]);
   
+  if (loading) {
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-card">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
+  }
+
+  // Prevent flash of protected content while redirecting
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="flex min-h-screen bg-card text-foreground">
         <div className="flex-1 flex flex-col">
             <main className="flex-1 pb-24 flex flex-col">
                 <OnboardingNotification />
-                {loading ? (
-                     <div className="flex-1 flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                ) : children}
+                {children}
             </main>
             <FooterMenu />
         </div>
