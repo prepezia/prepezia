@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, School } from 'lucide-react';
 import LandingHeader from '@/components/layout/LandingHeader';
 import LandingFooter from '@/components/layout/LandingFooter';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference, query, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCampus } from "@/hooks/use-campus";
 
 interface Testimonial extends DocumentData {
   id: string;
@@ -27,6 +28,13 @@ interface Testimonial extends DocumentData {
 
 export default function Home() {
   const firestore = useFirestore();
+  const { campus } = useCampus();
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const testimonialsRef = React.useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'testimonials'), orderBy('createdAt', 'desc')) as CollectionReference<Testimonial>;
@@ -134,10 +142,10 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-                                        Prep easier, with Prepezia.
+                                        Prep easier {campus && isMounted ? `at ${campus.shortName}` : ''}, with Prepezia.
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
-                                        Your AI-powered learning partner for research, exam prep, and career growth. Learn faster, test smarter, and unlock your full potential with Zia.
+                                        Your AI-powered learning partner for research, exam prep, and career growth. {campus && isMounted ? `Tailored specifically for ${campus.shortName} students.` : 'Learn faster and test smarter with Zia.'}
                                     </p>
                                     <div className="flex flex-col items-center sm:flex-row gap-4 mt-6 justify-center md:justify-start">
                                         <Button asChild size="lg" className="font-bold sm:w-auto">
@@ -193,7 +201,7 @@ export default function Home() {
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-                                        Ghana Past Questions Hub
+                                        {campus && isMounted ? `${campus.shortName}` : 'Ghana'} Past Questions Hub
                                     </h1>
                                     <p className="max-w-lg text-muted-foreground md:text-lg mx-auto md:mx-0">
                                         Practice with BECE, WASSCE, and university past questions. Get AI-driven feedback from Zia.
