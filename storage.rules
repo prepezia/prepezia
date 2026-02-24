@@ -4,7 +4,7 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Past questions folder - Direct UID Fast-Pass for your account
+    // Past questions folder - Requires Authentication
     match /past_questions/{fileName} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && (
@@ -13,7 +13,7 @@ service firebase.storage {
       );
     }
 
-    // User-Specific Files
+    // User-Specific Files - Requires Authentication
     match /users/{userId}/{allPaths=**} {
       allow read: if request.auth != null && (
         request.auth.uid == userId || 
@@ -22,7 +22,7 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Public Files
+    // Public Files - Open to everyone (Logos, Favicon, etc.)
     match /public/{allPaths=**} {
       allow read: if true;
       allow write: if false;

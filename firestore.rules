@@ -32,7 +32,8 @@ service cloud.firestore {
     }
 
     match /legal_content/{docId} {
-      allow read: if request.auth != null;
+      // Publicly readable so users can see terms/privacy on landing page
+      allow read: if true;
       allow write: if request.auth != null && isAppAdmin();
     }
     
@@ -42,6 +43,7 @@ service cloud.firestore {
     }
 
     match /testimonials/{testimonialId} {
+      // Publicly readable for the landing page
       allow read: if true;
       allow write: if request.auth != null && isAppAdmin();
     }
@@ -52,7 +54,7 @@ service cloud.firestore {
 
       match /batches/{batchId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null; // Allow students to help build the bank
+        allow create: if request.auth != null; 
       }
     }
   }
