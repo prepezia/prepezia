@@ -7,7 +7,7 @@ runConfig:
 env:
   # The GEMINI_API_KEY must be added as a SECRET in the Firebase Console
   - variable: GEMINI_API_KEY
-    secret: AIzaSyCijkiSAZIWYofff5nirh3IPTSS4NmvsdE
+    secret: GEMINI_API_KEY
     availability:
       - BUILD
       - RUNTIME
