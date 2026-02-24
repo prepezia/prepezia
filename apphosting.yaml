@@ -5,7 +5,7 @@ runConfig:
   maxInstances: 1
 
 env:
-  # Sensitive Key (Must be created in Secret Manager or via 'Add Secret' in Console)
+  # The GEMINI_API_KEY must be added as a SECRET in the Firebase Console
   - variable: GEMINI_API_KEY
     secret: GEMINI_API_KEY
     availability:
@@ -13,7 +13,6 @@ env:
       - RUNTIME
 
   # Firebase Configuration (Public Keys)
-  # These will be pulled from the 'Environment Variables' tab in the Console
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     availability:
       - BUILD

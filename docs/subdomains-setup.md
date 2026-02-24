@@ -25,25 +25,28 @@ Update these records in Namecheap to switch from static hosting to the full Zia 
 
 ## 2. Fixing the Build (Environment Variables)
 
-The "Misconfigured Secret" error happens because the code expects keys that aren't authorized yet.
+If you are getting a **"Misconfigured Secret"** or **"Permission Denied"** error, or if the **"production"** button is not clickable, follow these exact steps to reset the UI:
 
-### If the "production" environment is not clickable:
+### Step A: Reset the Environment
 1. Go to **App Hosting** -> Select your backend.
 2. Go to **Settings** -> **Environment**.
-3. If you see "production" in the list but can't click it, **delete it** (using the trash icon on the right).
-4. Click **"Create environment"** again.
-5. **Name**: `production`
-6. **Branch**: Choose `main`.
-7. **NOW CLICK SAVE.**
-8. Once saved, it should appear in the table. Click on the word **"production"** again. It should now open a sub-page with "Add Variable" and "Add Secret" buttons.
+3. If you see "production" but can't click it: **Click the TRASH ICON** on the far right of that row to delete it.
+4. Refresh your browser page.
 
-### Adding the Keys:
-1. **Add Secret (Zia Key)**:
+### Step B: Recreate Correct order
+1. Click **"Create environment"**.
+2. **Name**: `production`
+3. **Branch**: `main`
+4. Click **SAVE**. 
+5. **DO NOT LEAVE THE PAGE.** Now that it is saved, the word **"production"** in the list will become a blue clickable link. **Click it.**
+
+### Step C: Adding the Keys
+1. **Add Secret (The AI Key)**:
    - Click **"Add Secret"**.
    - Key: `GEMINI_API_KEY`
-   - Value: [Your key from Google AI Studio]
-   - **IMPORTANT**: When it asks to **"Grant Access"**, you must click **GRANT**.
-2. **Add Variables**:
+   - Value: [Paste your key from Google AI Studio]
+   - **IMPORTANT**: When the popup appears, click **GRANT ACCESS**.
+2. **Add Variables (The App Keys)**:
    - Click **"Add Variable"** for each item in your `.env` file (API Key, Project ID, etc.).
 
 ---
