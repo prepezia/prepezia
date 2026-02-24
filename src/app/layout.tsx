@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   title: 'Prepezia | Prep easier.',
   description: 'Prepezia: Prep easier. Your AI-powered learning partner for research and exam prep.',
   manifest: '/manifest.json',
+  icons: {
+    icon: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
+    apple: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
+  },
   openGraph: {
     title: 'Prepezia | Prep easier.',
     description: 'Your AI-powered learning partner for research and exam prep.',
@@ -38,7 +42,6 @@ export default function RootLayout({
           <meta name="format-detection" content="telephone=no" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="theme-color" content="#5f43b6" />
-          <link rel="apple-touch-icon" href="https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Fprepezia%20logo%20-%20Copy.png?alt=media&token=3d0f28b4-8873-4b6f-aa46-e6a4909d6448" />
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>

@@ -12,7 +12,7 @@ Update these records in Namecheap to switch from static hosting to the full Zia 
 | :--- | :--- | :--- |
 | **A** | `@` | `35.219.200.14` |
 | **TXT** | `@` | `fah-claim=002-02-c0a96bdf-06a8-40fa-b4cb-6ed3ece7929a` |
-| **CNAME**| `_acme-challenge...` | `...authorize.certificate-manager.goog.` |
+| **CNAME**| `_acme-challenge_...` | `...authorize.certificate-manager.goog.` |
 
 *Note: Delete the old A record pointing to 199.36.158.100.*
 
@@ -23,7 +23,18 @@ Update these records in Namecheap to switch from static hosting to the full Zia 
 
 ---
 
-## 2. Fixing the Build (Environment Variables)
+## 2. Fixing Missing Images (Storage Sync)
+
+Images visible in "Studio" are not automatically moved to your production Firebase Storage. You must upload them manually:
+
+1.  Go to **Firebase Console** > **Storage**.
+2.  Create a folder named `public`.
+3.  Upload your logo, favicon, and feature images there.
+4.  If you change the filenames, you must update `src/lib/placeholder-images.json` with the new "Download URLs" provided by the Firebase Console.
+
+---
+
+## 3. Fixing the Build (Environment Variables)
 
 If you are getting a **"Misconfigured Secret"** or **"Permission Denied"** error, or if the **"production"** button is not clickable, follow these exact steps to reset the UI:
 
@@ -51,7 +62,7 @@ If you are getting a **"Misconfigured Secret"** or **"Permission Denied"** error
 
 ---
 
-## 3. Security & API Key Restrictions
+## 4. Security & API Key Restrictions
 To protect your account from unauthorized usage:
 
 1. Go to the [Google Cloud Console Credentials page](https://console.cloud.google.com/apis/credentials).
@@ -62,11 +73,11 @@ To protect your account from unauthorized usage:
 
 ---
 
-## 4. Deployment Commands
+## 5. Deployment Commands
 Run these in the terminal to push the latest build configuration:
 
 ```bash
 git add .
-git commit -m "Update build config for secrets"
+git commit -m "Update favicon and docs"
 git push origin main
 ```
