@@ -15,29 +15,28 @@ You are moving from static hosting to **App Hosting** (the engine that runs Zia)
 | **CNAME**| `_acme-challenge...` | `[Value from Firebase Console]` |
 
 ### For All Campuses (*.prepezia.com) - WILDCARD
-Instead of adding every campus one by one, use a Wildcard.
-1. Go to **App Hosting** > **Settings** > **Custom Domains**.
-2. Click **Add Domain** and enter `*.prepezia.com`.
-3. Firebase will provide an **A Record** and a **TXT Record**.
-4. In Namecheap, add these using `*` as the Host.
+To support all campus subdomains automatically, use these exact records in Namecheap:
+
+1. **Remove** the old CNAME record where Host is `*`.
+2. **Add** these new records:
 
 | Type | Host | Value |
 | :--- | :--- | :--- |
 | **A** | `*` | `35.219.200.14` |
-| **TXT** | `*` | `[Verification value from Firebase]` |
+| **TXT** | `*` | `fah-claim=002-02-c5c571a3-8b16-4d90-aeb4-8557e32305b0` |
 
 ---
 
 ## 2. Fixing "Connection Closed" Errors
 If a subdomain like `ug.prepezia.com` shows `ERR_CONNECTION_CLOSED`, it means the SSL certificate is still generating.
-*   **Wildcard Verification**: Once `*.prepezia.com` is verified in the console, all campus subdomains will start working within 1-2 hours.
-*   **Trailing Dot**: If Namecheap gives an error about the dot at the end of a value, try removing it. Most modern registrars handle it automatically.
+*   **Wildcard Verification**: Once you click "Verify" in the Firebase console and the status turns green, all campus subdomains will start working within 1-2 hours.
+*   **Propagation**: DNS changes can take up to 24 hours to reach everyone, but usually work within minutes.
 
 ---
 
 ## 3. Environment Variables (Zia & Firebase)
 
-If Zia is not responding or you see "Misconfigured Secret", reset the variables:
+If Zia is not responding or you see "Misconfigured Secret", follow this reset procedure:
 
 ### Step A: Reset the Environment
 1. Go to **App Hosting** -> Select your backend.
@@ -49,9 +48,10 @@ If Zia is not responding or you see "Misconfigured Secret", reset the variables:
 1. Click **"Create environment"**.
 2. **Name**: `production`, **Branch**: `main`.
 3. Click **SAVE**. 
-4. **Add the Keys**: Click the now-blue **"production"** link.
-5. Add `GEMINI_API_KEY` as a **Secret**.
-6. Add `NEXT_PUBLIC_` keys as **Variables**.
+4. **The "Clickable" Step**: Click the now-blue word **"production"** in the list.
+5. **Add the Keys**: 
+   * Click **"Add Secret"** for `GEMINI_API_KEY`.
+   * Click **"Add Variable"** for all `NEXT_PUBLIC_` keys.
 
 ---
 
