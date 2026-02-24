@@ -4,7 +4,13 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Past questions folder - Requires Authentication
+    // Public Files - Open to everyone (Branding, Landing Assets)
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Past questions folder - Requires Authentication for students, Admin for upload
     match /past_questions/{fileName} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && (
@@ -13,19 +19,13 @@ service firebase.storage {
       );
     }
 
-    // User-Specific Files - Requires Authentication
+    // User-Specific Files (Notes, Study Space uploads, CVs)
     match /users/{userId}/{allPaths=**} {
       allow read: if request.auth != null && (
         request.auth.uid == userId || 
         request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2'
       );
       allow write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Public Files - Open to everyone (Logos, Favicon, etc.)
-    match /public/{allPaths=**} {
-      allow read: if true;
-      allow write: if false;
     }
   }
 }

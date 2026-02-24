@@ -3,59 +3,69 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
     function isAppAdmin() {
-      return request.auth != null && (
+      return isAuthenticated() && (
         request.auth.uid == 'ppuEIMHQI4MJLYdt2QLDrupho1E2' ||
         request.auth.token.email == 'nextinnovationafrica@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
       );
     }
 
-    match /users/{userId} {
-      allow get: if request.auth != null && (request.auth.uid == userId || isAppAdmin());
-      allow list: if request.auth != null && isAppAdmin();
-      allow create, update: if request.auth != null && request.auth.uid == userId;
-
-      match /guided_chats/{chatId} {
-        allow read, write, delete, create: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-
-    match /custom_universities/{uniId} {
-      allow read: if true; // Publicly readable for campus detection if needed, or strictly authenticated
-      allow write: if request.auth != null && isAppAdmin();
-    }
-
-    match /feedback/{feedbackId} {
-      allow create: if request.auth != null;
-      allow read, list, update, delete: if request.auth != null && isAppAdmin();
+    // Publicly readable for landing page and setup
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if isAppAdmin();
     }
 
     match /legal_content/{docId} {
-      // Publicly readable so users can see terms/privacy on landing page
       allow read: if true;
-      allow write: if request.auth != null && isAppAdmin();
-    }
-    
-    match /notes/{noteId} {
-        allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-        allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow write: if isAppAdmin();
     }
 
-    match /testimonials/{testimonialId} {
-      // Publicly readable for the landing page
+    match /custom_universities/{uniId} {
+      // Publicly readable so campus detection and selection work during auth
       allow read: if true;
-      allow write: if request.auth != null && isAppAdmin();
+      allow write: if isAppAdmin();
+    }
+
+    // Authenticated access
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAppAdmin();
+      allow list: if isAppAdmin();
+      allow create, update: if isOwner(userId);
+
+      match /guided_chats/{chatId} {
+        allow read, write, delete, create: if isOwner(userId);
+      }
+    }
+
+    match /notes/{noteId} {
+        allow read, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+        allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
     match /past_questions/{questionId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && isAppAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isAppAdmin();
 
       match /batches/{batchId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null; 
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated(); 
       }
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if isAuthenticated();
+      allow read, list, update, delete: if isAppAdmin();
     }
   }
 }
