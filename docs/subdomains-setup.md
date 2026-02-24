@@ -21,28 +21,18 @@ Update these records in Namecheap to switch from static hosting to the full Zia 
 Because you are using **App Hosting**, subdomains like `ug.prepezia.com` must be explicitly added to the App Hosting console to receive an SSL certificate.
 
 ### How to fix:
-1. Go to **Firebase Console** > **App Hosting**.
-2. Select your backend (`prepezia`).
-3. Go to **Settings** > **Custom Domains**.
-4. Click **Add Domain**.
-5. Type `ug.prepezia.com` (or your desired campus subdomain).
-6. Firebase will begin provisioning an SSL certificate. This can take **1-2 hours**.
-7. **Note**: You do NOT need to change Namecheap if you already have the `*` CNAME record. Firebase just needs to "activate" the subdomain on its end.
+1.  Go to **Firebase Console** > **App Hosting**.
+2.  Select your backend (`prepezia`).
+3.  Go to **Settings** > **Custom Domains**.
+4.  Click **Add Domain**.
+5.  Type `ug.prepezia.com` (or your desired campus subdomain).
+6.  **Find the new values**: Firebase will show a "Verify" screen. **Copy the new A record and TXT record** provided specifically for that subdomain.
+7.  **Namecheap Update**: In Namecheap, add an **A Record** for the Host `ug` pointing to the IP provided (usually `35.219.200.14`).
+8.  **Trailing Dot**: If Firebase provides a value ending in a dot (.), include it. It is standard for DNS.
 
 ---
 
-## 3. Fixing Missing Images (Storage Sync)
-
-Images visible in "Studio" are not automatically moved to your production Firebase Storage.
-
-### Status:
-- [x] **Logo & Favicon**: Working correctly!
-- [x] **Feature Images**: Now visible on the main site.
-- [ ] **Dynamic Content**: Waiting for specific user-uploaded assets.
-
----
-
-## 4. Fixing the Build (Environment Variables)
+## 3. Environment Variables (Zia & Firebase)
 
 If you are getting a **"Misconfigured Secret"** error, follow these exact steps to reset the UI:
 
@@ -57,16 +47,18 @@ If you are getting a **"Misconfigured Secret"** error, follow these exact steps 
 2. **Name**: `production`
 3. **Branch**: `main`
 4. Click **SAVE**. 
-5. **DO NOT LEAVE THE PAGE.** Now that it is saved, the word **"production"** in the list will become a blue clickable link. **Click it.**
+5. **Add the Keys**: Click the now-blue **"production"** link to add your `GEMINI_API_KEY` as a **Secret** and your `NEXT_PUBLIC_` keys as **Variables**.
 
-### Step C: Adding the Keys
-1. **Add Secret (The AI Key)**:
-   - Click **"Add Secret"**.
-   - Key: `GEMINI_API_KEY`
-   - Value: [Paste your key from Google AI Studio]
-   - **IMPORTANT**: When the popup appears, click **GRANT ACCESS**.
-2. **Add Variables (The App Keys)**:
-   - Click **"Add Variable"** for each item in your `.env` file (API Key, Project ID, etc.).
+---
+
+## 4. Fixing Missing Images (Storage Sync)
+
+Images visible in "Studio" are not automatically moved to your production Firebase Storage.
+
+### Status:
+- [x] **Logo & Favicon**: Working correctly!
+- [x] **Feature Images**: Now visible on the main site.
+- [ ] **Dynamic Content**: Waiting for specific user-uploaded assets.
 
 ---
 
