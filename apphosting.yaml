@@ -7,33 +7,39 @@ runConfig:
 env:
   # The GEMINI_API_KEY must be added as a SECRET in the Firebase Console
   - variable: GEMINI_API_KEY
-    secret: GEMINI_API_KEY
+    secret: AIzaSyCijkiSAZIWYofff5nirh3IPTSS4NmvsdE
     availability:
       - BUILD
       - RUNTIME
 
-  # Firebase Configuration (Public Keys)
+  # Firebase Configuration (Public Keys) - REPLACE ALL VALUES BELOW
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyB_jUNf5ENWbTmK5zJm7UsO0QfgMrQM1A4"  # 🔴 REPLACE with your actual API key
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "studio-4412321193-4bb31"  # 🔴 REPLACE with your project ID (e.g., "prepezia-app")
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "studio-4412321193-4bb31.firebaseapp.com"  # 🔴 REPLACE (e.g., "prepezia-app.firebaseapp.com")
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "studio-4412321193-4bb31.firebasestorage.app"  # 🔴 REPLACE (e.g., "prepezia-app.appspot.com")
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "4412321193"  # 🔴 REPLACE with your sender ID (numbers only)
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:4412321193:web:7060ca090be0006da4909d"  # 🔴 REPLACE with your app ID
     availability:
       - BUILD
       - RUNTIME
