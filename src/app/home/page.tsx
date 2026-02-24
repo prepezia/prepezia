@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, Search, Camera, FileText, Mic, X, Plus } from "lucide-react";
+import { ArrowRight, Search, Camera, FileText, Mic, X, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -11,7 +11,6 @@ import { HomeHeader } from "@/components/layout/HomeHeader";
 import { useRouter } from 'next/navigation';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
-import { Logo } from "@/components/icons/Logo";
 import Autoplay from "embla-carousel-autoplay";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
@@ -121,7 +120,7 @@ function HomePageSearchForm() {
                         <PopoverContent className="w-auto rounded-full p-1 bg-secondary">
                             <div className="flex items-center gap-1">
                                 <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-background hover:bg-background/80" onClick={() => handleIconClick('camera')}>
-                                    <Camera className="h-5 w-5" />
+                                    <Camera className="h-5 h-5" />
                                     <span className="sr-only">Search with image</span>
                                 </Button>
                                 <Button type="button" size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-background hover:bg-background/80" onClick={() => handleIconClick('attachment')}>
@@ -192,7 +191,7 @@ const features = [
     }
 ];
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user, loading } = useUser();
   const { toast } = useToast();
   const { campus } = useCampus();
@@ -234,27 +233,6 @@ export default function DashboardPage() {
     sessionStorage.setItem('verificationToastShown', 'true');
   }, [user, loading, toast]);
 
-  const [api, setApi] = React.useState<CarouselApi>()
-  const [current, setCurrent] = React.useState(0)
-  const [count, setCount] = React.useState(0)
-
-  const mainCarouselPlugin = React.useRef(
-    Autoplay({ delay: 4000, stopOnInteraction: true })
-  );
-
-  React.useEffect(() => {
-    if (!api) {
-      return
-    }
-
-    setCount(api.scrollSnapList().length)
-    setCurrent(api.selectedScrollSnap())
-
-    api.on("select", () => {
-      setCurrent(api.selectedScrollSnap())
-    })
-  }, [api])
-
   return (
     <>
       <HomeHeader />
@@ -288,6 +266,14 @@ export default function DashboardPage() {
       </div>
     </>
   );
+}
+
+export default function DashboardPage() {
+  return (
+    <React.Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}>
+      <DashboardContent />
+    </React.Suspense>
+  )
 }
 
 function HomeFeatureCard({ title, description, href, color, iconUrl }: { title: string, description: string, href: string, color: string, iconUrl: string }) {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -7,9 +6,9 @@ import { Logo } from '../icons/Logo';
 import { useCampus } from '@/hooks/use-campus';
 import { Badge } from '@/components/ui/badge';
 import { School } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 
-export default function LandingHeader() {
+function CampusEditionBadge() {
   const { campus } = useCampus();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -17,6 +16,17 @@ export default function LandingHeader() {
     setIsMounted(true);
   }, []);
 
+  if (!campus || !isMounted) return null;
+
+  return (
+    <Badge variant="outline" className="flex items-center gap-1.5 border-primary/30 text-primary bg-primary/5 py-1 px-3 shrink-0">
+      <School className="h-3.5 w-3.5" />
+      <span className="font-bold text-[12px] sm:text-[15px] uppercase tracking-wider">{campus.shortName} Edition</span>
+    </Badge>
+  );
+}
+
+export default function LandingHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
@@ -24,12 +34,9 @@ export default function LandingHeader() {
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <Logo className="h-9 w-28" />
           </Link>
-          {campus && isMounted && (
-            <Badge variant="outline" className="flex items-center gap-1.5 border-primary/30 text-primary bg-primary/5 py-1 px-3 shrink-0">
-              <School className="h-3.5 w-3.5" />
-              <span className="font-bold text-[12px] sm:text-[15px] uppercase tracking-wider">{campus.shortName} Edition</span>
-            </Badge>
-          )}
+          <Suspense fallback={null}>
+            <CampusEditionBadge />
+          </Suspense>
         </div>
         
         <nav className="hidden md:flex gap-6 items-center text-sm font-medium">

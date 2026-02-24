@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,17 +23,14 @@ import {
     ArrowLeft, 
     Loader2, 
     Sparkles, 
-    FileQuestion, 
     Calendar, 
     Check, 
-    Send, 
     Clock, 
     Lightbulb, 
     CheckCircle, 
     XCircle, 
     Save, 
     Trash2, 
-    Plus, 
     Timer as TimerIcon, 
     ChevronLeft, 
     ChevronRight, 
@@ -42,8 +39,7 @@ import {
     PlayCircle, 
     Eye,
     Search,
-    ChevronsUpDown,
-    School
+    ChevronsUpDown
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -55,7 +51,6 @@ import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -97,7 +92,7 @@ type SavedExam = {
     totalQuestionsInPaper: number;
 };
 
-export default function PastQuestionsPage() {
+function PastQuestionsContent() {
     const firestore = useFirestore();
     const { toast } = useToast();
     const { campus } = useCampus();
@@ -893,6 +888,18 @@ export default function PastQuestionsPage() {
     }
 
     return null;
+}
+
+export default function PastQuestionsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <PastQuestionsContent />
+    </Suspense>
+  )
 }
 
 function TrialModeView({ questions, topic, part, totalQuestions, onNextPart, onSaveAndExit, onFinish }: { 

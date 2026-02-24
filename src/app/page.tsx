@@ -7,11 +7,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowRight, Loader2, School } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import LandingHeader from '@/components/layout/LandingHeader';
 import LandingFooter from '@/components/layout/LandingFooter';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
-import { Logo } from "@/components/icons/Logo";
 import Autoplay from "embla-carousel-autoplay";
 import { cn } from "@/lib/utils";
 import { useCollection, useFirestore } from "@/firebase";
@@ -26,7 +25,7 @@ interface Testimonial extends DocumentData {
   text: string;
 }
 
-export default function Home() {
+function HomePageContent() {
   const firestore = useFirestore();
   const { campus } = useCampus();
   const [isMounted, setIsMounted] = React.useState(false);
@@ -412,6 +411,18 @@ export default function Home() {
       <LandingFooter />
     </div>
   );
+}
+
+export default function Home() {
+  return (
+    <React.Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <HomePageContent />
+    </React.Suspense>
+  )
 }
 
 function FeatureCard({ category, title, imageUrl, imageHint, tags, color, tagColor }: { category: string, title: string, imageUrl: string, imageHint: string, tags: string[], color: string, tagColor: string }) {
