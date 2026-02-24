@@ -1,3 +1,4 @@
+
 "use client";
 
 import { UserNav } from "@/components/layout/UserNav";
@@ -22,9 +23,9 @@ export function HomeHeader({ left, right }: { left?: React.ReactNode; right?: Re
             <div className="flex items-center gap-3">
                 {left}
                 {campus && isMounted && (
-                    <Badge variant="outline" className="hidden sm:flex items-center gap-1.5 border-primary/30 text-primary bg-primary/5 py-1 px-3">
+                    <Badge variant="outline" className="flex items-center gap-1.5 border-primary/30 text-primary bg-primary/5 py-1 px-3">
                         <School className="h-3.5 w-3.5" />
-                        <span className="font-bold text-[10px] uppercase tracking-wider">{campus.shortName} Edition</span>
+                        <span className="font-bold text-[12px] sm:text-[15px] uppercase tracking-wider">{campus.shortName} Edition</span>
                     </Badge>
                 )}
             </div>

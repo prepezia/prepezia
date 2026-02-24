@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Logo } from "@/components/icons/Logo";
@@ -26,7 +27,7 @@ export default function AuthLayout({
                 {campus && isMounted && (
                     <Badge variant="outline" className="mb-4 flex items-center gap-1.5 border-primary/30 text-primary bg-primary/5 py-1 px-3">
                         <School className="h-3.5 w-3.5" />
-                        <span className="font-bold text-[10px] uppercase tracking-wider">{campus.shortName} Edition</span>
+                        <span className="font-bold text-[12px] sm:text-[15px] uppercase tracking-wider">{campus.shortName} Edition</span>
                     </Badge>
                 )}
                 <Link href="/" className="flex items-center gap-2">
