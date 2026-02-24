@@ -12,25 +12,25 @@ Update these records in Namecheap to switch from static hosting to the full Zia 
 | :--- | :--- | :--- |
 | **A** | `@` | `35.219.200.14` |
 | **TXT** | `@` | `fah-claim=002-02-c0a96bdf-06a8-40fa-b4cb-6ed3ece7929a` |
-| **CNAME**| `_acme-challenge_...` | `...authorize.certificate-manager.goog.` |
+| **CNAME**| `_acme-challenge_5fs6avd454ah3pgk` | `b763e856-13df-493b-9c5d-1bbc4212fa8e.10.authorize.certificate-manager.goog.` |
 
-*Note: Delete the old A record pointing to 199.36.158.100.*
-
-### For Subdomains (Campus Hubs)
-| Type | Host | Value |
-| :--- | :--- | :--- |
-| **CNAME** | `*` | `prepezia--studio-4412321193-4bb31.us-central1.hosted.app` |
+*Note: The wildcard `*` CNAME record must stay to support school subdomains.*
 
 ---
 
 ## 2. Fixing Missing Images (Storage Sync)
 
-Images visible in "Studio" are not automatically moved to your production Firebase Storage. You must upload them manually:
+Images visible in "Studio" are not automatically moved to your production Firebase Storage.
 
+### Status:
+- [x] **Logo & Favicon**: Working correctly!
+- [ ] **Carousel & Feature Images**: Waiting for re-upload.
+
+### How to complete the sync:
 1.  Go to **Firebase Console** > **Storage**.
-2.  Create a folder named `public`.
-3.  Upload your logo, favicon, and feature images there.
-4.  If you change the filenames, you must update `src/lib/placeholder-images.json` with the new "Download URLs" provided by the Firebase Console.
+2.  In the `public` folder, upload the remaining images (carousel, features).
+3.  Copy the new "Download URLs" for each file.
+4.  Send these URLs to the App Prototyper to update `src/lib/placeholder-images.json`.
 
 ---
 
