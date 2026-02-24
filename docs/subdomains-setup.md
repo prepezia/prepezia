@@ -3,21 +3,20 @@
 
 This guide explains how to manage your live environment, wildcard subdomains for campuses, and security.
 
-## 1. DNS Configuration (Full Upgrade)
+## 1. DNS Configuration (Full Multi-Campus Setup)
 
-You are moving from static hosting to **App Hosting** (the engine that runs Zia). Replace your old Namecheap records with these:
+You are using **App Hosting** (the engine that runs Zia). To support all campus subdomains automatically, use these exact records in Namecheap:
 
 ### For Main Site (prepezia.com)
 | Type | Host | Value |
 | :--- | :--- | :--- |
 | **A** | `@` | `35.219.200.14` |
 | **TXT** | `@` | `fah-claim=002-02-c0a96bdf-06a8-40fa-b4cb-6ed3ece7929a` |
-| **CNAME**| `_acme-challenge...` | `[Value from Firebase Console]` |
 
 ### For All Campuses (*.prepezia.com) - WILDCARD
-To support all campus subdomains automatically, use these exact records in Namecheap:
+To support every possible campus (ug, knust, etc.) automatically without adding them one by one:
 
-1. **Remove** the old CNAME record where Host is `*`.
+1. **Remove** any old CNAME records where Host is `*`.
 2. **Add** these new records:
 
 | Type | Host | Value |
@@ -27,10 +26,18 @@ To support all campus subdomains automatically, use these exact records in Namec
 
 ---
 
-## 2. Fixing "Connection Closed" Errors
-If a subdomain like `ug.prepezia.com` shows `ERR_CONNECTION_CLOSED`, it means the SSL certificate is still generating.
-*   **Wildcard Verification**: Once you click "Verify" in the Firebase console and the status turns green, all campus subdomains will start working within 1-2 hours.
-*   **Propagation**: DNS changes can take up to 24 hours to reach everyone, but usually work within minutes.
+## 2. How to Preview Personalization (Dev vs. Live)
+
+### Live (On your domain)
+Simply visit the subdomain. The app detects the "ug" or "knust" part of `ug.prepezia.com` and personalizes everything.
+
+### Development (In the editor preview)
+Since you don't have subdomains in development, use the **Testing Parameter**:
+*   **UG Preview**: Add `?campus=ug` to any URL (e.g., `.../home?campus=ug`)
+*   **KNUST Preview**: Add `?campus=knust` to any URL.
+*   **Ashesi Preview**: Add `?campus=ashesi` to any URL.
+
+Zia will respond exactly as if you were on the live campus subdomain.
 
 ---
 
