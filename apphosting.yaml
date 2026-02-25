@@ -13,7 +13,7 @@ env:
       - BUILD
       - RUNTIME
 
-  # Firebase Configuration (Public Keys) - Synced with studio-4412321193-4bb31
+  # Firebase Configuration (Public Keys) - Synced with verified project IDs
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: "AIzaSyB_jUNf5ENWbTmK5zJm7UsO0QfgMrQM1A4"
     availability:
