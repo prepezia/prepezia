@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -11,7 +10,9 @@ export const metadata: Metadata = {
   description: 'Prepezia: Prep easier. Your AI-powered learning partner for research and exam prep.',
   manifest: '/manifest.json',
   icons: {
-    icon: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
+    icon: [
+      { url: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c', sizes: 'any', type: 'image/png' },
+    ],
     apple: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
   },
   openGraph: {
