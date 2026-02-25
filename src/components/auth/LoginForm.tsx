@@ -82,12 +82,12 @@ export function LoginForm() {
   async function onGoogleSignIn() {
     if (!auth || !firestore) return;
     
-    // Direct interaction - no async calls before the popup to prevent blocks or state loss
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
+      // signInWithPopup must be triggered immediately after user interaction
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -120,7 +120,7 @@ export function LoginForm() {
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
-        description: error.message || "The requested action is invalid. Please check your network and project configuration.",
+        description: error.message || "The requested action is invalid. Please check your project configuration.",
       });
     } finally {
       setIsGoogleLoading(false);
