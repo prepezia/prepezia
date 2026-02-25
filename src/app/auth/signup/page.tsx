@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -56,6 +57,11 @@ export default function SignupPage() {
 
       handleSignupSuccess(user);
     } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        setIsGoogleLoading(false);
+        return;
+      }
+      
       toast({
           variant: "destructive",
           title: "Google Sign-In Failed",

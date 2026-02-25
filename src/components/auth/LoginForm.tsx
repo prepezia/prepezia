@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -104,11 +105,17 @@ export function LoginForm() {
 
       router.push("/home");
     } catch (error: any) {
+      // Gracefully handle if the user closes the popup
+      if (error.code === 'auth/popup-closed-by-user') {
+        setIsGoogleLoading(false);
+        return;
+      }
+      
       console.error("Google Sign-In Error:", error);
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred during Google Sign-In.",
       });
     } finally {
       setIsGoogleLoading(false);

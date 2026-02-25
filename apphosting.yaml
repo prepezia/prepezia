@@ -1,3 +1,4 @@
+
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
@@ -12,7 +13,7 @@ env:
       - BUILD
       - RUNTIME
 
-  # Firebase Configuration (Public Keys) - Corrected IDs from Project studio-4412321193-4bb31
+  # Firebase Configuration (Public Keys) - Corrected IDs for studio-4412321193-4bb31
   # Verified Project Number: 386931701755
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: "AIzaSyB_jUNf5ENWbTmK5zJm7UsO0QfgMrQM1A4"
