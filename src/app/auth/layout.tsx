@@ -1,10 +1,11 @@
+
 "use client";
 
 import { Logo } from "@/components/icons/Logo";
 import Link from "next/link";
 import { useCampus } from "@/hooks/use-campus";
 import { Badge } from "@/components/ui/badge";
-import { School, Loader2 } from "lucide-react";
+import { School } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
 
 function CampusEditionBadge() {
@@ -20,7 +21,7 @@ function CampusEditionBadge() {
   return (
     <Badge variant="outline" className="flex items-center gap-1.5 border-primary/30 text-primary bg-primary/5 py-1 px-3 shrink-0">
         <School className="h-3.5 w-3.5" />
-        <span className="font-bold text-[12px] sm:text-[15px] uppercase tracking-wider">{campus.shortName} Edition</span>
+        <span className="font-bold text-[14px] sm:text-[18px] uppercase tracking-wider">{campus.shortName} Edition</span>
     </Badge>
   );
 }
