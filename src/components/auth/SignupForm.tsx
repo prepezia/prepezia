@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -25,15 +26,12 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   User,
-  setPersistence,
-  browserLocalPersistence,
-  browserSessionPersistence,
+  serverTimestamp,
   sendEmailVerification
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Progress } from "../ui/progress";
-import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required."),
@@ -111,9 +109,6 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
     setIsLoading(true);
 
     try {
-        const persistence = values.keepMeSignedIn ? browserLocalPersistence : browserSessionPersistence;
-        await setPersistence(auth, persistence);
-
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         const user = userCredential.user;
         const fullName = `${values.firstName} ${values.lastName}`.trim();
@@ -157,8 +152,9 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
 
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
     try {
-      await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -172,6 +168,11 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
 
       onSuccess(user);
     } catch (error: any) {
+        if (error.code === 'auth/popup-closed-by-user') {
+            setIsGoogleLoading(false);
+            return;
+        }
+        
         toast({
             variant: "destructive",
             title: "Google Sign-In Failed",
