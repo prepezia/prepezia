@@ -17,6 +17,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { collection, DocumentData, CollectionReference, query, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCampus } from "@/hooks/use-campus";
+import { CampusBadge } from "@/components/layout/CampusBadge";
 
 interface Testimonial extends DocumentData {
   id: string;
@@ -140,6 +141,9 @@ function HomePageContent() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
+                                    <React.Suspense fallback={null}>
+                                        <CampusBadge className="flex md:hidden mx-auto w-fit mb-4" />
+                                    </React.Suspense>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Prep easier {campus && isMounted ? `at ${campus.shortName}` : ''}, with Prepezia.
                                     </h1>
@@ -170,6 +174,9 @@ function HomePageContent() {
                          <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
+                                    <React.Suspense fallback={null}>
+                                        <CampusBadge className="flex md:hidden mx-auto w-fit mb-4" />
+                                    </React.Suspense>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Dynamic Note Generation
                                     </h1>
@@ -199,6 +206,9 @@ function HomePageContent() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
+                                    <React.Suspense fallback={null}>
+                                        <CampusBadge className="flex md:hidden mx-auto w-fit mb-4" />
+                                    </React.Suspense>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         {campus && isMounted ? `${campus.shortName}` : 'Ghana'} Past Questions Hub
                                     </h1>
@@ -228,6 +238,9 @@ function HomePageContent() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
+                                    <React.Suspense fallback={null}>
+                                        <CampusBadge className="flex md:hidden mx-auto w-fit mb-4" />
+                                    </React.Suspense>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         Generate Notes & Podcasts
                                     </h1>
@@ -257,6 +270,9 @@ function HomePageContent() {
                         <CarouselItem>
                             <div className="grid md:grid-cols-2 gap-12 items-center">
                                 <div className="space-y-4 pt-5 text-center md:text-left">
+                                    <React.Suspense fallback={null}>
+                                        <CampusBadge className="flex md:hidden mx-auto w-fit mb-4" />
+                                    </React.Suspense>
                                     <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                                         AI Deep Dive Research
                                     </h1>

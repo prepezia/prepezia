@@ -1,30 +1,9 @@
-
 "use client";
 
 import { Logo } from "@/components/icons/Logo";
 import Link from "next/link";
-import { useCampus } from "@/hooks/use-campus";
-import { Badge } from "@/components/ui/badge";
-import { School } from "lucide-react";
-import { useState, useEffect, Suspense } from "react";
-
-function CampusEditionBadge() {
-  const { campus } = useCampus();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!campus || !isMounted) return null;
-
-  return (
-    <Badge variant="outline" className="flex items-center gap-1.5 border-primary/30 text-primary bg-primary/5 py-1 px-3 shrink-0">
-        <School className="h-3.5 w-3.5" />
-        <span className="font-bold text-[14px] sm:text-[18px] uppercase tracking-wider">{campus.shortName} Edition</span>
-    </Badge>
-  );
-}
+import { CampusBadge } from "@/components/layout/CampusBadge";
+import { Suspense } from "react";
 
 export default function AuthLayout({
   children,
@@ -39,7 +18,7 @@ export default function AuthLayout({
                     <Logo className="h-12 w-36" />
                 </Link>
                 <Suspense fallback={null}>
-                    <CampusEditionBadge />
+                    <CampusBadge />
                 </Suspense>
             </div>
             {children}
