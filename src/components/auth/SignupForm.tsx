@@ -26,10 +26,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   User,
-  serverTimestamp,
   sendEmailVerification
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Progress } from "../ui/progress";
 
