@@ -14,11 +14,25 @@ export default function manifest(): MetadataRoute.Manifest {
         src: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
         sizes: '192x192',
         type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
       },
       {
         src: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: 'https://firebasestorage.googleapis.com/v0/b/studio-4412321193-4bb31.firebasestorage.app/o/public%2Ffavicon.png?alt=media&token=2eba5a56-46dc-44db-9d8c-a91cff1f4f2c',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
       },
     ],
   }
