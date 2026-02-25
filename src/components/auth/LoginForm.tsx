@@ -21,7 +21,7 @@ import { useState } from "react";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   setPersistence,
   browserSessionPersistence,
   browserLocalPersistence,
@@ -85,30 +85,19 @@ export function LoginForm() {
   }
 
   async function onGoogleSignIn() {
-    if (!auth || !firestore) return;
+    if (!auth) return;
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      // For Google Sign-In, we usually want to keep the user signed in.
       await setPersistence(auth, browserLocalPersistence);
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      const userRef = doc(firestore, "users", user.uid);
-      await setDoc(userRef, {
-        name: user.displayName,
-        email: user.email,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
-
-      router.push("/home");
+      // Use signInWithRedirect for better subdomain and iframe/workstation support
+      await signInWithRedirect(auth, provider);
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
         description: error.message,
       });
-    } finally {
       setIsGoogleLoading(false);
     }
   }
