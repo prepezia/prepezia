@@ -23,9 +23,6 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  setPersistence,
-  browserSessionPersistence,
-  browserLocalPersistence,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -70,8 +67,6 @@ export function LoginForm() {
     if (!auth) return;
     setIsLoading(true);
     try {
-      const persistence = values.keepMeSignedIn ? browserLocalPersistence : browserSessionPersistence;
-      await setPersistence(auth, persistence);
       await signInWithEmailAndPassword(auth, values.email, values.password);
       router.push("/home");
     } catch (error: any) {
@@ -90,10 +85,8 @@ export function LoginForm() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, provider);
       
-      // Sync user to Firestore
       const user = result.user;
       const userRef = doc(firestore, "users", user.uid);
       await setDoc(userRef, {
@@ -105,8 +98,17 @@ export function LoginForm() {
 
       router.push("/home");
     } catch (error: any) {
-      // Gracefully handle if the user closes the popup
       if (error.code === 'auth/popup-closed-by-user') {
+        setIsGoogleLoading(false);
+        return;
+      }
+      
+      if (error.code === 'auth/popup-blocked') {
+        toast({
+          variant: "destructive",
+          title: "Popup Blocked",
+          description: "Your browser blocked the sign-in window. Please allow popups for this site and try again.",
+        });
         setIsGoogleLoading(false);
         return;
       }

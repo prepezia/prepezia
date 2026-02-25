@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { User, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { User, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { PhoneVerificationForm } from '@/components/auth/PhoneVerificationForm';
 import {
@@ -43,7 +43,6 @@ export default function SignupPage() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -58,6 +57,16 @@ export default function SignupPage() {
       handleSignupSuccess(user);
     } catch (error: any) {
       if (error.code === 'auth/popup-closed-by-user') {
+        setIsGoogleLoading(false);
+        return;
+      }
+
+      if (error.code === 'auth/popup-blocked') {
+        toast({
+          variant: "destructive",
+          title: "Popup Blocked",
+          description: "Your browser blocked the sign-in window. Please allow popups for this site and try again.",
+        });
         setIsGoogleLoading(false);
         return;
       }
