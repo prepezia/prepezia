@@ -44,7 +44,6 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-
 export function LoginForm() {
   const router = useRouter();
   const auth = useAuth();
@@ -82,8 +81,9 @@ export function LoginForm() {
 
   async function onGoogleSignIn() {
     if (!auth || !firestore) return;
-    setIsGoogleLoading(true);
     
+    // Direct interaction - no async calls before the popup to prevent blocks or state loss
+    setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
