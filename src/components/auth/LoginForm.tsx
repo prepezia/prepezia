@@ -83,11 +83,14 @@ export function LoginForm() {
   async function onGoogleSignIn() {
     if (!auth || !firestore) return;
     setIsGoogleLoading(true);
+    
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
     try {
       const result = await signInWithPopup(auth, provider);
-      
       const user = result.user;
+      
       const userRef = doc(firestore, "users", user.uid);
       await setDoc(userRef, {
           name: user.displayName,
@@ -117,7 +120,7 @@ export function LoginForm() {
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
-        description: error.message || "An unexpected error occurred during Google Sign-In.",
+        description: error.message || "The requested action is invalid. Please check your network.",
       });
     } finally {
       setIsGoogleLoading(false);
