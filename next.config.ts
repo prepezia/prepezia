@@ -9,10 +9,9 @@ const pwaConfig = withPWA({
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '50mb',
-    },
+  // serverActions is now stable in Next.js 15 and moved out of experimental
+  serverActions: {
+    bodySizeLimit: '50mb',
   },
   // Ensure ESM-only markdown packages are transpiled correctly to avoid chunk errors
   transpilePackages: ['react-markdown', 'remark-gfm', 'micromark', 'mdast-util-from-markdown'],

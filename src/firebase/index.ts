@@ -19,7 +19,7 @@ let storage: FirebaseStorage;
 
 /**
  * Initializes Firebase services for the client.
- * Uses long-polling for stable Firestore connectivity in restricted environments.
+ * Uses long-polling for stable Firestore connectivity in restricted environments (like Cloud Workstations).
  */
 function initializeFirebase() {
   if (typeof window === 'undefined') return {};
@@ -34,10 +34,13 @@ function initializeFirebase() {
   
   if (!firestore) {
     try {
+      // In restricted networking environments (like workstations or proxies),
+      // WebSockets (default) can fail. We force Long Polling for reliability.
       firestore = initializeFirestore(firebaseApp, {
         experimentalForceLongPolling: true,
       });
     } catch (e) {
+      // Fallback if already initialized (e.g. during HMR)
       firestore = getFirestore(firebaseApp);
     }
   }
