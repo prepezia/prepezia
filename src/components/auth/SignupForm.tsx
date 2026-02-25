@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -24,7 +23,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   User,
   setPersistence,
   browserLocalPersistence,
@@ -154,19 +153,33 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
       return;
     }
 
-    if (!auth) return;
+    if (!auth || !firestore) return;
 
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-    // This will redirect the user. The result is handled on the page component.
-    await signInWithRedirect(auth, provider).catch(error => {
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      const userRef = doc(firestore, "users", user.uid);
+      await setDoc(userRef, {
+          name: user.displayName,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          createdAt: serverTimestamp()
+      }, { merge: true });
+
+      onSuccess(user);
+    } catch (error: any) {
         toast({
             variant: "destructive",
             title: "Google Sign-In Failed",
             description: error.message,
         });
+    } finally {
         setIsGoogleLoading(false);
-    });
+    }
   }
 
   return (

@@ -21,7 +21,7 @@ import { useState } from "react";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   setPersistence,
   browserSessionPersistence,
   browserLocalPersistence,
@@ -85,19 +85,32 @@ export function LoginForm() {
   }
 
   async function onGoogleSignIn() {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
       await setPersistence(auth, browserLocalPersistence);
-      // Use signInWithRedirect for better subdomain and iframe/workstation support
-      await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      
+      // Sync user to Firestore
+      const user = result.user;
+      const userRef = doc(firestore, "users", user.uid);
+      await setDoc(userRef, {
+          name: user.displayName,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          createdAt: serverTimestamp()
+      }, { merge: true });
+
+      router.push("/home");
     } catch (error: any) {
+      console.error("Google Sign-In Error:", error);
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
         description: error.message,
       });
+    } finally {
       setIsGoogleLoading(false);
     }
   }

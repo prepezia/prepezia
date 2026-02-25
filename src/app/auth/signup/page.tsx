@@ -1,8 +1,7 @@
-
 "use client";
 
-import { useState, useEffect } from 'react';
-import { User, getRedirectResult } from 'firebase/auth';
+import { useState } from 'react';
+import { User, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { PhoneVerificationForm } from '@/components/auth/PhoneVerificationForm';
 import {
@@ -26,44 +25,7 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [step, setStep] = useState<'credentials' | 'phone'>('credentials');
   const [user, setUser] = useState<User | null>(null);
-  const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
-
-  useEffect(() => {
-    if (!auth || !firestore) {
-      setIsProcessingRedirect(false);
-      return;
-    };
-
-    const processRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          // User has successfully signed in with Google.
-          const user = result.user;
-          const userRef = doc(firestore, "users", user.uid);
-          await setDoc(userRef, {
-              name: user.displayName,
-              email: user.email,
-              emailVerified: user.emailVerified,
-              createdAt: serverTimestamp()
-          }, { merge: true });
-
-          // Now move to the phone verification step
-          handleSignupSuccess(user);
-        }
-      } catch (error: any) {
-        toast({
-            variant: "destructive",
-            title: "Google Sign-In Failed",
-            description: error.message,
-        });
-      } finally {
-        setIsProcessingRedirect(false);
-      }
-    };
-
-    processRedirect();
-  }, [auth, firestore, toast]);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleSignupSuccess = (newUser: User) => {
     setUser(newUser);
@@ -71,21 +33,38 @@ export default function SignupPage() {
   };
 
   const handleBackToCredentials = () => {
-    // Optionally, you might want to delete the created user if they go back
     setStep('credentials');
     setUser(null);
   };
 
-  if (isProcessingRedirect) {
-    return (
-        <Card>
-            <CardContent className="flex flex-col items-center justify-center p-12 gap-4">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">Processing Sign-In...</p>
-            </CardContent>
-        </Card>
-    );
-  }
+  const handleGoogleSignUp = async () => {
+    if (!auth || !firestore) return;
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      const userRef = doc(firestore, "users", user.uid);
+      await setDoc(userRef, {
+          name: user.displayName,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          createdAt: serverTimestamp()
+      }, { merge: true });
+
+      handleSignupSuccess(user);
+    } catch (error: any) {
+      toast({
+          variant: "destructive",
+          title: "Google Sign-In Failed",
+          description: error.message,
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   return (
     <Card>
@@ -97,10 +76,10 @@ export default function SignupPage() {
               Step 1/2: Start your smarter learning journey today.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <SignupForm onSuccess={handleSignupSuccess} />
           </CardContent>
-          <CardFooter className="flex justify-center">
+          <CardFooter className="flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">
               Already have an account?
               <Button asChild variant="link" className="px-1">
