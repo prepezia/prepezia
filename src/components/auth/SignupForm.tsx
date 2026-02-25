@@ -171,11 +171,21 @@ export function SignupForm({ onSuccess }: { onSuccess: (user: User) => void }) {
             setIsGoogleLoading(false);
             return;
         }
+
+        if (error.code === 'auth/popup-blocked') {
+          toast({
+            variant: "destructive",
+            title: "Popup Blocked",
+            description: "Your browser blocked the sign-in window. Please allow popups for this site and try again.",
+          });
+          setIsGoogleLoading(false);
+          return;
+        }
         
         toast({
             variant: "destructive",
             title: "Google Sign-In Failed",
-            description: error.message,
+            description: error.message || "The requested action is invalid. Check your project configuration.",
         });
     } finally {
         setIsGoogleLoading(false);

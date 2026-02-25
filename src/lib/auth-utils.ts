@@ -1,3 +1,4 @@
+
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type Auth, type ConfirmationResult } from "firebase/auth";
 
 declare global {

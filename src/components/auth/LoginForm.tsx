@@ -120,7 +120,7 @@ export function LoginForm() {
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
-        description: error.message || "The requested action is invalid. Please check your network.",
+        description: error.message || "The requested action is invalid. Please check your network and project configuration.",
       });
     } finally {
       setIsGoogleLoading(false);
